@@ -1,0 +1,823 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import api from '../api';
+import type { Competition, Club } from '../types';
+import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
+import { format } from 'date-fns';
+import PaymentModal from '../components/PaymentModal';
+import ErrorBoundary from '../components/ErrorBoundary';
+
+function parseDate(value: string | number[]): Date {
+  if (Array.isArray(value)) {
+    const [y, m, d, h = 0, mi = 0, s = 0] = value as number[];
+    return new Date(Date.UTC(y, m - 1, d, h, mi, s));
+  }
+  const str = (value.endsWith('Z') || value.includes('+')) ? value : value + 'Z';
+  return new Date(str);
+}
+
+export default function CompetitionsPage() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const isAdminOrClubAdmin = user?.role === 'ADMIN' || user?.role === 'CLUB_ADMIN';
+
+  const [selectedClub, setSelectedClub] = useState<Club | null>(null);
+  const [payingComp, setPayingComp] = useState<Competition | null>(null);
+  const [viewMode, setViewMode] = useState<'available' | 'mine' | 'past'>('available');
+
+  // Filter / sort / view state
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'UPCOMING' | 'ACTIVE'>('ALL');
+  const [sortBy, setSortBy] = useState<'date' | 'players' | 'name'>('date');
+  const [listView, setListView] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 12;
+
+  // Reset page when filters change
+  useEffect(() => { setCurrentPage(1); }, [search, statusFilter, sortBy, selectedClub, viewMode]);
+
+  const { data: clubs } = useQuery<Club[]>({
+    queryKey: ['clubs'],
+    queryFn: () => api.get('/competitions/clubs').then((r) => Array.isArray(r.data) ? r.data : []),
+    staleTime: 60_000,
+  });
+
+  const { data: competitions, isLoading, error } = useQuery<Competition[]>({
+    queryKey: ['competitions', 'upcoming', selectedClub?.id ?? null],
+    queryFn: () => {
+      const params = selectedClub ? `?clubId=${selectedClub.id}` : '';
+      return api.get(`/competitions/upcoming${params}`).then((r) => Array.isArray(r.data) ? r.data : []);
+    },
+    enabled: viewMode === 'available',
+    staleTime: 30_000,
+  });
+
+  const { data: myCompetitionsData, isLoading: myLoading, error: myError } = useQuery<any[]>({
+    queryKey: ['competitions', 'my', 'details'],
+    queryFn: () => api.get('/competitions/my/details').then((r) => Array.isArray(r.data) ? r.data : []),
+    enabled: viewMode === 'mine',
+  });
+
+  const { data: joinedIds } = useQuery<number[]>({
+    queryKey: ['competitions', 'my'],
+    queryFn: () => api.get('/competitions/my').then((r) => Array.isArray(r.data) ? r.data : []),
+    enabled: viewMode === 'available',
+  });
+
+  const { data: pastCompetitions, isLoading: pastLoading, error: pastError } = useQuery<Competition[]>({
+    queryKey: ['competitions', 'past', selectedClub?.id ?? null],
+    queryFn: () => {
+      const params = selectedClub ? `?clubId=${selectedClub.id}` : '';
+      return api.get(`/competitions/past${params}`).then((r) => Array.isArray(r.data) ? r.data : []);
+    },
+    enabled: viewMode === 'past' && isAdminOrClubAdmin,
+  });
+
+  const joinMutation = useMutation({
+    mutationFn: (id: number) => api.post(`/competitions/${id}/join`),
+    onSuccess: (_, id) => {
+      const comp = competitions?.find(c => c.id === id);
+      if (comp?.paymentMode === 'MANUAL') {
+        toast(
+          `You've registered for ${comp.name}! Please pay €${comp.entryFee} to the organiser. Your entry will be activated once payment is confirmed.`,
+          { icon: '💸', duration: 8000 }
+        );
+      } else {
+        toast.success('Joined competition!');
+      }
+      queryClient.invalidateQueries({ queryKey: ['competitions'] });
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to join'),
+  });
+
+  const handleJoin = (comp: Competition) => {
+    if (comp.entryFee > 0 && comp.paymentMode === 'STRIPE') {
+      setPayingComp(comp);
+    } else {
+      // FREE or MANUAL — join directly
+      joinMutation.mutate(comp.id);
+    }
+  };
+
+  const currentLoading = viewMode === 'available' ? isLoading : viewMode === 'mine' ? myLoading : pastLoading;
+
+  const joinedSet      = new Set(joinedIds ?? []);
+  const allComps       = competitions ?? [];
+  const myComps        = myCompetitionsData ?? [];
+  const finishedComps  = myComps.filter((mc: any) => mc.competition.status === 'COMPLETED');
+  const activeComps    = myComps.filter((mc: any) => mc.competition.status !== 'COMPLETED' && (mc.myStatus === 'ACTIVE' || mc.myStatus === 'WINNER'));
+  const eliminatedComps = myComps.filter((mc: any) => mc.competition.status !== 'COMPLETED' && mc.myStatus === 'ELIMINATED');
+
+  // All useMemo hooks must be called before any early return
+  const filteredAvailable = useMemo(() => {
+    let list = allComps;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(c => c.name.toLowerCase().includes(q) || c.clubName?.toLowerCase().includes(q) || c.description?.toLowerCase().includes(q));
+    }
+    if (statusFilter !== 'ALL') list = list.filter(c => c.status === statusFilter);
+    switch (sortBy) {
+      case 'players': list = [...list].sort((a, b) => b.participantCount - a.participantCount); break;
+      case 'name':    list = [...list].sort((a, b) => a.name.localeCompare(b.name)); break;
+      case 'date':
+      default:
+        list = [...list].sort((a, b) => {
+          const da = a.firstGameweekDate ?? a.startDate ?? '';
+          const db = b.firstGameweekDate ?? b.startDate ?? '';
+          return da.localeCompare(db);
+        });
+    }
+    return list;
+  }, [allComps, search, statusFilter, sortBy]);
+
+  const filteredMine = useMemo(() => {
+    if (!search.trim()) return myComps;
+    const q = search.toLowerCase();
+    return myComps.filter((mc: any) => mc.competition.name.toLowerCase().includes(q) || mc.competition.clubName?.toLowerCase().includes(q));
+  }, [myComps, search]);
+
+  const filteredPast = useMemo(() => {
+    let list = pastCompetitions ?? [];
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(c => c.name.toLowerCase().includes(q) || c.clubName?.toLowerCase().includes(q));
+    }
+    return list;
+  }, [pastCompetitions, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredAvailable.length / PAGE_SIZE));
+  const page = Math.min(currentPage, totalPages);
+  const paginatedAvailable = filteredAvailable.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  if (currentLoading) return <LoadingState />;
+
+  const sorted      = [...allComps].sort((a, b) => (joinedSet.has(a.id) ? 0 : 1) - (joinedSet.has(b.id) ? 0 : 1));
+  const joinedComps = sorted.filter((c) => joinedSet.has(c.id));
+  const otherComps  = sorted.filter((c) => !joinedSet.has(c.id));
+
+  const showClubFilter = clubs && clubs.length > 0 && (viewMode === 'available' || (viewMode === 'past' && user?.role === 'ADMIN'));
+
+  return (
+    <div className="space-y-5 sm:space-y-6">
+      {/* ── Page header ── */}
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-bold">Competitions</h1>
+        <p className="mt-1 text-sm text-gray-400">Pick one team per gameweek — last survivor wins</p>
+      </div>
+
+      {/* ── Tabs + search row ── */}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="inline-flex rounded-lg bg-surface-700 p-1 self-start">
+            <TabButton active={viewMode === 'available'} onClick={() => setViewMode('available')}>
+              Available
+              {competitions && competitions.length > 0 && (
+                <CountBadge count={competitions.length} active={viewMode === 'available'} />
+              )}
+            </TabButton>
+            <TabButton active={viewMode === 'mine'} onClick={() => setViewMode('mine')}>
+              My Competitions
+              {myComps.length > 0 && (
+                <CountBadge count={myComps.length} active={viewMode === 'mine'} />
+              )}
+            </TabButton>
+            {isAdminOrClubAdmin && (
+              <TabButton active={viewMode === 'past'} onClick={() => setViewMode('past')}>Past</TabButton>
+            )}
+          </div>
+
+          {/* Search */}
+          <div className="relative sm:ml-auto w-full sm:w-72">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search competitions…"
+              className="input-field w-full pl-9 text-sm"
+            />
+            {search && (
+              <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-lg">×</button>
+            )}
+          </div>
+        </div>
+
+        {/* Available-tab filter row */}
+        {viewMode === 'available' && (
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Status pills */}
+            <div className="inline-flex rounded-lg bg-surface-700 p-0.5">
+              {(['ALL', 'UPCOMING', 'ACTIVE'] as const).map(s => (
+                <button key={s} onClick={() => setStatusFilter(s)}
+                  className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${statusFilter === s ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'}`}>
+                  {s === 'ALL' ? `All (${competitions?.length ?? 0})` : s === 'UPCOMING' ? `Upcoming (${competitions?.filter(c => c.status === 'UPCOMING').length ?? 0})` : `Active (${competitions?.filter(c => c.status === 'ACTIVE').length ?? 0})`}
+                </button>
+              ))}
+            </div>
+
+            {/* Sort */}
+            <select value={sortBy} onChange={e => setSortBy(e.target.value as any)}
+              className="rounded-lg bg-surface-700 border border-gray-600 px-3 py-1 text-xs text-gray-200 focus:outline-none focus:border-brand-500">
+              <option value="date">Sort: Date</option>
+              <option value="players">Sort: Most Players</option>
+              <option value="name">Sort: Name A–Z</option>
+            </select>
+
+            {/* Club filter */}
+            {showClubFilter && (
+              <div className="w-44">
+                <ErrorBoundary fallback={null}>
+                  <ClubTypeahead clubs={clubs!} selected={selectedClub} onSelect={setSelectedClub} />
+                </ErrorBoundary>
+              </div>
+            )}
+
+            {/* List/grid toggle */}
+            <div className="ml-auto inline-flex rounded-lg bg-surface-700 p-0.5">
+              <button onClick={() => setListView(false)}
+                className={`p-1.5 rounded-md transition-colors ${!listView ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'}`} title="Grid view">
+                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 16 16">
+                  <path d="M1 2.5A1.5 1.5 0 012.5 1h3A1.5 1.5 0 017 2.5v3A1.5 1.5 0 015.5 7h-3A1.5 1.5 0 011 5.5v-3zm8 0A1.5 1.5 0 0110.5 1h3A1.5 1.5 0 0115 2.5v3A1.5 1.5 0 0113.5 7h-3A1.5 1.5 0 019 5.5v-3zm-8 8A1.5 1.5 0 012.5 9h3A1.5 1.5 0 017 10.5v3A1.5 1.5 0 015.5 15h-3A1.5 1.5 0 011 13.5v-3zm8 0A1.5 1.5 0 0110.5 9h3A1.5 1.5 0 0115 10.5v3A1.5 1.5 0 0113.5 15h-3A1.5 1.5 0 019 13.5v-3z"/>
+                </svg>
+              </button>
+              <button onClick={() => setListView(true)}
+                className={`p-1.5 rounded-md transition-colors ${listView ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'}`} title="List view">
+                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 16 16">
+                  <path fillRule="evenodd" d="M2.5 12a.5.5 0 01.5-.5h10a.5.5 0 010 1H3a.5.5 0 01-.5-.5zm0-4a.5.5 0 01.5-.5h10a.5.5 0 010 1H3a.5.5 0 01-.5-.5zm0-4a.5.5 0 01.5-.5h10a.5.5 0 010 1H3a.5.5 0 01-.5-.5z"/>
+                </svg>
+              </button>
+            </div>
+
+            {/* Result count */}
+            {(search || statusFilter !== 'ALL') && (
+              <span className="text-xs text-gray-500">
+                {filteredAvailable.length} result{filteredAvailable.length !== 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── My Competitions — summary strip ── */}
+      {viewMode === 'mine' && myComps.length > 0 && (
+        <div className="grid grid-cols-3 gap-3">
+          <StatTile label="Active"     value={activeComps.length}    color="text-green-400" />
+          <StatTile label="Eliminated" value={eliminatedComps.length} color="text-red-400"   />
+          <StatTile label="Finished"   value={finishedComps.length}  color="text-gray-400"  />
+        </div>
+      )}
+
+      {/* ── Available ── */}
+      {viewMode === 'available' && (
+        error ? (
+          <ErrorState message="Failed to load competitions" />
+        ) : filteredAvailable.length === 0 ? (
+          search || statusFilter !== 'ALL'
+            ? <EmptyState icon="🔍" title="No competitions match your search" action={<button onClick={() => { setSearch(''); setStatusFilter('ALL'); }} className="text-brand-400 hover:text-brand-300 underline text-sm">Clear filters</button>} />
+            : <EmptyState icon="🏆" title="No competitions available yet" subtitle="Check back soon — new competitions are added regularly" />
+        ) : (
+          <div className="space-y-4">
+            {listView ? (
+              <CompListView comps={paginatedAvailable} joinedSet={joinedSet} onJoin={(c) => { const mc = competitions?.find(x => x.id === c.id); if (mc) handleJoin(mc); }} isPending={joinMutation.isPending} />
+            ) : (
+              <CompGrid>
+                {paginatedAvailable.map((c) => (
+                  <CompetitionCard key={c.id} comp={c} joined={joinedSet.has(c.id)} onJoin={() => handleJoin(c)} isPending={joinMutation.isPending} />
+                ))}
+              </CompGrid>
+            )}
+            <Pagination page={page} totalPages={totalPages} total={filteredAvailable.length} pageSize={PAGE_SIZE} onPage={setCurrentPage} />
+          </div>
+        )
+      )}
+
+      {/* ── Mine ── */}
+      {viewMode === 'mine' && (
+        myError ? (
+          <ErrorState message="Failed to load your competitions" />
+        ) : !myComps.length ? (
+          <EmptyState icon="🏆" title="You haven't joined any competitions yet"
+            action={<button onClick={() => setViewMode('available')} className="text-brand-400 hover:text-brand-300 underline text-sm">Browse available competitions</button>}
+          />
+        ) : filteredMine.length === 0 ? (
+          <EmptyState icon="🔍" title="No competitions match your search" action={<button onClick={() => setSearch('')} className="text-brand-400 hover:text-brand-300 underline text-sm">Clear search</button>} />
+        ) : (
+          <div className="space-y-8">
+            {filteredMine.filter((mc: any) => mc.competition.status !== 'COMPLETED' && (mc.myStatus === 'ACTIVE' || mc.myStatus === 'WINNER')).length > 0 && (
+              <Section label={`Active (${filteredMine.filter((mc: any) => mc.competition.status !== 'COMPLETED' && (mc.myStatus === 'ACTIVE' || mc.myStatus === 'WINNER')).length})`} icon="✓" iconColor="bg-green-600">
+                <CompGrid>{filteredMine.filter((mc: any) => mc.competition.status !== 'COMPLETED' && (mc.myStatus === 'ACTIVE' || mc.myStatus === 'WINNER')).map((mc: any) => <MyCompetitionCard key={mc.competition.id} myComp={mc} />)}</CompGrid>
+              </Section>
+            )}
+            {filteredMine.filter((mc: any) => mc.competition.status !== 'COMPLETED' && mc.myStatus === 'ELIMINATED').length > 0 && (
+              <Section label={`Eliminated (${filteredMine.filter((mc: any) => mc.competition.status !== 'COMPLETED' && mc.myStatus === 'ELIMINATED').length})`} icon="✕" iconColor="bg-gray-600">
+                <CompGrid>{filteredMine.filter((mc: any) => mc.competition.status !== 'COMPLETED' && mc.myStatus === 'ELIMINATED').map((mc: any) => <MyCompetitionCard key={mc.competition.id} myComp={mc} />)}</CompGrid>
+              </Section>
+            )}
+            {filteredMine.filter((mc: any) => mc.competition.status === 'COMPLETED').length > 0 && (
+              <Section label={`Finished (${filteredMine.filter((mc: any) => mc.competition.status === 'COMPLETED').length})`} icon="🏁" iconColor="bg-gray-700">
+                <CompGrid>{filteredMine.filter((mc: any) => mc.competition.status === 'COMPLETED').map((mc: any) => <MyCompetitionCard key={mc.competition.id} myComp={mc} />)}</CompGrid>
+              </Section>
+            )}
+          </div>
+        )
+      )}
+
+      {/* ── Past (admin only) ── */}
+      {viewMode === 'past' && isAdminOrClubAdmin && (
+        pastError ? (
+          <ErrorState message="Failed to load past competitions" />
+        ) : filteredPast.length === 0 ? (
+          search
+            ? <EmptyState icon="🔍" title="No competitions match your search" action={<button onClick={() => setSearch('')} className="text-brand-400 hover:text-brand-300 underline text-sm">Clear search</button>} />
+            : <EmptyState icon="📋" title="No completed competitions yet" subtitle="Completed competitions will appear here" />
+        ) : (
+          <CompGrid>{filteredPast.map((c) => <PastCompetitionCard key={c.id} comp={c} />)}</CompGrid>
+        )
+      )}
+
+      {payingComp && (
+        <PaymentModal
+          competition={payingComp}
+          onSuccess={() => {
+            setPayingComp(null);
+            toast.success(`Joined ${payingComp.name}!`);
+            queryClient.invalidateQueries({ queryKey: ['competitions'] });
+          }}
+          onClose={() => setPayingComp(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ── Compact list view ───────────────────────────────────────────────────── */
+
+function CompListView({ comps, joinedSet, onJoin, isPending }: {
+  comps: Competition[]; joinedSet: Set<number>; onJoin: (c: Competition) => void; isPending: boolean;
+}) {
+  return (
+    <div className="card overflow-hidden divide-y divide-gray-700/50">
+      {comps.map((c) => {
+        const joined = joinedSet.has(c.id);
+        const dateStr = c.firstGameweekDate ?? c.startDate;
+        return (
+          <div key={c.id} className="flex items-center gap-3 px-4 py-3 hover:bg-surface-700/30 transition-colors">
+            {/* Status dot */}
+            <span className={`shrink-0 w-2 h-2 rounded-full ${c.status === 'ACTIVE' ? 'bg-green-400' : 'bg-blue-400'}`} />
+
+            {/* Main info */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-medium text-sm text-white truncate">{c.name}</span>
+                {c.clubName && <span className="badge-yellow text-xs shrink-0">{c.clubName}</span>}
+                {joined && <span className="badge shrink-0 bg-brand-600/20 border border-brand-500/40 text-brand-400 text-xs">Joined</span>}
+              </div>
+              <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-500">
+                {dateStr && <span>{format(parseDate(dateStr), 'MMM d, yyyy')}</span>}
+                <span>{c.participantCount} players{c.status === 'ACTIVE' ? ` · ${c.activeCount} surviving` : ''}</span>
+                <span className={c.entryFee > 0 ? 'text-brand-400 font-medium' : 'text-green-400'}>{c.entryFee > 0 ? `€${c.entryFee}` : 'Free'}</span>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="shrink-0 flex gap-2">
+              <Link to={`/competitions/${c.id}`} className="text-xs px-3 py-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 text-gray-300 transition">
+                {joined ? 'Open' : 'View'}
+              </Link>
+              {!joined && c.status === 'UPCOMING' && (
+                <button onClick={() => onJoin(c)} disabled={isPending}
+                  className="text-xs px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white transition">
+                  {c.entryFee > 0 ? `Join €${c.entryFee}` : 'Join'}
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── Pagination ──────────────────────────────────────────────────────────── */
+
+function Pagination({ page, totalPages, total, pageSize, onPage }: {
+  page: number; totalPages: number; total: number; pageSize: number; onPage: (p: number) => void;
+}) {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
+      <p className="text-sm text-gray-400">
+        Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} of {total}
+      </p>
+      <div className="flex items-center gap-1">
+        <button onClick={() => onPage(1)} disabled={page === 1} className="px-2 py-1 text-xs rounded bg-surface-700 hover:bg-surface-600 text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed">«</button>
+        <button onClick={() => onPage(page - 1)} disabled={page === 1} className="px-3 py-1 text-xs rounded bg-surface-700 hover:bg-surface-600 text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed">← Prev</button>
+        {Array.from({ length: totalPages }, (_, i) => i + 1)
+          .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+          .reduce<(number | '...')[]>((acc, p, idx, arr) => {
+            if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push('...');
+            acc.push(p);
+            return acc;
+          }, [])
+          .map((p, idx) => p === '...'
+            ? <span key={`e${idx}`} className="px-2 text-xs text-gray-500">…</span>
+            : <button key={p} onClick={() => onPage(p as number)}
+                className={`px-3 py-1 text-xs rounded transition ${page === p ? 'bg-brand-600 text-white font-medium' : 'bg-surface-700 hover:bg-surface-600 text-gray-300'}`}>{p}</button>
+          )}
+        <button onClick={() => onPage(page + 1)} disabled={page === totalPages} className="px-3 py-1 text-xs rounded bg-surface-700 hover:bg-surface-600 text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed">Next →</button>
+        <button onClick={() => onPage(totalPages)} disabled={page === totalPages} className="px-2 py-1 text-xs rounded bg-surface-700 hover:bg-surface-600 text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed">»</button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Layout helpers ──────────────────────────────────────────────────────── */
+
+function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button onClick={onClick}
+      className={`inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+        active ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'
+      }`}>
+      {children}
+    </button>
+  );
+}
+
+function CountBadge({ count, active }: { count: number; active: boolean }) {
+  return (
+    <span className={`inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full text-xs font-bold ${
+      active ? 'bg-white/20 text-white' : 'bg-surface-600 text-gray-400'
+    }`}>{count}</span>
+  );
+}
+
+function StatTile({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <div className="card p-3 sm:p-4 text-center">
+      <div className={`text-2xl sm:text-3xl font-bold ${color}`}>{value}</div>
+      <div className="mt-0.5 text-xs sm:text-sm text-gray-400">{label}</div>
+    </div>
+  );
+}
+
+function Section({ label, icon, iconColor, children }: { label?: string; icon?: string; iconColor?: string; children: React.ReactNode }) {
+  return (
+    <section className="space-y-3 sm:space-y-4">
+      {label && (
+        <h2 className="text-sm sm:text-base font-semibold text-gray-300 flex items-center gap-2">
+          {icon && <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full ${iconColor} text-xs text-white`}>{icon}</span>}
+          {label}
+        </h2>
+      )}
+      {children}
+    </section>
+  );
+}
+
+function CompGrid({ children }: { children: React.ReactNode }) {
+  return <div className="grid gap-4 sm:gap-5 sm:grid-cols-2 lg:grid-cols-3">{children}</div>;
+}
+
+function EmptyState({ icon, title, subtitle, action }: { icon: string; title: string; subtitle?: string; action?: React.ReactNode }) {
+  return (
+    <div className="card text-center py-16">
+      <div className="text-4xl mb-3">{icon}</div>
+      <p className="text-base font-medium text-gray-300">{title}</p>
+      {subtitle && <p className="mt-1 text-sm text-gray-500">{subtitle}</p>}
+      {action && <div className="mt-3">{action}</div>}
+    </div>
+  );
+}
+
+/* ── Survivor progress bar ───────────────────────────────────────────────── */
+
+function SurvivorBar({ active, total }: { active: number; total: number }) {
+  if (!total) return null;
+  const pct = Math.round((active / total) * 100);
+  return (
+    <div className="mt-3">
+      <div className="flex justify-between text-xs text-gray-500 mb-1">
+        <span>{active} surviving</span>
+        <span>{total} started</span>
+      </div>
+      <div className="h-1.5 w-full rounded-full bg-surface-600 overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all ${pct > 50 ? 'bg-green-500' : pct > 25 ? 'bg-yellow-500' : 'bg-red-500'}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/* ── Cards ───────────────────────────────────────────────────────────────── */
+
+function CompetitionCard({ comp, joined, onJoin, isPending }: {
+  comp: Competition; joined: boolean; onJoin: () => void; isPending: boolean;
+}) {
+  const prizePool = comp.prizePool ?? 0;
+
+  return (
+    <div className={`card flex flex-col p-4 sm:p-5 transition-colors ${joined ? 'border-brand-500/60 hover:border-brand-400/80' : 'hover:border-gray-600'}`}>
+      {/* Status + joined badge */}
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <span className={comp.status === 'UPCOMING' ? 'badge-blue' : comp.status === 'ACTIVE' ? 'badge-green' : 'badge-gray'}>
+          {comp.status}
+        </span>
+        {joined && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-brand-600/20 border border-brand-500/40 px-2 py-0.5 text-xs font-medium text-brand-400">
+            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+            Joined
+          </span>
+        )}
+      </div>
+
+      <h3 className="text-lg sm:text-xl font-bold leading-snug">{comp.name}</h3>
+      {comp.clubName && <span className="mt-1 inline-block badge-yellow text-xs self-start">{comp.clubName}</span>}
+      {comp.description && <p className="mt-2 text-xs text-gray-400 line-clamp-2">{comp.description}</p>}
+
+      {/* Metadata grid */}
+      <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-400">
+        <div>
+          <span className="block text-gray-500">First Gameweek</span>
+          <span className="text-gray-200 font-medium">
+            {comp.firstGameweekDate
+              ? format(parseDate(comp.firstGameweekDate), 'MMM d, yyyy')
+              : comp.startDate
+              ? format(parseDate(comp.startDate), 'MMM d, yyyy')
+              : '—'}
+          </span>
+        </div>
+        <div>
+          <span className="block text-gray-500">Entry</span>
+          <span className={`font-bold text-sm ${comp.entryFee > 0 ? 'text-brand-400' : 'text-green-400'}`}>
+            {comp.entryFee > 0 ? `€${comp.entryFee}` : 'Free'}
+          </span>
+          {comp.paymentMode === 'MANUAL' && (
+            <span className="block text-xs text-yellow-400/80 mt-0.5">💸 Pay organiser directly</span>
+          )}
+        </div>
+        <div>
+          <span className="block text-gray-500">Missed Pick</span>
+          <span className="text-gray-200">{comp.missedPickMode === 'AUTO_ASSIGN' ? 'Auto-Assign' : 'Eliminate'}</span>
+        </div>
+        <div>
+          <span className="block text-gray-500">Players</span>
+          <span className="text-gray-200">
+            {comp.participantCount ?? 0}
+            {comp.winnerUsername
+              ? <span className="text-yellow-400 ml-1">(🏆 {comp.winnerUsername})</span>
+              : comp.status === 'ACTIVE'
+              ? <span className="text-gray-500"> ({comp.activeCount ?? 0} active)</span>
+              : null
+            }
+          </span>
+        </div>
+        {prizePool > 0 && (
+          <div>
+            <span className="block text-gray-500">Prize Pool</span>
+            <span className="text-yellow-400 font-bold">€{prizePool}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Survivor bar for active competitions */}
+      {comp.status === 'ACTIVE' && comp.participantCount > 0 && (
+        <SurvivorBar active={comp.activeCount ?? comp.participantCount} total={comp.participantCount} />
+      )}
+
+      {/* Actions pinned to bottom */}
+      <div className="mt-auto pt-4 flex gap-2">
+        <Link to={`/competitions/${comp.id}`} className="btn-secondary flex-1 text-center text-sm py-2">
+          {joined ? 'Open →' : 'View'}
+        </Link>
+        {!joined && comp.status === 'UPCOMING' && (
+          <button onClick={onJoin} disabled={isPending} className="btn-primary flex-1 text-sm py-2">
+            {comp.paymentMode === 'MANUAL'
+              ? `Register · €${comp.entryFee} to organiser`
+              : comp.entryFee > 0 ? `Join · €${comp.entryFee}` : 'Join Free'}
+          </button>
+        )}
+        {!joined && comp.status === 'ACTIVE' && (
+          <span className="flex-1 inline-flex items-center justify-center text-xs text-gray-500 italic">In progress</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MyCompetitionCard({ myComp }: { myComp: any }) {
+  const comp = myComp.competition;
+  const myStatus = myComp.myStatus;
+  const eliminatedWeek = myComp.eliminatedWeek;
+
+  return (
+    <Link to={`/competitions/${comp.id}`} className="card flex flex-col p-4 sm:p-5 group transition-all hover:border-gray-600 block">
+      <div className="flex flex-wrap gap-2 items-center mb-3">
+        <span className={comp.status === 'UPCOMING' ? 'badge-blue' : comp.status === 'ACTIVE' ? 'badge-green' : 'badge-gray'}>
+          {comp.status === 'COMPLETED' ? 'FINISHED' : comp.status}
+        </span>
+        {myStatus === 'WINNER'     && <span className="badge-yellow">🏆 Winner</span>}
+        {myStatus === 'ELIMINATED' && <span className="badge-red">Eliminated</span>}
+      </div>
+
+      <h3 className="text-lg sm:text-xl font-bold leading-snug">{comp.name}</h3>
+      {comp.clubName && <span className="mt-1 inline-block badge-yellow text-xs self-start">{comp.clubName}</span>}
+      {comp.description && <p className="mt-2 text-xs text-gray-400 line-clamp-2">{comp.description}</p>}
+
+      <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-400">
+        <div>
+          <span className="block text-gray-500">Players</span>
+          <span className="text-gray-200 font-medium">{comp.participantCount}</span>
+        </div>
+        {comp.status === 'ACTIVE' && comp.activeCount != null && (
+          <div>
+            <span className="block text-gray-500">Surviving</span>
+            <span className="text-green-400 font-medium">{comp.activeCount}</span>
+          </div>
+        )}
+        {eliminatedWeek && (
+          <div>
+            <span className="block text-gray-500">Eliminated GW</span>
+            <span className="text-red-400 font-medium">{eliminatedWeek}</span>
+          </div>
+        )}
+        {comp.winnerUsername && (
+          <div className="col-span-2">
+            <span className="block text-gray-500">Winner</span>
+            <span className="text-yellow-400 font-medium">🏆 {comp.winnerUsername}</span>
+          </div>
+        )}
+      </div>
+
+      {comp.status === 'ACTIVE' && comp.participantCount > 0 && (
+        <SurvivorBar active={comp.activeCount ?? comp.participantCount} total={comp.participantCount} />
+      )}
+
+      <div className="mt-auto pt-4">
+        <div className="btn-secondary w-full text-center text-sm py-2 group-hover:bg-surface-600">
+          View Competition →
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function PastCompetitionCard({ comp }: { comp: Competition }) {
+  return (
+    <Link to={`/competitions/${comp.id}`} className="card flex flex-col p-4 sm:p-5 group transition-all hover:border-gray-600 block">
+      <div className="mb-3"><span className="badge-gray">FINISHED</span></div>
+      <h3 className="text-lg sm:text-xl font-bold leading-snug">{comp.name}</h3>
+      {comp.clubName && <span className="mt-1 inline-block badge-yellow text-xs self-start">{comp.clubName}</span>}
+      {comp.description && <p className="mt-2 text-xs text-gray-400 line-clamp-2">{comp.description}</p>}
+
+      <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-400">
+        <div>
+          <span className="block text-gray-500">Started</span>
+          <span className="text-gray-200">
+            {comp.firstGameweekDate
+              ? format(parseDate(comp.firstGameweekDate), 'MMM d, yyyy')
+              : comp.startDate
+              ? format(parseDate(comp.startDate), 'MMM d, yyyy')
+              : '—'}
+          </span>
+        </div>
+        <div>
+          <span className="block text-gray-500">Players</span>
+          <span className="text-gray-200">{comp.participantCount}</span>
+        </div>
+        <div className="col-span-2">
+          <span className="block text-gray-500">Winner</span>
+          {comp.winnerUsername
+            ? <span className="text-yellow-400 font-semibold">🏆 {comp.winnerUsername}</span>
+            : <span className="text-gray-500 italic">No winner</span>
+          }
+        </div>
+      </div>
+
+      <div className="mt-auto pt-4">
+        <div className="btn-secondary w-full text-center text-sm py-2 group-hover:bg-surface-600">View Results →</div>
+      </div>
+    </Link>
+  );
+}
+
+/* ── ClubTypeahead ───────────────────────────────────────────────────────── */
+
+function ClubTypeahead({ clubs, selected, onSelect }: { clubs: Club[]; selected: Club | null; onSelect: (club: Club | null) => void }) {
+  const [query, setQuery] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+  const [highlightIndex, setHighlightIndex] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  const onSelectRef = useRef(onSelect);
+  useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
+
+  const safeClubs = Array.isArray(clubs) ? clubs : [];
+  const filtered = safeClubs.filter((c) => c?.name != null && c.name.toLowerCase().includes(query.toLowerCase()));
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setIsOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen && listRef.current) {
+      const el = listRef.current.children[highlightIndex] as HTMLElement;
+      el?.scrollIntoView({ block: 'nearest' });
+    }
+  }, [highlightIndex, isOpen]);
+
+  const handleSelect = useCallback((club: Club | null) => {
+    onSelectRef.current(club);
+    setQuery('');
+    setIsOpen(false);
+    inputRef.current?.blur();
+  }, []);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!isOpen && (e.key === 'ArrowDown' || e.key === 'Enter')) { setIsOpen(true); setHighlightIndex(0); e.preventDefault(); return; }
+    if (!isOpen) return;
+    switch (e.key) {
+      case 'ArrowDown': e.preventDefault(); setHighlightIndex((i) => Math.min(i + 1, filtered.length)); break;
+      case 'ArrowUp':   e.preventDefault(); setHighlightIndex((i) => Math.max(i - 1, 0)); break;
+      case 'Enter':     e.preventDefault(); highlightIndex === 0 ? handleSelect(null) : handleSelect(filtered[highlightIndex - 1]); break;
+      case 'Escape':    setIsOpen(false); setQuery(''); break;
+    }
+  };
+
+  return (
+    <div ref={containerRef} className="relative w-full">
+      <div className="relative">
+        <input
+          ref={inputRef}
+          type="text"
+          value={isOpen ? query : selected?.name ?? ''}
+          onChange={(e) => { setQuery(e.target.value); setHighlightIndex(0); if (!isOpen) setIsOpen(true); }}
+          onFocus={() => { setIsOpen(true); setQuery(''); setHighlightIndex(0); }}
+          onKeyDown={handleKeyDown}
+          placeholder="Filter by club…"
+          className="input-field w-full pr-8 text-sm"
+          role="combobox" aria-expanded={isOpen} aria-haspopup="listbox" aria-autocomplete="list" aria-label="Filter by club"
+        />
+        {selected && (
+          <button onClick={(e) => { e.stopPropagation(); handleSelect(null); }}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-lg leading-none" aria-label="Clear club filter">
+            ×
+          </button>
+        )}
+      </div>
+      {isOpen && (
+        <ul ref={listRef} role="listbox"
+          className="absolute z-50 mt-1 w-full max-h-60 overflow-auto rounded-lg border border-gray-600 bg-surface-700 shadow-xl">
+          <li role="option" aria-selected={highlightIndex === 0}
+            className={`px-4 py-2.5 text-sm cursor-pointer transition-colors ${highlightIndex === 0 ? 'bg-brand-600/30 text-white' : 'text-gray-300 hover:bg-surface-600'} ${!selected ? 'font-semibold' : ''}`}
+            onMouseEnter={() => setHighlightIndex(0)} onClick={() => handleSelect(null)}>
+            All Clubs
+          </li>
+          {filtered.length === 0
+            ? <li className="px-4 py-3 text-sm text-gray-500 text-center">No clubs match "{query}"</li>
+            : filtered.map((club, i) => (
+              <li key={club.id} role="option" aria-selected={highlightIndex === i + 1}
+                className={`px-4 py-2.5 text-sm cursor-pointer transition-colors ${highlightIndex === i + 1 ? 'bg-brand-600/30 text-white' : 'text-gray-300 hover:bg-surface-600'} ${selected?.id === club.id ? 'font-semibold' : ''}`}
+                onMouseEnter={() => setHighlightIndex(i + 1)} onClick={() => handleSelect(club)}>
+                {club.name}
+                {club.description && <span className="ml-2 text-xs text-gray-500">{club.description}</span>}
+              </li>
+            ))
+          }
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/* ── Shared states ───────────────────────────────────────────────────────── */
+
+function LoadingState() {
+  return (
+    <div className="flex items-center justify-center py-20">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
+    </div>
+  );
+}
+
+function ErrorState({ message }: { message: string }) {
+  return (
+    <div className="card text-center py-16">
+      <div className="text-4xl mb-3">⚠️</div>
+      <p className="text-lg font-medium text-red-400">{message}</p>
+    </div>
+  );
+}

@@ -1,0 +1,70 @@
+# Environment secrets — never commit these
+.env
+frontend/.env
+
+# Keep the examples
+!.env.example
+!frontend/.env.example
+
+# Java / Maven
+backend/target/
+*.class
+*.jar
+
+# Node
+# frontend specific (kept for explicit path)
+frontend/node_modules/
+frontend/dist/
+
+# root-level node_modules (if any)
+node_modules/
+
+# Build outputs
+**/dist/
+**/build/
+**/out/
+
+# Lockfiles (optional - uncomment if you want to ignore lockfiles)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Environment / secrets
+.env
+.env.*
+secrets.properties
+*.keystore
+
+# Docker
+docker-compose.override.yml
+.docker/
+
+# Generated
+/generated/
+/generated-sources/
+
+# Test / coverage
+coverage/
+*.lcov
+
+# Misc
+*.tmp
+*.swp
+*.bak
+*~
+
+# Keep README, licenses, source, configs

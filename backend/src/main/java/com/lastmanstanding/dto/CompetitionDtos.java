@@ -1,0 +1,301 @@
+package com.lastmanstanding.dto;
+
+import com.lastmanstanding.entity.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.Map;
+
+public final class CompetitionDtos {
+
+    private CompetitionDtos() {}
+
+    // ── Requests ────────────────────────────────────────────────────────
+
+    public record CreateCompetitionRequest(
+            @NotBlank String name,
+            String description,
+            BigDecimal entryFee,
+            BigDecimal prizePool,
+            @NotNull MissedPickMode missedPickMode,
+            boolean postponedConsumesTeam,
+            boolean passFeeToParticipant,
+            String paymentMode,
+            @NotNull LocalDate startDate,
+            Long clubId
+    ) {}
+
+    public record UpdateCompetitionRequest(
+            String name,
+            String description,
+            BigDecimal entryFee,
+            BigDecimal prizePool,
+            MissedPickMode missedPickMode,
+            Boolean postponedConsumesTeam,
+            Boolean passFeeToParticipant,
+            String paymentMode,
+            LocalDate startDate,
+            CompetitionStatus status,
+            Long clubId
+    ) {}
+
+    public record PickRequest(
+            @NotNull Long teamId
+    ) {}
+
+    // ── Responses ───────────────────────────────────────────────────────
+
+    public record ClubResponse(
+            Long id,
+            String name,
+            String description,
+            Long clubAdminId,
+            String clubAdminUsername
+    ) {
+        public static ClubResponse from(Club c) {
+            return new ClubResponse(
+                    c.getId(), c.getName(), c.getDescription(),
+                    c.getClubAdmin() != null ? c.getClubAdmin().getId() : null,
+                    c.getClubAdmin() != null ? c.getClubAdmin().getUsername() : null
+            );
+        }
+    }
+
+    public record CompetitionResponse(
+            Long id,
+            String name,
+            String description,
+            BigDecimal entryFee,
+            BigDecimal prizePool,
+            String status,
+            String missedPickMode,
+            boolean postponedConsumesTeam,
+            boolean passFeeToParticipant,
+            String paymentMode,
+            LocalDate startDate,
+            LocalDate firstGameweekDate,
+            String createdByUsername,
+            int participantCount,
+            int activeCount,
+            Long clubId,
+            String clubName,
+            String winnerUsername
+    ) {
+        public static CompetitionResponse from(Competition c, int participantCount, int activeCount, String winnerUsername) {
+            return new CompetitionResponse(
+                    c.getId(), c.getName(), c.getDescription(), c.getEntryFee(), c.getPrizePool(),
+                    c.getStatus().name(), c.getMissedPickMode().name(),
+                    c.isPostponedConsumesTeam(), c.isPassFeeToParticipant(),
+                    c.getPaymentMode() != null ? c.getPaymentMode().name() : "FREE",
+                    c.getStartDate(), null,
+                    c.getCreatedBy().getUsername(),
+                    participantCount, activeCount,
+                    c.getClub() != null ? c.getClub().getId() : null,
+                    c.getClub() != null ? c.getClub().getName() : null,
+                    winnerUsername
+            );
+        }
+
+        public static CompetitionResponse from(Competition c, int participantCount, int activeCount,
+                                               String winnerUsername, LocalDate firstGameweekDate) {
+            return new CompetitionResponse(
+                    c.getId(), c.getName(), c.getDescription(), c.getEntryFee(), c.getPrizePool(),
+                    c.getStatus().name(), c.getMissedPickMode().name(),
+                    c.isPostponedConsumesTeam(), c.isPassFeeToParticipant(),
+                    c.getPaymentMode() != null ? c.getPaymentMode().name() : "FREE",
+                    c.getStartDate(), firstGameweekDate,
+                    c.getCreatedBy().getUsername(),
+                    participantCount, activeCount,
+                    c.getClub() != null ? c.getClub().getId() : null,
+                    c.getClub() != null ? c.getClub().getName() : null,
+                    winnerUsername
+            );
+        }
+    }
+
+    public record ParticipantResponse(
+            Long id,
+            Long userId,
+            String username,
+            String status,
+            Integer eliminatedWeek,
+            LocalDateTime joinedAt
+    ) {
+        public static ParticipantResponse from(CompetitionParticipant cp) {
+            return new ParticipantResponse(
+                    cp.getId(), cp.getUser().getId(), cp.getUser().getUsername(),
+                    cp.getStatus().name(), cp.getEliminatedWeek(), cp.getJoinedAt()
+            );
+        }
+    }
+
+    public record MyStatusResponse(
+            ParticipantResponse participant,
+            List<Long> usedTeamIds,
+            List<PickHistoryItem> picks
+    ) {}
+
+    public record PickHistoryItem(
+            Long pickId,
+            Long gameweekId,
+            int weekNumber,
+            Long teamId,
+            String teamName,
+            String teamShortName,
+            String source,
+            boolean locked,
+            LocalDateTime pickedAt,
+            String outcome,
+            LocalDateTime resolvedAt
+    ) {}
+
+    public record GameweekResponse(
+            Long id,
+            int weekNumber,
+            LocalDateTime lockAt,
+            LocalDateTime startsAt,
+            LocalDateTime endsAt,
+            String status
+    ) {
+        public static GameweekResponse from(Gameweek gw) {
+            return new GameweekResponse(
+                    gw.getId(), gw.getWeekNumber(), gw.getLockAt(),
+                    gw.getStartsAt(), gw.getEndsAt(), gw.getStatus().name()
+            );
+        }
+    }
+
+    public record FixtureResponse(
+            Long id,
+            Long gameweekId,
+            int weekNumber,
+            Long homeTeamId,
+            String homeTeamName,
+            String homeTeamShortName,
+            Long awayTeamId,
+            String awayTeamName,
+            String awayTeamShortName,
+            LocalDateTime kickoffAt,
+            String status,
+            Integer scoreHome,
+            Integer scoreAway,
+            boolean hasOverride,
+            LocalDateTime gameweekLockAt,
+            String gameweekStatus
+    ) {
+        public static FixtureResponse from(Fixture f) {
+            Team home = f.getEffectiveHomeTeam();
+            Team away = f.getEffectiveAwayTeam();
+            boolean hasOverride = f.getOverrideStatus() != null || f.getOverrideHomeTeam() != null
+                    || f.getOverrideAwayTeam() != null || f.getOverrideKickoffAt() != null
+                    || f.getOverrideScoreHome() != null || f.getOverrideScoreAway() != null;
+            return new FixtureResponse(
+                    f.getId(), f.getGameweek().getId(), f.getGameweek().getWeekNumber(),
+                    home.getId(), home.getName(), home.getShortName(),
+                    away.getId(), away.getName(), away.getShortName(),
+                    f.getEffectiveKickoffAt(), f.getEffectiveStatus().name(),
+                    f.getEffectiveScoreHome(), f.getEffectiveScoreAway(),
+                    hasOverride,
+                    f.getGameweek().getLockAt(),
+                    f.getGameweek().getStatus().name()
+            );
+        }
+    }
+
+    public record PickResponse(
+            Long id,
+            Long gameweekId,
+            int weekNumber,
+            Long teamId,
+            String teamName,
+            String teamShortName,
+            String source,
+            boolean locked,
+            LocalDateTime pickedAt
+    ) {
+        public static PickResponse from(Pick p) {
+            return new PickResponse(
+                    p.getId(), p.getGameweek().getId(), p.getGameweek().getWeekNumber(),
+                    p.getTeam().getId(), p.getTeam().getName(), p.getTeam().getShortName(),
+                    p.getSource().name(), p.isLocked(), p.getPickedAt()
+            );
+        }
+    }
+
+    public record GameweekSelectionResponse(
+            Long userId,
+            String username,
+            Long teamId,
+            String teamName,
+            String teamShortName,
+            String source,
+            String outcome
+    ) {}
+
+    public record GameweekSelectionsData(
+            List<GameweekSelectionResponse> selections,
+            boolean byeGranted,
+            Integer weekNumber
+    ) {}
+
+    public record TeamResponse(
+            Long id,
+            String name,
+            String shortName,
+            String logoUrl
+    ) {
+        public static TeamResponse from(Team t) {
+            return new TeamResponse(t.getId(), t.getName(), t.getShortName(), t.getLogoUrl());
+        }
+    }
+
+    public record AuditLogResponse(
+            Long id,
+            String username,
+            String entityType,
+            Long entityId,
+            String fieldName,
+            String oldValue,
+            String newValue,
+            String action,
+            LocalDateTime createdAt
+    ) {
+        public static AuditLogResponse from(AuditLog al) {
+            return new AuditLogResponse(
+                    al.getId(),
+                    al.getUser() != null ? al.getUser().getUsername() : null,
+                    al.getEntityType(), al.getEntityId(), al.getFieldName(),
+                    al.getOldValue(), al.getNewValue(), al.getAction(), al.getCreatedAt()
+            );
+        }
+    }
+
+    public record MyCompetitionResponse(
+            CompetitionResponse competition,
+            String myStatus,
+            Integer eliminatedWeek,
+            LocalDateTime joinedAt
+    ) {}
+
+    public record SurvivorGameweekMeta(Long id, int weekNumber, String status) {}
+
+    public record SurvivorPickCell(String teamShortName, String outcome, String source) {}
+
+    public record SurvivorRow(
+            Long userId,
+            String username,
+            String status,
+            Integer eliminatedWeek,
+            Map<Integer, SurvivorPickCell> picks
+    ) {}
+
+    public record SurvivorTableResponse(
+            List<SurvivorGameweekMeta> gameweeks,
+            List<SurvivorRow> rows
+    ) {}
+}

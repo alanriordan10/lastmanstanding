@@ -1,0 +1,64 @@
+package com.lastmanstanding.scheduler;
+
+import com.lastmanstanding.entity.Competition;
+import com.lastmanstanding.entity.Gameweek;
+import com.lastmanstanding.repository.CompetitionRepository;
+import com.lastmanstanding.repository.GameweekRepository;
+import com.lastmanstanding.service.GameweekEmailService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+/**
+ * Runs every 15 minutes. Finds UPCOMING gameweeks locking within 2 hours
+ * that haven't had a reminder sent, and emails any active participants who
+ * have not yet made their pick.
+ */
+@Component
+public class PickReminderScheduler {
+
+    private static final Logger log = LoggerFactory.getLogger(PickReminderScheduler.class);
+
+    private final GameweekRepository gameweekRepository;
+    private final CompetitionRepository competitionRepository;
+    private final GameweekEmailService gameweekEmailService;
+
+    public PickReminderScheduler(GameweekRepository gameweekRepository,
+                                 CompetitionRepository competitionRepository,
+                                 GameweekEmailService gameweekEmailService) {
+        this.gameweekRepository = gameweekRepository;
+        this.competitionRepository = competitionRepository;
+        this.gameweekEmailService = gameweekEmailService;
+    }
+
+    @Scheduled(fixedDelay = 900_000) // every 15 minutes
+    @Transactional
+    public void sendReminders() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime cutoff = now.plusHours(2);
+
+        List<Gameweek> gameweeks = gameweekRepository.findGameweeksNeedingReminder(now, cutoff);
+        if (gameweeks.isEmpty()) return;
+
+        log.info("PickReminderScheduler: {} gameweek(s) locking within 2h — sending reminders", gameweeks.size());
+
+        for (Gameweek gw : gameweeks) {
+            Competition comp = competitionRepository.findById(gw.getCompetition().getId()).orElse(null);
+            if (comp == null) continue;
+            try {
+                gameweekEmailService.sendPickReminderEmails(comp, gw);
+            } catch (Exception e) {
+                log.warn("Error sending reminders for GW{} competition {}: {}", gw.getWeekNumber(), comp.getId(), e.getMessage());
+            } finally {
+                // Always mark as sent so we don't spam even if mail fails
+                gw.setReminderSent(true);
+                gameweekRepository.save(gw);
+            }
+        }
+    }
+}

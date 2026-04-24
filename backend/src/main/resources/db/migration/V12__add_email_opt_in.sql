@@ -1,0 +1,1 @@
+ALTER TABLE users ADD COLUMN email_results_opt_in BOOLEAN NOT NULL DEFAULT FALSE;

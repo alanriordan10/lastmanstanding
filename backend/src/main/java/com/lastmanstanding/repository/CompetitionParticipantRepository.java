@@ -1,0 +1,52 @@
+package com.lastmanstanding.repository;
+
+import com.lastmanstanding.entity.CompetitionParticipant;
+import com.lastmanstanding.entity.ParticipantStatus;
+import java.util.List;
+import java.util.Optional;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface CompetitionParticipantRepository extends JpaRepository<CompetitionParticipant, Long> {
+
+    Optional<CompetitionParticipant> findByCompetitionIdAndUserId(Long competitionId, Long userId);
+
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"user", "competition"})
+    List<CompetitionParticipant> findByCompetitionId(Long competitionId);
+
+    List<CompetitionParticipant> findByCompetitionIdAndStatus(Long competitionId, ParticipantStatus status);
+
+    boolean existsByCompetitionIdAndUserId(Long competitionId, Long userId);
+
+    long countByCompetitionIdAndStatus(Long competitionId, ParticipantStatus status);
+
+    List<CompetitionParticipant> findByUserId(Long userId);
+
+    /** Returns [competitionId, totalCount, activeCount] rows — avoids N+1 when listing competitions */
+    @Query("SELECT cp.competition.id, COUNT(cp), SUM(CASE WHEN cp.status = 'ACTIVE' THEN 1 ELSE 0 END) FROM CompetitionParticipant cp GROUP BY cp.competition.id")
+    List<Object[]> countParticipantsGroupedByCompetition();
+
+    /** Load all winners across all competitions in one query */
+    List<CompetitionParticipant> findByStatus(ParticipantStatus status);
+
+    @Modifying
+    @Query("DELETE FROM CompetitionParticipant cp WHERE cp.competition.id = :competitionId AND cp.user.id = :userId")
+    void deleteByCompetitionIdAndUserId(@Param("competitionId") Long competitionId, @Param("userId") Long userId);
+
+    @Modifying
+    @Query("DELETE FROM CompetitionParticipant cp WHERE cp.user.id = :userId")
+    void deleteByUserId(@Param("userId") Long userId);
+
+    @Modifying
+    @Query("DELETE FROM CompetitionParticipant cp WHERE cp.competition.id = :competitionId")
+    void deleteByCompetitionId(@Param("competitionId") Long competitionId);
+
+    /** Bulk delete participants for a list of users — used in test user cleanup */
+    @Modifying
+    @Query("DELETE FROM CompetitionParticipant cp WHERE cp.user.id IN :userIds")
+    void deleteByUserIds(@Param("userIds") List<Long> userIds);
+}

@@ -1,0 +1,88 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-surface-900 text-gray-100 antialiased;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white
+           hover:bg-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 focus:ring-offset-surface-900
+           disabled:opacity-50 disabled:cursor-not-allowed transition-colors;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-lg border border-gray-600 bg-surface-700 px-4 py-2.5 text-sm font-semibold text-gray-200
+           hover:bg-surface-800 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 focus:ring-offset-surface-900
+           disabled:opacity-50 disabled:cursor-not-allowed transition-colors;
+  }
+  .btn-danger {
+    @apply inline-flex items-center justify-center rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white
+           hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors;
+  }
+  .card {
+    @apply rounded-xl border border-gray-700/50 bg-surface-800 p-4 sm:p-6 shadow-lg;
+  }
+  .input-field {
+    @apply block w-full rounded-lg border border-gray-600 bg-surface-700 px-4 py-2.5 text-sm text-gray-100
+           placeholder-gray-400 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 focus:outline-none transition-colors;
+  }
+  .badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+  .badge-green { @apply badge bg-green-500/20 text-green-400; }
+  .badge-red { @apply badge bg-red-500/20 text-red-400; }
+  .badge-yellow { @apply badge bg-yellow-500/20 text-yellow-400; }
+  .badge-blue { @apply badge bg-blue-500/20 text-blue-400; }
+  .badge-gray { @apply badge bg-gray-500/20 text-gray-400; }
+}
+
+/* ── Dark-themed native date picker ──────────────────────────────────────── */
+
+/* Hide the browser's default calendar icon so our SVG overlay shows instead */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  position: absolute;
+  right: 0;
+  width: 2.5rem;
+  height: 100%;
+  cursor: pointer;
+}
+
+/* Firefox */
+input[type="date"] {
+  position: relative;
+}
+
+/* Make the date text match our palette */
+input[type="date"]::-webkit-datetime-edit {
+  color: #f3f4f6; /* gray-100 */
+}
+
+input[type="date"]::-webkit-datetime-edit-fields-wrapper {
+  padding: 0;
+}
+
+input[type="date"]::-webkit-datetime-edit-text {
+  color: #9ca3af; /* gray-400 */
+  padding: 0 2px;
+}
+
+input[type="date"]::-webkit-datetime-edit-month-field,
+input[type="date"]::-webkit-datetime-edit-day-field,
+input[type="date"]::-webkit-datetime-edit-year-field {
+  color: #f3f4f6;
+}
+
+input[type="date"]::-webkit-datetime-edit-month-field:focus,
+input[type="date"]::-webkit-datetime-edit-day-field:focus,
+input[type="date"]::-webkit-datetime-edit-year-field:focus {
+  background-color: #6366f1; /* brand-500 */
+  color: #ffffff;
+  border-radius: 2px;
+  outline: none;
+}
+

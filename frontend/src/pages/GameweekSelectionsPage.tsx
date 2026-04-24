@@ -1,0 +1,427 @@
+import { useParams, Link } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
+import api from '../api';
+import type { GameweekSelection, GameweekSelectionsData, GameweekResponse } from '../types';
+import clsx from 'clsx';
+
+export default function GameweekSelectionsPage() {
+  const { id, gwId } = useParams<{ id: string; gwId: string }>();
+  const compId = Number(id);
+  const gameweekId = Number(gwId);
+  
+  // ALL HOOKS MUST BE DECLARED BEFORE ANY EARLY RETURNS
+  const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState<'table' | 'byteam'>('table');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
+
+  const { data: selectionsData, isLoading, error } = useQuery<GameweekSelectionsData>({
+    queryKey: ['selections', compId, gameweekId],
+    queryFn: () =>
+      api.get(`/competitions/${compId}/gameweeks/${gameweekId}/selections`).then((r) => {
+        if (Array.isArray(r.data)) {
+          return { selections: r.data, byeGranted: false, weekNumber: 0 };
+        }
+        return r.data;
+      }),
+    retry: false,
+    // Poll every 5 minutes only if at least one pick is still pending (game in play).
+    // Once all picks are resolved there is nothing left to update.
+    refetchInterval: (query) => {
+      const data = query.state.data as GameweekSelectionsData | undefined;
+      const hasInPlay = data?.selections?.some((s) => s.outcome === 'PENDING');
+      return hasInPlay ? 5 * 60 * 1000 : false;
+    },
+  });
+
+  const queryClient = useQueryClient();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await queryClient.invalidateQueries({ queryKey: ['selections', compId, gameweekId] });
+    setRefreshing(false);
+  };
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  // NOW we can do early returns AFTER all hooks
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (error) {
+    const errMsg = (error as any)?.response?.data?.message || 'Cannot view selections yet';
+    return (
+      <div className="space-y-4">
+        <Link to={`/competitions/${compId}`} className="text-sm text-gray-400 hover:text-white">
+          ← Back to competition
+        </Link>
+        <div className="card py-16 text-center">
+          <div className="text-4xl mb-3">🔒</div>
+          <p className="text-lg font-medium text-yellow-400">{errMsg}</p>
+          <p className="mt-2 text-gray-400">
+            Selections become visible after the gameweek locks
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // All data processing AFTER early returns (regular JavaScript, not hooks)
+  const selections = selectionsData?.selections || [];
+  const byeGranted = selectionsData?.byeGranted || false;
+
+  const pendingCount  = selections.filter((s) => s.outcome === 'PENDING').length;
+  const resolvedCount = selections.filter((s) => s.outcome !== 'PENDING').length;
+  const isLive = pendingCount > 0 && resolvedCount > 0;
+
+  // Filter with search
+  let filteredSelections = selections;
+  if (searchQuery.trim()) {
+    const query = searchQuery.toLowerCase();
+    filteredSelections = filteredSelections.filter(s => 
+      s.username.toLowerCase().includes(query) ||
+      s.teamName.toLowerCase().includes(query) ||
+      s.teamShortName.toLowerCase().includes(query)
+    );
+  }
+
+  // Pagination for table view
+  const totalPages = Math.ceil(filteredSelections.length / itemsPerPage);
+  const start = (currentPage - 1) * itemsPerPage;
+  const paginatedSelections = filteredSelections.slice(start, start + itemsPerPage);
+
+  // Group by team
+  const byTeam = new Map<string, GameweekSelection[]>();
+  filteredSelections.forEach((s) => {
+    const key = `${s.teamId}-${s.teamShortName}`;
+    const arr = byTeam.get(key) ?? [];
+    arr.push(s);
+    byTeam.set(key, arr);
+  });
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <Link to={`/competitions/${compId}`} className="text-sm text-gray-400 hover:text-white">
+          ← Back to competition
+        </Link>
+        <h1 className="mt-2 text-2xl font-bold">Gameweek Selections</h1>
+        <p className="mt-1 text-gray-400">{selections.length} picks revealed</p>
+      </div>
+
+      {/* Live results banner */}
+      {isLive && (
+        <div className="rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="inline-block h-2 w-2 rounded-full bg-green-400 animate-pulse shrink-0" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-green-400">Gameweek in progress — live results</p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {resolvedCount} of {selections.length} picks resolved · {pendingCount} still playing · auto-refreshes every 5 mins
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="shrink-0 text-xs px-3 py-1.5 rounded-lg bg-green-500/20 hover:bg-green-500/30 text-green-400 transition disabled:opacity-50"
+          >
+            {refreshing ? '⏳' : '🔄 Refresh'}
+          </button>
+        </div>
+      )}
+
+      {/* Bye Granted Banner */}
+      {byeGranted && (
+        <div className="card bg-yellow-600/10 border-yellow-600/30">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">🎁</span>
+            <div>
+              <h3 className="font-semibold text-yellow-400">All Participants Granted Bye</h3>
+              <p className="text-sm text-gray-300 mt-1">
+                All remaining participants would have been eliminated in this gameweek. Everyone was granted 
+                a <strong>bye</strong> and advanced to the next gameweek.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selections.length === 0 ? (
+        <div className="card py-12 text-center">
+          <p className="text-gray-400">No picks for this gameweek</p>
+        </div>
+      ) : (
+        <>
+          {/* Search and view controls (show only if many participants) */}
+          {selections.length > 20 && (
+            <div className="card">
+              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                <input
+                  type="text"
+                  placeholder="Search by participant or team..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="input-field w-full sm:w-auto sm:flex-1 sm:max-w-xs text-sm"
+                />
+
+                <div className="inline-flex rounded-lg bg-surface-700 p-1">
+                  <button
+                    onClick={() => setViewMode('table')}
+                    className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+                      viewMode === 'table' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    📊 Table
+                  </button>
+                  <button
+                    onClick={() => setViewMode('byteam')}
+                    className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+                      viewMode === 'byteam' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    👥 By Team
+                  </button>
+                </div>
+              </div>
+
+              {searchQuery && (
+                <div className="text-sm text-gray-400 mt-2">
+                  Showing {filteredSelections.length} of {selections.length} participants
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Table view */}
+          {viewMode === 'table' && (
+            <div className="card overflow-hidden">
+              {filteredSelections.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-400">No participants found{searchQuery ? ` matching "${searchQuery}"` : ''}</p>
+                </div>
+              ) : (
+                <>
+                  {/* ── Mobile: card list ── */}
+                  <div className="divide-y divide-gray-700/50 sm:hidden">
+                    {paginatedSelections.sort((a, b) => a.username.localeCompare(b.username)).map((s) => (
+                      <div key={s.userId} className="flex items-center justify-between gap-3 px-4 py-3">
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm truncate">{s.username}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{s.teamName}</p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {s.source === 'AUTO' && <span className="badge-yellow text-xs">Auto</span>}
+                          <OutcomeBadge outcome={s.outcome} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* ── Desktop: table ── */}
+                  <div className="hidden sm:block overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-700 text-left text-gray-400">
+                          <th className="py-3 px-4">Player</th>
+                          <th className="py-3 px-4">Team Picked</th>
+                          <th className="py-3 px-4">Source</th>
+                          <th className="py-3 px-4">Outcome</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginatedSelections.sort((a, b) => a.username.localeCompare(b.username)).map((s) => (
+                          <tr key={s.userId} className="border-b border-gray-700/50 hover:bg-surface-700/30">
+                            <td className="py-3 px-4 font-medium">{s.username}</td>
+                            <td className="py-3 px-4">
+                              <span className="font-semibold">{s.teamShortName}</span>
+                              <span className="text-gray-400 ml-2 text-xs">{s.teamName}</span>
+                            </td>
+                            <td className="py-3 px-4">
+                              {s.source === 'AUTO'
+                                ? <span className="badge-yellow text-xs">Auto</span>
+                                : <span className="badge-gray text-xs">User</span>}
+                            </td>
+                            <td className="py-3 px-4">
+                              <OutcomeBadge outcome={s.outcome} />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {totalPages > 1 && (
+                    <div className="border-t border-gray-700 px-4 py-3">
+                      <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        onPageChange={setCurrentPage}
+                        totalItems={filteredSelections.length}
+                        itemsPerPage={itemsPerPage}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Grouped by team view */}
+          {viewMode === 'byteam' && (
+            <div className="card space-y-3">
+              <h2 className="text-lg font-semibold">Picks by Team</h2>
+              {byTeam.size === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-400">No participants found</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {Array.from(byTeam.entries())
+                    .sort(([, a], [, b]) => b.length - a.length)
+                    .map(([key, picks]) => (
+                      <div key={key} className="bg-surface-700/50 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="font-semibold text-gray-200">{picks[0].teamShortName}</h3>
+                          <span className="text-sm text-gray-400">{picks.length} pick{picks.length !== 1 ? 's' : ''}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {picks.map((p) => (
+                            <span
+                              key={p.userId}
+                              className={`text-xs px-2.5 py-1 rounded font-medium ${
+                                p.outcome === 'ADVANCE' || p.outcome === 'POSTPONED_ADVANCE'
+                                  ? 'bg-green-600/20 text-green-400'
+                                  : p.outcome === 'ELIMINATED'
+                                  ? 'bg-red-600/20 text-red-400'
+                                  : 'bg-yellow-600/20 text-yellow-400'
+                              }`}
+                            >
+                              {p.username}
+                              {p.source === 'AUTO' && ' (auto)'}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function OutcomeBadge({ outcome }: { outcome: string }) {
+  switch (outcome) {
+    case 'ADVANCE':
+      return <span className="badge-green text-xs">✓ Win</span>;
+    case 'ELIMINATED':
+      return <span className="badge-red text-xs">✕ Out</span>;
+    case 'POSTPONED_ADVANCE':
+      return <span className="badge-yellow text-xs">PP</span>;
+    case 'PENDING':
+      return <span className="badge-gray text-xs">⏳ Playing</span>;
+    default:
+      return <span className="badge-gray text-xs">{outcome}</span>;
+  }
+}
+
+function Pagination({
+  currentPage,
+  totalPages,
+  onPageChange,
+  totalItems,
+  itemsPerPage,
+}: {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+  totalItems: number;
+  itemsPerPage: number;
+}) {
+  const startItem = (currentPage - 1) * itemsPerPage + 1;
+  const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    const maxVisible = 7;
+
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (currentPage > 3) pages.push('...');
+      
+      const start = Math.max(2, currentPage - 1);
+      const end = Math.min(totalPages - 1, currentPage + 1);
+      
+      for (let i = start; i <= end; i++) {
+        if (i !== 1 && i !== totalPages) pages.push(i);
+      }
+      
+      if (currentPage < totalPages - 2) pages.push('...');
+      pages.push(totalPages);
+    }
+
+    return pages;
+  };
+
+  return (
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div className="text-sm text-gray-400">
+        Showing {startItem}-{endItem} of {totalItems}
+      </div>
+      
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className="px-3 py-1 text-sm rounded bg-surface-700 hover:bg-surface-600 text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
+        >
+          ← Prev
+        </button>
+
+        <div className="flex gap-1">
+          {getPageNumbers().map((page, idx) => (
+            typeof page === 'number' ? (
+              <button
+                key={idx}
+                onClick={() => onPageChange(page)}
+                className={`px-3 py-1 text-sm rounded transition ${
+                  currentPage === page
+                    ? 'bg-brand-600 text-white font-medium'
+                    : 'bg-surface-700 hover:bg-surface-600 text-gray-300'
+                }`}
+              >
+                {page}
+              </button>
+            ) : (
+              <span key={idx} className="px-2 py-1 text-gray-500">
+                {page}
+              </span>
+            )
+          ))}
+        </div>
+
+        <button
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className="px-3 py-1 text-sm rounded bg-surface-700 hover:bg-surface-600 text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
+        >
+          Next →
+        </button>
+      </div>
+    </div>
+  );
+}
