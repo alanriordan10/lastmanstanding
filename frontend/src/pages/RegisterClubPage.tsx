@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
 interface RegisterClubResponse {
-  auth: { userId: number; email: string; username: string; role: string; accessToken: string; refreshToken: string };
+  auth: AuthResponse;
   clubId: number;
   clubName: string;
 }

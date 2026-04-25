@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import api from '../api';
 import toast from 'react-hot-toast';
 
@@ -15,7 +15,7 @@ interface Props {
   /** Base API path — '/admin' or '/club-admin' */
   apiBase: string;
   /** Cache keys to invalidate after adding a participant */
-  invalidateKeys: string[][];
+  invalidateKeys: QueryKey[];
   onClose: () => void;
 }
 

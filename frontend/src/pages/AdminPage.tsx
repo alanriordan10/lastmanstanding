@@ -4,6 +4,7 @@ import api from '../api';
 import type { Competition, AuditLog, Participant, Club } from '../types';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import AddParticipantPanel from '../components/AddParticipantPanel';
 import ErrorBoundary from '../components/ErrorBoundary';
 import ConfirmDialog from '../components/ConfirmDialog';
 
