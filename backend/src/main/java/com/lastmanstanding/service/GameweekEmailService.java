@@ -115,6 +115,10 @@ public class GameweekEmailService {
             };
         }
 
+        // Get gameweek statistics
+        GameweekStats stats = calculateGameweekStats(comp.getId(), gw.getId());
+        String statsSection = buildStatsSection(stats);
+
         String subject = "[Last Man Standing] GW" + gw.getWeekNumber() + " Results — " + comp.getName();
 
         String body = """
@@ -124,6 +128,7 @@ public class GameweekEmailService {
                   <hr/>
                   <p>%s</p>
                   <p>%s</p>
+                  %s
                   <hr/>
                   <p style="font-size:12px;color:#666;">
                     <a href="%s/competitions/%d">View competition</a> &middot;
@@ -131,7 +136,7 @@ public class GameweekEmailService {
                   </p>
                 </body></html>
                 """.formatted(gw.getWeekNumber(), comp.getName(), resultLine, statusLine,
-                frontendUrl, comp.getId(), frontendUrl);
+                statsSection, frontendUrl, comp.getId(), frontendUrl);
 
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
@@ -142,6 +147,127 @@ public class GameweekEmailService {
         mailSender.send(message);
 
         log.info("Sent GW{} result email to {}", gw.getWeekNumber(), user.getEmail());
+    }
+
+    /**
+     * Calculate statistics for a gameweek including eliminated/advanced counts and team pick percentages.
+     */
+    private GameweekStats calculateGameweekStats(Long competitionId, Long gameweekId) {
+        // Get counts by outcome
+        List<Object[]> outcomeCounts = pickResultRepository.countByOutcomeForGameweek(competitionId, gameweekId);
+        long eliminated = 0;
+        long advanced = 0;
+        for (Object[] row : outcomeCounts) {
+            PickOutcome outcome = (PickOutcome) row[0];
+            long count = ((Number) row[1]).longValue();
+            if (outcome == PickOutcome.ELIMINATED) {
+                eliminated = count;
+            } else if (outcome == PickOutcome.ADVANCE || outcome == PickOutcome.POSTPONED_ADVANCE) {
+                advanced += count;
+            }
+        }
+
+        // Get team pick distribution
+        List<Object[]> teamPicks = pickRepository.countPicksPerTeam(competitionId, gameweekId);
+        long totalPicks = teamPicks.stream().mapToLong(row -> ((Number) row[3]).longValue()).sum();
+
+        List<TeamPickStats> teamStats = new java.util.ArrayList<>();
+        for (Object[] row : teamPicks) {
+            String teamName = (String) row[1];
+            long pickCount = ((Number) row[3]).longValue();
+            double percentage = totalPicks > 0 ? (pickCount * 100.0) / totalPicks : 0;
+            teamStats.add(new TeamPickStats(teamName, pickCount, percentage));
+        }
+
+        // Sort by pick count descending
+        teamStats.sort((a, b) -> Long.compare(b.pickCount, a.pickCount));
+
+        return new GameweekStats(eliminated, advanced, totalPicks, teamStats);
+    }
+
+    /**
+     * Build HTML section for gameweek statistics.
+     */
+    private String buildStatsSection(GameweekStats stats) {
+        if (stats.totalPicks == 0) {
+            return "<p style=\"color:#666;font-style:italic;\">No picks data available yet.</p>";
+        }
+
+        StringBuilder html = new StringBuilder();
+        html.append("<hr/>\n");
+        html.append("<h3 style=\"color:#1a1a2e;margin-top:20px;\">📊 Gameweek Summary</h3>\n");
+        html.append("<table style=\"width:100%;border-collapse:collapse;margin:15px 0;\">\n");
+        html.append("  <tr style=\"background:#f5f5f5;\">\n");
+        html.append("    <td style=\"padding:10px;border:1px solid #ddd;\"><strong>Eliminated</strong></td>\n");
+        html.append("    <td style=\"padding:10px;border:1px solid #ddd;text-align:right;\">").append(stats.eliminated).append("</td>\n");
+        html.append("  </tr>\n");
+        html.append("  <tr>\n");
+        html.append("    <td style=\"padding:10px;border:1px solid #ddd;\"><strong>Advanced</strong></td>\n");
+        html.append("    <td style=\"padding:10px;border:1px solid #ddd;text-align:right;\">").append(stats.advanced).append("</td>\n");
+        html.append("  </tr>\n");
+        html.append("</table>\n");
+
+        html.append("<h4 style=\"color:#1a1a2e;margin-top:15px;font-size:14px;\">Team Pick Distribution</h4>\n");
+        html.append("<table style=\"width:100%;border-collapse:collapse;\">\n");
+        html.append("  <tr style=\"background:#f5f5f5;\">\n");
+        html.append("    <th style=\"padding:8px;border:1px solid #ddd;text-align:left;\">Team</th>\n");
+        html.append("    <th style=\"padding:8px;border:1px solid #ddd;text-align:right;\">Picks</th>\n");
+        html.append("    <th style=\"padding:8px;border:1px solid #ddd;text-align:right;\">%</th>\n");
+        html.append("  </tr>\n");
+
+        for (TeamPickStats team : stats.teamStats) {
+            html.append("  <tr>\n");
+            html.append("    <td style=\"padding:8px;border:1px solid #ddd;\">").append(escapeHtml(team.teamName)).append("</td>\n");
+            html.append("    <td style=\"padding:8px;border:1px solid #ddd;text-align:right;\">").append(team.pickCount).append("</td>\n");
+            html.append("    <td style=\"padding:8px;border:1px solid #ddd;text-align:right;\">").append(String.format("%.1f%%", team.percentage)).append("</td>\n");
+            html.append("  </tr>\n");
+        }
+
+        html.append("</table>\n");
+        return html.toString();
+    }
+
+    /**
+     * Escape HTML special characters to prevent injection.
+     */
+    private String escapeHtml(String text) {
+        return text.replace("&", "&amp;")
+                   .replace("<", "&lt;")
+                   .replace(">", "&gt;")
+                   .replace("\"", "&quot;")
+                   .replace("'", "&#39;");
+    }
+
+    /**
+     * Internal class to hold gameweek statistics.
+     */
+    private static class GameweekStats {
+        long eliminated;
+        long advanced;
+        long totalPicks;
+        List<TeamPickStats> teamStats;
+
+        GameweekStats(long eliminated, long advanced, long totalPicks, List<TeamPickStats> teamStats) {
+            this.eliminated = eliminated;
+            this.advanced = advanced;
+            this.totalPicks = totalPicks;
+            this.teamStats = teamStats;
+        }
+    }
+
+    /**
+     * Internal class to hold team pick statistics.
+     */
+    private static class TeamPickStats {
+        String teamName;
+        long pickCount;
+        double percentage;
+
+        TeamPickStats(String teamName, long pickCount, double percentage) {
+            this.teamName = teamName;
+            this.pickCount = pickCount;
+            this.percentage = percentage;
+        }
     }
 
     /**

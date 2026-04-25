@@ -27,6 +27,8 @@
         <snakeyaml.version>2.4</snakeyaml.version>
         <jackson-bom.version>2.18.6</jackson-bom.version>
         <plexus-archiver.version>4.10.0</plexus-archiver.version>
+        <!-- Flyway version with PostgreSQL 17 support -->
+        <flyway.version>10.18.0</flyway.version>
     </properties>
 
     <dependencyManagement>
@@ -78,8 +80,14 @@
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>
+            <version>${flyway.version}</version>
         </dependency>
-        <!-- Flyway core is sufficient; no DB-specific extension required -->
+        <!-- PostgreSQL-specific Flyway support for compatibility with PostgreSQL 17 -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+            <version>${flyway.version}</version>
+        </dependency>
 
         <!-- Use Postgres JDBC driver instead of MySQL (pin version) -->
         <dependency>

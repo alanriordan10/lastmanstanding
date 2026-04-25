@@ -43,4 +43,8 @@ public interface PickResultRepository extends JpaRepository<PickResult, Long> {
     @Modifying
     @Query("DELETE FROM PickResult pr WHERE pr.pick.id IN (SELECT p.id FROM Pick p WHERE p.competition.id = :competitionId AND p.user.id IN :userIds AND p.gameweek.weekNumber > :weekNumber)")
     void deleteFuturePickResultsForUsers(@Param("competitionId") Long competitionId, @Param("userIds") List<Long> userIds, @Param("weekNumber") int weekNumber);
+
+    /** Count pick results by outcome for a gameweek */
+    @Query("SELECT pr.outcome, COUNT(pr) FROM PickResult pr JOIN pr.pick p WHERE p.competition.id = :competitionId AND p.gameweek.id = :gameweekId GROUP BY pr.outcome")
+    List<Object[]> countByOutcomeForGameweek(@Param("competitionId") Long competitionId, @Param("gameweekId") Long gameweekId);
 }
