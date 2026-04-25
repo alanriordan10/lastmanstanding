@@ -205,14 +205,14 @@ export default function ClubAdminPage() {
             {myClub.description && <span className="text-gray-500"> — {myClub.description}</span>}
           </p>
         </div>
-        <button onClick={() => setShowForm(!showForm)} className="btn-primary">
+        <button onClick={() => setShowForm(!showForm)} className="btn-primary w-full sm:w-auto">
           {showForm ? 'Cancel' : '+ New Competition'}
         </button>
       </div>
 
       {/* Club settings card */}
       <div className="card space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-sm font-semibold text-gray-200">Club Settings</h2>
             <p className="text-xs text-gray-400 mt-0.5">
@@ -221,7 +221,7 @@ export default function ClubAdminPage() {
           </div>
           <button
             onClick={() => { setShowAssignAdmin((v) => !v); setAdminSearchQuery(''); setAdminSearchResults([]); }}
-            className="text-xs px-3 py-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 text-gray-300 transition border border-gray-600/50"
+            className="w-full sm:w-auto text-xs px-3 py-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 text-gray-300 transition border border-gray-600/50"
           >
             {showAssignAdmin ? '✕ Cancel' : '👤 Assign New Admin'}
           </button>
@@ -308,7 +308,7 @@ export default function ClubAdminPage() {
             </div>
             <div className="sm:col-span-2">
               <label className="mb-2 block text-sm font-medium text-gray-300">Payment Mode</label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid gap-2 sm:grid-cols-3">
                 {([
                   { value: 'FREE', label: 'Free', icon: '🎉', desc: 'No entry fee' },
                   { value: 'MANUAL', label: 'Manual', icon: '💸', desc: 'Revolut / cash / bank transfer — you mark players as paid' },
@@ -407,11 +407,11 @@ export default function ClubAdminPage() {
               </div>
             )}
           </div>
-          <div className="flex gap-3">
-            <button type="submit" disabled={createMutation.isPending} className="btn-primary">
+          <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
+            <button type="submit" disabled={createMutation.isPending} className="btn-primary w-full sm:w-auto">
               {createMutation.isPending ? 'Creating…' : 'Create Competition'}
             </button>
-            <button type="button" onClick={() => setShowForm(false)} className="btn-secondary">
+            <button type="button" onClick={() => setShowForm(false)} className="btn-secondary w-full sm:w-auto">
               Cancel
             </button>
           </div>
@@ -473,7 +473,8 @@ export default function ClubAdminPage() {
               </div>
 
               {/* Status pills */}
-              <div className="inline-flex rounded-lg bg-surface-700 p-0.5 self-start shrink-0">
+              <div className="-mx-1 overflow-x-auto pb-1 sm:mx-0 sm:overflow-visible">
+                <div className="inline-flex min-w-max rounded-lg bg-surface-700 p-0.5 self-start shrink-0">
                 {(['ALL', 'UPCOMING', 'ACTIVE', 'COMPLETED'] as const).map(s => (
                   counts[s] > 0 || s === 'ALL' ? (
                     <button key={s} onClick={() => { setCompStatusFilter(s); setCompPage(1); }}
@@ -482,6 +483,7 @@ export default function ClubAdminPage() {
                     </button>
                   ) : null
                 ))}
+                </div>
               </div>
             </div>
 
@@ -500,7 +502,7 @@ export default function ClubAdminPage() {
                 <div className="space-y-2">
                   {paginated.map((comp) => (
                     <div key={comp.id} className="card p-4">
-                      <div className="flex items-start justify-between gap-3">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className={
@@ -515,7 +517,7 @@ export default function ClubAdminPage() {
                             {comp.entryFee > 0 && <span className="text-brand-400 font-semibold">€{comp.entryFee}</span>}
                           </div>
                         </div>
-                        <div className="flex gap-2 shrink-0 flex-wrap justify-end">
+                        <div className="flex flex-wrap gap-2 sm:shrink-0 sm:justify-end">
                           <Link to={`/competitions/${comp.id}`} className="btn-secondary text-xs px-3 py-1.5">View</Link>
                           <button
                             onClick={() => syncMutation.mutate(comp.id)}
@@ -547,7 +549,7 @@ export default function ClubAdminPage() {
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
+                  <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm text-gray-400">
                       Showing {(page - 1) * COMP_PAGE_SIZE + 1}–{Math.min(page * COMP_PAGE_SIZE, filtered.length)} of {filtered.length}
                     </p>
@@ -733,7 +735,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
   return (
     <div className="mt-3 pt-3 border-t border-gray-700/50 space-y-3">
       {/* Header row */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
           Participants ({participants?.length ?? 0})
           {isManual && unpaidCount > 0 && (
@@ -742,7 +744,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
         </h4>
         <button
           onClick={() => setShowAddPanel((v) => !v)}
-          className="text-xs px-2.5 py-1 rounded-lg bg-brand-600/20 hover:bg-brand-600/40 text-brand-400 transition font-medium"
+          className="w-full sm:w-auto text-xs px-2.5 py-1 rounded-lg bg-brand-600/20 hover:bg-brand-600/40 text-brand-400 transition font-medium"
         >
           {showAddPanel ? '✕ Cancel' : '+ Add'}
         </button>
@@ -786,7 +788,8 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
             )}
           </div>
           {/* Status filter pills */}
-          <div className="inline-flex rounded-lg bg-surface-700 p-0.5 shrink-0">
+          <div className="-mx-1 overflow-x-auto pb-1 sm:mx-0 sm:overflow-visible">
+            <div className="inline-flex min-w-max rounded-lg bg-surface-700 p-0.5 shrink-0">
             {(['ALL', 'ACTIVE', 'ELIMINATED', 'WINNER'] as const).map(s => (
               statusCounts[s] > 0 || s === 'ALL' ? (
                 <button key={s} onClick={() => { setStatusFilter(s); setPage(1); }}
@@ -795,6 +798,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                 </button>
               ) : null
             ))}
+            </div>
           </div>
         </div>
       )}
@@ -817,8 +821,8 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
         <>
           <div className="divide-y divide-gray-700/30">
             {paginated.map((p) => (
-              <div key={p.id} className="flex items-center justify-between py-2 text-sm">
-                <div className="flex items-center gap-2 flex-wrap">
+              <div key={p.id} className="flex flex-col gap-2 py-2 text-sm sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2 flex-wrap min-w-0">
                   <span className="text-gray-200 font-medium">{p.username}</span>
                   <span className={
                     p.status === 'ACTIVE' ? 'badge-green' :
@@ -828,7 +832,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                     <span className="text-xs text-gray-500">GW{p.eliminatedWeek}</span>
                   )}
                 </div>
-                <div className="flex items-center gap-2 ml-2 shrink-0">
+                <div className="flex flex-wrap items-center gap-2 sm:ml-2 sm:shrink-0">
                   {isManual && (
                     paidSet.has(p.userId) ? (
                       <span className="text-xs text-green-400 font-medium flex items-center gap-1">
@@ -877,7 +881,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between pt-1 border-t border-gray-700/30">
+            <div className="flex flex-col gap-3 pt-1 border-t border-gray-700/30 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs text-gray-500">
                 {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length}
               </p>
