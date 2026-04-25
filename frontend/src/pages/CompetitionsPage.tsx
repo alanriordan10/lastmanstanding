@@ -32,6 +32,7 @@ export default function CompetitionsPage() {
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'UPCOMING' | 'ACTIVE'>('ALL');
   const [sortBy, setSortBy] = useState<'date' | 'players' | 'name'>('date');
   const [listView, setListView] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 12;
 
@@ -158,6 +159,11 @@ export default function CompetitionsPage() {
   const otherComps  = sorted.filter((c) => !joinedSet.has(c.id));
 
   const showClubFilter = clubs && clubs.length > 0 && (viewMode === 'available' || (viewMode === 'past' && user?.role === 'ADMIN'));
+  const activeFilterCount =
+    (statusFilter !== 'ALL' ? 1 : 0) +
+    (sortBy !== 'date' ? 1 : 0) +
+    (selectedClub ? 1 : 0) +
+    (listView ? 1 : 0);
 
   return (
     <div className="space-y-5 sm:space-y-6">
@@ -167,10 +173,11 @@ export default function CompetitionsPage() {
         <p className="mt-1 text-sm text-gray-400">Pick one team per gameweek — last survivor wins</p>
       </div>
 
-      {/* ── Tabs + search row ── */}
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <div className="inline-flex rounded-lg bg-surface-700 p-1 self-start">
+      {/* ── Navigation + controls ── */}
+      <div className="card p-3 sm:p-4">
+        <div className="flex flex-col gap-3">
+          <div className="-mx-1 overflow-x-auto pb-1 sm:mx-0 sm:overflow-visible">
+            <div className="inline-flex min-w-max rounded-xl bg-surface-700 p-1 self-start">
             <TabButton active={viewMode === 'available'} onClick={() => setViewMode('available')}>
               Available
               {competitions && competitions.length > 0 && (
@@ -186,80 +193,146 @@ export default function CompetitionsPage() {
             {isAdminOrClubAdmin && (
               <TabButton active={viewMode === 'past'} onClick={() => setViewMode('past')}>Past</TabButton>
             )}
+            </div>
           </div>
 
-          {/* Search */}
-          <div className="relative sm:ml-auto w-full sm:w-72">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search competitions…"
-              className="input-field w-full pl-9 text-sm"
-            />
-            {search && (
-              <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-lg">×</button>
-            )}
-          </div>
-        </div>
-
-        {/* Available-tab filter row */}
-        {viewMode === 'available' && (
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Status pills */}
-            <div className="inline-flex rounded-lg bg-surface-700 p-0.5">
-              {(['ALL', 'UPCOMING', 'ACTIVE'] as const).map(s => (
-                <button key={s} onClick={() => setStatusFilter(s)}
-                  className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${statusFilter === s ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'}`}>
-                  {s === 'ALL' ? `All (${competitions?.length ?? 0})` : s === 'UPCOMING' ? `Upcoming (${competitions?.filter(c => c.status === 'UPCOMING').length ?? 0})` : `Active (${competitions?.filter(c => c.status === 'ACTIVE').length ?? 0})`}
-                </button>
-              ))}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative flex-1">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder={viewMode === 'mine' ? 'Search your competitions…' : 'Search competitions…'}
+                className="input-field w-full pl-9 pr-10 text-sm"
+              />
+              {search && (
+                <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-lg">×</button>
+              )}
             </div>
 
-            {/* Sort */}
-            <select value={sortBy} onChange={e => setSortBy(e.target.value as any)}
-              className="rounded-lg bg-surface-700 border border-gray-600 px-3 py-1 text-xs text-gray-200 focus:outline-none focus:border-brand-500">
-              <option value="date">Sort: Date</option>
-              <option value="players">Sort: Most Players</option>
-              <option value="name">Sort: Name A–Z</option>
-            </select>
-
-            {/* Club filter */}
-            {showClubFilter && (
-              <div className="w-44">
-                <ErrorBoundary fallback={null}>
-                  <ClubTypeahead clubs={clubs!} selected={selectedClub} onSelect={setSelectedClub} />
-                </ErrorBoundary>
+            {viewMode === 'available' && (
+              <div className="flex items-center gap-2 sm:ml-auto">
+                <button
+                  type="button"
+                  onClick={() => setShowFilters((v) => !v)}
+                  className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition ${
+                    showFilters || activeFilterCount > 0
+                      ? 'border-brand-500/40 bg-brand-500/10 text-brand-300'
+                      : 'border-gray-600/50 bg-surface-700 text-gray-300 hover:bg-surface-600'
+                  }`}
+                >
+                  <span>Refine</span>
+                  {activeFilterCount > 0 && (
+                    <span className="inline-flex min-w-[1.1rem] items-center justify-center rounded-full bg-white/10 px-1 text-[10px] font-bold">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </button>
               </div>
             )}
-
-            {/* List/grid toggle */}
-            <div className="ml-auto inline-flex rounded-lg bg-surface-700 p-0.5">
-              <button onClick={() => setListView(false)}
-                className={`p-1.5 rounded-md transition-colors ${!listView ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'}`} title="Grid view">
-                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 16 16">
-                  <path d="M1 2.5A1.5 1.5 0 012.5 1h3A1.5 1.5 0 017 2.5v3A1.5 1.5 0 015.5 7h-3A1.5 1.5 0 011 5.5v-3zm8 0A1.5 1.5 0 0110.5 1h3A1.5 1.5 0 0115 2.5v3A1.5 1.5 0 0113.5 7h-3A1.5 1.5 0 019 5.5v-3zm-8 8A1.5 1.5 0 012.5 9h3A1.5 1.5 0 017 10.5v3A1.5 1.5 0 015.5 15h-3A1.5 1.5 0 011 13.5v-3zm8 0A1.5 1.5 0 0110.5 9h3A1.5 1.5 0 0115 10.5v3A1.5 1.5 0 0113.5 15h-3A1.5 1.5 0 019 13.5v-3z"/>
-                </svg>
-              </button>
-              <button onClick={() => setListView(true)}
-                className={`p-1.5 rounded-md transition-colors ${listView ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'}`} title="List view">
-                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 16 16">
-                  <path fillRule="evenodd" d="M2.5 12a.5.5 0 01.5-.5h10a.5.5 0 010 1H3a.5.5 0 01-.5-.5zm0-4a.5.5 0 01.5-.5h10a.5.5 0 010 1H3a.5.5 0 01-.5-.5zm0-4a.5.5 0 01.5-.5h10a.5.5 0 010 1H3a.5.5 0 01-.5-.5z"/>
-                </svg>
-              </button>
-            </div>
-
-            {/* Result count */}
-            {(search || statusFilter !== 'ALL') && (
-              <span className="text-xs text-gray-500">
-                {filteredAvailable.length} result{filteredAvailable.length !== 1 ? 's' : ''}
-              </span>
-            )}
           </div>
-        )}
+
+          {viewMode === 'available' && (showFilters || activeFilterCount > 0) && (
+            <div className="grid gap-3 rounded-xl border border-gray-700/50 bg-surface-800/50 p-3 sm:grid-cols-[1.4fr_0.9fr_1fr_auto] sm:items-end">
+              <div>
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Status</p>
+                <div className="-mx-1 overflow-x-auto pb-1 sm:mx-0 sm:overflow-visible">
+                  <div className="inline-flex min-w-max rounded-lg bg-surface-700 p-0.5">
+                    {(['ALL', 'UPCOMING', 'ACTIVE'] as const).map(s => (
+                      <button key={s} onClick={() => setStatusFilter(s)}
+                        className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${statusFilter === s ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'}`}>
+                        {s === 'ALL' ? `All (${competitions?.length ?? 0})` : s === 'UPCOMING' ? `Upcoming (${competitions?.filter(c => c.status === 'UPCOMING').length ?? 0})` : `Active (${competitions?.filter(c => c.status === 'ACTIVE').length ?? 0})`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Sort</label>
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    { value: 'date', label: 'Soonest' },
+                    { value: 'players', label: 'Players' },
+                    { value: 'name', label: 'A-Z' },
+                  ] as const).map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setSortBy(option.value)}
+                      className={`rounded-lg border px-3 py-2 text-xs font-medium transition ${
+                        sortBy === option.value
+                          ? 'border-brand-500/40 bg-brand-500/10 text-brand-300'
+                          : 'border-gray-600/50 bg-surface-700 text-gray-300 hover:bg-surface-600'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {showClubFilter && (
+                <div>
+                  <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Club</label>
+                  <div className="w-full sm:w-44">
+                    <ErrorBoundary fallback={null}>
+                      <ClubTypeahead clubs={clubs!} selected={selectedClub} onSelect={setSelectedClub} />
+                    </ErrorBoundary>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-end justify-between gap-3 sm:justify-end">
+                <div className="inline-flex rounded-lg bg-surface-700 p-0.5">
+                  <button onClick={() => setListView(false)}
+                    className={`p-2 rounded-md transition-colors ${!listView ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'}`} title="Grid view">
+                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 16 16">
+                      <path d="M1 2.5A1.5 1.5 0 012.5 1h3A1.5 1.5 0 017 2.5v3A1.5 1.5 0 015.5 7h-3A1.5 1.5 0 011 5.5v-3zm8 0A1.5 1.5 0 0110.5 1h3A1.5 1.5 0 0115 2.5v3A1.5 1.5 0 0113.5 7h-3A1.5 1.5 0 019 5.5v-3zm-8 8A1.5 1.5 0 012.5 9h3A1.5 1.5 0 017 10.5v3A1.5 1.5 0 015.5 15h-3A1.5 1.5 0 011 13.5v-3zm8 0A1.5 1.5 0 0110.5 9h3A1.5 1.5 0 0115 10.5v3A1.5 1.5 0 0113.5 15h-3A1.5 1.5 0 019 13.5v-3z"/>
+                    </svg>
+                  </button>
+                  <button onClick={() => setListView(true)}
+                    className={`p-2 rounded-md transition-colors ${listView ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'}`} title="List view">
+                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 16 16">
+                      <path fillRule="evenodd" d="M2.5 12a.5.5 0 01.5-.5h10a.5.5 0 010 1H3a.5.5 0 01-.5-.5zm0-4a.5.5 0 01.5-.5h10a.5.5 0 010 1H3a.5.5 0 01-.5-.5zm0-4a.5.5 0 01.5-.5h10a.5.5 0 010 1H3a.5.5 0 01-.5-.5z"/>
+                    </svg>
+                  </button>
+                </div>
+
+                {activeFilterCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStatusFilter('ALL');
+                      setSortBy('date');
+                      setSelectedClub(null);
+                      setListView(false);
+                    }}
+                    className="text-xs text-gray-400 underline-offset-2 hover:text-white hover:underline"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {(search || (viewMode === 'available' && (statusFilter !== 'ALL' || selectedClub || sortBy !== 'date'))) && (
+            <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+              {viewMode === 'available' && (
+                <span>
+                  {filteredAvailable.length} result{filteredAvailable.length !== 1 ? 's' : ''}
+                </span>
+              )}
+              {search && <span className="rounded-full bg-surface-700 px-2 py-1 text-gray-300">Search: {search}</span>}
+              {viewMode === 'available' && statusFilter !== 'ALL' && <span className="rounded-full bg-surface-700 px-2 py-1 text-gray-300">Status: {statusFilter.toLowerCase()}</span>}
+              {viewMode === 'available' && selectedClub && <span className="rounded-full bg-surface-700 px-2 py-1 text-gray-300">Club: {selectedClub.name}</span>}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ── My Competitions — summary strip ── */}
