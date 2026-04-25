@@ -3,6 +3,7 @@ package com.lastmanstanding.config;
 import com.lastmanstanding.repository.UserRepository;
 import com.lastmanstanding.security.JwtAuthenticationFilter;
 import com.lastmanstanding.security.UserDetailsImpl;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -22,6 +23,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Configuration
@@ -30,11 +32,14 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final UserRepository userRepository;
+    private final String frontendUrl;
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
-                          UserRepository userRepository) {
+                          UserRepository userRepository,
+                          @Value("${app.frontend-url:http://localhost:5173}") String frontendUrl) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.userRepository = userRepository;
+        this.frontendUrl = frontendUrl;
     }
 
     // ── Security filter chain ───────────────────────────────────────────
@@ -66,11 +71,16 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of(
+        List<String> allowedOrigins = new ArrayList<>(List.of(
                 "http://localhost:5173",
                 "http://localhost:5174",
                 "http://localhost:3000"
         ));
+        if (frontendUrl != null && !frontendUrl.isBlank()) {
+            allowedOrigins.add(frontendUrl);
+        }
+
+        config.setAllowedOrigins(allowedOrigins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

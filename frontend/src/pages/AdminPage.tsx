@@ -726,7 +726,7 @@ function ParticipantsPanel({ competitionId, competitionName }: { competitionId: 
 
       {/* Declare Winner Dialog */}
       <ConfirmDialog
-        isOpen={!!winnerDialogUser}
+        isOpen={winnerDialogUser !== null}
         onClose={() => setWinnerDialogUser(null)}
         onConfirm={() => winnerDialogUser && declareWinnerMutation.mutate(winnerDialogUser.userId)}
         icon="🏆"
@@ -743,7 +743,7 @@ function ParticipantsPanel({ competitionId, competitionName }: { competitionId: 
 
       {/* Remove Participant Dialog */}
       <ConfirmDialog
-        isOpen={!!removeDialogUser}
+        isOpen={removeDialogUser !== null}
         onClose={() => setRemoveDialogUser(null)}
         onConfirm={() => removeDialogUser && removeMutation.mutate(removeDialogUser.userId)}
         variant="danger"
@@ -1524,7 +1524,8 @@ function SimulateTab() {
             const gw = gws.data?.find((g: any) => g.id === selectedGwId);
             if (gw && gw.status !== 'LOCKED' && gw.status !== 'IN_PROGRESS') {
               clearInterval(poll);
-              toast.success(`Gameweek ${data.gameweekId} processing complete! Status: ${gw.status}`, { duration: 5000 });
+              toast.success(`Gameweek ${data.gameweekId} processing complete! Status: ${gw.status}` +
+                (gw.activeParticipants !== undefined ? ` — ${gw.activeParticipants} active remaining.` : ''), { duration: 5000 });
               queryClient.invalidateQueries({ queryKey: ['admin', 'gameweeks', selectedCompId] });
               queryClient.invalidateQueries({ queryKey: ['admin', 'participants'] });
               queryClient.invalidateQueries({ queryKey: ['admin', 'competitions'] });
@@ -1641,13 +1642,25 @@ function SimulateTab() {
     },
     onSuccess: (response) => {
       const data = response.data;
-      let message = `GW${data.gameweekId} processed! ${data.activeParticipants ?? 0} active remaining.`;
-      toast.success(message, { duration: 5000 });
-      queryClient.invalidateQueries({ queryKey: ['admin', 'gameweeks', selectedCompId] });
-      queryClient.invalidateQueries({ queryKey: ['admin', 'participants'] });
-      queryClient.invalidateQueries({ queryKey: ['admin', 'competitions'] });
-      queryClient.invalidateQueries({ queryKey: ['competitions'] });
-      setFixtureResults({});
+      // The backend processes results asynchronously — poll until the gameweek status changes
+      toast.success('Processing started…', { duration: 3000 });
+      const poll = setInterval(async () => {
+        try {
+          const gws = await api.get(`/admin/competitions/${selectedCompId}/gameweeks`);
+          const gw = gws.data?.find((g: any) => g.id === Number(selectedGwId));
+          if (gw && gw.status !== 'LOCKED' && gw.status !== 'IN_PROGRESS') {
+            clearInterval(poll);
+            toast.success(`GW${data.gameweekId} processing complete! Status: ${gw.status}` +
+              (gw.activeParticipants !== undefined ? ` — ${gw.activeParticipants} active remaining.` : ''), { duration: 5000 });
+            queryClient.invalidateQueries({ queryKey: ['admin', 'gameweeks', selectedCompId] });
+            queryClient.invalidateQueries({ queryKey: ['admin', 'participants'] });
+            queryClient.invalidateQueries({ queryKey: ['admin', 'competitions'] });
+            queryClient.invalidateQueries({ queryKey: ['competitions'] });
+            setFixtureResults({});
+          }
+        } catch { clearInterval(poll); }
+      }, 2000);
+      setTimeout(() => clearInterval(poll), 120_000);
     },
     onError: (err: any) => toast.error(err.response?.data?.message || 'Bulk simulation failed'),
   });
