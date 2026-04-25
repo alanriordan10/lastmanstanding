@@ -444,7 +444,7 @@ export default function CompetitionHomePage() {
               📨 Invite
             </button>
             {shareOpen && (
-              <div className="absolute right-0 top-full mt-1 z-50 w-64 rounded-xl border border-gray-700 bg-surface-800 shadow-xl p-3 space-y-2">
+              <div className="absolute left-0 right-auto top-full mt-1 z-50 w-[min(20rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] rounded-xl border border-gray-700 bg-surface-800 shadow-xl p-3 space-y-2 sm:left-auto sm:right-0 sm:w-64 sm:max-w-64">
                 <p className="text-xs font-semibold text-gray-300 mb-1">Share this competition</p>
                 {/* Copy link */}
                 <button
@@ -662,25 +662,47 @@ export default function CompetitionHomePage() {
                 {/* ── Gameweek header — clickable toggle ── */}
                 <button
                   onClick={() => toggleWeek(wn)}
-                  className="w-full flex items-center justify-between text-left group"
+                  className="w-full flex items-start justify-between text-left group"
                   aria-expanded={!isCollapsed}
                   aria-controls={`gw-${wn}-fixtures`}
                 >
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <h3 className="text-lg font-semibold shrink-0">Gameweek {wn}</h3>
-                    {isCompleted ? (
-                      <span className="badge-gray text-xs">Completed</span>
-                    ) : isLocked ? (
-                      <span className="badge-red text-xs">🔒 Locked</span>
-                    ) : (
-                      <span className="badge-yellow text-xs">
-                        Locks {formatDistanceToNow(parseDate(lockAt), { addSuffix: true })}
-                      </span>
-                    )}
-                    {/* Show pick summary in header when collapsed */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <h3 className="text-lg font-semibold shrink-0">Gameweek {wn}</h3>
+                      {isCompleted ? (
+                        <span className="badge-gray text-xs">Completed</span>
+                      ) : isLocked ? (
+                        <span className="badge-red text-xs">🔒 Locked</span>
+                      ) : (
+                        <span className="badge-yellow text-xs">
+                          Locks {formatDistanceToNow(parseDate(lockAt), { addSuffix: true })}
+                        </span>
+                      )}
+                      {/* Desktop collapsed summary */}
+                      {isCollapsed && myPickForGw && (
+                        <span className="hidden sm:inline text-sm text-gray-400 truncate">
+                          — <span className={clsx('font-semibold', {
+                            'text-green-400': myPickForGw.outcome === 'ADVANCE',
+                            'text-red-400': myPickForGw.outcome === 'ELIMINATED',
+                            'text-yellow-400': myPickForGw.outcome === 'POSTPONED_ADVANCE',
+                            'text-brand-400': myPickForGw.outcome === 'PENDING',
+                          })}>
+                            {myPickForGw.teamShortName}
+                          </span>
+                          {myPickForGw.outcome !== 'PENDING' && (
+                            <span className="ml-1"><OutcomeBadge outcome={myPickForGw.outcome} /></span>
+                          )}
+                        </span>
+                      )}
+                      {isCollapsed && !myPickForGw && isParticipant && !isEliminated && !isWinner && !isLocked && (
+                        <span className="hidden sm:inline text-xs text-yellow-400 italic">— no pick yet</span>
+                      )}
+                    </div>
+
                     {isCollapsed && myPickForGw && (
-                      <span className="text-xs sm:text-sm text-gray-400 truncate">
-                        — <span className={clsx('font-semibold', {
+                      <div className="sm:hidden mt-1 text-xs text-gray-400">
+                        Selected:{' '}
+                        <span className={clsx('font-semibold', {
                           'text-green-400': myPickForGw.outcome === 'ADVANCE',
                           'text-red-400': myPickForGw.outcome === 'ELIMINATED',
                           'text-yellow-400': myPickForGw.outcome === 'POSTPONED_ADVANCE',
@@ -688,13 +710,10 @@ export default function CompetitionHomePage() {
                         })}>
                           {myPickForGw.teamShortName}
                         </span>
-                        {myPickForGw.outcome !== 'PENDING' && (
-                          <span className="ml-1 hidden sm:inline"><OutcomeBadge outcome={myPickForGw.outcome} /></span>
-                        )}
-                      </span>
+                      </div>
                     )}
                     {isCollapsed && !myPickForGw && isParticipant && !isEliminated && !isWinner && !isLocked && (
-                      <span className="text-xs text-yellow-400 italic hidden sm:inline">— no pick yet</span>
+                      <div className="sm:hidden mt-1 text-xs text-yellow-400 italic">No pick yet</div>
                     )}
                   </div>
                   <div className="flex items-center gap-3 shrink-0 ml-2">
@@ -879,9 +898,9 @@ export default function CompetitionHomePage() {
                       </div>
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-gray-500">
-                          {pick.source === 'AUTO' ? 'Auto selection' : 'User selection'}
+                          {pick.source === 'AUTO' ? 'Auto-picked' : 'Self-picked'}
                         </span>
-                        {pick.source === 'AUTO' ? <span className="badge-yellow text-[10px]">Auto</span> : <span className="badge-gray text-[10px]">User</span>}
+                        {pick.source === 'AUTO' ? <span className="badge-yellow text-[10px]">Auto</span> : <span className="badge-gray text-[10px]">Self</span>}
                       </div>
                     </div>
                   ))}
@@ -893,7 +912,7 @@ export default function CompetitionHomePage() {
                     <tr className="border-b border-gray-700 text-gray-400 text-left">
                       <th className="py-3 px-4">GW</th>
                       <th className="py-3 px-4">Team</th>
-                      <th className="py-3 px-4">Source</th>
+                      <th className="py-3 px-4">Pick Type</th>
                       <th className="py-3 px-4">Outcome</th>
                     </tr>
                   </thead>
@@ -908,7 +927,7 @@ export default function CompetitionHomePage() {
                           <span className="text-gray-400 ml-2 text-xs">{pick.teamName}</span>
                         </td>
                         <td className="py-3 px-4">
-                          {pick.source === 'AUTO' ? <span className="badge-yellow">Auto</span> : <span className="badge-gray">User</span>}
+                          {pick.source === 'AUTO' ? <span className="badge-yellow">Auto</span> : <span className="badge-gray">Self</span>}
                         </td>
                         <td className="py-3 px-4">
                           <OutcomeBadge outcome={pick.outcome} />

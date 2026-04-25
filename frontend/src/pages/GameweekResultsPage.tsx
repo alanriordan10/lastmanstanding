@@ -401,7 +401,7 @@ export default function GameweekResultsPage() {
                       </div>
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-gray-500">
-                          {sel.source === 'AUTO' ? 'Auto selection' : 'User selection'}
+                          {sel.source === 'AUTO' ? 'Auto-picked' : 'Self-picked'}
                         </span>
                         <span className="font-medium text-gray-300">Score: {score}</span>
                       </div>
@@ -418,7 +418,7 @@ export default function GameweekResultsPage() {
                       <th className="py-3 px-4">Pick</th>
                       <th className="py-3 px-4">Opponent</th>
                       <th className="py-3 px-4 text-center">Score</th>
-                      <th className="py-3 px-4">Source</th>
+                      <th className="py-3 px-4">Pick Type</th>
                       <th className="py-3 px-4">Outcome</th>
                     </tr>
                   </thead>
@@ -445,7 +445,7 @@ export default function GameweekResultsPage() {
                             {sel.source === 'AUTO' ? (
                               <span className="text-xs text-yellow-400">Auto</span>
                             ) : (
-                              <span className="text-xs text-gray-500">User</span>
+                              <span className="text-xs text-gray-500">Self</span>
                             )}
                           </td>
                           <td className="py-3 px-4"><OutcomeBadge outcome={sel.outcome} /></td>
@@ -537,18 +537,39 @@ export default function GameweekResultsPage() {
             {gameweekFixtures
               .sort((a, b) => parseDate(a.kickoffAt).getTime() - parseDate(b.kickoffAt).getTime())
               .map((f) => (
-                <div key={f.id} className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 bg-surface-700/50 rounded-lg px-4 py-2.5 text-sm">
-                  <span className="text-gray-200 text-right">{f.homeTeamName}</span>
-                  <div className="flex items-center justify-center min-w-[60px]">
-                    {f.status === 'FINISHED' ? (
-                      <span className="font-bold text-white">{f.scoreHome} - {f.scoreAway}</span>
-                    ) : f.status === 'POSTPONED' ? (
-                      <span className="badge-yellow text-xs">PP</span>
-                    ) : (
-                      <span className="text-gray-400 text-xs">{format(parseDate(f.kickoffAt), 'HH:mm')}</span>
-                    )}
+                <div key={f.id} className="bg-surface-700/50 rounded-lg px-4 py-3 text-sm">
+                  <div className="sm:hidden space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-medium text-gray-200">{f.homeTeamShortName}</span>
+                      <div className="flex items-center justify-center min-w-[60px]">
+                        {f.status === 'FINISHED' ? (
+                          <span className="font-bold text-white">{f.scoreHome} - {f.scoreAway}</span>
+                        ) : f.status === 'POSTPONED' ? (
+                          <span className="badge-yellow text-xs">PP</span>
+                        ) : (
+                          <span className="text-gray-400 text-xs">{format(parseDate(f.kickoffAt), 'HH:mm')}</span>
+                        )}
+                      </div>
+                      <span className="font-medium text-gray-200">{f.awayTeamShortName}</span>
+                    </div>
+                    <div className="text-center text-xs text-gray-400">
+                      {f.homeTeamName} vs {f.awayTeamName}
+                    </div>
                   </div>
-                  <span className="text-gray-200">{f.awayTeamName}</span>
+
+                  <div className="hidden sm:grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+                    <span className="text-gray-200 text-right">{f.homeTeamName}</span>
+                    <div className="flex items-center justify-center min-w-[60px]">
+                      {f.status === 'FINISHED' ? (
+                        <span className="font-bold text-white">{f.scoreHome} - {f.scoreAway}</span>
+                      ) : f.status === 'POSTPONED' ? (
+                        <span className="badge-yellow text-xs">PP</span>
+                      ) : (
+                        <span className="text-gray-400 text-xs">{format(parseDate(f.kickoffAt), 'HH:mm')}</span>
+                      )}
+                    </div>
+                    <span className="text-gray-200">{f.awayTeamName}</span>
+                  </div>
                 </div>
               ))}
           </div>
@@ -695,7 +716,27 @@ function Pagination({
         Showing {startItem}-{endItem} of {totalItems} participants
       </div>
       
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 sm:hidden">
+        <button
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className="px-3 py-1 text-sm rounded bg-surface-700 hover:bg-surface-600 text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
+        >
+          ← Prev
+        </button>
+        <span className="text-sm text-gray-400">
+          {currentPage} / {totalPages}
+        </span>
+        <button
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className="px-3 py-1 text-sm rounded bg-surface-700 hover:bg-surface-600 text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
+        >
+          Next →
+        </button>
+      </div>
+
+      <div className="hidden sm:flex items-center gap-2">
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}

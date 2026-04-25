@@ -634,41 +634,48 @@ function ParticipantsPanel({ competitionId, competitionName }: { competitionId: 
         <>
           <div className="divide-y divide-gray-700/30">
             {paginated.map((p) => (
-              <div key={p.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="font-medium text-gray-200 truncate">{p.username}</span>
-                  <span className={
-                    p.status === 'ACTIVE'    ? 'badge-green' :
-                    p.status === 'ELIMINATED' ? 'badge-red'   : 'badge-yellow'
-                  }>
-                    {p.status}
-                  </span>
-                  {p.eliminatedWeek && (
-                    <span className="text-xs text-gray-500 shrink-0">GW{p.eliminatedWeek}</span>
-                  )}
-                  <span className="text-xs text-gray-500 shrink-0 hidden sm:inline">
-                    joined {parseDate(p.joinedAt).toLocaleDateString()}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 shrink-0 ml-2">
+              <div key={p.id} className="px-4 py-3 text-sm">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0 space-y-2">
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                      <span className="font-medium text-gray-200 truncate">{p.username}</span>
+                      <span className={
+                        p.status === 'ACTIVE'    ? 'badge-green' :
+                        p.status === 'ELIMINATED' ? 'badge-red'   : 'badge-yellow'
+                      }>
+                        {p.status}
+                      </span>
+                      {p.eliminatedWeek && (
+                        <span className="text-xs text-gray-500 shrink-0">GW{p.eliminatedWeek}</span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+                      <span>Joined {parseDate(p.joinedAt).toLocaleDateString()}</span>
+                      {p.status === 'ACTIVE' && counts.ACTIVE > 1 && (
+                        <span className="text-yellow-500/80">Eligible to be declared winner</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
                   {p.status === 'ACTIVE' && counts.ACTIVE > 1 && (
                     <button
                       onClick={() => setWinnerDialogUser(p)}
                       disabled={declareWinnerMutation.isPending}
-                      className="text-xs px-2.5 py-1 rounded bg-yellow-600/20 hover:bg-yellow-600/40 text-yellow-400 transition"
+                      className="text-xs px-2.5 py-1.5 rounded bg-yellow-600/20 hover:bg-yellow-600/40 text-yellow-400 transition"
                       title="Declare as winner and end competition"
                     >
-                      🏆 Declare Winner
+                      🏆 Winner
                     </button>
                   )}
                   <button
                     onClick={() => setRemoveDialogUser(p)}
                     disabled={removeMutation.isPending}
-                    className="text-xs px-2.5 py-1 rounded bg-red-600/20 hover:bg-red-600/40 text-red-400 transition"
+                    className="text-xs px-2.5 py-1.5 rounded bg-red-600/20 hover:bg-red-600/40 text-red-400 transition"
                   >
                     Remove
                   </button>
                 </div>
+              </div>
               </div>
             ))}
           </div>

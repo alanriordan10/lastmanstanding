@@ -821,18 +821,31 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
         <>
           <div className="divide-y divide-gray-700/30">
             {paginated.map((p) => (
-              <div key={p.id} className="flex flex-col gap-2 py-2 text-sm sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-2 flex-wrap min-w-0">
-                  <span className="text-gray-200 font-medium">{p.username}</span>
-                  <span className={
-                    p.status === 'ACTIVE' ? 'badge-green' :
-                    p.status === 'ELIMINATED' ? 'badge-red' : 'badge-yellow'
-                  }>{p.status}</span>
-                  {p.eliminatedWeek && (
-                    <span className="text-xs text-gray-500">GW{p.eliminatedWeek}</span>
-                  )}
-                </div>
-                <div className="flex flex-wrap items-center gap-2 sm:ml-2 sm:shrink-0">
+              <div key={p.id} className="py-3 text-sm">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0 space-y-2">
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                      <span className="text-gray-200 font-medium">{p.username}</span>
+                      <span className={
+                        p.status === 'ACTIVE' ? 'badge-green' :
+                        p.status === 'ELIMINATED' ? 'badge-red' : 'badge-yellow'
+                      }>{p.status}</span>
+                      {p.eliminatedWeek && (
+                        <span className="text-xs text-gray-500">GW{p.eliminatedWeek}</span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+                      {isManual && (
+                        paidSet.has(p.userId)
+                          ? <span className="text-green-400">Payment confirmed</span>
+                          : <span className="text-yellow-400">Awaiting payment</span>
+                      )}
+                      {p.status === 'ACTIVE' && activeCount > 1 && (
+                        <span className="text-yellow-500/80">Still eligible to win</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 sm:ml-2 sm:shrink-0">
                   {isManual && (
                     paidSet.has(p.userId) ? (
                       <span className="text-xs text-green-400 font-medium flex items-center gap-1">
@@ -843,9 +856,9 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                       <button
                         onClick={() => markPaidMutation.mutate(p.userId)}
                         disabled={markPaidMutation.isPending}
-                        className="text-xs px-2.5 py-1 rounded bg-green-600/20 hover:bg-green-600/40 text-green-400 transition font-medium"
+                        className="text-xs px-2.5 py-1.5 rounded bg-green-600/20 hover:bg-green-600/40 text-green-400 transition font-medium"
                       >
-                        💸 Confirm Payment
+                        💸 Confirm
                       </button>
                     )
                   )}
@@ -853,7 +866,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                     <button
                       onClick={() => setUnmarkDialogUser(p)}
                       disabled={unmarkPaidMutation.isPending}
-                      className="text-xs px-2.5 py-1 rounded bg-red-600/20 hover:bg-red-600/40 text-red-400 transition"
+                      className="text-xs px-2.5 py-1.5 rounded bg-red-600/20 hover:bg-red-600/40 text-red-400 transition"
                     >
                       ↩️ Revert
                     </button>
@@ -862,7 +875,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                     <button
                       onClick={() => setWinnerDialogUser(p)}
                       disabled={declareWinnerMutation.isPending}
-                      className="text-xs px-2.5 py-1 rounded bg-yellow-600/20 hover:bg-yellow-600/40 text-yellow-400 transition"
+                      className="text-xs px-2.5 py-1.5 rounded bg-yellow-600/20 hover:bg-yellow-600/40 text-yellow-400 transition"
                     >
                       🏆 Winner
                     </button>
@@ -870,11 +883,12 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                   <button
                     onClick={() => setRemoveDialogUser(p)}
                     disabled={removeMutation.isPending}
-                    className="text-xs px-2.5 py-1 rounded bg-red-600/20 hover:bg-red-600/40 text-red-400 transition"
+                    className="text-xs px-2.5 py-1.5 rounded bg-red-600/20 hover:bg-red-600/40 text-red-400 transition"
                   >
                     Remove
                   </button>
                 </div>
+              </div>
               </div>
             ))}
           </div>

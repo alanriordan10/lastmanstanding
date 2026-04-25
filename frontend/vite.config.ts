@@ -9,6 +9,23 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return;
+
+          if (id.includes('react-router-dom')) return 'router';
+          if (id.includes('@tanstack/react-query')) return 'react-query';
+          if (id.includes('@stripe') || id.includes('/stripe-js/')) return 'stripe';
+          if (id.includes('react-hot-toast')) return 'toast';
+          if (id.includes('date-fns')) return 'date-fns';
+          if (id.includes('axios')) return 'http';
+          if (id.includes('react') || id.includes('scheduler')) return 'react-vendor';
+        },
+      },
+    },
+  },
   server: {
     port: 5173,
     strictPort: false,

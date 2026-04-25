@@ -233,7 +233,7 @@ export default function GameweekSelectionsPage() {
                         <tr className="border-b border-gray-700 text-left text-gray-400">
                           <th className="py-3 px-4">Player</th>
                           <th className="py-3 px-4">Team Picked</th>
-                          <th className="py-3 px-4">Source</th>
+                          <th className="py-3 px-4">Pick Type</th>
                           <th className="py-3 px-4">Outcome</th>
                         </tr>
                       </thead>
@@ -248,7 +248,7 @@ export default function GameweekSelectionsPage() {
                             <td className="py-3 px-4">
                               {s.source === 'AUTO'
                                 ? <span className="badge-yellow text-xs">Auto</span>
-                                : <span className="badge-gray text-xs">User</span>}
+                                : <span className="badge-gray text-xs">Self</span>}
                             </td>
                             <td className="py-3 px-4">
                               <OutcomeBadge outcome={s.outcome} />
@@ -325,13 +325,33 @@ export default function GameweekSelectionsPage() {
 function OutcomeBadge({ outcome }: { outcome: string }) {
   switch (outcome) {
     case 'ADVANCE':
-      return <span className="badge-green text-xs">✓ Win</span>;
+      return (
+        <span className="badge-green text-xs whitespace-nowrap">
+          <span className="sm:hidden">✓</span>
+          <span className="hidden sm:inline">✓ Win</span>
+        </span>
+      );
     case 'ELIMINATED':
-      return <span className="badge-red text-xs">✕ Out</span>;
+      return (
+        <span className="badge-red text-xs whitespace-nowrap">
+          <span className="sm:hidden">✕</span>
+          <span className="hidden sm:inline">✕ Out</span>
+        </span>
+      );
     case 'POSTPONED_ADVANCE':
-      return <span className="badge-yellow text-xs">PP</span>;
+      return (
+        <span className="badge-yellow text-xs whitespace-nowrap">
+          <span className="sm:hidden">↷</span>
+          <span className="hidden sm:inline">PP</span>
+        </span>
+      );
     case 'PENDING':
-      return <span className="badge-gray text-xs">⏳ Playing</span>;
+      return (
+        <span className="badge-gray text-xs whitespace-nowrap">
+          <span className="sm:hidden">…</span>
+          <span className="hidden sm:inline">⏳ Playing</span>
+        </span>
+      );
     default:
       return <span className="badge-gray text-xs">{outcome}</span>;
   }
@@ -383,7 +403,27 @@ function Pagination({
         Showing {startItem}-{endItem} of {totalItems}
       </div>
       
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 sm:hidden">
+        <button
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className="px-3 py-1 text-sm rounded bg-surface-700 hover:bg-surface-600 text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
+        >
+          ← Prev
+        </button>
+        <span className="text-sm text-gray-400">
+          {currentPage} / {totalPages}
+        </span>
+        <button
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className="px-3 py-1 text-sm rounded bg-surface-700 hover:bg-surface-600 text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
+        >
+          Next →
+        </button>
+      </div>
+
+      <div className="hidden sm:flex items-center gap-2">
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
