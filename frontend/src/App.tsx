@@ -1,20 +1,22 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import Layout from './components/Layout';
-import LoginPage from './pages/LoginPage';
-import SignupPage from './pages/SignupPage';
-import LandingPage from './pages/LandingPage';
-import RegisterClubPage from './pages/RegisterClubPage';
-import ForgotPasswordPage from './pages/ForgotPasswordPage';
-import ResetPasswordPage from './pages/ResetPasswordPage';
-import CompetitionsPage from './pages/CompetitionsPage';
-import CompetitionHomePage from './pages/CompetitionHomePage';
-import GameweekSelectionsPage from './pages/GameweekSelectionsPage';
-import GameweekResultsPage from './pages/GameweekResultsPage';
-import AdminPage from './pages/AdminPage';
-import ClubAdminPage from './pages/ClubAdminPage';
-import SurvivorTablePage from './pages/SurvivorTablePage';
-import ProfilePage from './pages/ProfilePage';
+
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const SignupPage = lazy(() => import('./pages/SignupPage'));
+const LandingPage = lazy(() => import('./pages/LandingPage'));
+const RegisterClubPage = lazy(() => import('./pages/RegisterClubPage'));
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
+const CompetitionsPage = lazy(() => import('./pages/CompetitionsPage'));
+const CompetitionHomePage = lazy(() => import('./pages/CompetitionHomePage'));
+const GameweekSelectionsPage = lazy(() => import('./pages/GameweekSelectionsPage'));
+const GameweekResultsPage = lazy(() => import('./pages/GameweekResultsPage'));
+const AdminPage = lazy(() => import('./pages/AdminPage'));
+const ClubAdminPage = lazy(() => import('./pages/ClubAdminPage'));
+const SurvivorTablePage = lazy(() => import('./pages/SurvivorTablePage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -27,40 +29,50 @@ function Spinner() {
   return <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />;
 }
 
+function RouteFallback() {
+  return (
+    <div className="flex min-h-[40vh] items-center justify-center">
+      <Spinner />
+    </div>
+  );
+}
+
 export default function App() {
   const { user } = useAuth();
 
   return (
-    <Routes>
-      {/* Public routes */}
-      <Route path="/" element={user ? <Navigate to="/competitions" /> : <LandingPage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/signup" element={<SignupPage />} />
-      <Route path="/register-club" element={<RegisterClubPage />} />
-      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-      <Route path="/reset-password" element={<ResetPasswordPage />} />
+    <Suspense fallback={<RouteFallback />}>
+      <Routes>
+        {/* Public routes */}
+        <Route path="/" element={user ? <Navigate to="/competitions" /> : <LandingPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/register-club" element={<RegisterClubPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-      {/* Protected routes */}
-      <Route
-        path="/*"
-        element={
-          <ProtectedRoute>
-            <Layout>
-              <Routes>
-                <Route path="/competitions" element={<CompetitionsPage />} />
-                <Route path="/competitions/:id" element={<CompetitionHomePage />} />
-                <Route path="/competitions/:id/gameweeks/:gwId/selections" element={<GameweekSelectionsPage />} />
-                <Route path="/competitions/:id/gameweeks/:gwId/results" element={<GameweekResultsPage />} />
-                <Route path="/competitions/:id/survivor-table" element={<SurvivorTablePage />} />
-                <Route path="/admin" element={<AdminPage />} />
-                <Route path="/club-admin" element={<ClubAdminPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="*" element={<Navigate to="/competitions" />} />
-              </Routes>
-            </Layout>
-          </ProtectedRoute>
-        }
-      />
-    </Routes>
+        {/* Protected routes */}
+        <Route
+          path="/*"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Routes>
+                  <Route path="/competitions" element={<CompetitionsPage />} />
+                  <Route path="/competitions/:id" element={<CompetitionHomePage />} />
+                  <Route path="/competitions/:id/gameweeks/:gwId/selections" element={<GameweekSelectionsPage />} />
+                  <Route path="/competitions/:id/gameweeks/:gwId/results" element={<GameweekResultsPage />} />
+                  <Route path="/competitions/:id/survivor-table" element={<SurvivorTablePage />} />
+                  <Route path="/admin" element={<AdminPage />} />
+                  <Route path="/club-admin" element={<ClubAdminPage />} />
+                  <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="*" element={<Navigate to="/competitions" />} />
+                </Routes>
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    </Suspense>
   );
 }

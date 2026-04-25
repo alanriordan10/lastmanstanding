@@ -222,10 +222,37 @@ export default function SurvivorTablePage() {
                               {pick.teamShortName}
                             </span>
                             {pick.outcome !== 'PENDING' && (
-                              <span className="text-[10px]">{outcomeIcon(pick.outcome)}</span>
+                              <>
+                                <span className={`inline-flex sm:hidden items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none ${
+                                  pick.outcome === 'ADVANCE'
+                                    ? 'bg-green-600/15 text-green-300'
+                                    : pick.outcome === 'ELIMINATED'
+                                    ? 'bg-red-600/15 text-red-300'
+                                    : 'bg-yellow-600/15 text-yellow-300'
+                                }`}>
+                                  {pick.outcome === 'ADVANCE'
+                                    ? '✓'
+                                    : pick.outcome === 'ELIMINATED'
+                                    ? '✕'
+                                    : '↷'}
+                                </span>
+                                <span className={`hidden sm:inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[9px] font-medium leading-none ${
+                                  pick.outcome === 'ADVANCE'
+                                    ? 'bg-green-600/15 text-green-300'
+                                    : pick.outcome === 'ELIMINATED'
+                                    ? 'bg-red-600/15 text-red-300'
+                                    : 'bg-yellow-600/15 text-yellow-300'
+                                }`}>
+                                  {pick.outcome === 'ADVANCE'
+                                    ? 'Advanced'
+                                    : pick.outcome === 'ELIMINATED'
+                                    ? 'Out'
+                                    : 'Postponed'}
+                                </span>
+                              </>
                             )}
                             {pick.source === 'AUTO' && (
-                              <span className="text-[9px] text-gray-500 italic">auto</span>
+                              <span className="inline-flex items-center justify-center rounded-full bg-surface-700 px-2 py-0.5 text-[9px] text-gray-400 italic leading-none">auto</span>
                             )}
                           </div>
                         </td>
@@ -271,17 +298,17 @@ export default function SurvivorTablePage() {
       )}
 
       {/* Legend */}
-      <div className="flex flex-wrap gap-4 text-xs text-gray-400">
+      <div className="flex flex-wrap gap-3 text-xs text-gray-400">
         <span className="flex items-center gap-1.5">
-          <span className="inline-block w-6 h-5 rounded bg-green-600/20 text-green-400 text-center leading-5 font-semibold text-[10px]">MCY</span>
+          <span className="inline-flex items-center justify-center rounded-full bg-green-600/15 px-2 py-1 text-[10px] font-medium leading-none text-green-300">Advanced</span>
           Advanced
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="inline-block w-6 h-5 rounded bg-red-600/20 text-red-400 text-center leading-5 font-semibold text-[10px]">ARS</span>
+          <span className="inline-flex items-center justify-center rounded-full bg-red-600/15 px-2 py-1 text-[10px] font-medium leading-none text-red-300">Out</span>
           Eliminated
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="inline-block w-6 h-5 rounded bg-yellow-600/20 text-yellow-400 text-center leading-5 font-semibold text-[10px]">CHE</span>
+          <span className="inline-flex items-center justify-center rounded-full bg-yellow-600/15 px-2 py-1 text-[10px] font-medium leading-none text-yellow-300">Postponed</span>
           Postponed / Bye
         </span>
         <span className="flex items-center gap-1.5">

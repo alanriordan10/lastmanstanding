@@ -338,7 +338,7 @@ function CompetitionsTab() {
               </tbody>
             </table>
           </div>
-        </div>
+          </div>
       )}
     </div>
   );
@@ -2223,42 +2223,79 @@ function AuditTab() {
       {logs.length === 0 ? (
         <p className="text-gray-400 py-8 text-center">No audit entries yet</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-700 text-left text-gray-400">
-                <th className="py-3 px-4">Time</th>
-                <th className="py-3 px-4">Admin</th>
-                <th className="py-3 px-4">Action</th>
-                <th className="py-3 px-4">Entity</th>
-                <th className="py-3 px-4">Field</th>
-                <th className="py-3 px-4">Old → New</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs.map((log) => (
-                <tr key={log.id} className="border-b border-gray-700/50">
-                  <td className="py-3 px-4 text-gray-400 whitespace-nowrap">
-                    {parseDate(log.createdAt).toLocaleString(undefined, {
-                      day: '2-digit', month: '2-digit', year: 'numeric',
-                      hour: '2-digit', minute: '2-digit', hour12: false
-                    })}
-                  </td>
-                  <td className="py-3 px-4">{log.username ?? '—'}</td>
-                  <td className="py-3 px-4"><span className="badge-blue">{log.action}</span></td>
-                  <td className="py-3 px-4 text-gray-400">{log.entityType} #{log.entityId}</td>
-                  <td className="py-3 px-4 text-gray-400">{log.fieldName ?? '—'}</td>
-                  <td className="py-3 px-4 text-gray-400">
-                    {log.oldValue && <span className="text-red-400">{log.oldValue}</span>}
-                    {log.oldValue && log.newValue && <span className="mx-1">→</span>}
-                    {log.newValue && <span className="text-green-400">{log.newValue}</span>}
-                    {!log.oldValue && !log.newValue && '—'}
-                  </td>
+        <>
+          <div className="divide-y divide-gray-700/50 sm:hidden">
+            {logs.map((log) => (
+              <div key={log.id} className="py-3 space-y-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xs text-gray-500">
+                      {parseDate(log.createdAt).toLocaleString(undefined, {
+                        day: '2-digit', month: '2-digit', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit', hour12: false
+                      })}
+                    </p>
+                    <p className="mt-1 text-sm text-gray-100 truncate">{log.username ?? '—'}</p>
+                  </div>
+                  <span className="badge-blue shrink-0">{log.action}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <div className="text-gray-500 uppercase tracking-[0.14em]">Entity</div>
+                    <div className="mt-1 text-gray-300">{log.entityType} #{log.entityId}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-500 uppercase tracking-[0.14em]">Field</div>
+                    <div className="mt-1 text-gray-300">{log.fieldName ?? '—'}</div>
+                  </div>
+                </div>
+                <div className="text-xs text-gray-400 break-words">
+                  {log.oldValue && <span className="text-red-400">{log.oldValue}</span>}
+                  {log.oldValue && log.newValue && <span className="mx-1">→</span>}
+                  {log.newValue && <span className="text-green-400">{log.newValue}</span>}
+                  {!log.oldValue && !log.newValue && '—'}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden sm:block overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-700 text-left text-gray-400">
+                  <th className="py-3 px-4">Time</th>
+                  <th className="py-3 px-4">Admin</th>
+                  <th className="py-3 px-4">Action</th>
+                  <th className="py-3 px-4">Entity</th>
+                  <th className="py-3 px-4">Field</th>
+                  <th className="py-3 px-4">Old → New</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {logs.map((log) => (
+                  <tr key={log.id} className="border-b border-gray-700/50">
+                    <td className="py-3 px-4 text-gray-400 whitespace-nowrap">
+                      {parseDate(log.createdAt).toLocaleString(undefined, {
+                        day: '2-digit', month: '2-digit', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit', hour12: false
+                      })}
+                    </td>
+                    <td className="py-3 px-4">{log.username ?? '—'}</td>
+                    <td className="py-3 px-4"><span className="badge-blue">{log.action}</span></td>
+                    <td className="py-3 px-4 text-gray-400">{log.entityType} #{log.entityId}</td>
+                    <td className="py-3 px-4 text-gray-400">{log.fieldName ?? '—'}</td>
+                    <td className="py-3 px-4 text-gray-400">
+                      {log.oldValue && <span className="text-red-400">{log.oldValue}</span>}
+                      {log.oldValue && log.newValue && <span className="mx-1">→</span>}
+                      {log.newValue && <span className="text-green-400">{log.newValue}</span>}
+                      {!log.oldValue && !log.newValue && '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );

@@ -44,7 +44,6 @@ export default function GameweekResultsPage() {
   const { data: selectionsData, isLoading: selectionsLoading, error: selectionsError } = useQuery<GameweekSelectionsData>({
     queryKey: ['gameweekSelections', compId, gameweekId],
     queryFn: () => api.get(`/competitions/${compId}/gameweeks/${gameweekId}/selections`).then((r) => {
-      console.log('[GameweekResults] Selections response:', r.data);
       // Handle old API format (array) or new format (object with selections)
       if (Array.isArray(r.data)) {
         return { selections: r.data, byeGranted: false, weekNumber: 0 };
@@ -112,17 +111,10 @@ export default function GameweekResultsPage() {
 
   // Handle empty selections (might happen if no picks were made or data issue)
   const safeSelections = Array.isArray(selections) ? selections : [];
-  
-  // Debug logging
-  console.log('[GameweekResults] Gameweek:', gameweekId, 'Week number:', weekNumber, 'Status:', gameweekStatus);
-  console.log('[GameweekResults] Selections count:', safeSelections.length);
-  console.log('[GameweekResults] Selections error:', selectionsError);
-  
+
   const advanced = safeSelections.filter(s => s.outcome === 'ADVANCE' || s.outcome === 'POSTPONED_ADVANCE');
   const eliminated = safeSelections.filter(s => s.outcome === 'ELIMINATED');
   const pending = safeSelections.filter(s => s.outcome === 'PENDING');
-  
-  console.log('[GameweekResults] Advanced:', advanced.length, 'Eliminated:', eliminated.length, 'Pending:', pending.length);
 
   // Special case: All participants eliminated in this gameweek
   const allEliminated = safeSelections.length > 0 && eliminated.length === safeSelections.length;
@@ -382,7 +374,43 @@ export default function GameweekResultsPage() {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto">
+              <div className="divide-y divide-gray-700/50 sm:hidden">
+                {paginatedSelections.map((sel) => {
+                  const fixture = gameweekFixtures.find(
+                    (f) => f.homeTeamId === sel.teamId || f.awayTeamId === sel.teamId
+                  );
+                  const isHome = fixture?.homeTeamId === sel.teamId;
+                  const opponent = isHome ? fixture?.awayTeamShortName : fixture?.homeTeamShortName;
+                  const score = fixture?.status === 'FINISHED'
+                    ? `${fixture.scoreHome}-${fixture.scoreAway}`
+                    : fixture?.status === 'POSTPONED'
+                    ? 'PP'
+                    : '-';
+
+                  return (
+                    <div key={sel.userId} className="px-4 py-3 space-y-2">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm text-gray-100 truncate">{sel.username}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            Picked <span className="text-gray-200 font-medium">{sel.teamShortName}</span>
+                            {opponent ? <span> vs {opponent}</span> : null}
+                          </p>
+                        </div>
+                        <OutcomeBadge outcome={sel.outcome} />
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-gray-500">
+                          {sel.source === 'AUTO' ? 'Auto selection' : 'User selection'}
+                        </span>
+                        <span className="font-medium text-gray-300">Score: {score}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="hidden sm:block overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-700 text-left text-gray-400">
@@ -585,15 +613,35 @@ function SelectionCard({ selection, fixtures }: { selection: GameweekSelection; 
 
 function OutcomeBadge({ outcome }: { outcome: string }) {
   if (outcome === 'ADVANCE') {
-    return <span className="badge-green text-xs">✓ Advance</span>;
+    return (
+      <span className="badge-green text-xs whitespace-nowrap">
+        <span className="sm:hidden">✓</span>
+        <span className="hidden sm:inline">✓ Advance</span>
+      </span>
+    );
   }
   if (outcome === 'POSTPONED_ADVANCE') {
-    return <span className="badge-yellow text-xs">PP Advance</span>;
+    return (
+      <span className="badge-yellow text-xs whitespace-nowrap">
+        <span className="sm:hidden">↷</span>
+        <span className="hidden sm:inline">PP Advance</span>
+      </span>
+    );
   }
   if (outcome === 'ELIMINATED') {
-    return <span className="badge-red text-xs">✕ Out</span>;
+    return (
+      <span className="badge-red text-xs whitespace-nowrap">
+        <span className="sm:hidden">✕</span>
+        <span className="hidden sm:inline">✕ Out</span>
+      </span>
+    );
   }
-  return <span className="badge-gray text-xs">Pending</span>;
+  return (
+    <span className="badge-gray text-xs whitespace-nowrap">
+      <span className="sm:hidden">…</span>
+      <span className="hidden sm:inline">Pending</span>
+    </span>
+  );
 }
 
 function Pagination({
@@ -689,4 +737,3 @@ function Pagination({
     </div>
   );
 }
-

@@ -1,6 +1,7 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect, useMemo } from 'react';
+import type { ReactNode } from 'react';
 import api from '../api';
 import type { Competition, MyStatus, Fixture } from '../types';
 import toast from 'react-hot-toast';
@@ -312,6 +313,42 @@ export default function CompetitionHomePage() {
     fixturesByWeek.get(f.weekNumber)!.fixtures.push(f);
   });
   const sortedWeeks = [...fixturesByWeek.keys()].sort((a, b) => a - b);
+  const uniqueTeamIds = new Set<number>();
+  fixtures?.forEach((f) => {
+    uniqueTeamIds.add(f.homeTeamId);
+    uniqueTeamIds.add(f.awayTeamId);
+  });
+  const totalTeamsCount = uniqueTeamIds.size;
+  const remainingTeamsCount = totalTeamsCount > 0 ? Math.max(totalTeamsCount - usedTeamIds.size, 0) : null;
+
+  const upcomingWeek = sortedWeeks
+    .map((wn) => ({ weekNumber: wn, data: fixturesByWeek.get(wn)! }))
+    .find(({ data }) => {
+      const lockDate = parseDate(data.lockAt);
+      return data.gwStatus === 'UPCOMING' && !isPast(lockDate);
+    });
+
+  const openWeekWithoutPick = isParticipant && !isEliminated && !isWinner
+    ? sortedWeeks
+        .map((wn) => ({ weekNumber: wn, data: fixturesByWeek.get(wn)! }))
+        .find(({ data }) => {
+          const lockDate = parseDate(data.lockAt);
+          return data.gwStatus === 'UPCOMING' && !isPast(lockDate) && !pickByGwId.has(data.gwId);
+        })
+    : undefined;
+
+  const openWeekWithPick = isParticipant && !isEliminated && !isWinner
+    ? sortedWeeks
+        .map((wn) => ({ weekNumber: wn, data: fixturesByWeek.get(wn)! }))
+        .find(({ data }) => {
+          const lockDate = parseDate(data.lockAt);
+          return data.gwStatus === 'UPCOMING' && !isPast(lockDate) && pickByGwId.has(data.gwId);
+        })
+    : undefined;
+
+  const latestResolvedPick = myStatus?.picks
+    .filter((p) => p.outcome !== 'PENDING')
+    .sort((a, b) => b.weekNumber - a.weekNumber)[0];
 
   const toggleWeek = (wn: number) => {
     setCollapsedWeeks((prev) => {
@@ -327,6 +364,58 @@ export default function CompetitionHomePage() {
     if (isPast(parseDate(lockAt))) return;
     pickMutation.mutate({ gwId, teamId });
   };
+
+  let actionTone: 'brand' | 'warning' | 'danger' | 'success' = 'brand';
+  let actionTitle = 'Competition overview';
+  let actionBody = 'Review the rules, then expand the next gameweek when you are ready.';
+  let actionMeta: string | null = null;
+
+  if (!isParticipant) {
+    if (comp.status === 'UPCOMING') {
+      actionTone = 'warning';
+      actionTitle = comp.paymentMode === 'MANUAL' ? 'Register and pay the organiser' : comp.entryFee > 0 ? 'Join before the next lock' : 'Join this competition';
+      actionBody = comp.paymentMode === 'MANUAL'
+        ? `Registration is open. Entry is €${comp.entryFee} and the organiser confirms payment manually.`
+        : comp.entryFee > 0
+        ? `Entry is €${comp.entryFee}. Join before the next gameweek locks so you can make your first pick.`
+        : 'Registration is still open. Join now so you can make your first pick before the next lock.';
+      actionMeta = upcomingWeek
+        ? `Next lock: Gameweek ${upcomingWeek.weekNumber} ${formatDistanceToNow(parseDate(upcomingWeek.data.lockAt), { addSuffix: true })}`
+        : null;
+    } else {
+      actionTone = 'warning';
+      actionTitle = 'Viewing only';
+      actionBody = 'This competition has already started. You can follow fixtures, selections, and results, but new entries are closed.';
+    }
+  } else if (isWinner) {
+    actionTone = 'success';
+    actionTitle = 'You won this competition';
+    actionBody = 'You can still review every gameweek, inspect the survivor table, and share the result with other players.';
+    actionMeta = latestResolvedPick ? `Winning path included ${latestResolvedPick.teamShortName} in GW${latestResolvedPick.weekNumber}.` : null;
+  } else if (isEliminated) {
+    actionTone = 'danger';
+    actionTitle = `Eliminated in Gameweek ${myStatus?.participant.eliminatedWeek}`;
+    actionBody = 'You can no longer make picks, but fixtures, selections, and results stay available so you can follow the rest of the competition.';
+    actionMeta = latestResolvedPick ? `Latest resolved pick: ${latestResolvedPick.teamShortName} in GW${latestResolvedPick.weekNumber}.` : null;
+  } else if (openWeekWithoutPick) {
+    actionTone = countdown.totalSeconds < 7200 ? 'warning' : 'brand';
+    actionTitle = `Pick needed for Gameweek ${openWeekWithoutPick.weekNumber}`;
+    actionBody = 'You have not selected a team for the next open gameweek yet. Expand that gameweek below and choose before it locks.';
+    actionMeta = `Locks ${formatDistanceToNow(parseDate(openWeekWithoutPick.data.lockAt), { addSuffix: true })}`;
+  } else if (openWeekWithPick) {
+    const openPick = pickByGwId.get(openWeekWithPick.data.gwId);
+    actionTone = 'success';
+    actionTitle = `Your pick is in for Gameweek ${openWeekWithPick.weekNumber}`;
+    actionBody = openPick
+      ? `${openPick.teamShortName} is currently selected. You can still change it until the lock time if you want.`
+      : 'Your next pick is already saved.';
+    actionMeta = `Locks ${formatDistanceToNow(parseDate(openWeekWithPick.data.lockAt), { addSuffix: true })}`;
+  } else if (upcomingWeek) {
+    actionTone = 'brand';
+    actionTitle = 'Waiting for the next gameweek';
+    actionBody = 'The current open gameweek is already handled. Check back when the next fixtures unlock or when results are processed.';
+    actionMeta = `Next scheduled lock is for Gameweek ${upcomingWeek.weekNumber}.`;
+  }
 
 
   return (
@@ -402,6 +491,97 @@ export default function CompetitionHomePage() {
         </div>
       </div>
 
+      <div className="grid gap-4 xl:grid-cols-[1.35fr_1fr]">
+        <ActionPanel
+          tone={actionTone}
+          title={actionTitle}
+          body={actionBody}
+          meta={actionMeta}
+          cta={!isParticipant && comp.status === 'UPCOMING' ? (
+            <Link to="/competitions" className="btn-primary w-full sm:w-auto text-sm">
+              Go to join flow
+            </Link>
+          ) : (
+            <Link
+              to={`/competitions/${compId}/survivor-table`}
+              className="btn-secondary w-full sm:w-auto text-sm text-center"
+            >
+              Open survivor table
+            </Link>
+          )}
+        />
+
+        <section className="card p-4 sm:p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-100">Rules & Status</h2>
+              <p className="mt-1 text-xs text-gray-400">The key competition settings at a glance.</p>
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+            <SummaryTile
+              label="Entry"
+              value={comp.entryFee > 0 ? `€${comp.entryFee}` : 'Free'}
+              detail={comp.paymentMode === 'MANUAL' ? 'Pay organiser directly' : comp.paymentMode === 'STRIPE' ? 'Paid online' : 'No payment required'}
+              accent={comp.entryFee > 0 ? 'text-brand-400' : 'text-green-400'}
+            />
+            <SummaryTile
+              label="Prize Pool"
+              value={comp.prizePool && comp.prizePool > 0 ? `€${comp.prizePool}` : 'TBD'}
+              detail={comp.prizePool && comp.prizePool > 0 ? 'Visible to all players' : 'No fixed amount set'}
+              accent={comp.prizePool && comp.prizePool > 0 ? 'text-yellow-400' : 'text-gray-300'}
+            />
+            <SummaryTile
+              label="Missed Pick"
+              value={comp.missedPickMode === 'AUTO_ASSIGN' ? 'Auto-Assign' : 'Eliminate'}
+              detail={comp.missedPickMode === 'AUTO_ASSIGN' ? 'Best available team is used' : 'No pick means you are out'}
+            />
+            <SummaryTile
+              label="Postponed Match"
+              value={comp.postponedConsumesTeam ? 'Counts as used' : 'Can be reused'}
+              detail={comp.postponedConsumesTeam ? 'That team is still burned' : 'The pick does not consume the team'}
+            />
+            <SummaryTile
+              label="Players"
+              value={String(comp.participantCount ?? 0)}
+              detail={comp.status === 'ACTIVE' ? `${comp.activeCount ?? 0} still active` : comp.winnerUsername ? `Winner: ${comp.winnerUsername}` : 'Registration overview'}
+            />
+            <SummaryTile
+              label="Your Team Pool"
+              value={isParticipant ? `${usedTeamIds.size} used` : 'Join to track'}
+              detail={isParticipant && remainingTeamsCount !== null ? `${remainingTeamsCount} teams still available` : 'Usage updates after each pick'}
+            />
+          </div>
+        </section>
+      </div>
+
+      {isParticipant && !isEliminated && !isWinner && myStatus.picks.length === 0 && (
+        <section className="card p-4 sm:p-5">
+          <h2 className="text-lg font-semibold text-gray-100">Your first pick</h2>
+          <p className="mt-2 text-sm text-gray-300">
+            Pick one team from the next open gameweek. Once you use a team, you cannot use it again later in the competition.
+          </p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <SummaryTile
+              label="Step 1"
+              value="Open the next week"
+              detail={openWeekWithoutPick ? `Gameweek ${openWeekWithoutPick.weekNumber} is the next one to complete.` : 'The next upcoming gameweek appears at the top of the fixtures list.'}
+            />
+            <SummaryTile
+              label="Step 2"
+              value="Choose one team"
+              detail="Tap either side of a fixture to save your selection instantly."
+            />
+            <SummaryTile
+              label="Step 3"
+              value="Check the lock time"
+              detail={nextLockDateForHook ? `Picks close ${formatDistanceToNow(nextLockDateForHook, { addSuffix: true })}.` : 'Make your pick before the gameweek locks.'}
+            />
+          </div>
+        </section>
+      )}
+
       {/* ── Next Lock Countdown ── */}
       {nextLockDateForHook && !countdown.expired && (
         <div className={clsx(
@@ -436,40 +616,6 @@ export default function CompetitionHomePage() {
           </div>
         </div>
       )}
-
-      {/* ── Eliminated Banner ── */}
-      {isEliminated && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-center">
-          <p className="text-lg font-semibold text-red-400">
-            You were eliminated in Gameweek {myStatus?.participant.eliminatedWeek}
-          </p>
-          <p className="text-sm text-gray-400 mt-1">You can still view picks after each gameweek locks</p>
-        </div>
-      )}
-      {isWinner && (
-        <div className="rounded-lg border border-green-500/30 bg-green-500/10 p-4 text-center">
-          <p className="text-2xl font-bold text-green-400">🏆 Congratulations! You won!</p>
-        </div>
-      )}
-
-      {/* ── Not joined notice ── */}
-      {!isParticipant && (
-        <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-4 text-center">
-          {comp.status === 'UPCOMING' ? (
-            <p className="text-sm text-yellow-300">
-              You haven't joined this competition yet.{' '}
-              <Link to="/competitions" className="underline hover:text-yellow-200">
-                Go back to join →
-              </Link>
-            </p>
-          ) : (
-            <p className="text-sm text-yellow-300">
-              This competition has already started — you can view fixtures and results but cannot make picks.
-            </p>
-          )}
-        </div>
-      )}
-
 
       {/* ── Fixtures with inline pick selection ── */}
       {fixturesLoading ? (
@@ -717,36 +863,61 @@ export default function CompetitionHomePage() {
           </button>
 
           {!historyCollapsed && (
-            <div id="pick-history" className="mt-4 overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-700 text-gray-400 text-left">
-                    <th className="py-3 px-4">GW</th>
-                    <th className="py-3 px-4">Team</th>
-                    <th className="py-3 px-4">Source</th>
-                    <th className="py-3 px-4">Outcome</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {myStatus.picks
-                    .sort((a, b) => a.weekNumber - b.weekNumber)
-                    .map((pick) => (
-                    <tr key={pick.pickId} className="border-b border-gray-700/50 hover:bg-surface-700/30">
-                      <td className="py-3 px-4 font-medium">{pick.weekNumber}</td>
-                      <td className="py-3 px-4">
-                        <span className="font-semibold">{pick.teamShortName}</span>
-                        <span className="text-gray-400 ml-2 text-xs">{pick.teamName}</span>
-                      </td>
-                      <td className="py-3 px-4">
-                        {pick.source === 'AUTO' ? <span className="badge-yellow">Auto</span> : <span className="badge-gray">User</span>}
-                      </td>
-                      <td className="py-3 px-4">
+            <div id="pick-history" className="mt-4">
+              <div className="divide-y divide-gray-700/50 sm:hidden">
+                {myStatus.picks
+                  .sort((a, b) => a.weekNumber - b.weekNumber)
+                  .map((pick) => (
+                    <div key={pick.pickId} className="py-3 space-y-2">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-xs uppercase tracking-[0.14em] text-gray-500">Gameweek {pick.weekNumber}</p>
+                          <p className="mt-1 text-sm font-semibold text-gray-100">{pick.teamShortName}</p>
+                          <p className="text-xs text-gray-400 truncate">{pick.teamName}</p>
+                        </div>
                         <OutcomeBadge outcome={pick.outcome} />
-                      </td>
-                    </tr>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-gray-500">
+                          {pick.source === 'AUTO' ? 'Auto selection' : 'User selection'}
+                        </span>
+                        {pick.source === 'AUTO' ? <span className="badge-yellow text-[10px]">Auto</span> : <span className="badge-gray text-[10px]">User</span>}
+                      </div>
+                    </div>
                   ))}
-                </tbody>
-              </table>
+              </div>
+
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-700 text-gray-400 text-left">
+                      <th className="py-3 px-4">GW</th>
+                      <th className="py-3 px-4">Team</th>
+                      <th className="py-3 px-4">Source</th>
+                      <th className="py-3 px-4">Outcome</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {myStatus.picks
+                      .sort((a, b) => a.weekNumber - b.weekNumber)
+                      .map((pick) => (
+                      <tr key={pick.pickId} className="border-b border-gray-700/50 hover:bg-surface-700/30">
+                        <td className="py-3 px-4 font-medium">{pick.weekNumber}</td>
+                        <td className="py-3 px-4">
+                          <span className="font-semibold">{pick.teamShortName}</span>
+                          <span className="text-gray-400 ml-2 text-xs">{pick.teamName}</span>
+                        </td>
+                        <td className="py-3 px-4">
+                          {pick.source === 'AUTO' ? <span className="badge-yellow">Auto</span> : <span className="badge-gray">User</span>}
+                        </td>
+                        <td className="py-3 px-4">
+                          <OutcomeBadge outcome={pick.outcome} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>
@@ -814,6 +985,59 @@ function TeamButton({
   );
 }
 
+function ActionPanel({
+  tone,
+  title,
+  body,
+  meta,
+  cta,
+}: {
+  tone: 'brand' | 'warning' | 'danger' | 'success';
+  title: string;
+  body: string;
+  meta?: string | null;
+  cta?: ReactNode;
+}) {
+  const toneClasses = {
+    brand: 'border-brand-500/30 bg-brand-500/10 text-brand-300',
+    warning: 'border-yellow-500/30 bg-yellow-500/10 text-yellow-300',
+    danger: 'border-red-500/30 bg-red-500/10 text-red-300',
+    success: 'border-green-500/30 bg-green-500/10 text-green-300',
+  } as const;
+
+  return (
+    <section className="card p-4 sm:p-5">
+      <div className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${toneClasses[tone]}`}>
+        Next step
+      </div>
+      <h2 className="mt-3 text-xl font-semibold text-gray-100">{title}</h2>
+      <p className="mt-2 text-sm text-gray-300">{body}</p>
+      {meta && <p className="mt-2 text-xs text-gray-500">{meta}</p>}
+      {cta && <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">{cta}</div>}
+    </section>
+  );
+}
+
+function SummaryTile({
+  label,
+  value,
+  detail,
+  accent = 'text-gray-100',
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  accent?: string;
+}) {
+  return (
+    <div className="rounded-xl border border-gray-700/50 bg-surface-700/40 px-3 py-3">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">{label}</div>
+      <div className={`mt-1 text-sm font-semibold ${accent}`}>{value}</div>
+      <div className="mt-1 text-xs text-gray-400">{detail}</div>
+    </div>
+  );
+}
+
 function OutcomeBadge({ outcome }: { outcome: string }) {
   switch (outcome) {
     case 'ADVANCE': return <span className="badge-green">✓ Advanced</span>;
@@ -834,4 +1058,3 @@ function CountdownUnit({ value, label, urgent = false }: { value: number; label:
     </div>
   );
 }
-

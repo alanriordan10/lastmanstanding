@@ -525,27 +525,37 @@ function CompetitionCard({ comp, joined, onJoin, isPending }: {
   return (
     <div className={`card flex flex-col p-4 sm:p-5 transition-colors ${joined ? 'border-brand-500/60 hover:border-brand-400/80' : 'hover:border-gray-600'}`}>
       {/* Status + joined badge */}
-      <div className="flex items-center justify-between gap-2 mb-3">
+      <div className="flex min-h-[28px] items-start justify-between gap-2 mb-3">
         <span className={comp.status === 'UPCOMING' ? 'badge-blue' : comp.status === 'ACTIVE' ? 'badge-green' : 'badge-gray'}>
           {comp.status}
         </span>
-        {joined && (
+        <div className="flex min-h-[22px] items-start">
+          {joined ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-brand-600/20 border border-brand-500/40 px-2 py-0.5 text-xs font-medium text-brand-400">
             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
             </svg>
             Joined
           </span>
+          ) : null}
+        </div>
+      </div>
+
+      <h3 className="min-h-[56px] text-lg sm:text-xl font-bold leading-snug">{comp.name}</h3>
+      <div className="mt-1 min-h-[22px]">
+        {comp.clubName && <span className="inline-flex max-w-full truncate badge-yellow text-xs align-top">{comp.clubName}</span>}
+      </div>
+      <div className="mt-2 min-h-[40px]">
+        {comp.description ? (
+          <p className="text-xs text-gray-400 line-clamp-2">{comp.description}</p>
+        ) : (
+          <span className="block text-transparent select-none text-xs">placeholder text</span>
         )}
       </div>
 
-      <h3 className="text-lg sm:text-xl font-bold leading-snug">{comp.name}</h3>
-      {comp.clubName && <span className="mt-1 inline-block badge-yellow text-xs self-start">{comp.clubName}</span>}
-      {comp.description && <p className="mt-2 text-xs text-gray-400 line-clamp-2">{comp.description}</p>}
-
       {/* Metadata grid */}
       <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-400">
-        <div>
+        <div className="min-h-[42px]">
           <span className="block text-gray-500">First Gameweek</span>
           <span className="text-gray-200 font-medium">
             {comp.firstGameweekDate
@@ -555,7 +565,7 @@ function CompetitionCard({ comp, joined, onJoin, isPending }: {
               : '—'}
           </span>
         </div>
-        <div>
+        <div className="min-h-[42px]">
           <span className="block text-gray-500">Entry</span>
           <span className={`font-bold text-sm ${comp.entryFee > 0 ? 'text-brand-400' : 'text-green-400'}`}>
             {comp.entryFee > 0 ? `€${comp.entryFee}` : 'Free'}
@@ -564,24 +574,27 @@ function CompetitionCard({ comp, joined, onJoin, isPending }: {
             <span className="block text-xs text-yellow-400/80 mt-0.5">💸 Pay organiser directly</span>
           )}
         </div>
-        <div>
+        <div className="min-h-[42px]">
           <span className="block text-gray-500">Missed Pick</span>
           <span className="text-gray-200">{comp.missedPickMode === 'AUTO_ASSIGN' ? 'Auto-Assign' : 'Eliminate'}</span>
         </div>
-        <div>
+        <div className="min-h-[42px]">
           <span className="block text-gray-500">Players</span>
-          <span className="text-gray-200">
-            {comp.participantCount ?? 0}
-            {comp.winnerUsername
-              ? <span className="text-yellow-400 ml-1">(🏆 {comp.winnerUsername})</span>
-              : comp.status === 'ACTIVE'
-              ? <span className="text-gray-500"> ({comp.activeCount ?? 0} active)</span>
-              : null
-            }
-          </span>
+          <div className="min-h-[36px]">
+            <span className="block text-gray-200">
+              {comp.participantCount ?? 0}
+            </span>
+            {comp.winnerUsername ? (
+              <span className="block text-yellow-400 truncate">🏆 {comp.winnerUsername}</span>
+            ) : comp.status === 'ACTIVE' ? (
+              <span className="block text-gray-500">{comp.activeCount ?? 0} active</span>
+            ) : (
+              <span className="block text-transparent select-none">placeholder</span>
+            )}
+          </div>
         </div>
         {prizePool > 0 && (
-          <div>
+          <div className="min-h-[42px]">
             <span className="block text-gray-500">Prize Pool</span>
             <span className="text-yellow-400 font-bold">€{prizePool}</span>
           </div>
@@ -589,12 +602,14 @@ function CompetitionCard({ comp, joined, onJoin, isPending }: {
       </div>
 
       {/* Survivor bar for active competitions */}
-      {comp.status === 'ACTIVE' && comp.participantCount > 0 && (
-        <SurvivorBar active={comp.activeCount ?? comp.participantCount} total={comp.participantCount} />
-      )}
+      <div className="min-h-[42px]">
+        {comp.status === 'ACTIVE' && comp.participantCount > 0 && (
+          <SurvivorBar active={comp.activeCount ?? comp.participantCount} total={comp.participantCount} />
+        )}
+      </div>
 
       {/* Actions pinned to bottom */}
-      <div className="mt-auto pt-4 flex gap-2">
+      <div className="mt-auto pt-4 flex flex-col gap-2 sm:flex-row">
         <Link to={`/competitions/${comp.id}`} className="btn-secondary flex-1 text-center text-sm py-2">
           {joined ? 'Open →' : 'View'}
         </Link>
@@ -606,7 +621,7 @@ function CompetitionCard({ comp, joined, onJoin, isPending }: {
           </button>
         )}
         {!joined && comp.status === 'ACTIVE' && (
-          <span className="flex-1 inline-flex items-center justify-center text-xs text-gray-500 italic">In progress</span>
+          <span className="flex-1 inline-flex min-h-[40px] items-center justify-center rounded-lg border border-gray-700/60 bg-surface-800/60 text-xs text-gray-500 italic">In progress</span>
         )}
       </div>
     </div>
@@ -620,7 +635,7 @@ function MyCompetitionCard({ myComp }: { myComp: any }) {
 
   return (
     <Link to={`/competitions/${comp.id}`} className="card flex flex-col p-4 sm:p-5 group transition-all hover:border-gray-600 block">
-      <div className="flex flex-wrap gap-2 items-center mb-3">
+      <div className="flex min-h-[28px] flex-wrap gap-2 items-center mb-3">
         <span className={comp.status === 'UPCOMING' ? 'badge-blue' : comp.status === 'ACTIVE' ? 'badge-green' : 'badge-gray'}>
           {comp.status === 'COMPLETED' ? 'FINISHED' : comp.status}
         </span>
@@ -628,27 +643,49 @@ function MyCompetitionCard({ myComp }: { myComp: any }) {
         {myStatus === 'ELIMINATED' && <span className="badge-red">Eliminated</span>}
       </div>
 
-      <h3 className="text-lg sm:text-xl font-bold leading-snug">{comp.name}</h3>
-      {comp.clubName && <span className="mt-1 inline-block badge-yellow text-xs self-start">{comp.clubName}</span>}
-      {comp.description && <p className="mt-2 text-xs text-gray-400 line-clamp-2">{comp.description}</p>}
+      <h3 className="min-h-[56px] text-lg sm:text-xl font-bold leading-snug">{comp.name}</h3>
+      <div className="mt-1 min-h-[22px]">
+        {comp.clubName && <span className="inline-flex max-w-full truncate badge-yellow text-xs align-top">{comp.clubName}</span>}
+      </div>
+      <div className="mt-2 min-h-[40px]">
+        {comp.description ? (
+          <p className="text-xs text-gray-400 line-clamp-2">{comp.description}</p>
+        ) : (
+          <span className="block text-transparent select-none text-xs">placeholder text</span>
+        )}
+      </div>
 
       <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-400">
-        <div>
+        <div className="min-h-[42px]">
           <span className="block text-gray-500">Players</span>
           <span className="text-gray-200 font-medium">{comp.participantCount}</span>
         </div>
-        {comp.status === 'ACTIVE' && comp.activeCount != null && (
-          <div>
-            <span className="block text-gray-500">Surviving</span>
+        <div className="min-h-[42px]">
+          <span className="block text-gray-500">Surviving</span>
+          {comp.status === 'ACTIVE' && comp.activeCount != null ? (
             <span className="text-green-400 font-medium">{comp.activeCount}</span>
-          </div>
-        )}
-        {eliminatedWeek && (
-          <div>
-            <span className="block text-gray-500">Eliminated GW</span>
+          ) : (
+            <span className="text-transparent select-none">placeholder</span>
+          )}
+        </div>
+        <div className="min-h-[42px]">
+          <span className="block text-gray-500">Eliminated GW</span>
+          {eliminatedWeek ? (
             <span className="text-red-400 font-medium">{eliminatedWeek}</span>
-          </div>
-        )}
+          ) : (
+            <span className="text-transparent select-none">placeholder</span>
+          )}
+        </div>
+        <div className="min-h-[42px]">
+          <span className="block text-gray-500">Your Status</span>
+          <span className={`font-medium ${
+            myStatus === 'WINNER' ? 'text-yellow-400' :
+            myStatus === 'ELIMINATED' ? 'text-red-400' :
+            'text-green-400'
+          }`}>
+            {myStatus === 'WINNER' ? 'Winner' : myStatus === 'ELIMINATED' ? 'Eliminated' : 'Active'}
+          </span>
+        </div>
         {comp.winnerUsername && (
           <div className="col-span-2">
             <span className="block text-gray-500">Winner</span>
@@ -657,9 +694,11 @@ function MyCompetitionCard({ myComp }: { myComp: any }) {
         )}
       </div>
 
-      {comp.status === 'ACTIVE' && comp.participantCount > 0 && (
-        <SurvivorBar active={comp.activeCount ?? comp.participantCount} total={comp.participantCount} />
-      )}
+      <div className="min-h-[42px]">
+        {comp.status === 'ACTIVE' && comp.participantCount > 0 && (
+          <SurvivorBar active={comp.activeCount ?? comp.participantCount} total={comp.participantCount} />
+        )}
+      </div>
 
       <div className="mt-auto pt-4">
         <div className="btn-secondary w-full text-center text-sm py-2 group-hover:bg-surface-600">
@@ -673,13 +712,21 @@ function MyCompetitionCard({ myComp }: { myComp: any }) {
 function PastCompetitionCard({ comp }: { comp: Competition }) {
   return (
     <Link to={`/competitions/${comp.id}`} className="card flex flex-col p-4 sm:p-5 group transition-all hover:border-gray-600 block">
-      <div className="mb-3"><span className="badge-gray">FINISHED</span></div>
-      <h3 className="text-lg sm:text-xl font-bold leading-snug">{comp.name}</h3>
-      {comp.clubName && <span className="mt-1 inline-block badge-yellow text-xs self-start">{comp.clubName}</span>}
-      {comp.description && <p className="mt-2 text-xs text-gray-400 line-clamp-2">{comp.description}</p>}
+      <div className="mb-3 min-h-[28px]"><span className="badge-gray">FINISHED</span></div>
+      <h3 className="min-h-[56px] text-lg sm:text-xl font-bold leading-snug">{comp.name}</h3>
+      <div className="mt-1 min-h-[22px]">
+        {comp.clubName && <span className="inline-flex max-w-full truncate badge-yellow text-xs align-top">{comp.clubName}</span>}
+      </div>
+      <div className="mt-2 min-h-[40px]">
+        {comp.description ? (
+          <p className="text-xs text-gray-400 line-clamp-2">{comp.description}</p>
+        ) : (
+          <span className="block text-transparent select-none text-xs">placeholder text</span>
+        )}
+      </div>
 
       <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-400">
-        <div>
+        <div className="min-h-[42px]">
           <span className="block text-gray-500">Started</span>
           <span className="text-gray-200">
             {comp.firstGameweekDate
@@ -689,7 +736,7 @@ function PastCompetitionCard({ comp }: { comp: Competition }) {
               : '—'}
           </span>
         </div>
-        <div>
+        <div className="min-h-[42px]">
           <span className="block text-gray-500">Players</span>
           <span className="text-gray-200">{comp.participantCount}</span>
         </div>
