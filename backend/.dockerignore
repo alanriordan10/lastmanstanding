@@ -1,0 +1,14 @@
+.git
+.gitignore
+.idea
+.mvn
+target
+Dockerfile*
+README*
+*.log
+
+frontend
+node_modules
+
+.env
+.env.*

@@ -39,7 +39,7 @@ spring:
           timeout: 5000
           writetimeout: 5000
       debug: ${MAIL_DEBUG:true}
-    test-connection: true
+    test-connection: ${MAIL_TEST_CONNECTION:false}
 
 jwt:
   secret: ${JWT_SECRET:super-secret-jwt-key-change-in-production-min-256-bits-long!!}
@@ -70,7 +70,17 @@ app:
   mail-enabled: ${MAIL_ENABLED:false}
 
 server:
-  port: 8080
+  port: ${PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
 
 # Logging useful for debugging mail problems — can be toggled via env or runtime args
 logging:
