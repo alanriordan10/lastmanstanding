@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import api from '../api';
 import type { Competition, Club, MyCompetition } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -22,6 +22,9 @@ export default function CompetitionsPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const isAdminOrClubAdmin = user?.role === 'ADMIN' || user?.role === 'CLUB_ADMIN';
+  const [searchParams, setSearchParams] = useSearchParams();
+  const joinParam = searchParams.get('join');
+  const highlightedCompetitionId = joinParam ? Number(joinParam) : null;
 
   const [selectedClub, setSelectedClub] = useState<Club | null>(null);
   const [payingComp, setPayingComp] = useState<Competition | null>(null);
@@ -39,6 +42,15 @@ export default function CompetitionsPage() {
 
   // Reset page when filters change
   useEffect(() => { setCurrentPage(1); }, [search, statusFilter, sortBy, selectedClub, viewMode]);
+
+  useEffect(() => {
+    if (!highlightedCompetitionId) return;
+    setViewMode('available');
+    setSearch('');
+    setStatusFilter('ALL');
+    setSelectedClub(null);
+    setCurrentPage(1);
+  }, [highlightedCompetitionId]);
 
   const { data: clubs } = useQuery<Club[]>({
     queryKey: ['clubs'],
@@ -128,8 +140,15 @@ export default function CompetitionsPage() {
           return da.localeCompare(db);
         });
     }
+    if (highlightedCompetitionId) {
+      list = [...list].sort((a, b) => {
+        if (a.id === highlightedCompetitionId) return -1;
+        if (b.id === highlightedCompetitionId) return 1;
+        return 0;
+      });
+    }
     return list;
-  }, [allComps, search, statusFilter, sortBy]);
+  }, [allComps, search, statusFilter, sortBy, highlightedCompetitionId]);
 
   const filteredMine = useMemo(() => {
     let list = myComps;
@@ -399,7 +418,19 @@ export default function CompetitionsPage() {
             ) : (
               <CompGrid>
                 {paginatedAvailable.map((c) => (
-                  <CompetitionCard key={c.id} comp={c} joined={joinedSet.has(c.id)} onJoin={() => handleJoin(c)} isPending={joinMutation.isPending} />
+                  <CompetitionCard
+                    key={c.id}
+                    comp={c}
+                    joined={joinedSet.has(c.id)}
+                    onJoin={() => handleJoin(c)}
+                    isPending={joinMutation.isPending}
+                    isHighlighted={c.id === highlightedCompetitionId}
+                    onClearHighlight={() => {
+                      const next = new URLSearchParams(searchParams);
+                      next.delete('join');
+                      setSearchParams(next, { replace: true });
+                    }}
+                  />
                 ))}
               </CompGrid>
             )}
@@ -693,13 +724,28 @@ function SurvivorBar({ active, total }: { active: number; total: number }) {
 
 /* ── Cards ───────────────────────────────────────────────────────────────── */
 
-function CompetitionCard({ comp, joined, onJoin, isPending }: {
-  comp: Competition; joined: boolean; onJoin: () => void; isPending: boolean;
+function CompetitionCard({ comp, joined, onJoin, isPending, isHighlighted = false, onClearHighlight }: {
+  comp: Competition; joined: boolean; onJoin: () => void; isPending: boolean; isHighlighted?: boolean; onClearHighlight?: () => void;
 }) {
   const prizePool = comp.prizePool ?? 0;
 
   return (
-    <div className={`card flex flex-col p-3.5 sm:p-4.5 transition-colors ${joined ? 'border-brand-500/60 hover:border-brand-400/80' : 'hover:border-gray-600'}`}>
+    <div className={`card flex flex-col p-3.5 sm:p-4.5 transition-colors ${isHighlighted ? 'border-brand-400 shadow-[0_0_0_1px_rgba(56,189,248,0.45),0_18px_40px_rgba(8,15,30,0.28)]' : joined ? 'border-brand-500/60 hover:border-brand-400/80' : 'hover:border-gray-600'}`}>
+      <div className="min-h-[24px]">
+        {isHighlighted && (
+          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-brand-400/30 bg-brand-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-200">
+            <span>Selected to join</span>
+            <button
+              type="button"
+              onClick={onClearHighlight}
+              className="rounded-full px-1 text-brand-100/80 transition hover:bg-white/10 hover:text-white"
+              aria-label="Clear selected competition"
+            >
+              ×
+            </button>
+          </div>
+        )}
+      </div>
       {/* Status + joined badge */}
       <div className="flex items-start justify-between gap-2 mb-2.5">
         <span className={comp.status === 'UPCOMING' ? 'badge-blue' : comp.status === 'ACTIVE' ? 'badge-green' : 'badge-gray'}>

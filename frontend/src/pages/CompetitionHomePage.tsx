@@ -536,7 +536,7 @@ export default function CompetitionHomePage() {
           body={actionBody}
           meta={actionMeta}
           cta={!isParticipant && comp.status === 'UPCOMING' ? (
-            <Link to="/competitions" className="btn-primary w-full sm:w-auto text-sm">
+            <Link to={`/competitions?join=${compId}`} className="btn-primary w-full sm:w-auto text-sm">
               Go to join flow
             </Link>
           ) : (
