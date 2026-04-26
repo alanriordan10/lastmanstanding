@@ -106,12 +106,6 @@ export default function ClubAdminPage() {
     onError: (err: any) => toast.error(err.response?.data?.message || 'Delete failed'),
   });
 
-  const syncMutation = useMutation({
-    mutationFn: (id: number) => api.post(`/club-admin/competitions/${id}/sync-fixtures`),
-    onSuccess: (res) => toast.success(res.data.message ?? 'Fixtures synced!'),
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Sync failed'),
-  });
-
   const assignAdminMutation = useMutation({
     mutationFn: (userId: number) => api.put('/club-admin/my-club/assign-admin', { userId }),
     onSuccess: () => {
@@ -519,14 +513,6 @@ export default function ClubAdminPage() {
                         </div>
                         <div className="flex flex-wrap gap-2 sm:shrink-0 sm:justify-end">
                           <Link to={`/competitions/${comp.id}`} className="btn-secondary text-xs px-3 py-1.5">View</Link>
-                          <button
-                            onClick={() => syncMutation.mutate(comp.id)}
-                            disabled={syncMutation.isPending}
-                            className="text-xs px-3 py-1.5 rounded-lg bg-brand-600/20 hover:bg-brand-600/40 text-brand-400 transition"
-                            title="Re-sync fixtures"
-                          >
-                            {syncMutation.isPending ? '⏳' : '🔄 Sync'}
-                          </button>
                           <button
                             onClick={() => setManagingComp(managingComp?.id === comp.id ? null : comp)}
                             className="text-xs px-3 py-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 text-gray-300 transition"

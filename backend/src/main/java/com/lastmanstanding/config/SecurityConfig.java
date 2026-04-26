@@ -53,7 +53,7 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
-                        .requestMatchers("/auth/me", "/auth/email-preferences").authenticated()
+                        .requestMatchers("/auth/me", "/auth/email-preferences", "/notifications/**").authenticated()
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/club-admin/**").hasAnyRole("ADMIN", "CLUB_ADMIN")

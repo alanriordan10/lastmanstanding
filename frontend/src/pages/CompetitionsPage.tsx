@@ -33,6 +33,7 @@ export default function CompetitionsPage() {
   const [sortBy, setSortBy] = useState<'date' | 'players' | 'name'>('date');
   const [listView, setListView] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [mineFilter, setMineFilter] = useState<'ALL' | 'ACTIVE' | 'ELIMINATED' | 'FINISHED'>('ALL');
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 12;
 
@@ -51,20 +52,19 @@ export default function CompetitionsPage() {
       const params = selectedClub ? `?clubId=${selectedClub.id}` : '';
       return api.get(`/competitions/upcoming${params}`).then((r) => Array.isArray(r.data) ? r.data : []);
     },
-    enabled: viewMode === 'available',
     staleTime: 30_000,
   });
 
-  const { data: myCompetitionsData, isLoading: myLoading, error: myError } = useQuery<any[]>({
+  const { data: myCompetitionsData, isLoading: myLoading, error: myError, isFetching: myFetching } = useQuery<any[]>({
     queryKey: ['competitions', 'my', 'details'],
     queryFn: () => api.get('/competitions/my/details').then((r) => Array.isArray(r.data) ? r.data : []),
-    enabled: viewMode === 'mine',
+    staleTime: 30_000,
   });
 
   const { data: joinedIds } = useQuery<number[]>({
     queryKey: ['competitions', 'my'],
     queryFn: () => api.get('/competitions/my').then((r) => Array.isArray(r.data) ? r.data : []),
-    enabled: viewMode === 'available',
+    staleTime: 30_000,
   });
 
   const { data: pastCompetitions, isLoading: pastLoading, error: pastError } = useQuery<Competition[]>({
@@ -102,8 +102,6 @@ export default function CompetitionsPage() {
     }
   };
 
-  const currentLoading = viewMode === 'available' ? isLoading : viewMode === 'mine' ? myLoading : pastLoading;
-
   const joinedSet      = new Set(joinedIds ?? []);
   const allComps       = competitions ?? [];
   const myComps        = myCompetitionsData ?? [];
@@ -134,10 +132,20 @@ export default function CompetitionsPage() {
   }, [allComps, search, statusFilter, sortBy]);
 
   const filteredMine = useMemo(() => {
-    if (!search.trim()) return myComps;
+    let list = myComps;
+
+    if (mineFilter !== 'ALL') {
+      list = list.filter((mc: any) => {
+        if (mineFilter === 'FINISHED') return mc.competition.status === 'COMPLETED';
+        if (mineFilter === 'ELIMINATED') return mc.competition.status !== 'COMPLETED' && mc.myStatus === 'ELIMINATED';
+        return mc.competition.status !== 'COMPLETED' && (mc.myStatus === 'ACTIVE' || mc.myStatus === 'WINNER');
+      });
+    }
+
+    if (!search.trim()) return list;
     const q = search.toLowerCase();
-    return myComps.filter((mc: any) => mc.competition.name.toLowerCase().includes(q) || mc.competition.clubName?.toLowerCase().includes(q));
-  }, [myComps, search]);
+    return list.filter((mc: any) => mc.competition.name.toLowerCase().includes(q) || mc.competition.clubName?.toLowerCase().includes(q));
+  }, [myComps, mineFilter, search]);
 
   const filteredPast = useMemo(() => {
     let list = pastCompetitions ?? [];
@@ -151,8 +159,6 @@ export default function CompetitionsPage() {
   const totalPages = Math.max(1, Math.ceil(filteredAvailable.length / PAGE_SIZE));
   const page = Math.min(currentPage, totalPages);
   const paginatedAvailable = filteredAvailable.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-  if (currentLoading) return <LoadingState />;
 
   const sorted      = [...allComps].sort((a, b) => (joinedSet.has(a.id) ? 0 : 1) - (joinedSet.has(b.id) ? 0 : 1));
   const joinedComps = sorted.filter((c) => joinedSet.has(c.id));
@@ -176,24 +182,34 @@ export default function CompetitionsPage() {
       {/* ── Navigation + controls ── */}
       <div className="card p-3 sm:p-4">
         <div className="flex flex-col gap-3">
-          <div className="-mx-1 overflow-x-auto pb-1 sm:mx-0 sm:overflow-visible">
-            <div className="inline-flex min-w-max rounded-xl bg-surface-700 p-1 self-start">
-            <TabButton active={viewMode === 'available'} onClick={() => setViewMode('available')}>
-              Available
-              {competitions && competitions.length > 0 && (
-                <CountBadge count={competitions.length} active={viewMode === 'available'} />
-              )}
-            </TabButton>
-            <TabButton active={viewMode === 'mine'} onClick={() => setViewMode('mine')}>
-              My Competitions
-              {myComps.length > 0 && (
-                <CountBadge count={myComps.length} active={viewMode === 'mine'} />
-              )}
-            </TabButton>
+          <div className="grid grid-cols-2 gap-2 lg:flex lg:flex-wrap">
+            <ModeTab
+              active={viewMode === 'available'}
+              onClick={() => setViewMode('available')}
+              label="Available"
+              hint="Open to join"
+              count={competitions?.length}
+              isLoading={isLoading}
+            />
+            <ModeTab
+              active={viewMode === 'mine'}
+              onClick={() => setViewMode('mine')}
+              label="My Competitions"
+              hint="Your entries"
+              count={myComps.length}
+              isLoading={myLoading || myFetching}
+            />
             {isAdminOrClubAdmin && (
-              <TabButton active={viewMode === 'past'} onClick={() => setViewMode('past')}>Past</TabButton>
+              <ModeTab
+                active={viewMode === 'past'}
+                onClick={() => setViewMode('past')}
+                label="Past"
+                hint="Finished comps"
+                count={pastCompetitions?.length}
+                isLoading={viewMode === 'past' && pastLoading}
+                className="col-span-2 lg:col-span-1"
+              />
             )}
-            </div>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -337,16 +353,40 @@ export default function CompetitionsPage() {
 
       {/* ── My Competitions — summary strip ── */}
       {viewMode === 'mine' && myComps.length > 0 && (
-        <div className="grid grid-cols-3 gap-3">
-          <StatTile label="Active"     value={activeComps.length}    color="text-green-400" />
-          <StatTile label="Eliminated" value={eliminatedComps.length} color="text-red-400"   />
-          <StatTile label="Finished"   value={finishedComps.length}  color="text-gray-400"  />
+        <div className="space-y-3">
+          <div className="grid grid-cols-3 gap-3">
+            <FilterStatTile label="Active"     value={activeComps.length}      color="text-green-400" isActive={mineFilter === 'ACTIVE'} onClick={() => setMineFilter((current) => current === 'ACTIVE' ? 'ALL' : 'ACTIVE')} />
+            <FilterStatTile label="Eliminated" value={eliminatedComps.length}  color="text-red-400"   isActive={mineFilter === 'ELIMINATED'} onClick={() => setMineFilter((current) => current === 'ELIMINATED' ? 'ALL' : 'ELIMINATED')} />
+            <FilterStatTile label="Finished"   value={finishedComps.length}    color="text-gray-400"  isActive={mineFilter === 'FINISHED'} onClick={() => setMineFilter((current) => current === 'FINISHED' ? 'ALL' : 'FINISHED')} />
+          </div>
+
+          {(mineFilter !== 'ALL' || search) && (
+            <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+              {mineFilter !== 'ALL' && (
+                <span className="rounded-full bg-surface-700 px-2 py-1 text-gray-300">
+                  Showing: {mineFilter.toLowerCase()}
+                </span>
+              )}
+              {search && <span className="rounded-full bg-surface-700 px-2 py-1 text-gray-300">Search: {search}</span>}
+              {mineFilter !== 'ALL' && (
+                <button
+                  type="button"
+                  onClick={() => setMineFilter('ALL')}
+                  className="text-gray-400 underline-offset-2 hover:text-white hover:underline"
+                >
+                  Clear filter
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
 
       {/* ── Available ── */}
       {viewMode === 'available' && (
-        error ? (
+        isLoading ? (
+          <LoadingState />
+        ) : error ? (
           <ErrorState message="Failed to load competitions" />
         ) : filteredAvailable.length === 0 ? (
           search || statusFilter !== 'ALL'
@@ -370,7 +410,9 @@ export default function CompetitionsPage() {
 
       {/* ── Mine ── */}
       {viewMode === 'mine' && (
-        myError ? (
+        myLoading ? (
+          <LoadingState />
+        ) : myError ? (
           <ErrorState message="Failed to load your competitions" />
         ) : !myComps.length ? (
           <EmptyState icon="🏆" title="You haven't joined any competitions yet"
@@ -401,7 +443,9 @@ export default function CompetitionsPage() {
 
       {/* ── Past (admin only) ── */}
       {viewMode === 'past' && isAdminOrClubAdmin && (
-        pastError ? (
+        pastLoading ? (
+          <LoadingState />
+        ) : pastError ? (
           <ErrorState message="Failed to load past competitions" />
         ) : filteredPast.length === 0 ? (
           search
@@ -510,13 +554,43 @@ function Pagination({ page, totalPages, total, pageSize, onPage }: {
 
 /* ── Layout helpers ──────────────────────────────────────────────────────── */
 
-function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function ModeTab({
+  active,
+  onClick,
+  label,
+  hint,
+  count,
+  isLoading,
+  className = '',
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  hint: string;
+  count?: number;
+  isLoading?: boolean;
+  className?: string;
+}) {
   return (
-    <button onClick={onClick}
-      className={`inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-        active ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'
-      }`}>
-      {children}
+    <button
+      onClick={onClick}
+      className={`flex min-w-0 items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors sm:px-4 ${className} ${
+        active
+          ? 'border-brand-500/50 bg-brand-500/10 text-white'
+          : 'border-gray-700/60 bg-surface-800/50 text-gray-300 hover:border-gray-600 hover:bg-surface-700/60 hover:text-white'
+      }`}
+    >
+      <span className="min-w-0">
+        <span className="block truncate text-sm font-semibold">{label}</span>
+        <span className={`block truncate text-[11px] ${active ? 'text-brand-100/80' : 'text-gray-500'}`}>{hint}</span>
+      </span>
+      <span className="shrink-0">
+        {isLoading ? (
+          <span className={`inline-flex h-5 w-8 animate-pulse rounded-full ${active ? 'bg-white/20' : 'bg-surface-700'}`} />
+        ) : (
+          <CountBadge count={count ?? 0} active={active} />
+        )}
+      </span>
     </button>
   );
 }
@@ -535,6 +609,35 @@ function StatTile({ label, value, color }: { label: string; value: number; color
       <div className={`text-2xl sm:text-3xl font-bold ${color}`}>{value}</div>
       <div className="mt-0.5 text-xs sm:text-sm text-gray-400">{label}</div>
     </div>
+  );
+}
+
+function FilterStatTile({
+  label,
+  value,
+  color,
+  isActive,
+  onClick,
+}: {
+  label: string;
+  value: number;
+  color: string;
+  isActive: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`card p-3 text-center transition-colors sm:p-4 ${
+        isActive
+          ? 'border-brand-500/50 bg-brand-500/10'
+          : 'hover:border-gray-600 hover:bg-surface-800/80'
+      }`}
+    >
+      <div className={`text-2xl font-bold sm:text-3xl ${color}`}>{value}</div>
+      <div className={`mt-0.5 text-xs sm:text-sm ${isActive ? 'text-brand-200' : 'text-gray-400'}`}>{label}</div>
+    </button>
   );
 }
 
@@ -596,13 +699,13 @@ function CompetitionCard({ comp, joined, onJoin, isPending }: {
   const prizePool = comp.prizePool ?? 0;
 
   return (
-    <div className={`card flex flex-col p-4 sm:p-5 transition-colors ${joined ? 'border-brand-500/60 hover:border-brand-400/80' : 'hover:border-gray-600'}`}>
+    <div className={`card flex flex-col p-3.5 sm:p-4.5 transition-colors ${joined ? 'border-brand-500/60 hover:border-brand-400/80' : 'hover:border-gray-600'}`}>
       {/* Status + joined badge */}
-      <div className="flex min-h-[28px] items-start justify-between gap-2 mb-3">
+      <div className="flex items-start justify-between gap-2 mb-2.5">
         <span className={comp.status === 'UPCOMING' ? 'badge-blue' : comp.status === 'ACTIVE' ? 'badge-green' : 'badge-gray'}>
           {comp.status}
         </span>
-        <div className="flex min-h-[22px] items-start">
+        <div className="flex items-start">
           {joined ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-brand-600/20 border border-brand-500/40 px-2 py-0.5 text-xs font-medium text-brand-400">
             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -614,11 +717,11 @@ function CompetitionCard({ comp, joined, onJoin, isPending }: {
         </div>
       </div>
 
-      <h3 className="min-h-[56px] text-lg sm:text-xl font-bold leading-snug">{comp.name}</h3>
-      <div className="mt-1 min-h-[22px]">
+      <h3 className="text-base sm:text-lg font-bold leading-snug line-clamp-2">{comp.name}</h3>
+      <div className="mt-1 min-h-[18px]">
         {comp.clubName && <span className="inline-flex max-w-full truncate badge-yellow text-xs align-top">{comp.clubName}</span>}
       </div>
-      <div className="mt-2 min-h-[40px]">
+      <div className="mt-1.5 min-h-[32px]">
         {comp.description ? (
           <p className="text-xs text-gray-400 line-clamp-2">{comp.description}</p>
         ) : (
@@ -627,8 +730,8 @@ function CompetitionCard({ comp, joined, onJoin, isPending }: {
       </div>
 
       {/* Metadata grid */}
-      <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-400">
-        <div className="min-h-[42px]">
+      <div className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-2 text-xs text-gray-400">
+        <div className="min-h-[36px]">
           <span className="block text-gray-500">First Gameweek</span>
           <span className="text-gray-200 font-medium">
             {comp.firstGameweekDate
@@ -638,7 +741,7 @@ function CompetitionCard({ comp, joined, onJoin, isPending }: {
               : '—'}
           </span>
         </div>
-        <div className="min-h-[42px]">
+        <div className="min-h-[36px]">
           <span className="block text-gray-500">Entry</span>
           <span className={`font-bold text-sm ${comp.entryFee > 0 ? 'text-brand-400' : 'text-green-400'}`}>
             {comp.entryFee > 0 ? `€${comp.entryFee}` : 'Free'}
@@ -647,13 +750,13 @@ function CompetitionCard({ comp, joined, onJoin, isPending }: {
             <span className="block text-xs text-yellow-400/80 mt-0.5">💸 Pay organiser directly</span>
           )}
         </div>
-        <div className="min-h-[42px]">
+        <div className="min-h-[36px]">
           <span className="block text-gray-500">Missed Pick</span>
           <span className="text-gray-200">{comp.missedPickMode === 'AUTO_ASSIGN' ? 'Auto-Assign' : 'Eliminate'}</span>
         </div>
-        <div className="min-h-[42px]">
+        <div className="min-h-[36px]">
           <span className="block text-gray-500">Players</span>
-          <div className="min-h-[36px]">
+          <div className="min-h-[28px]">
             <span className="block text-gray-200">
               {comp.participantCount ?? 0}
             </span>
@@ -667,7 +770,7 @@ function CompetitionCard({ comp, joined, onJoin, isPending }: {
           </div>
         </div>
         {prizePool > 0 && (
-          <div className="min-h-[42px]">
+          <div className="min-h-[36px]">
             <span className="block text-gray-500">Prize Pool</span>
             <span className="text-yellow-400 font-bold">€{prizePool}</span>
           </div>
@@ -675,14 +778,14 @@ function CompetitionCard({ comp, joined, onJoin, isPending }: {
       </div>
 
       {/* Survivor bar for active competitions */}
-      <div className="min-h-[42px]">
+      <div className="min-h-[30px]">
         {comp.status === 'ACTIVE' && comp.participantCount > 0 && (
           <SurvivorBar active={comp.activeCount ?? comp.participantCount} total={comp.participantCount} />
         )}
       </div>
 
       {/* Actions pinned to bottom */}
-      <div className="mt-auto pt-4 flex flex-col gap-2 sm:flex-row">
+      <div className="mt-auto pt-3 flex flex-col gap-2 sm:flex-row">
         <Link to={`/competitions/${comp.id}`} className="btn-secondary flex-1 text-center text-sm py-2">
           {joined ? 'Open →' : 'View'}
         </Link>
@@ -707,8 +810,8 @@ function MyCompetitionCard({ myComp }: { myComp: any }) {
   const eliminatedWeek = myComp.eliminatedWeek;
 
   return (
-    <Link to={`/competitions/${comp.id}`} className="card flex flex-col p-4 sm:p-5 group transition-all hover:border-gray-600 block">
-      <div className="flex min-h-[28px] flex-wrap gap-2 items-center mb-3">
+    <Link to={`/competitions/${comp.id}`} className="card flex flex-col p-3.5 sm:p-4.5 group transition-all hover:border-gray-600 block">
+      <div className="flex flex-wrap gap-2 items-center mb-2.5">
         <span className={comp.status === 'UPCOMING' ? 'badge-blue' : comp.status === 'ACTIVE' ? 'badge-green' : 'badge-gray'}>
           {comp.status === 'COMPLETED' ? 'FINISHED' : comp.status}
         </span>
@@ -716,11 +819,11 @@ function MyCompetitionCard({ myComp }: { myComp: any }) {
         {myStatus === 'ELIMINATED' && <span className="badge-red">Eliminated</span>}
       </div>
 
-      <h3 className="min-h-[56px] text-lg sm:text-xl font-bold leading-snug">{comp.name}</h3>
-      <div className="mt-1 min-h-[22px]">
+      <h3 className="text-base sm:text-lg font-bold leading-snug line-clamp-2">{comp.name}</h3>
+      <div className="mt-1 min-h-[18px]">
         {comp.clubName && <span className="inline-flex max-w-full truncate badge-yellow text-xs align-top">{comp.clubName}</span>}
       </div>
-      <div className="mt-2 min-h-[40px]">
+      <div className="mt-1.5 min-h-[32px]">
         {comp.description ? (
           <p className="text-xs text-gray-400 line-clamp-2">{comp.description}</p>
         ) : (
@@ -728,12 +831,12 @@ function MyCompetitionCard({ myComp }: { myComp: any }) {
         )}
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-400">
-        <div className="min-h-[42px]">
+      <div className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-2 text-xs text-gray-400">
+        <div className="min-h-[36px]">
           <span className="block text-gray-500">Players</span>
           <span className="text-gray-200 font-medium">{comp.participantCount}</span>
         </div>
-        <div className="min-h-[42px]">
+        <div className="min-h-[36px]">
           <span className="block text-gray-500">Surviving</span>
           {comp.status === 'ACTIVE' && comp.activeCount != null ? (
             <span className="text-green-400 font-medium">{comp.activeCount}</span>
@@ -741,7 +844,7 @@ function MyCompetitionCard({ myComp }: { myComp: any }) {
             <span className="text-transparent select-none">placeholder</span>
           )}
         </div>
-        <div className="min-h-[42px]">
+        <div className="min-h-[36px]">
           <span className="block text-gray-500">Eliminated GW</span>
           {eliminatedWeek ? (
             <span className="text-red-400 font-medium">{eliminatedWeek}</span>
@@ -749,7 +852,7 @@ function MyCompetitionCard({ myComp }: { myComp: any }) {
             <span className="text-transparent select-none">placeholder</span>
           )}
         </div>
-        <div className="min-h-[42px]">
+        <div className="min-h-[36px]">
           <span className="block text-gray-500">Your Status</span>
           <span className={`font-medium ${
             myStatus === 'WINNER' ? 'text-yellow-400' :
@@ -767,13 +870,13 @@ function MyCompetitionCard({ myComp }: { myComp: any }) {
         )}
       </div>
 
-      <div className="min-h-[42px]">
+      <div className="min-h-[30px]">
         {comp.status === 'ACTIVE' && comp.participantCount > 0 && (
           <SurvivorBar active={comp.activeCount ?? comp.participantCount} total={comp.participantCount} />
         )}
       </div>
 
-      <div className="mt-auto pt-4">
+      <div className="mt-auto pt-3">
         <div className="btn-secondary w-full text-center text-sm py-2 group-hover:bg-surface-600">
           View Competition →
         </div>
@@ -784,13 +887,13 @@ function MyCompetitionCard({ myComp }: { myComp: any }) {
 
 function PastCompetitionCard({ comp }: { comp: Competition }) {
   return (
-    <Link to={`/competitions/${comp.id}`} className="card flex flex-col p-4 sm:p-5 group transition-all hover:border-gray-600 block">
-      <div className="mb-3 min-h-[28px]"><span className="badge-gray">FINISHED</span></div>
-      <h3 className="min-h-[56px] text-lg sm:text-xl font-bold leading-snug">{comp.name}</h3>
-      <div className="mt-1 min-h-[22px]">
+    <Link to={`/competitions/${comp.id}`} className="card flex flex-col p-3.5 sm:p-4.5 group transition-all hover:border-gray-600 block">
+      <div className="mb-2.5"><span className="badge-gray">FINISHED</span></div>
+      <h3 className="text-base sm:text-lg font-bold leading-snug line-clamp-2">{comp.name}</h3>
+      <div className="mt-1 min-h-[18px]">
         {comp.clubName && <span className="inline-flex max-w-full truncate badge-yellow text-xs align-top">{comp.clubName}</span>}
       </div>
-      <div className="mt-2 min-h-[40px]">
+      <div className="mt-1.5 min-h-[32px]">
         {comp.description ? (
           <p className="text-xs text-gray-400 line-clamp-2">{comp.description}</p>
         ) : (
@@ -798,8 +901,8 @@ function PastCompetitionCard({ comp }: { comp: Competition }) {
         )}
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-gray-400">
-        <div className="min-h-[42px]">
+      <div className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-2 text-xs text-gray-400">
+        <div className="min-h-[36px]">
           <span className="block text-gray-500">Started</span>
           <span className="text-gray-200">
             {comp.firstGameweekDate
@@ -809,7 +912,7 @@ function PastCompetitionCard({ comp }: { comp: Competition }) {
               : '—'}
           </span>
         </div>
-        <div className="min-h-[42px]">
+        <div className="min-h-[36px]">
           <span className="block text-gray-500">Players</span>
           <span className="text-gray-200">{comp.participantCount}</span>
         </div>
@@ -822,7 +925,7 @@ function PastCompetitionCard({ comp }: { comp: Competition }) {
         </div>
       </div>
 
-      <div className="mt-auto pt-4">
+      <div className="mt-auto pt-3">
         <div className="btn-secondary w-full text-center text-sm py-2 group-hover:bg-surface-600">View Results →</div>
       </div>
     </Link>

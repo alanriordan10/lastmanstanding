@@ -5,6 +5,7 @@ import com.lastmanstanding.entity.Gameweek;
 import com.lastmanstanding.repository.CompetitionRepository;
 import com.lastmanstanding.repository.GameweekRepository;
 import com.lastmanstanding.service.GameweekEmailService;
+import com.lastmanstanding.service.WebPushService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -27,13 +28,16 @@ public class PickReminderScheduler {
     private final GameweekRepository gameweekRepository;
     private final CompetitionRepository competitionRepository;
     private final GameweekEmailService gameweekEmailService;
+    private final WebPushService webPushService;
 
     public PickReminderScheduler(GameweekRepository gameweekRepository,
                                  CompetitionRepository competitionRepository,
-                                 GameweekEmailService gameweekEmailService) {
+                                 GameweekEmailService gameweekEmailService,
+                                 WebPushService webPushService) {
         this.gameweekRepository = gameweekRepository;
         this.competitionRepository = competitionRepository;
         this.gameweekEmailService = gameweekEmailService;
+        this.webPushService = webPushService;
     }
 
     @Scheduled(fixedDelay = 900_000) // every 15 minutes
@@ -52,6 +56,7 @@ public class PickReminderScheduler {
             if (comp == null) continue;
             try {
                 gameweekEmailService.sendPickReminderEmails(comp, gw);
+                webPushService.sendPickReminderNotifications(comp, gw);
             } catch (Exception e) {
                 log.warn("Error sending reminders for GW{} competition {}: {}", gw.getWeekNumber(), comp.getId(), e.getMessage());
             } finally {

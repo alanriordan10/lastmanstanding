@@ -1,21 +1,31 @@
 import { useState, useEffect } from 'react';
 import api from '../api';
 
+const LOCAL_BROWSER_ALERTS_KEY = 'lms-browser-alerts-enabled';
+
 export function usePushNotifications() {
+  const isSupported = typeof window !== 'undefined' && 'Notification' in window;
   const [permission, setPermission] = useState<NotificationPermission>(
-    typeof Notification !== 'undefined' ? Notification.permission : 'default'
+    isSupported ? Notification.permission : 'default'
   );
   const [isSubscribed, setIsSubscribed] = useState(false);
 
   useEffect(() => {
+    const localEnabled = typeof window !== 'undefined' && localStorage.getItem(LOCAL_BROWSER_ALERTS_KEY) === 'true';
+
     // Check if already subscribed
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.ready.then((reg) => {
         reg.pushManager.getSubscription().then((sub) => {
-          setIsSubscribed(!!sub);
+          setIsSubscribed(!!sub || localEnabled);
         });
-      }).catch(() => {});
+      }).catch(() => {
+        setIsSubscribed(localEnabled);
+      });
+      return;
     }
+
+    setIsSubscribed(localEnabled);
   }, []);
 
   const requestPermission = async (): Promise<boolean> => {
@@ -30,21 +40,28 @@ export function usePushNotifications() {
       const granted = permission === 'granted' || await requestPermission();
       if (!granted) return false;
 
-      const reg = await navigator.serviceWorker.ready;
-      // In production, replace with your real VAPID public key from the backend
-      const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
-      if (!vapidPublicKey) {
-        // No VAPID key configured — still allow local notifications
+      localStorage.setItem(LOCAL_BROWSER_ALERTS_KEY, 'true');
+
+      if (!('serviceWorker' in navigator)) {
         setIsSubscribed(true);
         return true;
       }
 
-      const sub = await reg.pushManager.subscribe({
+      const reg = await navigator.serviceWorker.ready;
+      const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+      if (!vapidPublicKey) {
+        // No VAPID key configured — keep browser alerts enabled locally.
+        setIsSubscribed(true);
+        return true;
+      }
+
+      const existingSub = await reg.pushManager.getSubscription();
+      const sub = existingSub ?? await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidPublicKey).buffer as ArrayBuffer,
       });
 
-      await api.post('/notifications/subscribe', sub.toJSON());
+      await api.post('/notifications/subscribe', sub.toJSON()).catch(() => {});
       setIsSubscribed(true);
       return true;
     } catch {
@@ -53,11 +70,15 @@ export function usePushNotifications() {
   };
 
   const unsubscribe = async () => {
-    const reg = await navigator.serviceWorker.ready;
-    const sub = await reg.pushManager.getSubscription();
-    if (sub) {
-      await sub.unsubscribe();
-      await api.delete('/notifications/subscribe').catch(() => {});
+    localStorage.removeItem(LOCAL_BROWSER_ALERTS_KEY);
+
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        await sub.unsubscribe();
+        await api.delete('/notifications/subscribe').catch(() => {});
+      }
     }
     setIsSubscribed(false);
   };
@@ -73,7 +94,7 @@ export function usePushNotifications() {
     if (url) n.onclick = () => { window.focus(); window.location.href = url; };
   };
 
-  return { permission, isSubscribed, subscribe, unsubscribe, notify };
+  return { isSupported, permission, isSubscribed, subscribe, unsubscribe, notify };
 }
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {

@@ -8,6 +8,8 @@ import toast from 'react-hot-toast';
 import { formatDistanceToNow, isPast } from 'date-fns';
 import clsx from 'clsx';
 import { useCountdown } from '../hooks/useCountdown';
+import { useAuth } from '../context/AuthContext';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
 interface PickStat {
   teamId: number;
@@ -62,6 +64,8 @@ export default function CompetitionHomePage() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
   const compId = Number(id);
+  const { user } = useAuth();
+  const { isSupported: browserAlertsSupported, isSubscribed: browserAlertsEnabled, subscribe, notify, permission } = usePushNotifications();
 
   // ── ALL hooks must be declared before any early returns ──────────
   const [collapsedWeeks, setCollapsedWeeks] = useState<Set<number>>(new Set());
@@ -417,6 +421,29 @@ export default function CompetitionHomePage() {
     actionMeta = `Next scheduled lock is for Gameweek ${upcomingWeek.weekNumber}.`;
   }
 
+  const showReminderSetup =
+    !!user &&
+    isParticipant &&
+    !isEliminated &&
+    !isWinner &&
+    !!openWeekWithoutPick &&
+    openWeekWithoutPick.data.gwStatus === 'UPCOMING';
+
+  const handleEnableBrowserAlerts = async () => {
+    const ok = await subscribe();
+    if (!ok) {
+      toast.error(permission === 'denied' ? 'Browser notifications are blocked for this site.' : 'Could not enable browser alerts.');
+      return;
+    }
+
+    notify(
+      'Pick reminders enabled',
+      `Browser alerts are on for ${comp.name}.`,
+      `/competitions/${compId}`
+    );
+    toast.success('Browser alerts enabled');
+  };
+
 
   return (
     <div className="space-y-8">
@@ -578,6 +605,56 @@ export default function CompetitionHomePage() {
               value="Check the lock time"
               detail={nextLockDateForHook ? `Picks close ${formatDistanceToNow(nextLockDateForHook, { addSuffix: true })}.` : 'Make your pick before the gameweek locks.'}
             />
+          </div>
+        </section>
+      )}
+
+      {showReminderSetup && (
+        <section className="card p-4 sm:p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="max-w-2xl">
+              <h2 className="text-lg font-semibold text-gray-100">Reminder setup</h2>
+              <p className="mt-2 text-sm text-gray-300">
+                You have not picked for Gameweek {openWeekWithoutPick.weekNumber} yet. Turn on reminders now so you are less likely to miss the lock.
+              </p>
+              <p className="mt-2 text-xs text-gray-400">
+                Picks lock {formatDistanceToNow(parseDate(openWeekWithoutPick.data.lockAt), { addSuffix: true })}.
+              </p>
+            </div>
+
+            <div className="grid w-full gap-3 sm:w-[22rem]">
+              <div className="rounded-xl border border-gray-700/50 bg-surface-800/70 px-3 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">Email reminders</p>
+                <p className="mt-1 text-sm text-gray-100">{user?.emailResultsOptIn ? 'Enabled' : 'Disabled'}</p>
+                <p className="mt-1 text-xs text-gray-400">
+                  Uses your profile notification setting for lock reminders and result updates.
+                </p>
+                {!user?.emailResultsOptIn && (
+                  <Link to="/profile" className="mt-3 inline-flex text-xs font-medium text-brand-400 hover:text-brand-300">
+                    Turn on in profile →
+                  </Link>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-gray-700/50 bg-surface-800/70 px-3 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">Browser alerts</p>
+                <p className="mt-1 text-sm text-gray-100">
+                  {!browserAlertsSupported ? 'Not supported here' : browserAlertsEnabled ? 'Enabled on this device' : 'Disabled on this device'}
+                </p>
+                <p className="mt-1 text-xs text-gray-400">
+                  Best for quick on-device nudges when this browser supports notifications.
+                </p>
+                {browserAlertsSupported && !browserAlertsEnabled && (
+                  <button
+                    type="button"
+                    onClick={handleEnableBrowserAlerts}
+                    className="mt-3 inline-flex rounded-lg bg-brand-600 px-3 py-2 text-xs font-medium text-white transition hover:bg-brand-500"
+                  >
+                    Enable browser alerts
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </section>
       )}
