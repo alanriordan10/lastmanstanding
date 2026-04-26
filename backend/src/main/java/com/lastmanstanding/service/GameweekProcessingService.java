@@ -32,6 +32,7 @@ public class GameweekProcessingService {
     private final CompetitionRepository competitionRepository;
     private final FixtureSyncService fixtureSyncService;
     private final GameweekEmailService gameweekEmailService;
+    private final WebPushService webPushService;
 
     public GameweekProcessingService(GameweekRepository gameweekRepository,
                                      FixtureRepository fixtureRepository,
@@ -41,7 +42,8 @@ public class GameweekProcessingService {
                                      TeamRepository teamRepository,
                                      CompetitionRepository competitionRepository,
                                      FixtureSyncService fixtureSyncService,
-                                     GameweekEmailService gameweekEmailService) {
+                                     GameweekEmailService gameweekEmailService,
+                                     WebPushService webPushService) {
         this.gameweekRepository = gameweekRepository;
         this.fixtureRepository = fixtureRepository;
         this.pickRepository = pickRepository;
@@ -51,6 +53,7 @@ public class GameweekProcessingService {
         this.competitionRepository = competitionRepository;
         this.fixtureSyncService = fixtureSyncService;
         this.gameweekEmailService = gameweekEmailService;
+        this.webPushService = webPushService;
     }
 
     /**
@@ -447,6 +450,7 @@ public class GameweekProcessingService {
 
         // Send result emails to opted-in participants
         gameweekEmailService.sendGameweekResultEmails(comp, gw);
+        webPushService.sendGameweekResultNotifications(comp, gw);
 
         // Check if competition should be completed (1 or fewer active participants)
         if (!skipAutoComplete) {

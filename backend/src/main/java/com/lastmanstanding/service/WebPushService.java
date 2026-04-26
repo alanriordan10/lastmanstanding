@@ -5,10 +5,14 @@ import com.lastmanstanding.entity.Competition;
 import com.lastmanstanding.entity.CompetitionParticipant;
 import com.lastmanstanding.entity.Gameweek;
 import com.lastmanstanding.entity.ParticipantStatus;
+import com.lastmanstanding.entity.Pick;
+import com.lastmanstanding.entity.PickOutcome;
+import com.lastmanstanding.entity.PickResult;
 import com.lastmanstanding.entity.PushSubscription;
 import com.lastmanstanding.entity.User;
 import com.lastmanstanding.repository.CompetitionParticipantRepository;
 import com.lastmanstanding.repository.PickRepository;
+import com.lastmanstanding.repository.PickResultRepository;
 import com.lastmanstanding.repository.PushSubscriptionRepository;
 import com.lastmanstanding.repository.UserRepository;
 import nl.martijndwars.webpush.Notification;
@@ -40,6 +44,7 @@ public class WebPushService {
     private final UserRepository userRepository;
     private final CompetitionParticipantRepository participantRepository;
     private final PickRepository pickRepository;
+    private final PickResultRepository pickResultRepository;
     private final ObjectMapper objectMapper;
 
     @Value("${app.frontend-url:http://localhost:5173}")
@@ -58,11 +63,13 @@ public class WebPushService {
                           UserRepository userRepository,
                           CompetitionParticipantRepository participantRepository,
                           PickRepository pickRepository,
+                          PickResultRepository pickResultRepository,
                           ObjectMapper objectMapper) {
         this.pushSubscriptionRepository = pushSubscriptionRepository;
         this.userRepository = userRepository;
         this.participantRepository = participantRepository;
         this.pickRepository = pickRepository;
+        this.pickResultRepository = pickResultRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -127,6 +134,38 @@ public class WebPushService {
         }
     }
 
+    @Transactional
+    public void sendGameweekResultNotifications(Competition comp, Gameweek gw) {
+        if (!isConfigured()) {
+            log.info("Web push not configured — skipping result push notifications for GW{} competition {}", gw.getWeekNumber(), comp.getId());
+            return;
+        }
+
+        List<CompetitionParticipant> participants = participantRepository.findByCompetitionId(comp.getId());
+        List<Pick> picks = pickRepository.findByCompetitionIdAndGameweekIdFetch(comp.getId(), gw.getId());
+        Map<Long, Pick> pickByUserId = picks.stream().collect(Collectors.toMap(p -> p.getUser().getId(), p -> p));
+        List<Long> pickIds = picks.stream().map(Pick::getId).toList();
+        Map<Long, PickResult> resultByPickId = pickResultRepository.findByPickIdIn(pickIds)
+                .stream()
+                .collect(Collectors.toMap(pr -> pr.getPick().getId(), pr -> pr));
+
+        for (CompetitionParticipant cp : participants) {
+            List<PushSubscription> subscriptions = pushSubscriptionRepository.findByUserId(cp.getUser().getId());
+            if (subscriptions.isEmpty()) {
+                continue;
+            }
+
+            Pick pick = pickByUserId.get(cp.getUser().getId());
+            String body = buildResultBody(comp, gw, cp, pick, pick == null ? null : resultByPickId.get(pick.getId()));
+            sendToSubscriptions(subscriptions, Map.of(
+                    "title", "Gameweek " + gw.getWeekNumber() + " results",
+                    "body", body,
+                    "url", frontendUrl + "/competitions/" + comp.getId(),
+                    "tag", "gw-results-" + gw.getId() + "-" + cp.getUser().getId()
+            ));
+        }
+    }
+
     private void sendToSubscriptions(List<PushSubscription> subscriptions, Map<String, String> payload) {
         PushService pushService;
         try {
@@ -165,6 +204,27 @@ public class WebPushService {
                 log.warn("Failed to send push notification to endpoint {}: {}", subscription.getEndpoint(), e.getMessage());
             }
         }
+    }
+
+    private String buildResultBody(Competition comp, Gameweek gw, CompetitionParticipant cp, Pick pick, PickResult result) {
+        if (pick == null) {
+            return comp.getName() + ": Gameweek " + gw.getWeekNumber() + " is complete. You had no recorded pick.";
+        }
+
+        String teamName = pick.getTeam().getName();
+        PickOutcome outcome = result != null ? result.getOutcome() : PickOutcome.PENDING;
+
+        return switch (outcome) {
+            case ADVANCE -> comp.getName() + ": " + teamName + " advanced you to the next round.";
+            case ELIMINATED -> comp.getName() + ": " + teamName + " knocked you out in Gameweek " + gw.getWeekNumber() + ".";
+            case POSTPONED_ADVANCE -> comp.getName() + ": " + teamName + " was postponed and you advance.";
+            case PENDING -> {
+                if (cp.getStatus() == ParticipantStatus.WINNER) {
+                    yield comp.getName() + ": you are the winner.";
+                }
+                yield comp.getName() + ": your " + teamName + " result is still pending.";
+            }
+        };
     }
 
     private PushService buildPushService() throws GeneralSecurityException, JoseException {

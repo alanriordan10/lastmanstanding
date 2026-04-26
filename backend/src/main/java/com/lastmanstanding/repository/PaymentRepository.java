@@ -21,6 +21,16 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     @Query("SELECT p FROM Payment p WHERE p.competition.id = :competitionId AND p.user.id = :userId AND p.status = 'SUCCEEDED'")
     Optional<Payment> findSucceededByCompetitionAndUser(@Param("competitionId") Long competitionId, @Param("userId") Long userId);
 
+    @Query("SELECT p.competition.id, p.status FROM Payment p WHERE p.user.id = :userId AND p.competition.id IN :competitionIds")
+    List<Object[]> findStatusesByUserAndCompetitionIds(@Param("userId") Long userId, @Param("competitionIds") List<Long> competitionIds);
+
+    @Query("SELECT p.status FROM Payment p WHERE p.user.id = :userId AND p.competition.id = :competitionId")
+    List<Payment.PaymentStatus> findStatusesByUserAndCompetition(@Param("userId") Long userId, @Param("competitionId") Long competitionId);
+
+    @Modifying
+    @Query("DELETE FROM Payment p WHERE p.competition.id = :competitionId")
+    void deleteByCompetitionId(@Param("competitionId") Long competitionId);
+
     @Modifying
     @Query("UPDATE Payment p SET p.status = :status WHERE p.id = :paymentId")
     void updateStatus(@Param("paymentId") Long paymentId, @Param("status") Payment.PaymentStatus status);

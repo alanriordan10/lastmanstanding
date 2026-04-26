@@ -36,6 +36,7 @@ public class CompetitionController {
     private final CompetitionParticipantRepository participantRepository;
     private final TeamRepository teamRepository;
     private final ClubRepository clubRepository;
+    private final PaymentRepository paymentRepository;
 
     public CompetitionController(CompetitionService competitionService,
                                  PickService pickService,
@@ -46,7 +47,8 @@ public class CompetitionController {
                                  PickResultRepository pickResultRepository,
                                  CompetitionParticipantRepository participantRepository,
                                  TeamRepository teamRepository,
-                                 ClubRepository clubRepository) {
+                                 ClubRepository clubRepository,
+                                 PaymentRepository paymentRepository) {
         this.competitionService = competitionService;
         this.pickService = pickService;
         this.competitionRepository = competitionRepository;
@@ -57,6 +59,7 @@ public class CompetitionController {
         this.participantRepository = participantRepository;
         this.teamRepository = teamRepository;
         this.clubRepository = clubRepository;
+        this.paymentRepository = paymentRepository;
     }
 
     // ── Competitions ────────────────────────────────────────────────────
@@ -130,6 +133,7 @@ public class CompetitionController {
         Map<Long, String> winners  = batchWinners();
         List<Long> compIds = participants.stream().map(cp -> cp.getCompetition().getId()).toList();
         Map<Long, java.time.LocalDate> firstGwDates = batchFirstGameweekDates(compIds);
+        Map<Long, String> paymentStates = paymentStatesForUser(userDetails.getId(), participants);
 
         return participants.stream().map(cp -> {
             Competition c = cp.getCompetition();
@@ -137,7 +141,7 @@ public class CompetitionController {
             return new MyCompetitionResponse(
                     CompetitionResponse.from(c, (int) cnt[0], (int) cnt[1],
                             winners.get(c.getId()), firstGwDates.get(c.getId())),
-                    cp.getStatus().name(), cp.getEliminatedWeek(), cp.getJoinedAt()
+                    cp.getStatus().name(), paymentStates.getOrDefault(c.getId(), "NOT_REQUIRED"), cp.getEliminatedWeek(), cp.getJoinedAt()
             );
         }).toList();
     }
@@ -214,10 +218,57 @@ public class CompetitionController {
         }).toList();
 
         return new MyStatusResponse(
-                ParticipantResponse.from(info.participant()),
+                ParticipantResponse.from(info.participant(), paymentStateForParticipant(info.participant())),
                 info.usedTeamIds(),
                 pickItems
         );
+    }
+
+    private Map<Long, String> paymentStatesForUser(Long userId, List<CompetitionParticipant> participants) {
+        if (participants.isEmpty()) return Map.of();
+
+        Map<Long, String> states = new java.util.HashMap<>();
+        List<Long> manualOrStripeCompIds = participants.stream()
+                .map(CompetitionParticipant::getCompetition)
+                .filter(c -> c.getPaymentMode() != null && c.getPaymentMode() != PaymentMode.FREE)
+                .map(Competition::getId)
+                .distinct()
+                .toList();
+
+        if (!manualOrStripeCompIds.isEmpty()) {
+            Map<Long, List<Payment.PaymentStatus>> statusesByComp = new java.util.HashMap<>();
+            paymentRepository.findStatusesByUserAndCompetitionIds(userId, manualOrStripeCompIds).forEach(row -> {
+                Long compId = ((Number) row[0]).longValue();
+                Payment.PaymentStatus status = (Payment.PaymentStatus) row[1];
+                statusesByComp.computeIfAbsent(compId, ignored -> new java.util.ArrayList<>()).add(status);
+            });
+
+            for (CompetitionParticipant cp : participants) {
+                states.put(cp.getCompetition().getId(), derivePaymentState(cp.getCompetition(), statusesByComp.get(cp.getCompetition().getId())));
+            }
+        }
+
+        for (CompetitionParticipant cp : participants) {
+            states.putIfAbsent(cp.getCompetition().getId(), derivePaymentState(cp.getCompetition(), java.util.List.of()));
+        }
+
+        return states;
+    }
+
+    private String paymentStateForParticipant(CompetitionParticipant participant) {
+        List<Payment.PaymentStatus> statuses = paymentRepository.findStatusesByUserAndCompetition(
+                participant.getUser().getId(), participant.getCompetition().getId());
+        return derivePaymentState(participant.getCompetition(), statuses);
+    }
+
+    private String derivePaymentState(Competition competition, List<Payment.PaymentStatus> statuses) {
+        if (competition.getPaymentMode() == null || competition.getPaymentMode() == PaymentMode.FREE) {
+            return "NOT_REQUIRED";
+        }
+        if (statuses != null && statuses.stream().anyMatch(status -> status == Payment.PaymentStatus.SUCCEEDED)) {
+            return "PAID";
+        }
+        return "AWAITING_PAYMENT";
     }
 
     @GetMapping("/{id}/participants")

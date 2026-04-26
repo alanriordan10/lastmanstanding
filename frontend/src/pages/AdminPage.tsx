@@ -377,37 +377,45 @@ function CompetitionRow({ comp }: { comp: Competition }) {
 
   return (
     <>
-      {/* ── Mobile card (hidden on md+) ── */}
-      <div className="md:hidden p-4 space-y-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="font-medium text-white truncate">{comp.name}</p>
-            <p className="text-xs text-gray-400 mt-0.5">{comp.startDate}</p>
+      {/* ── Mobile card row (hidden on md+) ── */}
+      <tr className="md:hidden border-b border-gray-700/50">
+        <td colSpan={6} className="p-4">
+          <div className="space-y-3">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="font-medium text-white truncate">{comp.name}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{comp.startDate}</p>
+              </div>
+              <span className={statusBadge}>{comp.status}</span>
+            </div>
+            <div className="flex gap-4 text-xs text-gray-400">
+              <span>👥 {comp.participantCount} players</span>
+              <span>⚙️ {comp.missedPickMode}</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending}
+                className="text-xs px-3 py-1.5 rounded bg-brand-600/20 hover:bg-brand-600/40 text-brand-400 transition">
+                {syncMutation.isPending ? '⏳' : '🔄 Sync'}
+              </button>
+              <button onClick={() => setShowParticipants(!showParticipants)}
+                className="text-xs px-3 py-1.5 rounded bg-surface-700 hover:bg-surface-600 text-gray-300 transition">
+                {showParticipants ? 'Hide' : 'Manage'}
+              </button>
+              <button onClick={() => setDeleteOpen(true)} disabled={deleteMutation.isPending}
+                className="text-xs px-3 py-1.5 rounded bg-red-600/20 hover:bg-red-600/40 text-red-400 transition">
+                {deleteMutation.isPending ? '…' : 'Delete'}
+              </button>
+            </div>
           </div>
-          <span className={statusBadge}>{comp.status}</span>
-        </div>
-        <div className="flex gap-4 text-xs text-gray-400">
-          <span>👥 {comp.participantCount} players</span>
-          <span>⚙️ {comp.missedPickMode}</span>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending}
-            className="text-xs px-3 py-1.5 rounded bg-brand-600/20 hover:bg-brand-600/40 text-brand-400 transition">
-            {syncMutation.isPending ? '⏳' : '🔄 Sync'}
-          </button>
-          <button onClick={() => setShowParticipants(!showParticipants)}
-            className="text-xs px-3 py-1.5 rounded bg-surface-700 hover:bg-surface-600 text-gray-300 transition">
-            {showParticipants ? 'Hide' : 'Manage'}
-          </button>
-          <button onClick={() => setDeleteOpen(true)} disabled={deleteMutation.isPending}
-            className="text-xs px-3 py-1.5 rounded bg-red-600/20 hover:bg-red-600/40 text-red-400 transition">
-            {deleteMutation.isPending ? '…' : 'Delete'}
-          </button>
-        </div>
-        {showParticipants && (
-          <ParticipantsPanel competitionId={comp.id} competitionName={comp.name} />
-        )}
-      </div>
+        </td>
+      </tr>
+      {showParticipants && (
+        <tr className="md:hidden border-b border-gray-700/50">
+          <td colSpan={6} className="p-0">
+            <ParticipantsPanel competitionId={comp.id} competitionName={comp.name} />
+          </td>
+        </tr>
+      )}
 
       {/* ── Desktop table row (hidden below md) ── */}
       <tr className="hidden md:table-row border-b border-gray-700/50">

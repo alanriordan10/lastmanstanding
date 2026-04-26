@@ -45,7 +45,9 @@ public class FixtureSyncScheduler {
     @Scheduled(fixedRate = 300_000)
     public void syncFixtures() {
         try {
-            fixtureSyncService.syncFixturesAndResults();
+            if (!fixtureSyncService.trySyncFixturesAndResults()) {
+                log.info("Skipping scheduled fixture sync because another fixture update is already running.");
+            }
         } catch (Exception e) {
             log.error("Fixture sync failed: {}", e.getMessage());
         }
@@ -57,8 +59,11 @@ public class FixtureSyncScheduler {
         log.info("Running daily full sync...");
         try {
             footballDataProvider.ifPresent(FootballDataProvider::evictAll);
-            fixtureSyncService.fullSync();
-            log.info("Daily full sync complete.");
+            if (fixtureSyncService.tryFullSync()) {
+                log.info("Daily full sync complete.");
+            } else {
+                log.info("Skipping daily full sync because another fixture update is already running.");
+            }
         } catch (Exception e) {
             log.error("Daily full sync failed: {}", e.getMessage());
         }

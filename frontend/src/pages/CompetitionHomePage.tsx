@@ -287,6 +287,8 @@ export default function CompetitionHomePage() {
   const isParticipant = !!myStatus;
   const isEliminated = myStatus?.participant.status === 'ELIMINATED';
   const isWinner = myStatus?.participant.status === 'WINNER';
+  const paymentState = myStatus?.participant.paymentState;
+  const awaitingPayment = paymentState === 'AWAITING_PAYMENT';
 
   // Build a map of gameweekId -> pick for this user
   const pickByGwId = new Map<number, { teamId: number; teamName: string; teamShortName: string; locked: boolean; outcome: string }>();
@@ -391,6 +393,15 @@ export default function CompetitionHomePage() {
       actionTitle = 'Viewing only';
       actionBody = 'This competition has already started. You can follow fixtures, selections, and results, but new entries are closed.';
     }
+  } else if (awaitingPayment) {
+    actionTone = 'warning';
+    actionTitle = 'Awaiting payment confirmation';
+    actionBody = comp.paymentMode === 'MANUAL'
+      ? 'You are registered, but your entry is still waiting for the organiser to confirm payment before everything is fully settled.'
+      : 'Your entry is not fully settled yet. Please check your payment status.';
+    actionMeta = comp.paymentMode === 'MANUAL'
+      ? 'If you have already paid, the organiser still needs to mark you as paid.'
+      : null;
   } else if (isWinner) {
     actionTone = 'success';
     actionTitle = 'You won this competition';
@@ -550,7 +561,17 @@ export default function CompetitionHomePage() {
             <SummaryTile
               label="Entry"
               value={comp.entryFee > 0 ? `€${comp.entryFee}` : 'Free'}
-              detail={comp.paymentMode === 'MANUAL' ? 'Pay organiser directly' : comp.paymentMode === 'STRIPE' ? 'Paid online' : 'No payment required'}
+              detail={
+                awaitingPayment && comp.paymentMode === 'MANUAL'
+                  ? 'Awaiting organiser confirmation'
+                  : paymentState === 'PAID'
+                  ? 'Payment settled'
+                  : comp.paymentMode === 'MANUAL'
+                  ? 'Pay organiser directly'
+                  : comp.paymentMode === 'STRIPE'
+                  ? 'Paid online'
+                  : 'No payment required'
+              }
               accent={comp.entryFee > 0 ? 'text-brand-400' : 'text-green-400'}
             />
             <SummaryTile
@@ -579,6 +600,14 @@ export default function CompetitionHomePage() {
               value={isParticipant ? `${usedTeamIds.size} used` : 'Join to track'}
               detail={isParticipant && remainingTeamsCount !== null ? `${remainingTeamsCount} teams still available` : 'Usage updates after each pick'}
             />
+            {isParticipant && (
+              <SummaryTile
+                label="Payment"
+                value={paymentState === 'PAID' ? 'Paid' : paymentState === 'AWAITING_PAYMENT' ? 'Awaiting' : 'Not needed'}
+                detail={paymentState === 'AWAITING_PAYMENT' ? 'Entry still needs payment confirmation' : paymentState === 'PAID' ? 'Entry is confirmed' : 'No payment required'}
+                accent={paymentState === 'PAID' ? 'text-green-400' : paymentState === 'AWAITING_PAYMENT' ? 'text-yellow-400' : 'text-gray-300'}
+              />
+            )}
           </div>
         </section>
       </div>

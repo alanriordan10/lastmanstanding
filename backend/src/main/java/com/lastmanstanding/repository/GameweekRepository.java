@@ -13,6 +13,9 @@ public interface GameweekRepository extends JpaRepository<Gameweek, Long> {
 
     List<Gameweek> findByCompetitionIdOrderByWeekNumberAsc(Long competitionId);
 
+    @Query("SELECT g.id FROM Gameweek g WHERE g.competition.id = :competitionId ORDER BY g.weekNumber ASC")
+    List<Long> findIdsByCompetitionIdOrderByWeekNumberAsc(@Param("competitionId") Long competitionId);
+
     Optional<Gameweek> findByCompetitionIdAndWeekNumber(Long competitionId, Integer weekNumber);
 
     @Query("SELECT g FROM Gameweek g WHERE g.competition.id = :competitionId AND g.status <> com.lastmanstanding.entity.GameweekStatus.COMPLETED ORDER BY g.weekNumber ASC LIMIT 1")

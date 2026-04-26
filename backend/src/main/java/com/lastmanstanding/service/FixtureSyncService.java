@@ -29,17 +29,20 @@ public class FixtureSyncService {
     private final FixtureRepository fixtureRepository;
     private final GameweekRepository gameweekRepository;
     private final CompetitionRepository competitionRepository;
+    private final FixtureMutationLockService fixtureMutationLockService;
 
     public FixtureSyncService(FixtureProvider fixtureProvider,
                               TeamRepository teamRepository,
                               FixtureRepository fixtureRepository,
                               GameweekRepository gameweekRepository,
-                              CompetitionRepository competitionRepository) {
+                              CompetitionRepository competitionRepository,
+                              FixtureMutationLockService fixtureMutationLockService) {
         this.fixtureProvider = fixtureProvider;
         this.teamRepository = teamRepository;
         this.fixtureRepository = fixtureRepository;
         this.gameweekRepository = gameweekRepository;
         this.competitionRepository = competitionRepository;
+        this.fixtureMutationLockService = fixtureMutationLockService;
     }
 
     @Transactional
@@ -66,6 +69,33 @@ public class FixtureSyncService {
 
     @Transactional
     public void syncFixturesAndResults() {
+        fixtureMutationLockService.runWithLock(this::syncFixturesAndResultsInternal);
+    }
+
+    @Transactional
+    public boolean trySyncFixturesAndResults() {
+        return fixtureMutationLockService.tryRunWithLock(this::syncFixturesAndResultsInternal);
+    }
+
+    @Transactional
+    public void fullSync() {
+        fixtureMutationLockService.runWithLock(this::fullSyncInternal);
+    }
+
+    @Transactional
+    public boolean tryFullSync() {
+        return fixtureMutationLockService.tryRunWithLock(this::fullSyncInternal);
+    }
+
+    /**
+     * Immediately populate fixtures for a single newly-created competition.
+     */
+    @Transactional
+    public int syncForCompetition(Competition competition) {
+        return fixtureMutationLockService.callWithLock(() -> syncForCompetitionInternal(competition));
+    }
+
+    private void syncFixturesAndResultsInternal() {
         LocalDate from = LocalDate.now().minusDays(30);
         LocalDate to = LocalDate.now().plusDays(60);
         List<ProviderFixture> fixtures = fixtureProvider.fetchFixtures(from, to);
@@ -74,17 +104,12 @@ public class FixtureSyncService {
         log.info("Synced {} fixtures and {} results", fixtures.size(), results.size());
     }
 
-    @Transactional
-    public void fullSync() {
+    private void fullSyncInternal() {
         syncTeams();
-        syncFixturesAndResults();
+        syncFixturesAndResultsInternal();
     }
 
-    /**
-     * Immediately populate fixtures for a single newly-created competition.
-     */
-    @Transactional
-    public int syncForCompetition(Competition competition) {
+    private int syncForCompetitionInternal(Competition competition) {
         LocalDate compStart = competition.getStartDate() != null
                 ? competition.getStartDate() : LocalDate.now();
         LocalDate from = compStart.minusDays(7);

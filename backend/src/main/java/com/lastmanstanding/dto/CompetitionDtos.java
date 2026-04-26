@@ -123,13 +123,18 @@ public final class CompetitionDtos {
             Long userId,
             String username,
             String status,
+            String paymentState,
             Integer eliminatedWeek,
             LocalDateTime joinedAt
     ) {
         public static ParticipantResponse from(CompetitionParticipant cp) {
+            return from(cp, null);
+        }
+
+        public static ParticipantResponse from(CompetitionParticipant cp, String paymentState) {
             return new ParticipantResponse(
                     cp.getId(), cp.getUser().getId(), cp.getUser().getUsername(),
-                    cp.getStatus().name(), cp.getEliminatedWeek(), cp.getJoinedAt()
+                    cp.getStatus().name(), paymentState, cp.getEliminatedWeek(), cp.getJoinedAt()
             );
         }
     }
@@ -278,6 +283,7 @@ public final class CompetitionDtos {
     public record MyCompetitionResponse(
             CompetitionResponse competition,
             String myStatus,
+            String paymentState,
             Integer eliminatedWeek,
             LocalDateTime joinedAt
     ) {}

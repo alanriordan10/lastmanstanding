@@ -44,6 +44,7 @@ export interface Participant {
   userId: number;
   username: string;
   status: 'ACTIVE' | 'ELIMINATED' | 'WINNER';
+  paymentState?: 'NOT_REQUIRED' | 'AWAITING_PAYMENT' | 'PAID';
   eliminatedWeek: number | null;
   joinedAt: string;
 }
@@ -52,6 +53,14 @@ export interface MyStatus {
   participant: Participant;
   usedTeamIds: number[];
   picks: PickHistoryItem[];
+}
+
+export interface MyCompetition {
+  competition: Competition;
+  myStatus: 'ACTIVE' | 'ELIMINATED' | 'WINNER';
+  paymentState?: 'NOT_REQUIRED' | 'AWAITING_PAYMENT' | 'PAID';
+  eliminatedWeek: number | null;
+  joinedAt: string;
 }
 
 export interface PickHistoryItem {

@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api';
-import type { Competition, Club } from '../types';
+import type { Competition, Club, MyCompetition } from '../types';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -55,7 +55,7 @@ export default function CompetitionsPage() {
     staleTime: 30_000,
   });
 
-  const { data: myCompetitionsData, isLoading: myLoading, error: myError, isFetching: myFetching } = useQuery<any[]>({
+  const { data: myCompetitionsData, isLoading: myLoading, error: myError, isFetching: myFetching } = useQuery<MyCompetition[]>({
     queryKey: ['competitions', 'my', 'details'],
     queryFn: () => api.get('/competitions/my/details').then((r) => Array.isArray(r.data) ? r.data : []),
     staleTime: 30_000,
@@ -105,9 +105,9 @@ export default function CompetitionsPage() {
   const joinedSet      = new Set(joinedIds ?? []);
   const allComps       = competitions ?? [];
   const myComps        = myCompetitionsData ?? [];
-  const finishedComps  = myComps.filter((mc: any) => mc.competition.status === 'COMPLETED');
-  const activeComps    = myComps.filter((mc: any) => mc.competition.status !== 'COMPLETED' && (mc.myStatus === 'ACTIVE' || mc.myStatus === 'WINNER'));
-  const eliminatedComps = myComps.filter((mc: any) => mc.competition.status !== 'COMPLETED' && mc.myStatus === 'ELIMINATED');
+  const finishedComps  = myComps.filter((mc) => mc.competition.status === 'COMPLETED');
+  const activeComps    = myComps.filter((mc) => mc.competition.status !== 'COMPLETED' && (mc.myStatus === 'ACTIVE' || mc.myStatus === 'WINNER'));
+  const eliminatedComps = myComps.filter((mc) => mc.competition.status !== 'COMPLETED' && mc.myStatus === 'ELIMINATED');
 
   // All useMemo hooks must be called before any early return
   const filteredAvailable = useMemo(() => {
@@ -135,7 +135,7 @@ export default function CompetitionsPage() {
     let list = myComps;
 
     if (mineFilter !== 'ALL') {
-      list = list.filter((mc: any) => {
+      list = list.filter((mc) => {
         if (mineFilter === 'FINISHED') return mc.competition.status === 'COMPLETED';
         if (mineFilter === 'ELIMINATED') return mc.competition.status !== 'COMPLETED' && mc.myStatus === 'ELIMINATED';
         return mc.competition.status !== 'COMPLETED' && (mc.myStatus === 'ACTIVE' || mc.myStatus === 'WINNER');
@@ -144,7 +144,7 @@ export default function CompetitionsPage() {
 
     if (!search.trim()) return list;
     const q = search.toLowerCase();
-    return list.filter((mc: any) => mc.competition.name.toLowerCase().includes(q) || mc.competition.clubName?.toLowerCase().includes(q));
+    return list.filter((mc) => mc.competition.name.toLowerCase().includes(q) || mc.competition.clubName?.toLowerCase().includes(q));
   }, [myComps, mineFilter, search]);
 
   const filteredPast = useMemo(() => {
@@ -422,19 +422,19 @@ export default function CompetitionsPage() {
           <EmptyState icon="🔍" title="No competitions match your search" action={<button onClick={() => setSearch('')} className="text-brand-400 hover:text-brand-300 underline text-sm">Clear search</button>} />
         ) : (
           <div className="space-y-8">
-            {filteredMine.filter((mc: any) => mc.competition.status !== 'COMPLETED' && (mc.myStatus === 'ACTIVE' || mc.myStatus === 'WINNER')).length > 0 && (
-              <Section label={`Active (${filteredMine.filter((mc: any) => mc.competition.status !== 'COMPLETED' && (mc.myStatus === 'ACTIVE' || mc.myStatus === 'WINNER')).length})`} icon="✓" iconColor="bg-green-600">
-                <CompGrid>{filteredMine.filter((mc: any) => mc.competition.status !== 'COMPLETED' && (mc.myStatus === 'ACTIVE' || mc.myStatus === 'WINNER')).map((mc: any) => <MyCompetitionCard key={mc.competition.id} myComp={mc} />)}</CompGrid>
+            {filteredMine.filter((mc) => mc.competition.status !== 'COMPLETED' && (mc.myStatus === 'ACTIVE' || mc.myStatus === 'WINNER')).length > 0 && (
+              <Section label={`Active (${filteredMine.filter((mc) => mc.competition.status !== 'COMPLETED' && (mc.myStatus === 'ACTIVE' || mc.myStatus === 'WINNER')).length})`} icon="✓" iconColor="bg-green-600">
+                <CompGrid>{filteredMine.filter((mc) => mc.competition.status !== 'COMPLETED' && (mc.myStatus === 'ACTIVE' || mc.myStatus === 'WINNER')).map((mc) => <MyCompetitionCard key={mc.competition.id} myComp={mc} />)}</CompGrid>
               </Section>
             )}
-            {filteredMine.filter((mc: any) => mc.competition.status !== 'COMPLETED' && mc.myStatus === 'ELIMINATED').length > 0 && (
-              <Section label={`Eliminated (${filteredMine.filter((mc: any) => mc.competition.status !== 'COMPLETED' && mc.myStatus === 'ELIMINATED').length})`} icon="✕" iconColor="bg-gray-600">
-                <CompGrid>{filteredMine.filter((mc: any) => mc.competition.status !== 'COMPLETED' && mc.myStatus === 'ELIMINATED').map((mc: any) => <MyCompetitionCard key={mc.competition.id} myComp={mc} />)}</CompGrid>
+            {filteredMine.filter((mc) => mc.competition.status !== 'COMPLETED' && mc.myStatus === 'ELIMINATED').length > 0 && (
+              <Section label={`Eliminated (${filteredMine.filter((mc) => mc.competition.status !== 'COMPLETED' && mc.myStatus === 'ELIMINATED').length})`} icon="✕" iconColor="bg-gray-600">
+                <CompGrid>{filteredMine.filter((mc) => mc.competition.status !== 'COMPLETED' && mc.myStatus === 'ELIMINATED').map((mc) => <MyCompetitionCard key={mc.competition.id} myComp={mc} />)}</CompGrid>
               </Section>
             )}
-            {filteredMine.filter((mc: any) => mc.competition.status === 'COMPLETED').length > 0 && (
-              <Section label={`Finished (${filteredMine.filter((mc: any) => mc.competition.status === 'COMPLETED').length})`} icon="🏁" iconColor="bg-gray-700">
-                <CompGrid>{filteredMine.filter((mc: any) => mc.competition.status === 'COMPLETED').map((mc: any) => <MyCompetitionCard key={mc.competition.id} myComp={mc} />)}</CompGrid>
+            {filteredMine.filter((mc) => mc.competition.status === 'COMPLETED').length > 0 && (
+              <Section label={`Finished (${filteredMine.filter((mc) => mc.competition.status === 'COMPLETED').length})`} icon="🏁" iconColor="bg-gray-700">
+                <CompGrid>{filteredMine.filter((mc) => mc.competition.status === 'COMPLETED').map((mc) => <MyCompetitionCard key={mc.competition.id} myComp={mc} />)}</CompGrid>
               </Section>
             )}
           </div>
@@ -804,9 +804,10 @@ function CompetitionCard({ comp, joined, onJoin, isPending }: {
   );
 }
 
-function MyCompetitionCard({ myComp }: { myComp: any }) {
+function MyCompetitionCard({ myComp }: { myComp: MyCompetition }) {
   const comp = myComp.competition;
   const myStatus = myComp.myStatus;
+  const paymentState = myComp.paymentState;
   const eliminatedWeek = myComp.eliminatedWeek;
 
   return (
@@ -817,6 +818,8 @@ function MyCompetitionCard({ myComp }: { myComp: any }) {
         </span>
         {myStatus === 'WINNER'     && <span className="badge-yellow">🏆 Winner</span>}
         {myStatus === 'ELIMINATED' && <span className="badge-red">Eliminated</span>}
+        {paymentState === 'AWAITING_PAYMENT' && <span className="badge-yellow">Awaiting payment</span>}
+        {paymentState === 'PAID' && comp.paymentMode && comp.paymentMode !== 'FREE' && <span className="badge-green">Paid</span>}
       </div>
 
       <h3 className="text-base sm:text-lg font-bold leading-snug line-clamp-2">{comp.name}</h3>
@@ -860,6 +863,16 @@ function MyCompetitionCard({ myComp }: { myComp: any }) {
             'text-green-400'
           }`}>
             {myStatus === 'WINNER' ? 'Winner' : myStatus === 'ELIMINATED' ? 'Eliminated' : 'Active'}
+          </span>
+        </div>
+        <div className="min-h-[36px]">
+          <span className="block text-gray-500">Payment</span>
+          <span className={`font-medium ${
+            paymentState === 'PAID' ? 'text-green-400' :
+            paymentState === 'AWAITING_PAYMENT' ? 'text-yellow-400' :
+            'text-gray-300'
+          }`}>
+            {paymentState === 'PAID' ? 'Paid' : paymentState === 'AWAITING_PAYMENT' ? 'Awaiting' : 'Not needed'}
           </span>
         </div>
         {comp.winnerUsername && (

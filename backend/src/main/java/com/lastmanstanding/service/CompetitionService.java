@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import jakarta.persistence.EntityManager;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -16,6 +17,8 @@ import java.util.List;
 public class CompetitionService {
 
     private static final Logger log = LoggerFactory.getLogger(CompetitionService.class);
+    private static final int FIXTURE_DELETE_BATCH_SIZE = 250;
+    private static final int PICK_DELETE_BATCH_SIZE = 500;
 
     private final CompetitionRepository competitionRepository;
     private final CompetitionParticipantRepository participantRepository;
@@ -24,8 +27,11 @@ public class CompetitionService {
     private final PickResultRepository pickResultRepository;
     private final GameweekRepository gameweekRepository;
     private final FixtureRepository fixtureRepository;
+    private final PaymentRepository paymentRepository;
     private final ClubRepository clubRepository;
     private final FixtureSyncService fixtureSyncService;
+    private final FixtureMutationLockService fixtureMutationLockService;
+    private final EntityManager entityManager;
 
     public CompetitionService(CompetitionRepository competitionRepository,
                               CompetitionParticipantRepository participantRepository,
@@ -34,8 +40,11 @@ public class CompetitionService {
                               PickResultRepository pickResultRepository,
                               GameweekRepository gameweekRepository,
                               FixtureRepository fixtureRepository,
+                              PaymentRepository paymentRepository,
                               ClubRepository clubRepository,
-                              FixtureSyncService fixtureSyncService) {
+                              FixtureSyncService fixtureSyncService,
+                              FixtureMutationLockService fixtureMutationLockService,
+                              EntityManager entityManager) {
         this.competitionRepository = competitionRepository;
         this.participantRepository = participantRepository;
         this.userRepository = userRepository;
@@ -43,8 +52,11 @@ public class CompetitionService {
         this.pickResultRepository = pickResultRepository;
         this.gameweekRepository = gameweekRepository;
         this.fixtureRepository = fixtureRepository;
+        this.paymentRepository = paymentRepository;
         this.clubRepository = clubRepository;
         this.fixtureSyncService = fixtureSyncService;
+        this.fixtureMutationLockService = fixtureMutationLockService;
+        this.entityManager = entityManager;
     }
 
     public List<Competition> getUpcomingCompetitions(Long clubId) {
@@ -181,16 +193,42 @@ public class CompetitionService {
      */
     @Transactional
     public void deleteCompetition(Long competitionId) {
-        competitionRepository.findById(competitionId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Competition not found"));
+        fixtureMutationLockService.runWithLock(() -> {
+            if (!competitionRepository.existsById(competitionId)) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Competition not found");
+            }
 
-        // Bulk deletes in FK dependency order — each is a single SQL statement
-        pickResultRepository.deleteByCompetitionId(competitionId);
-        pickRepository.deleteByCompetitionId(competitionId);
-        participantRepository.deleteByCompetitionId(competitionId);
-        fixtureRepository.deleteByCompetitionId(competitionId);
-        gameweekRepository.deleteByCompetitionId(competitionId);
-        competitionRepository.deleteById(competitionId);
+            List<Long> gameweekIds = gameweekRepository.findIdsByCompetitionIdOrderByWeekNumberAsc(competitionId);
+
+            // Keep fixture writes serialized with scheduled syncs to avoid row-lock timeouts.
+            paymentRepository.deleteByCompetitionId(competitionId);
+            while (true) {
+                List<Long> pickIds = pickRepository.findIdsByCompetitionIdLimit(competitionId, PICK_DELETE_BATCH_SIZE);
+                if (pickIds.isEmpty()) {
+                    break;
+                }
+                pickResultRepository.deleteByPickIdIn(pickIds);
+                pickRepository.deleteAllByIdInBatch(pickIds);
+                entityManager.flush();
+                entityManager.clear();
+            }
+            participantRepository.deleteByCompetitionId(competitionId);
+            for (Long gameweekId : gameweekIds) {
+                while (true) {
+                    List<Long> fixtureIds = fixtureRepository.findIdsByGameweekIdLimit(gameweekId, FIXTURE_DELETE_BATCH_SIZE);
+                    if (fixtureIds.isEmpty()) {
+                        break;
+                    }
+                    fixtureRepository.deleteAllByIdInBatch(fixtureIds);
+                }
+            }
+            entityManager.flush();
+            entityManager.clear();
+            gameweekRepository.deleteByCompetitionId(competitionId);
+            entityManager.flush();
+            entityManager.clear();
+            competitionRepository.deleteById(competitionId);
+        });
     }
 
     /**

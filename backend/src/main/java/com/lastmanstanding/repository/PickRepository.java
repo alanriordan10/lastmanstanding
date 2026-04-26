@@ -47,6 +47,9 @@ public interface PickRepository extends JpaRepository<Pick, Long> {
 
     List<Pick> findByCompetitionId(Long competitionId);
 
+    @Query(value = "SELECT id FROM picks WHERE competition_id = :competitionId ORDER BY id LIMIT :limit", nativeQuery = true)
+    List<Long> findIdsByCompetitionIdLimit(@Param("competitionId") Long competitionId, @Param("limit") int limit);
+
     List<Pick> findByUserId(Long userId);
 
     @Modifying
