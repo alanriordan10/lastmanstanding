@@ -109,12 +109,21 @@ export default function GameweekSelectionsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <Link to={`/competitions/${compId}`} className="text-sm text-gray-400 hover:text-white">
-          ← Back to competition
-        </Link>
-        <h1 className="mt-2 text-2xl font-bold">Gameweek Selections</h1>
-        <p className="mt-1 text-gray-400">{selections.length} picks revealed</p>
+      <div className="relative overflow-hidden rounded-[1.75rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_24rem),linear-gradient(135deg,rgba(15,23,42,0.96),rgba(8,15,30,0.94))] px-4 py-5 shadow-[0_28px_70px_rgba(2,6,23,0.42)] sm:px-6 sm:py-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <Link to={`/competitions/${compId}`} className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-brand-200/85 hover:text-white">
+              <span>←</span> Competition
+            </Link>
+            <h1 className="mt-3 text-3xl font-black tracking-tight text-white">Gameweek Selections</h1>
+            <p className="mt-2 text-sm text-gray-300">{selections.length} picks revealed</p>
+          </div>
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            <MiniStat label="Picks" value={String(selections.length)} accent="text-white" />
+            <MiniStat label="Resolved" value={String(resolvedCount)} accent="text-green-300" />
+            <MiniStat label="Live" value={String(pendingCount)} accent="text-yellow-300" />
+          </div>
+        </div>
       </div>
 
       {/* Live results banner */}
@@ -173,7 +182,7 @@ export default function GameweekSelectionsPage() {
                   className="input-field w-full sm:w-auto sm:flex-1 sm:max-w-xs text-sm"
                 />
 
-                <div className="inline-flex rounded-lg bg-surface-700 p-1">
+                <div className="inline-flex rounded-2xl border border-white/8 bg-black/10 p-1">
                   <button
                     onClick={() => setViewMode('table')}
                     className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
@@ -318,6 +327,15 @@ export default function GameweekSelectionsPage() {
           )}
         </>
       )}
+    </div>
+  );
+}
+
+function MiniStat({ label, value, accent }: { label: string; value: string; accent: string }) {
+  return (
+    <div className="rounded-2xl border border-white/8 bg-white/[0.045] px-3 py-2 text-center backdrop-blur-sm">
+      <div className={`text-lg font-black ${accent}`}>{value}</div>
+      <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">{label}</div>
     </div>
   );
 }

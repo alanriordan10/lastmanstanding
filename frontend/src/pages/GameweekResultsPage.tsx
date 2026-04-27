@@ -151,19 +151,23 @@ export default function GameweekResultsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <Link to={`/competitions/${compId}`} className="text-sm text-brand-400 hover:text-brand-300 mb-2 inline-block">
-            ← Back to {comp.name}
-          </Link>
-          <h1 className="text-2xl sm:text-3xl font-bold">Gameweek {weekNumber} Results</h1>
-          <p className="text-gray-400 mt-1">
-            {comp.name} &nbsp;·&nbsp; {safeSelections.length} pick{safeSelections.length !== 1 ? 's' : ''} this gameweek
-          </p>
+      <div className="relative overflow-hidden rounded-[1.75rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_24rem),linear-gradient(135deg,rgba(15,23,42,0.96),rgba(8,15,30,0.94))] px-4 py-5 shadow-[0_28px_70px_rgba(2,6,23,0.42)] sm:px-6 sm:py-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <Link to={`/competitions/${compId}`} className="mb-2 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-brand-200/85 hover:text-white">
+              <span>←</span> {comp.name}
+            </Link>
+            <h1 className="text-3xl font-black tracking-tight text-white">Gameweek {weekNumber} Results</h1>
+            <p className="mt-2 text-sm text-gray-300">
+              {safeSelections.length} pick{safeSelections.length !== 1 ? 's' : ''} processed for this round
+            </p>
+          </div>
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            <ResultStatCard label="Picked" value={String(safeSelections.length)} accent="text-white" />
+            <ResultStatCard label="Advanced" value={String(advanced.length)} accent="text-green-300" />
+            <ResultStatCard label="Out" value={String(eliminated.length)} accent="text-red-300" />
+          </div>
         </div>
-        <span className={`badge-${gameweekStatus === 'COMPLETED' ? 'gray' : gameweekStatus === 'IN_PROGRESS' ? 'yellow' : 'blue'} shrink-0`}>
-          {gameweekStatus}
-        </span>
       </div>
 
       {/* Bye Granted Banner */}
@@ -775,6 +779,15 @@ function Pagination({
           Next →
         </button>
       </div>
+    </div>
+  );
+}
+
+function ResultStatCard({ label, value, accent }: { label: string; value: string; accent: string }) {
+  return (
+    <div className="rounded-2xl border border-white/8 bg-white/[0.045] px-3 py-2 text-center backdrop-blur-sm">
+      <div className={`text-lg font-black ${accent}`}>{value}</div>
+      <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">{label}</div>
     </div>
   );
 }

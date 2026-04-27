@@ -61,13 +61,17 @@ export default function ProfilePage() {
     <div className="max-w-2xl mx-auto px-4 py-10 space-y-6">
 
       {/* ── Header card ─────────────────────────────────────── */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand-600/30 via-surface-800 to-surface-800 border border-gray-700/60 p-8">
+      <div className="relative overflow-hidden rounded-[1.9rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.22),transparent_24rem),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))] p-8 shadow-[0_30px_75px_rgba(2,6,23,0.48)]">
         {/* decorative blob */}
         <div className="pointer-events-none absolute -top-10 -right-10 h-48 w-48 rounded-full bg-brand-500/10 blur-3xl" />
 
+        <div className="mb-5 inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-200">
+          Account centre
+        </div>
+
         <div className="flex items-center gap-5">
           {/* Avatar */}
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-brand-600 text-2xl font-bold text-white shadow-lg">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-brand-300/25 bg-gradient-to-br from-brand-500 to-cyan-400 text-2xl font-black text-slate-950 shadow-[0_10px_28px_rgba(56,189,248,0.18)]">
             {initials}
           </div>
 
@@ -79,10 +83,15 @@ export default function ProfilePage() {
             </span>
           </div>
         </div>
+        <div className="mt-6 grid grid-cols-3 gap-3">
+          <ProfileMetric label="Role" value={badge.label} />
+          <ProfileMetric label="Email" value={optIn ? 'On' : 'Off'} />
+          <ProfileMetric label="Alerts" value={isSubscribed ? 'On' : 'Off'} />
+        </div>
       </div>
 
       {/* ── Notification preferences ────────────────────────── */}
-      <div className="rounded-2xl bg-surface-800 border border-gray-700/60 divide-y divide-gray-700/50">
+      <div className="overflow-hidden rounded-2xl border border-white/8 bg-white/[0.035] divide-y divide-white/8 shadow-[0_20px_50px_rgba(2,6,23,0.34)]">
         {/* Section header */}
         <div className="px-6 py-4">
           <h2 className="text-base font-semibold text-white">Notifications</h2>
@@ -178,6 +187,15 @@ export default function ProfilePage() {
         </div>
       </div>
 
+    </div>
+  );
+}
+
+function ProfileMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/8 bg-white/[0.045] px-3 py-2.5 text-center backdrop-blur-sm">
+      <div className="text-sm font-black text-white sm:text-base">{value}</div>
+      <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">{label}</div>
     </div>
   );
 }

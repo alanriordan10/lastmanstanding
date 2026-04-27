@@ -3,32 +3,44 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html {
+    @apply bg-surface-900;
+  }
+
   body {
-    @apply bg-surface-900 text-gray-100 antialiased;
+    @apply min-h-screen bg-surface-900 text-gray-100 antialiased;
+    background-image:
+      radial-gradient(circle at top, rgba(56, 189, 248, 0.12), transparent 28rem),
+      radial-gradient(circle at 85% 12%, rgba(250, 204, 21, 0.08), transparent 22rem),
+      linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 1));
   }
 }
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white
-           hover:bg-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 focus:ring-offset-surface-900
-           disabled:opacity-50 disabled:cursor-not-allowed transition-colors;
+    @apply inline-flex items-center justify-center rounded-xl border border-brand-400/30 bg-gradient-to-r from-brand-500 to-cyan-400 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-[0_10px_30px_rgba(56,189,248,0.18)]
+           hover:from-brand-400 hover:to-cyan-300 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 focus:ring-offset-surface-900
+           disabled:opacity-50 disabled:cursor-not-allowed transition-all;
   }
   .btn-secondary {
-    @apply inline-flex items-center justify-center rounded-lg border border-gray-600 bg-surface-700 px-4 py-2.5 text-sm font-semibold text-gray-200
-           hover:bg-surface-800 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 focus:ring-offset-surface-900
-           disabled:opacity-50 disabled:cursor-not-allowed transition-colors;
+    @apply inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-semibold text-gray-200 backdrop-blur-sm
+           hover:border-white/15 hover:bg-white/[0.08] focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 focus:ring-offset-surface-900
+           disabled:opacity-50 disabled:cursor-not-allowed transition-all;
   }
   .btn-danger {
-    @apply inline-flex items-center justify-center rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white
-           hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors;
+    @apply inline-flex items-center justify-center rounded-xl border border-red-400/25 bg-red-500/90 px-4 py-2.5 text-sm font-semibold text-white
+           hover:bg-red-400 focus:outline-none focus:ring-2 focus:ring-red-500 transition-all;
   }
   .card {
-    @apply rounded-xl border border-gray-700/50 bg-surface-800 p-4 sm:p-6 shadow-lg;
+    @apply rounded-2xl border border-white/10 bg-white/[0.035] p-4 sm:p-6 shadow-[0_24px_60px_rgba(2,6,23,0.45)] backdrop-blur-md;
   }
   .input-field {
-    @apply block w-full rounded-lg border border-gray-600 bg-surface-700 px-4 py-2.5 text-sm text-gray-100
-           placeholder-gray-400 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 focus:outline-none transition-colors;
+    @apply block w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm text-gray-100
+           placeholder-gray-500 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 focus:outline-none transition-colors;
   }
   .badge {
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
@@ -85,4 +97,3 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   border-radius: 2px;
   outline: none;
 }
-
