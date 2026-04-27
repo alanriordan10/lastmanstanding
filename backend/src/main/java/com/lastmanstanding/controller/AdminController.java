@@ -205,7 +205,7 @@ public class AdminController {
         Competition c = competitionService.createCompetition(
                 request.name(), request.description(), request.entryFee(), request.prizePool(),
                 request.missedPickMode(), request.postponedConsumesTeam(), request.passFeeToParticipant(),
-                request.paymentMode(), request.startDate(), userDetails.getId(), request.clubId());
+                request.paymentMode(), request.visibility(), request.startDate(), userDetails.getId(), request.clubId());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(CompetitionResponse.from(c, 0, 0, null));
     }
@@ -218,7 +218,7 @@ public class AdminController {
                 request.missedPickMode(),
                 request.postponedConsumesTeam() != null ? request.postponedConsumesTeam() : true,
                 request.passFeeToParticipant(),
-                request.paymentMode(),
+                request.paymentMode(), request.visibility(),
                 request.startDate(), request.status(), request.clubId());
         String winner = getWinnerUsername(id);
         return CompetitionResponse.from(c, 0, 0, winner);

@@ -4,6 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import api from '../api';
 import type { Competition, Club, MyCompetition } from '../types';
 import { useAuth } from '../context/AuthContext';
+import type { AxiosError } from 'axios';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import PaymentModal from '../components/PaymentModal';
@@ -18,13 +19,32 @@ function parseDate(value: string | number[]): Date {
   return new Date(str);
 }
 
+function normalizeCompetition(raw: any): Competition | null {
+  const candidate = raw?.competition ?? raw;
+  if (!candidate || typeof candidate !== 'object') return null;
+  if (typeof candidate.id !== 'number' || typeof candidate.name !== 'string' || typeof candidate.status !== 'string') {
+    return null;
+  }
+  return {
+    description: '',
+    entryFee: 0,
+    prizePool: 0,
+    missedPickMode: 'ELIMINATE',
+    postponedConsumesTeam: true,
+    createdByUsername: '',
+    participantCount: 0,
+    activeCount: 0,
+    ...candidate,
+  } satisfies Competition;
+}
+
 export default function CompetitionsPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const isAdminOrClubAdmin = user?.role === 'ADMIN' || user?.role === 'CLUB_ADMIN';
   const [searchParams, setSearchParams] = useSearchParams();
   const joinParam = searchParams.get('join');
-  const highlightedCompetitionId = joinParam ? Number(joinParam) : null;
+  const joinCodeParam = searchParams.get('code')?.trim().toUpperCase() ?? '';
 
   const [selectedClub, setSelectedClub] = useState<Club | null>(null);
   const [payingComp, setPayingComp] = useState<Competition | null>(null);
@@ -38,19 +58,15 @@ export default function CompetitionsPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [mineFilter, setMineFilter] = useState<'ALL' | 'ACTIVE' | 'ELIMINATED' | 'FINISHED'>('ALL');
   const [currentPage, setCurrentPage] = useState(1);
+  const [joinCodeInput, setJoinCodeInput] = useState(joinCodeParam);
   const PAGE_SIZE = 12;
 
   // Reset page when filters change
   useEffect(() => { setCurrentPage(1); }, [search, statusFilter, sortBy, selectedClub, viewMode]);
 
   useEffect(() => {
-    if (!highlightedCompetitionId) return;
-    setViewMode('available');
-    setSearch('');
-    setStatusFilter('ALL');
-    setSelectedClub(null);
-    setCurrentPage(1);
-  }, [highlightedCompetitionId]);
+    setJoinCodeInput(joinCodeParam);
+  }, [joinCodeParam]);
 
   const { data: clubs } = useQuery<Club[]>({
     queryKey: ['clubs'],
@@ -88,6 +104,32 @@ export default function CompetitionsPage() {
     enabled: viewMode === 'past' && isAdminOrClubAdmin,
   });
 
+  const {
+    data: joinCodeCompetition,
+    error: joinCodeError,
+    isLoading: joinCodeLoading,
+    isFetched: joinCodeFetched,
+  } = useQuery<Competition | null>({
+    queryKey: ['competitions', 'code', joinCodeParam],
+    queryFn: () => api.get(`/competitions/code/${encodeURIComponent(joinCodeParam)}`).then((r) => normalizeCompetition(r.data)),
+    enabled: !!joinCodeParam,
+    staleTime: 30_000,
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (!joinParam && !joinCodeCompetition?.id) return;
+    setViewMode('available');
+    setSearch('');
+    setStatusFilter('ALL');
+    setSelectedClub(null);
+    setCurrentPage(1);
+  }, [joinParam, joinCodeCompetition?.id]);
+
+  const highlightedCompetitionId = joinParam
+    ? Number(joinParam)
+    : joinCodeCompetition?.id ?? null;
+
   const joinMutation = useMutation({
     mutationFn: (id: number) => api.post(`/competitions/${id}/join`),
     onSuccess: (_, id) => {
@@ -115,7 +157,13 @@ export default function CompetitionsPage() {
   };
 
   const joinedSet      = new Set(joinedIds ?? []);
-  const allComps       = competitions ?? [];
+  const allComps       = useMemo(() => {
+    const base = competitions ?? [];
+    if (!joinCodeCompetition || base.some((c) => c.id === joinCodeCompetition.id)) {
+      return base;
+    }
+    return [joinCodeCompetition, ...base];
+  }, [competitions, joinCodeCompetition]);
   const myComps        = myCompetitionsData ?? [];
   const finishedComps  = myComps.filter((mc) => mc.competition.status === 'COMPLETED');
   const activeComps    = myComps.filter((mc) => mc.competition.status !== 'COMPLETED' && (mc.myStatus === 'ACTIVE' || mc.myStatus === 'WINNER'));
@@ -190,6 +238,18 @@ export default function CompetitionsPage() {
     (selectedClub ? 1 : 0) +
     (listView ? 1 : 0);
 
+  const joinCodeStatus = (joinCodeError as AxiosError | null)?.response?.status;
+
+  const submitJoinCode = () => {
+    const normalized = joinCodeInput.trim().toUpperCase();
+    if (!normalized) return;
+    const next = new URLSearchParams(searchParams);
+    next.set('code', normalized);
+    next.delete('join');
+    setSearchParams(next, { replace: false });
+    setViewMode('available');
+  };
+
   return (
     <div className="space-y-5 sm:space-y-6">
       {/* ── Page header ── */}
@@ -250,6 +310,28 @@ export default function CompetitionsPage() {
 
             {viewMode === 'available' && (
               <div className="flex items-center gap-2 sm:ml-auto">
+                <div className="flex items-center gap-2 rounded-lg border border-gray-700/60 bg-surface-800/70 p-1.5 sm:min-w-[16rem]">
+                  <input
+                    type="text"
+                    value={joinCodeInput}
+                    onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        submitJoinCode();
+                      }
+                    }}
+                    placeholder="Enter join code"
+                    className="min-w-0 flex-1 bg-transparent px-2 py-1 text-xs text-gray-200 outline-none placeholder:text-gray-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={submitJoinCode}
+                    className="rounded-md bg-brand-600 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-500"
+                  >
+                    Join Code
+                  </button>
+                </div>
                 <button
                   type="button"
                   onClick={() => setShowFilters((v) => !v)}
@@ -413,6 +495,25 @@ export default function CompetitionsPage() {
             : <EmptyState icon="🏆" title="No competitions available yet" subtitle="Check back soon — new competitions are added regularly" />
         ) : (
           <div className="space-y-4">
+            {!!joinCodeParam && (
+              <div className={`rounded-xl border px-3 py-2 text-xs sm:text-sm ${
+                joinCodeCompetition
+                  ? 'border-brand-500/30 bg-brand-500/10 text-brand-100'
+                  : joinCodeError
+                  ? 'border-red-500/30 bg-red-500/10 text-red-200'
+                  : 'border-gray-700/60 bg-surface-800/70 text-gray-300'
+              }`}>
+                {joinCodeCompetition
+                  ? `Join code ${joinCodeParam} loaded: ${joinCodeCompetition.name}`
+                  : joinCodeStatus === 401 || joinCodeStatus === 403
+                  ? `Join code ${joinCodeParam} is being blocked by authentication.`
+                  : joinCodeStatus && joinCodeStatus >= 500
+                  ? `Join code lookup failed on the server (${joinCodeStatus}).`
+                  : (joinCodeError || (joinCodeFetched && !joinCodeLoading))
+                  ? `Join code ${joinCodeParam} was not found.`
+                  : `Checking join code ${joinCodeParam}…`}
+              </div>
+            )}
             {listView ? (
               <CompListView comps={paginatedAvailable} joinedSet={joinedSet} onJoin={(c) => { const mc = competitions?.find(x => x.id === c.id); if (mc) handleJoin(mc); }} isPending={joinMutation.isPending} />
             ) : (
@@ -748,9 +849,12 @@ function CompetitionCard({ comp, joined, onJoin, isPending, isHighlighted = fals
       </div>
       {/* Status + joined badge */}
       <div className="flex items-start justify-between gap-2 mb-2.5">
-        <span className={comp.status === 'UPCOMING' ? 'badge-blue' : comp.status === 'ACTIVE' ? 'badge-green' : 'badge-gray'}>
-          {comp.status}
-        </span>
+        <div className="flex flex-wrap gap-2">
+          <span className={comp.status === 'UPCOMING' ? 'badge-blue' : comp.status === 'ACTIVE' ? 'badge-green' : 'badge-gray'}>
+            {comp.status}
+          </span>
+          {comp.visibility === 'PRIVATE' && <span className="badge-yellow">Private</span>}
+        </div>
         <div className="flex items-start">
           {joined ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-brand-600/20 border border-brand-500/40 px-2 py-0.5 text-xs font-medium text-brand-400">
@@ -767,11 +871,19 @@ function CompetitionCard({ comp, joined, onJoin, isPending, isHighlighted = fals
       <div className="mt-1 min-h-[18px]">
         {comp.clubName && <span className="inline-flex max-w-full truncate badge-yellow text-xs align-top">{comp.clubName}</span>}
       </div>
+      {comp.visibility === 'PRIVATE' && comp.joinCode && (
+        <div className="mt-1 inline-flex w-fit items-center gap-2 rounded-lg border border-brand-500/25 bg-brand-500/8 px-2.5 py-1 text-[11px] text-brand-200">
+          <span className="font-semibold uppercase tracking-[0.12em] text-brand-300">Invite code</span>
+          <span className="rounded bg-brand-500/12 px-1.5 py-0.5 font-mono text-[12px] font-semibold tracking-[0.14em] text-white">
+            {comp.joinCode}
+          </span>
+        </div>
+      )}
       <div className="mt-1.5 min-h-[32px]">
         {comp.description ? (
           <p className="text-xs text-gray-400 line-clamp-2">{comp.description}</p>
         ) : (
-          <span className="block text-transparent select-none text-xs">placeholder text</span>
+          <div aria-hidden="true" className="h-8" />
         )}
       </div>
 
@@ -811,7 +923,7 @@ function CompetitionCard({ comp, joined, onJoin, isPending, isHighlighted = fals
             ) : comp.status === 'ACTIVE' ? (
               <span className="block text-gray-500">{comp.activeCount ?? 0} active</span>
             ) : (
-              <span className="block text-transparent select-none">placeholder</span>
+              <div aria-hidden="true" className="h-5" />
             )}
           </div>
         </div>
@@ -876,7 +988,7 @@ function MyCompetitionCard({ myComp }: { myComp: MyCompetition }) {
         {comp.description ? (
           <p className="text-xs text-gray-400 line-clamp-2">{comp.description}</p>
         ) : (
-          <span className="block text-transparent select-none text-xs">placeholder text</span>
+          <div aria-hidden="true" className="h-8" />
         )}
       </div>
 
@@ -890,7 +1002,7 @@ function MyCompetitionCard({ myComp }: { myComp: MyCompetition }) {
           {comp.status === 'ACTIVE' && comp.activeCount != null ? (
             <span className="text-green-400 font-medium">{comp.activeCount}</span>
           ) : (
-            <span className="text-transparent select-none">placeholder</span>
+            <div aria-hidden="true" className="h-5" />
           )}
         </div>
         <div className="min-h-[36px]">
@@ -898,7 +1010,7 @@ function MyCompetitionCard({ myComp }: { myComp: MyCompetition }) {
           {eliminatedWeek ? (
             <span className="text-red-400 font-medium">{eliminatedWeek}</span>
           ) : (
-            <span className="text-transparent select-none">placeholder</span>
+            <div aria-hidden="true" className="h-5" />
           )}
         </div>
         <div className="min-h-[36px]">

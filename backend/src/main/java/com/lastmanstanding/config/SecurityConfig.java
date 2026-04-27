@@ -6,6 +6,7 @@ import com.lastmanstanding.security.UserDetailsImpl;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -54,6 +55,22 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                        .requestMatchers("/competitions/my", "/competitions/my/**", "/competitions/*/me").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/competitions/code/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/competitions/upcoming").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/competitions/clubs").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/competitions/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/competitions/*/fixtures").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/competitions/*/participants").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/competitions/*/gameweeks/current").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/competitions/*/survivor-table").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/competitions/*/gameweeks/*/selections").permitAll()
+                        .requestMatchers(
+                                "/competitions/*/join",
+                                "/competitions/*/gameweeks/*/pick",
+                                "/competitions/*/picks/history",
+                                "/competitions/*/gameweeks/*/my-pick"
+                        ).authenticated()
                         .requestMatchers("/auth/me", "/auth/email-preferences", "/notifications/**").authenticated()
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")

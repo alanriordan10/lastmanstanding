@@ -4,6 +4,10 @@ spring:
     username: ${DB_USERNAME:lmsuser}
     password: ${DB_PASSWORD:lmspassword}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      leak-detection-threshold: ${DB_LEAK_DETECTION_MS:60000}
+      data-source-properties:
+        options: -c idle_in_transaction_session_timeout=${DB_IDLE_IN_TX_TIMEOUT_MS:60000} -c lock_timeout=${DB_LOCK_TIMEOUT_MS:15000}
   jackson:
     serialization:
       write-dates-as-timestamps: false

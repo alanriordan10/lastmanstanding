@@ -9,7 +9,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.Map;
 
 public final class CompetitionDtos {
 
@@ -26,6 +25,7 @@ public final class CompetitionDtos {
             boolean postponedConsumesTeam,
             boolean passFeeToParticipant,
             String paymentMode,
+            String visibility,
             @NotNull LocalDate startDate,
             Long clubId
     ) {}
@@ -39,6 +39,7 @@ public final class CompetitionDtos {
             Boolean postponedConsumesTeam,
             Boolean passFeeToParticipant,
             String paymentMode,
+            String visibility,
             LocalDate startDate,
             CompetitionStatus status,
             Long clubId
@@ -77,6 +78,8 @@ public final class CompetitionDtos {
             boolean postponedConsumesTeam,
             boolean passFeeToParticipant,
             String paymentMode,
+            String visibility,
+            String joinCode,
             LocalDate startDate,
             LocalDate firstGameweekDate,
             String createdByUsername,
@@ -92,6 +95,8 @@ public final class CompetitionDtos {
                     c.getStatus().name(), c.getMissedPickMode().name(),
                     c.isPostponedConsumesTeam(), c.isPassFeeToParticipant(),
                     c.getPaymentMode() != null ? c.getPaymentMode().name() : "FREE",
+                    c.getVisibility() != null ? c.getVisibility().name() : "PUBLIC",
+                    c.getJoinCode(),
                     c.getStartDate(), null,
                     c.getCreatedBy().getUsername(),
                     participantCount, activeCount,
@@ -108,6 +113,8 @@ public final class CompetitionDtos {
                     c.getStatus().name(), c.getMissedPickMode().name(),
                     c.isPostponedConsumesTeam(), c.isPassFeeToParticipant(),
                     c.getPaymentMode() != null ? c.getPaymentMode().name() : "FREE",
+                    c.getVisibility() != null ? c.getVisibility().name() : "PUBLIC",
+                    c.getJoinCode(),
                     c.getStartDate(), firstGameweekDate,
                     c.getCreatedBy().getUsername(),
                     participantCount, activeCount,
