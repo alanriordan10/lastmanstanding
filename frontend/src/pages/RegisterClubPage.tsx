@@ -58,12 +58,15 @@ export default function RegisterClubPage() {
   };
 
   return (
-    <div className="min-h-screen bg-surface-900 flex flex-col">
+    <div className="min-h-screen flex flex-col">
       {/* Top bar */}
-      <nav className="border-b border-gray-700/50 bg-surface-800/80 backdrop-blur-md px-6 py-4 flex items-center justify-between">
+      <nav className="border-b border-white/8 bg-[linear-gradient(180deg,rgba(8,15,30,0.92),rgba(8,15,30,0.78))] backdrop-blur-xl px-6 py-4 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-xs font-bold">LMS</div>
-          <span className="text-lg font-bold hidden sm:block">Last Man Standing</span>
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-brand-300/25 bg-gradient-to-br from-brand-500 to-cyan-400 text-[11px] font-black text-slate-950 shadow-[0_10px_28px_rgba(56,189,248,0.18)]">LMS</div>
+          <div className="hidden sm:block">
+            <span className="block text-lg font-black tracking-tight">Last Man Standing</span>
+            <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-200/75">Club onboarding</span>
+          </div>
         </Link>
         <div className="text-sm text-gray-400">
           Already have an account?{' '}
@@ -72,7 +75,26 @@ export default function RegisterClubPage() {
       </nav>
 
       <div className="flex flex-1 items-center justify-center p-4">
-        <div className="w-full max-w-lg">
+        <div className="w-full max-w-5xl grid gap-6 lg:grid-cols-[1fr_1.05fr]">
+          <section className="relative overflow-hidden rounded-[1.9rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.22),transparent_24rem),radial-gradient(circle_at_85%_16%,rgba(250,204,21,0.08),transparent_18rem),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))] px-6 py-8 shadow-[0_30px_75px_rgba(2,6,23,0.48)]">
+            <div className="inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-200">
+              Club launch
+            </div>
+            <div className="mt-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-brand-300/25 bg-gradient-to-br from-brand-500 to-cyan-400 text-3xl font-black text-slate-950 shadow-[0_10px_28px_rgba(56,189,248,0.18)]">
+              🏠
+            </div>
+            <h1 className="mt-6 text-4xl font-black tracking-tight text-white">Register Your Club</h1>
+            <p className="mt-3 max-w-md text-sm leading-6 text-gray-300 sm:text-[15px]">
+              Set up your club, create competitions, and start inviting members with private or public join flows.
+            </p>
+            <div className="mt-8 grid grid-cols-3 gap-3">
+              <SignupMetric label="Setup" value="2 steps" />
+              <SignupMetric label="Admin" value="Instant" />
+              <SignupMetric label="Invites" value="Ready" />
+            </div>
+          </section>
+
+          <div className="w-full max-w-lg lg:max-w-none mx-auto">
 
           {/* Header */}
           <div className="text-center mb-8">
@@ -284,8 +306,18 @@ export default function RegisterClubPage() {
             Just want to play?{' '}
             <Link to="/signup" className="text-brand-400 hover:text-brand-300">Sign up as a player →</Link>
           </p>
+          </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function SignupMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/8 bg-white/[0.045] px-3 py-2.5 text-center backdrop-blur-sm">
+      <div className="text-sm font-black text-white sm:text-base">{value}</div>
+      <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">{label}</div>
     </div>
   );
 }

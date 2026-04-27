@@ -32,18 +32,35 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Admin Panel</h1>
+      <section className="relative overflow-hidden rounded-[1.85rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_24rem),radial-gradient(circle_at_85%_16%,rgba(248,113,113,0.10),transparent_18rem),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))] px-5 py-5 shadow-[0_30px_75px_rgba(2,6,23,0.48)] sm:px-6 sm:py-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-2xl">
+            <div className="inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-200">
+              Control room
+            </div>
+            <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">Admin Panel</h1>
+            <p className="mt-2 text-sm leading-6 text-gray-300 sm:text-[15px]">
+              Manage competitions, clubs, users, fixtures, simulations, and audit trails from one operational dashboard.
+            </p>
+          </div>
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            <AdminHeroStat label="Competitions" value="Live" accent="text-brand-200" />
+            <AdminHeroStat label="Sync" value="Data" accent="text-cyan-200" />
+            <AdminHeroStat label="Audit" value="Tracked" accent="text-yellow-200" />
+          </div>
+        </div>
+      </section>
 
       {/* Tabs */}
-      <div className="flex gap-2 border-b border-gray-700 pb-2 overflow-x-auto">
+      <div className="flex gap-2 overflow-x-auto rounded-2xl border border-white/8 bg-black/10 p-1.5">
         {(['competitions', 'clubs', 'users', 'sync', 'simulate', 'testdata', 'audit'] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
+            className={`rounded-xl px-4 py-2.5 text-sm font-medium transition-all whitespace-nowrap ${
               tab === t
-                ? 'bg-surface-700 text-white border-b-2 border-brand-500'
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-[linear-gradient(135deg,rgba(56,189,248,0.18),rgba(14,165,233,0.08))] text-white shadow-[0_12px_30px_rgba(14,165,233,0.12)]'
+                : 'text-gray-400 hover:bg-white/[0.05] hover:text-white'
             }`}
           >
             {t === 'competitions' ? 'Competitions' :
@@ -64,6 +81,15 @@ export default function AdminPage() {
       {tab === 'simulate' && <ErrorBoundary><SimulateTab /></ErrorBoundary>}
       {tab === 'testdata' && <ErrorBoundary><TestDataTab /></ErrorBoundary>}
       {tab === 'audit' && <ErrorBoundary><AuditTab /></ErrorBoundary>}
+    </div>
+  );
+}
+
+function AdminHeroStat({ label, value, accent }: { label: string; value: string; accent: string }) {
+  return (
+    <div className="rounded-2xl border border-white/8 bg-white/[0.045] px-3 py-2 text-center backdrop-blur-sm">
+      <div className={`text-lg font-black ${accent}`}>{value}</div>
+      <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">{label}</div>
     </div>
   );
 }
@@ -142,8 +168,11 @@ function CompetitionsTab() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Manage Competitions</h2>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="text-xl font-semibold text-white">Manage Competitions</h2>
+          <p className="mt-1 text-sm text-gray-400">Create new pools, inspect invite settings, and manage the full competition roster.</p>
+        </div>
         <button onClick={() => setShowForm(!showForm)} className="btn-primary">
           {showForm ? 'Cancel' : '+ New Competition'}
         </button>
@@ -884,12 +913,12 @@ function ClubsTab() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      <SectionIntro
+        eyebrow="Club network"
+        title="Manage Clubs"
+        description="Create clubs, assign club admins, and keep the ownership structure tidy before competitions go live."
+      />
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-semibold">Manage Clubs</h2>
-          <p className="text-sm text-gray-400 mt-1">Each club can have a Club Admin who manages its competitions independently.</p>
-        </div>
         <div className="flex gap-3">
           <input
             type="text"
@@ -1196,8 +1225,12 @@ function UsersTab() {
 
   return (
     <div className="space-y-6">
+      <SectionIntro
+        eyebrow="Access control"
+        title="Manage Users"
+        description="Create accounts, adjust roles, and suspend or remove users from the platform safely."
+      />
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h2 className="text-xl font-semibold">Manage Users</h2>
         <div className="flex gap-3">
           <input
             type="text"
@@ -1477,8 +1510,13 @@ function SyncTab() {
   });
 
   return (
-    <div className="card space-y-4">
-      <h2 className="text-xl font-semibold">Fixture Sync</h2>
+    <div className="space-y-6">
+      <SectionIntro
+        eyebrow="Operations"
+        title="Fixture Sync"
+        description="Trigger a manual provider sync when you need fresh teams, fixtures, or result updates immediately."
+      />
+      <div className="card space-y-4">
       <p className="text-gray-400">
         Manually trigger a sync of teams, fixtures, and results from the data provider.
         This normally runs automatically every 15 minutes.
@@ -1490,6 +1528,7 @@ function SyncTab() {
       >
         {syncMutation.isPending ? 'Syncing…' : 'Trigger Sync Now'}
       </button>
+      </div>
     </div>
   );
 }
@@ -1716,12 +1755,11 @@ function SimulateTab() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold">Simulate Gameweek Results</h2>
-        <p className="text-sm text-gray-400 mt-1">
-          Test the elimination logic by setting fixture results and processing the gameweek.
-        </p>
-      </div>
+      <SectionIntro
+        eyebrow="Scenario testing"
+        title="Simulate Gameweek Results"
+        description="Stress-test eliminations, byes, and downstream status changes before real match results arrive."
+      />
 
       {/* Step 1: Select Competition */}
       <div className="card space-y-4">
@@ -2266,8 +2304,13 @@ function AuditTab() {
   const logs = data?.content ?? [];
 
   return (
-    <div className="card overflow-hidden">
-      <h2 className="text-xl font-semibold mb-4">Audit Log</h2>
+    <div className="space-y-6">
+      <SectionIntro
+        eyebrow="Traceability"
+        title="Audit Log"
+        description="Review who changed what, when it happened, and how entity values moved over time."
+      />
+      <div className="card overflow-hidden">
       {logs.length === 0 ? (
         <p className="text-gray-400 py-8 text-center">No audit entries yet</p>
       ) : (
@@ -2345,6 +2388,25 @@ function AuditTab() {
           </div>
         </>
       )}
+      </div>
+    </div>
+  );
+}
+
+function SectionIntro({
+  eyebrow,
+  title,
+  description,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/8 bg-white/[0.035] px-4 py-4 shadow-[0_16px_40px_rgba(2,6,23,0.28)]">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-200/80">{eyebrow}</div>
+      <h2 className="mt-2 text-xl font-semibold tracking-tight text-white">{title}</h2>
+      <p className="mt-1 text-sm leading-6 text-gray-400">{description}</p>
     </div>
   );
 }

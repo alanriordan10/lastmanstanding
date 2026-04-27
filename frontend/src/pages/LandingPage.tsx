@@ -2,12 +2,15 @@ import { Link } from 'react-router-dom';
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-surface-900 text-white flex flex-col">
+    <div className="min-h-screen text-white flex flex-col">
       {/* Navbar */}
-      <nav className="border-b border-gray-700/50 bg-surface-800/80 backdrop-blur-md px-6 py-4 flex items-center justify-between sticky top-0 z-50">
+      <nav className="sticky top-0 z-50 flex items-center justify-between border-b border-white/8 bg-[linear-gradient(180deg,rgba(8,15,30,0.92),rgba(8,15,30,0.78))] px-6 py-4 backdrop-blur-xl">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-xs font-bold">LMS</div>
-          <span className="text-lg font-bold">Last Man Standing</span>
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-brand-300/25 bg-gradient-to-br from-brand-500 to-cyan-400 text-[11px] font-black text-slate-950 shadow-[0_10px_28px_rgba(56,189,248,0.18)]">LMS</div>
+          <div>
+            <span className="block text-lg font-black tracking-tight">Last Man Standing</span>
+            <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-200/75">Survivor pool</span>
+          </div>
         </div>
         <div className="flex items-center gap-4">
           <Link to="/login" className="text-sm text-gray-400 hover:text-white transition-colors">Sign in</Link>
@@ -18,18 +21,18 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero */}
-      <section className="flex-1 flex flex-col items-center justify-center text-center px-4 py-20 relative overflow-hidden">
+      <section className="relative flex flex-1 flex-col items-center justify-center overflow-hidden px-4 py-20 text-center">
         {/* Background glow */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-brand-600/10 rounded-full blur-3xl" />
         </div>
 
-        <div className="relative max-w-3xl mx-auto space-y-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand-600/20 border border-brand-500/30 text-brand-400 text-sm font-medium">
+        <div className="relative mx-auto max-w-4xl space-y-6">
+          <div className="inline-flex items-center gap-2 rounded-full border border-brand-500/30 bg-brand-600/20 px-3 py-1.5 text-sm font-medium text-brand-300">
             ⚽ Premier League Survival Game
           </div>
 
-          <h1 className="text-5xl sm:text-6xl font-extrabold leading-tight">
+          <h1 className="text-5xl sm:text-6xl font-black leading-tight tracking-tight">
             Last Man
             <span className="text-brand-400"> Standing</span>
           </h1>
@@ -55,6 +58,11 @@ export default function LandingPage() {
           </div>
 
           <p className="text-xs text-gray-500">No credit card required · Set up in 2 minutes</p>
+          <div className="grid grid-cols-3 gap-3 pt-6 max-w-2xl mx-auto">
+            <LandingMetric label="Setup" value="2 min" />
+            <LandingMetric label="Format" value="Knockout" />
+            <LandingMetric label="Clubs" value="Private or Public" />
+          </div>
         </div>
       </section>
 
@@ -68,7 +76,7 @@ export default function LandingPage() {
               { icon: '🏆', title: 'Create Competitions', desc: 'Set up Last Man Standing competitions for your members. Configure entry fees, rules and lock times.' },
               { icon: '⚽', title: 'Invite & Play', desc: 'Share your competition link. Players pick one team per gameweek. Last one standing wins the pot.' },
             ].map(({ icon, title, desc }) => (
-              <div key={title} className="text-center space-y-3">
+              <div key={title} className="rounded-2xl border border-white/8 bg-white/[0.035] p-6 text-center space-y-3 shadow-[0_20px_50px_rgba(2,6,23,0.28)]">
                 <div className="text-5xl">{icon}</div>
                 <h3 className="text-lg font-semibold">{title}</h3>
                 <p className="text-gray-400 text-sm leading-relaxed">{desc}</p>
@@ -91,7 +99,7 @@ export default function LandingPage() {
               { icon: '⏰', text: 'Picks lock when the first game of the week kicks off' },
               { icon: '🥇', text: 'Last survivor wins the competition' },
             ].map(({ icon, text }) => (
-              <div key={text} className="flex items-start gap-3 bg-surface-700/50 rounded-xl p-4 border border-gray-700/50">
+              <div key={text} className="flex items-start gap-3 rounded-2xl border border-white/8 bg-white/[0.035] p-4 shadow-[0_16px_40px_rgba(2,6,23,0.22)]">
                 <span className="text-xl shrink-0">{icon}</span>
                 <span className="text-sm text-gray-300">{text}</span>
               </div>
@@ -124,6 +132,15 @@ export default function LandingPage() {
         </div>
         <p>Premier League survival game · © {new Date().getFullYear()}</p>
       </footer>
+    </div>
+  );
+}
+
+function LandingMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/8 bg-white/[0.045] px-3 py-3 backdrop-blur-sm">
+      <div className="text-sm font-black text-white sm:text-base">{value}</div>
+      <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">{label}</div>
     </div>
   );
 }

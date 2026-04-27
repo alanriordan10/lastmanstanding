@@ -81,7 +81,7 @@ export default function ConfirmDialog({
       />
 
       {/* Panel */}
-      <div className={`relative bg-surface-800 border ${styles.border} rounded-2xl shadow-2xl max-w-md w-full overflow-hidden`}
+      <div className={`relative max-w-md w-full overflow-hidden rounded-[1.6rem] border bg-[linear-gradient(180deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))] shadow-[0_30px_80px_rgba(2,6,23,0.6)] ${styles.border}`}
         style={{ animation: 'dialogIn 0.18s cubic-bezier(0.175,0.885,0.32,1.275)' }}
       >
         {/* Coloured top stripe */}
@@ -103,7 +103,7 @@ export default function ConfirmDialog({
 
           {/* Optional bullet list */}
           {items.length > 0 && (
-            <ul className="rounded-xl bg-surface-700/60 border border-gray-700/50 divide-y divide-gray-700/30 overflow-hidden">
+            <ul className="overflow-hidden rounded-2xl border border-white/8 bg-white/[0.04] divide-y divide-white/6">
               {items.map((item, i) => (
                 <li key={i} className="flex items-start gap-3 px-4 py-2.5 text-sm text-gray-300">
                   <span className="mt-0.5 text-gray-500 shrink-0">•</span>

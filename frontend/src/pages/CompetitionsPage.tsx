@@ -253,15 +253,30 @@ export default function CompetitionsPage() {
   return (
     <div className="space-y-5 sm:space-y-6">
       {/* ── Page header ── */}
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold">Competitions</h1>
-        <p className="mt-1 text-sm text-gray-400">Pick one team per gameweek — last survivor wins</p>
+      <div className="relative overflow-hidden rounded-[1.75rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.22),transparent_28rem),linear-gradient(135deg,rgba(15,23,42,0.95),rgba(8,15,30,0.92))] px-4 py-5 shadow-[0_28px_70px_rgba(2,6,23,0.42)] sm:px-6 sm:py-6">
+        <div className="absolute right-0 top-0 h-24 w-24 translate-x-8 -translate-y-8 rounded-full bg-yellow-300/10 blur-2xl" />
+        <div className="relative flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-2xl">
+            <div className="inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-200">
+              Matchday hub
+            </div>
+            <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">Competitions</h1>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-gray-300 sm:text-[15px]">
+              Find public pools, return to your active runs, or jump straight in with an invite code. Every surface here is tuned around the next pick.
+            </p>
+          </div>
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            <HeroMetric label="Live" value={String(competitions?.filter((c) => c.status === 'ACTIVE').length ?? 0)} />
+            <HeroMetric label="Open" value={String(competitions?.filter((c) => c.status === 'UPCOMING').length ?? 0)} />
+            <HeroMetric label="Yours" value={String(myComps.length)} />
+          </div>
+        </div>
       </div>
 
       {/* ── Navigation + controls ── */}
       <div className="card p-3 sm:p-4">
         <div className="flex flex-col gap-3">
-          <div className="grid grid-cols-2 gap-2 lg:flex lg:flex-wrap">
+          <div className="grid grid-cols-2 gap-2 rounded-2xl border border-white/8 bg-black/10 p-1.5 lg:flex lg:flex-wrap">
             <ModeTab
               active={viewMode === 'available'}
               onClick={() => setViewMode('available')}
@@ -310,7 +325,7 @@ export default function CompetitionsPage() {
 
             {viewMode === 'available' && (
               <div className="flex items-center gap-2 sm:ml-auto">
-                <div className="flex items-center gap-2 rounded-lg border border-gray-700/60 bg-surface-800/70 p-1.5 sm:min-w-[16rem]">
+                <div className="flex items-center gap-2 rounded-xl border border-brand-500/20 bg-brand-500/[0.07] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:min-w-[17rem]">
                   <input
                     type="text"
                     value={joinCodeInput}
@@ -322,14 +337,14 @@ export default function CompetitionsPage() {
                       }
                     }}
                     placeholder="Enter join code"
-                    className="min-w-0 flex-1 bg-transparent px-2 py-1 text-xs text-gray-200 outline-none placeholder:text-gray-500"
+                    className="min-w-0 flex-1 bg-transparent px-2 py-1 text-xs text-gray-100 outline-none placeholder:text-gray-500"
                   />
                   <button
                     type="button"
                     onClick={submitJoinCode}
-                    className="rounded-md bg-brand-600 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-500"
+                    className="rounded-lg bg-gradient-to-r from-brand-500 to-cyan-400 px-2.5 py-1.5 text-xs font-semibold text-slate-950 transition hover:from-brand-400 hover:to-cyan-300"
                   >
-                    Join Code
+                    Unlock
                   </button>
                 </div>
                 <button
@@ -496,7 +511,7 @@ export default function CompetitionsPage() {
         ) : (
           <div className="space-y-4">
             {!!joinCodeParam && (
-              <div className={`rounded-xl border px-3 py-2 text-xs sm:text-sm ${
+            <div className={`rounded-2xl border px-3 py-2.5 text-xs sm:text-sm ${
                 joinCodeCompetition
                   ? 'border-brand-500/30 bg-brand-500/10 text-brand-100'
                   : joinCodeError
@@ -504,14 +519,14 @@ export default function CompetitionsPage() {
                   : 'border-gray-700/60 bg-surface-800/70 text-gray-300'
               }`}>
                 {joinCodeCompetition
-                  ? `Join code ${joinCodeParam} loaded: ${joinCodeCompetition.name}`
+                  ? `Invite unlocked: ${joinCodeCompetition.name}`
                   : joinCodeStatus === 401 || joinCodeStatus === 403
-                  ? `Join code ${joinCodeParam} is being blocked by authentication.`
+                  ? `That invite is being blocked by authentication.`
                   : joinCodeStatus && joinCodeStatus >= 500
-                  ? `Join code lookup failed on the server (${joinCodeStatus}).`
+                  ? `Invite lookup failed on the server (${joinCodeStatus}).`
                   : (joinCodeError || (joinCodeFetched && !joinCodeLoading))
-                  ? `Join code ${joinCodeParam} was not found.`
-                  : `Checking join code ${joinCodeParam}…`}
+                  ? `Invite code ${joinCodeParam} was not found.`
+                  : `Checking invite code ${joinCodeParam}…`}
               </div>
             )}
             {listView ? (
@@ -706,10 +721,10 @@ function ModeTab({
   return (
     <button
       onClick={onClick}
-      className={`flex min-w-0 items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors sm:px-4 ${className} ${
+      className={`flex min-w-0 items-center justify-between gap-3 rounded-2xl border px-3 py-3 text-left transition-all sm:px-4 ${className} ${
         active
-          ? 'border-brand-500/50 bg-brand-500/10 text-white'
-          : 'border-gray-700/60 bg-surface-800/50 text-gray-300 hover:border-gray-600 hover:bg-surface-700/60 hover:text-white'
+          ? 'border-brand-500/45 bg-[linear-gradient(135deg,rgba(56,189,248,0.18),rgba(14,165,233,0.08))] text-white shadow-[0_12px_30px_rgba(14,165,233,0.12)]'
+          : 'border-white/8 bg-white/[0.03] text-gray-300 hover:border-white/15 hover:bg-white/[0.06] hover:text-white'
       }`}
     >
       <span className="min-w-0">
@@ -730,8 +745,17 @@ function ModeTab({
 function CountBadge({ count, active }: { count: number; active: boolean }) {
   return (
     <span className={`inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full text-xs font-bold ${
-      active ? 'bg-white/20 text-white' : 'bg-surface-600 text-gray-400'
+      active ? 'bg-white/20 text-white' : 'bg-white/8 text-gray-300'
     }`}>{count}</span>
+  );
+}
+
+function HeroMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/8 bg-white/[0.04] px-3 py-2 text-center backdrop-blur-sm">
+      <div className="text-lg font-black text-white sm:text-xl">{value}</div>
+      <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">{label}</div>
+    </div>
   );
 }
 
@@ -761,10 +785,10 @@ function FilterStatTile({
     <button
       type="button"
       onClick={onClick}
-      className={`card p-3 text-center transition-colors sm:p-4 ${
+      className={`card p-3 text-center transition-all sm:p-4 ${
         isActive
-          ? 'border-brand-500/50 bg-brand-500/10'
-          : 'hover:border-gray-600 hover:bg-surface-800/80'
+          ? 'border-brand-500/45 bg-[linear-gradient(135deg,rgba(56,189,248,0.18),rgba(14,165,233,0.08))]'
+          : 'hover:border-white/15 hover:bg-white/[0.06]'
       }`}
     >
       <div className={`text-2xl font-bold sm:text-3xl ${color}`}>{value}</div>

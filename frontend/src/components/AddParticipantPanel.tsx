@@ -70,14 +70,17 @@ export default function AddParticipantPanel({ competitionId, apiBase, invalidate
   }, [query, mode, apiBase]);
 
   return (
-    <div className="mt-4 rounded-xl border border-brand-500/30 bg-brand-500/5 p-4 space-y-4">
+    <div className="mt-4 rounded-2xl border border-brand-500/25 bg-[linear-gradient(135deg,rgba(56,189,248,0.08),rgba(8,15,30,0.3))] p-4 shadow-[0_18px_45px_rgba(2,6,23,0.24)] backdrop-blur-sm space-y-4">
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-semibold text-white">Add Participant</h4>
+        <div>
+          <h4 className="text-sm font-semibold uppercase tracking-[0.16em] text-white">Add Participant</h4>
+          <p className="mt-1 text-xs text-gray-400">Search for an existing user or create a guest entry for this competition.</p>
+        </div>
         <button onClick={onClose} className="text-gray-400 hover:text-white text-lg leading-none">×</button>
       </div>
 
       {/* Mode toggle */}
-      <div className="inline-flex rounded-lg bg-surface-700 p-1">
+      <div className="inline-flex rounded-2xl border border-white/8 bg-black/10 p-1">
         <button
           onClick={() => setMode('search')}
           className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
@@ -114,9 +117,9 @@ export default function AddParticipantPanel({ competitionId, apiBase, invalidate
             <p className="text-xs text-gray-400">No users found — try adding as a guest instead.</p>
           )}
           {results.length > 0 && (
-            <ul className="divide-y divide-gray-700/50 rounded-lg border border-gray-700 overflow-hidden">
+            <ul className="divide-y divide-white/8 rounded-2xl border border-white/8 overflow-hidden bg-white/[0.03]">
               {results.map((u) => (
-                <li key={u.id} className="flex items-center justify-between gap-3 px-3 py-2.5 bg-surface-700/50">
+                <li key={u.id} className="flex items-center justify-between gap-3 px-3 py-2.5">
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-gray-100 truncate">{u.username}</p>
                     <p className="text-xs text-gray-400 truncate">{u.email}</p>

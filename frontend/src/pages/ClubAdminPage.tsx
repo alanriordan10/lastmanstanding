@@ -197,31 +197,46 @@ export default function ClubAdminPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Club Admin</h1>
-          <p className="mt-1 text-gray-400">
-            Managing: <span className="text-white font-semibold">{myClub.name}</span>
-            {myClub.description && <span className="text-gray-500"> — {myClub.description}</span>}
-          </p>
+      <section className="relative overflow-hidden rounded-[1.85rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_24rem),radial-gradient(circle_at_85%_16%,rgba(250,204,21,0.10),transparent_18rem),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))] px-5 py-5 shadow-[0_30px_75px_rgba(2,6,23,0.48)] sm:px-6 sm:py-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-2xl">
+            <div className="inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-200">
+              Club control
+            </div>
+            <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">Club Admin</h1>
+            <p className="mt-2 text-sm leading-6 text-gray-300 sm:text-[15px]">
+              Running <span className="font-semibold text-white">{myClub.name}</span>
+              {myClub.description && <span className="text-gray-400"> — {myClub.description}</span>}
+            </p>
+          </div>
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            <AdminHeroStat label="Competitions" value={String(competitions?.length ?? 0)} accent="text-brand-200" />
+            <AdminHeroStat label="Upcoming" value={String(competitions?.filter((c) => c.status === 'UPCOMING').length ?? 0)} accent="text-cyan-200" />
+            <AdminHeroStat label="Active" value={String(competitions?.filter((c) => c.status === 'ACTIVE').length ?? 0)} accent="text-green-200" />
+          </div>
         </div>
-        <button onClick={() => setShowForm(!showForm)} className="btn-primary w-full sm:w-auto">
-          {showForm ? 'Cancel' : '+ New Competition'}
-        </button>
-      </div>
+        <div className="relative mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-xs uppercase tracking-[0.16em] text-gray-400">
+            Admin: <span className="text-gray-200">{myClub.clubAdminUsername ?? '—'}</span>
+          </div>
+          <button onClick={() => setShowForm(!showForm)} className="btn-primary w-full sm:w-auto">
+            {showForm ? 'Cancel' : '+ New Competition'}
+          </button>
+        </div>
+      </section>
 
       {/* Club settings card */}
       <div className="card space-y-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-sm font-semibold text-gray-200">Club Settings</h2>
-            <p className="text-xs text-gray-400 mt-0.5">
-              Current admin: <span className="text-white font-medium">{myClub.clubAdminUsername ?? '—'}</span>
+            <h2 className="text-sm font-semibold uppercase tracking-[0.16em] text-gray-200">Club Settings</h2>
+            <p className="mt-1 text-xs text-gray-400">
+              Transfer admin access or review club-level ownership details.
             </p>
           </div>
           <button
             onClick={() => { setShowAssignAdmin((v) => !v); setAdminSearchQuery(''); setAdminSearchResults([]); }}
-            className="w-full sm:w-auto text-xs px-3 py-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 text-gray-300 transition border border-gray-600/50"
+            className="w-full sm:w-auto text-xs px-3 py-1.5 rounded-xl border border-white/10 bg-white/[0.04] text-gray-300 transition hover:border-white/15 hover:bg-white/[0.08]"
           >
             {showAssignAdmin ? '✕ Cancel' : '👤 Assign New Admin'}
           </button>
@@ -634,6 +649,15 @@ export default function ClubAdminPage() {
         confirmText="Yes, Delete"
         isPending={deleteMutation.isPending}
       />
+    </div>
+  );
+}
+
+function AdminHeroStat({ label, value, accent }: { label: string; value: string; accent: string }) {
+  return (
+    <div className="rounded-2xl border border-white/8 bg-white/[0.045] px-3 py-2 text-center backdrop-blur-sm">
+      <div className={`text-lg font-black ${accent}`}>{value}</div>
+      <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">{label}</div>
     </div>
   );
 }

@@ -23,17 +23,17 @@ export default function ForgotPasswordPage() {
 
   if (submitted) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-surface-900 px-4">
-        <div className="w-full max-w-md space-y-6 text-center">
-          <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-2xl bg-green-500/20 text-3xl">
+      <div className="flex min-h-screen items-center justify-center px-4 py-10">
+        <div className="w-full max-w-lg rounded-[1.9rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_24rem),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))] px-6 py-8 text-center shadow-[0_30px_75px_rgba(2,6,23,0.48)]">
+          <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-2xl border border-green-400/20 bg-green-500/15 text-3xl">
             📧
           </div>
-          <h1 className="text-2xl font-bold text-white">Check your email</h1>
-          <p className="text-gray-400 text-sm leading-relaxed">
+          <h1 className="mt-6 text-3xl font-black tracking-tight text-white">Check your email</h1>
+          <p className="mt-3 text-gray-300 text-sm leading-relaxed">
             If an account exists for <span className="text-white font-medium">{email}</span>, we've
             sent a password reset link. It expires in 1 hour.
           </p>
-          <p className="text-xs text-gray-500">
+          <p className="mt-3 text-xs text-gray-500">
             Didn't receive it? Check your spam folder or{' '}
             <button
               onClick={() => setSubmitted(false)}
@@ -52,22 +52,22 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-surface-900 px-4">
-      <div className="w-full max-w-md space-y-8">
-
-        {/* Header */}
-        <div className="text-center space-y-2">
-          <div className="flex h-14 w-14 mx-auto items-center justify-center rounded-2xl bg-brand-600 text-2xl font-bold text-white shadow-lg">
+    <div className="flex min-h-screen items-center justify-center px-4 py-10">
+      <div className="grid w-full max-w-5xl gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+        <section className="relative overflow-hidden rounded-[1.9rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.22),transparent_24rem),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))] px-6 py-8 shadow-[0_30px_75px_rgba(2,6,23,0.48)]">
+          <div className="inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-200">
+            Recovery
+          </div>
+          <div className="mt-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-brand-300/25 bg-gradient-to-br from-brand-500 to-cyan-400 text-xl font-black text-slate-950 shadow-[0_10px_28px_rgba(56,189,248,0.18)]">
             LMS
           </div>
-          <h1 className="text-2xl font-bold text-white">Forgot your password?</h1>
-          <p className="text-sm text-gray-400">
-            Enter your email and we'll send you a reset link.
+          <h1 className="mt-6 text-4xl font-black tracking-tight text-white">Forgot your password?</h1>
+          <p className="mt-3 max-w-md text-sm leading-6 text-gray-300 sm:text-[15px]">
+            Enter your email and we’ll send a reset link so you can get back into your competitions quickly.
           </p>
-        </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-5">
+        </section>
+        <div className="w-full space-y-8">
+        <form onSubmit={handleSubmit} className="card space-y-5">
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1.5">
               Email address
@@ -98,6 +98,7 @@ export default function ForgotPasswordPage() {
             Back to login
           </Link>
         </p>
+        </div>
       </div>
     </div>
   );
