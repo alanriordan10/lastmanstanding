@@ -81,6 +81,7 @@ function CompetitionsTab() {
   const [postponedConsumesTeam, setPostponedConsumesTeam] = useState(true);
   const [passFeeToParticipant, setPassFeeToParticipant] = useState(false);
   const [paymentMode, setPaymentMode] = useState<'FREE' | 'MANUAL' | 'STRIPE'>('FREE');
+  const [visibility, setVisibility] = useState<'PUBLIC' | 'PRIVATE'>('PRIVATE');
   const [startDate, setStartDate] = useState('');
   const [clubId, setClubId] = useState<string>('');
 
@@ -110,11 +111,15 @@ function CompetitionsTab() {
         postponedConsumesTeam,
         passFeeToParticipant,
         paymentMode,
+        visibility,
         startDate,
         clubId: clubId ? Number(clubId) : null,
       }),
     onSuccess: (response) => {
-      toast.success('Competition created!');
+      const created = response.data as Competition;
+      toast.success(created.joinCode
+        ? `Competition created! Join code: ${created.joinCode}`
+        : 'Competition created!');
       queryClient.setQueryData<Competition[]>(['admin', 'competitions'], (old) =>
         old ? [response.data, ...old] : [response.data]
       );
@@ -128,6 +133,7 @@ function CompetitionsTab() {
       setStartDate('');
       setPassFeeToParticipant(false);
       setPaymentMode('FREE');
+      setVisibility('PRIVATE');
     },
     onError: (err: any) => {
       toast.error(err.response?.data?.message || 'Failed to create');
@@ -176,6 +182,29 @@ function CompetitionsTab() {
               <p className="mt-1 text-xs text-gray-500">
                 The first gameweek starts from the next unstarted PL week on or after this date.
               </p>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="mb-2 block text-sm font-medium text-gray-300">Visibility</label>
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  { value: 'PRIVATE', label: 'Private', icon: '🔐', desc: 'Hidden from browse. Join by code or invite link.' },
+                  { value: 'PUBLIC', label: 'Public', icon: '🌍', desc: 'Visible in the main competitions list.' },
+                ] as const).map(opt => (
+                  <button key={opt.value} type="button"
+                    onClick={() => setVisibility(opt.value)}
+                    className={`flex items-center gap-3 rounded-lg border p-3 text-left text-xs transition-colors ${
+                      visibility === opt.value
+                        ? 'border-brand-500 bg-brand-600/20 text-white'
+                        : 'border-gray-600 bg-surface-700 text-gray-400 hover:border-gray-500'
+                    }`}>
+                    <span className="text-xl">{opt.icon}</span>
+                    <span>
+                      <span className="block font-semibold">{opt.label}</span>
+                      <span className="block leading-tight">{opt.desc}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Payment Mode */}
@@ -312,11 +341,15 @@ function CompetitionsTab() {
 
       {competitions && competitions.length > 0 && (
         <div className="card overflow-hidden">
-          {/* Mobile: card list */}
-          <div className="divide-y divide-gray-700/50 md:hidden">
-            {competitions.map((c) => (
-              <CompetitionRow key={c.id} comp={c} />
-            ))}
+          {/* Mobile: table-safe card rows */}
+          <div className="md:hidden overflow-hidden">
+            <table className="w-full text-sm">
+              <tbody>
+                {competitions.map((c) => (
+                  <CompetitionRow key={c.id} comp={c} />
+                ))}
+              </tbody>
+            </table>
           </div>
           {/* md+: scrollable table */}
           <div className="hidden md:block overflow-x-auto">

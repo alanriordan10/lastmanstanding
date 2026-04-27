@@ -142,7 +142,7 @@ public class ClubAdminController {
         Competition c = competitionService.createCompetition(
                 request.name(), request.description(), request.entryFee(), request.prizePool(),
                 request.missedPickMode(), request.postponedConsumesTeam(), request.passFeeToParticipant(),
-                request.paymentMode(), request.startDate(), userDetails.getId(), club.getId());
+                request.paymentMode(), request.visibility(), request.startDate(), userDetails.getId(), club.getId());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(CompetitionResponse.from(c, 0, 0, null));
     }
@@ -158,7 +158,7 @@ public class ClubAdminController {
                 request.missedPickMode(),
                 request.postponedConsumesTeam() != null ? request.postponedConsumesTeam() : true,
                 request.passFeeToParticipant(),
-                request.paymentMode(),
+                request.paymentMode(), request.visibility(),
                 request.startDate(), request.status(), club.getId());
         String winner = getWinnerUsername(id);
         return CompetitionResponse.from(c, 0, 0, winner);

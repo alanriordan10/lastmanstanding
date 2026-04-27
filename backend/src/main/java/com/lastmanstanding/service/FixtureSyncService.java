@@ -8,7 +8,7 @@ import com.lastmanstanding.repository.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -30,25 +30,30 @@ public class FixtureSyncService {
     private final GameweekRepository gameweekRepository;
     private final CompetitionRepository competitionRepository;
     private final FixtureMutationLockService fixtureMutationLockService;
+    private final TransactionTemplate transactionTemplate;
 
     public FixtureSyncService(FixtureProvider fixtureProvider,
                               TeamRepository teamRepository,
                               FixtureRepository fixtureRepository,
                               GameweekRepository gameweekRepository,
                               CompetitionRepository competitionRepository,
-                              FixtureMutationLockService fixtureMutationLockService) {
+                              FixtureMutationLockService fixtureMutationLockService,
+                              TransactionTemplate transactionTemplate) {
         this.fixtureProvider = fixtureProvider;
         this.teamRepository = teamRepository;
         this.fixtureRepository = fixtureRepository;
         this.gameweekRepository = gameweekRepository;
         this.competitionRepository = competitionRepository;
         this.fixtureMutationLockService = fixtureMutationLockService;
+        this.transactionTemplate = transactionTemplate;
     }
 
-    @Transactional
     public void syncTeams() {
         List<ProviderTeam> providerTeams = fixtureProvider.fetchTeams();
+        transactionTemplate.executeWithoutResult(status -> syncTeamsInternal(providerTeams));
+    }
 
+    private void syncTeamsInternal(List<ProviderTeam> providerTeams) {
         // Pre-load all existing teams in one query
         Map<String, Team> teamByExternalId = teamRepository.findAll().stream()
                 .filter(t -> t.getExternalTeamId() != null)
@@ -67,49 +72,44 @@ public class FixtureSyncService {
         log.info("Synced {} teams", providerTeams.size());
     }
 
-    @Transactional
     public void syncFixturesAndResults() {
-        fixtureMutationLockService.runWithLock(this::syncFixturesAndResultsInternal);
+        List<ProviderFixture> fixtures = fixtureProvider.fetchFixtures(LocalDate.now().minusDays(30), LocalDate.now().plusDays(60));
+        List<ProviderFixture> results = fixtureProvider.fetchResults(LocalDate.now().minusDays(30), LocalDate.now().plusDays(60));
+        transactionTemplate.executeWithoutResult(status ->
+                fixtureMutationLockService.runWithLock(() -> syncFixturesAndResultsInternal(fixtures, results)));
     }
 
-    @Transactional
     public boolean trySyncFixturesAndResults() {
-        return fixtureMutationLockService.tryRunWithLock(this::syncFixturesAndResultsInternal);
+        List<ProviderFixture> fixtures = fixtureProvider.fetchFixtures(LocalDate.now().minusDays(30), LocalDate.now().plusDays(60));
+        List<ProviderFixture> results = fixtureProvider.fetchResults(LocalDate.now().minusDays(30), LocalDate.now().plusDays(60));
+        return Boolean.TRUE.equals(transactionTemplate.execute(status ->
+                fixtureMutationLockService.tryRunWithLock(() -> syncFixturesAndResultsInternal(fixtures, results))));
     }
 
-    @Transactional
     public void fullSync() {
-        fixtureMutationLockService.runWithLock(this::fullSyncInternal);
+        List<ProviderTeam> teams = fixtureProvider.fetchTeams();
+        LocalDate from = LocalDate.now().minusDays(30);
+        LocalDate to = LocalDate.now().plusDays(60);
+        List<ProviderFixture> fixtures = fixtureProvider.fetchFixtures(from, to);
+        List<ProviderFixture> results = fixtureProvider.fetchResults(from, to);
+        transactionTemplate.executeWithoutResult(status ->
+                fixtureMutationLockService.runWithLock(() -> fullSyncInternal(teams, fixtures, results)));
     }
 
-    @Transactional
     public boolean tryFullSync() {
-        return fixtureMutationLockService.tryRunWithLock(this::fullSyncInternal);
+        List<ProviderTeam> teams = fixtureProvider.fetchTeams();
+        LocalDate from = LocalDate.now().minusDays(30);
+        LocalDate to = LocalDate.now().plusDays(60);
+        List<ProviderFixture> fixtures = fixtureProvider.fetchFixtures(from, to);
+        List<ProviderFixture> results = fixtureProvider.fetchResults(from, to);
+        return Boolean.TRUE.equals(transactionTemplate.execute(status ->
+                fixtureMutationLockService.tryRunWithLock(() -> fullSyncInternal(teams, fixtures, results))));
     }
 
     /**
      * Immediately populate fixtures for a single newly-created competition.
      */
-    @Transactional
     public int syncForCompetition(Competition competition) {
-        return fixtureMutationLockService.callWithLock(() -> syncForCompetitionInternal(competition));
-    }
-
-    private void syncFixturesAndResultsInternal() {
-        LocalDate from = LocalDate.now().minusDays(30);
-        LocalDate to = LocalDate.now().plusDays(60);
-        List<ProviderFixture> fixtures = fixtureProvider.fetchFixtures(from, to);
-        List<ProviderFixture> results = fixtureProvider.fetchResults(from, to);
-        upsertFixtures(mergeProviderFixtures(fixtures, results));
-        log.info("Synced {} fixtures and {} results", fixtures.size(), results.size());
-    }
-
-    private void fullSyncInternal() {
-        syncTeams();
-        syncFixturesAndResultsInternal();
-    }
-
-    private int syncForCompetitionInternal(Competition competition) {
         LocalDate compStart = competition.getStartDate() != null
                 ? competition.getStartDate() : LocalDate.now();
         LocalDate from = compStart.minusDays(7);
@@ -119,12 +119,30 @@ public class FixtureSyncService {
                 competition.getName(), from, to, compStart);
 
         fixtureProvider.evictAll();
-        syncTeams();
-
+        List<ProviderTeam> teams = fixtureProvider.fetchTeams();
         List<ProviderFixture> fixtures = fixtureProvider.fetchFixtures(from, to);
         List<ProviderFixture> results  = fixtureProvider.fetchResults(from, to);
         log.info("syncForCompetition: provider returned {} fixtures, {} results", fixtures.size(), results.size());
 
+        return transactionTemplate.execute(status ->
+                fixtureMutationLockService.callWithLock(() -> syncForCompetitionInternal(competition, teams, fixtures, results)));
+    }
+
+    private void syncFixturesAndResultsInternal(List<ProviderFixture> fixtures, List<ProviderFixture> results) {
+        upsertFixtures(mergeProviderFixtures(fixtures, results));
+        log.info("Synced {} fixtures and {} results", fixtures.size(), results.size());
+    }
+
+    private void fullSyncInternal(List<ProviderTeam> teams, List<ProviderFixture> fixtures, List<ProviderFixture> results) {
+        syncTeamsInternal(teams);
+        syncFixturesAndResultsInternal(fixtures, results);
+    }
+
+    private int syncForCompetitionInternal(Competition competition,
+                                           List<ProviderTeam> teams,
+                                           List<ProviderFixture> fixtures,
+                                           List<ProviderFixture> results) {
+        syncTeamsInternal(teams);
         Map<String, ProviderFixture> merged = mergeProviderFixtures(fixtures, results);
         return upsertFixturesForCompetition(competition, new ArrayList<>(merged.values()));
     }

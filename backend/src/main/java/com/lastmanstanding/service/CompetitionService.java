@@ -12,6 +12,8 @@ import jakarta.persistence.EntityManager;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Service
 public class CompetitionService {
@@ -19,6 +21,7 @@ public class CompetitionService {
     private static final Logger log = LoggerFactory.getLogger(CompetitionService.class);
     private static final int FIXTURE_DELETE_BATCH_SIZE = 250;
     private static final int PICK_DELETE_BATCH_SIZE = 500;
+    private static final char[] JOIN_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".toCharArray();
 
     private final CompetitionRepository competitionRepository;
     private final CompetitionParticipantRepository participantRepository;
@@ -62,9 +65,9 @@ public class CompetitionService {
     public List<Competition> getUpcomingCompetitions(Long clubId) {
         List<CompetitionStatus> statuses = List.of(CompetitionStatus.UPCOMING, CompetitionStatus.ACTIVE);
         if (clubId != null) {
-            return competitionRepository.findByStatusInAndClubIdOrderByStartDateAsc(statuses, clubId);
+            return competitionRepository.findByStatusInAndClubIdAndVisibilityOrderByStartDateAsc(statuses, clubId, CompetitionVisibility.PUBLIC);
         }
-        return competitionRepository.findByStatusInOrderByStartDateAsc(statuses);
+        return competitionRepository.findByStatusInAndVisibilityOrderByStartDateAsc(statuses, CompetitionVisibility.PUBLIC);
     }
 
     public List<Competition> getAllCompetitions() {
@@ -73,6 +76,11 @@ public class CompetitionService {
 
     public Competition getCompetition(Long id) {
         return competitionRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Competition not found"));
+    }
+
+    public Competition getCompetitionByJoinCode(String joinCode) {
+        return competitionRepository.findByJoinCodeIgnoreCase(joinCode)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Competition not found"));
     }
 
@@ -118,7 +126,7 @@ public class CompetitionService {
     public Competition createCompetition(
             String name, String description, BigDecimal entryFee, BigDecimal prizePool,
             MissedPickMode missedPickMode, boolean postponedConsumesTeam, boolean passFeeToParticipant,
-            String paymentMode, java.time.LocalDate startDate, Long adminUserId, Long clubId) {
+            String paymentMode, String visibility, java.time.LocalDate startDate, Long adminUserId, Long clubId) {
         User admin = userRepository.findById(adminUserId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Admin user not found"));
         Competition comp = new Competition(name, description, entryFee,
@@ -133,6 +141,8 @@ public class CompetitionService {
                     ? com.lastmanstanding.entity.PaymentMode.FREE
                     : com.lastmanstanding.entity.PaymentMode.STRIPE);
         }
+        comp.setVisibility(parseVisibility(visibility));
+        comp.setJoinCode(generateJoinCode());
 
         if (clubId != null) {
             Club club = clubRepository.findById(clubId)
@@ -161,7 +171,7 @@ public class CompetitionService {
     public Competition updateCompetition(Long id, String name, String description, BigDecimal entryFee,
                                          BigDecimal prizePool, MissedPickMode missedPickMode,
                                          boolean postponedConsumesTeam, Boolean passFeeToParticipant,
-                                         String paymentMode, java.time.LocalDate startDate,
+                                         String paymentMode, String visibility, java.time.LocalDate startDate,
                                          CompetitionStatus status, Long clubId) {
         Competition comp = competitionRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Competition not found"));
@@ -176,6 +186,9 @@ public class CompetitionService {
             try { comp.setPaymentMode(com.lastmanstanding.entity.PaymentMode.valueOf(paymentMode)); }
             catch (IllegalArgumentException ignored) {}
         }
+        if (visibility != null) {
+            comp.setVisibility(parseVisibility(visibility));
+        }
         if (startDate != null) comp.setStartDate(startDate);
         if (status != null) comp.setStatus(status);
         if (clubId != null) {
@@ -184,6 +197,36 @@ public class CompetitionService {
             comp.setClub(club);
         }
         return competitionRepository.save(comp);
+    }
+
+    private CompetitionVisibility parseVisibility(String visibility) {
+        if (visibility == null || visibility.isBlank()) {
+            return CompetitionVisibility.PUBLIC;
+        }
+        try {
+            return CompetitionVisibility.valueOf(visibility.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            return CompetitionVisibility.PUBLIC;
+        }
+    }
+
+    private String generateJoinCode() {
+        for (int attempt = 0; attempt < 20; attempt++) {
+            String code = randomJoinCode(8);
+            if (!competitionRepository.existsByJoinCode(code)) {
+                return code;
+            }
+        }
+        throw new IllegalStateException("Could not generate a unique join code");
+    }
+
+    private String randomJoinCode(int length) {
+        ThreadLocalRandom random = ThreadLocalRandom.current();
+        StringBuilder builder = new StringBuilder(length);
+        for (int i = 0; i < length; i++) {
+            builder.append(JOIN_CODE_ALPHABET[random.nextInt(JOIN_CODE_ALPHABET.length)]);
+        }
+        return builder.toString();
     }
 
     // ── DTO ─────────────────────────────────────────────────────────────
