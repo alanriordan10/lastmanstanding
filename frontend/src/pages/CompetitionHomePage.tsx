@@ -101,9 +101,13 @@ export default function CompetitionHomePage() {
     queryKey: ['fixtures', compId],
     queryFn: () => api.get(`/competitions/${compId}/fixtures?weeks=99`).then((r) => r.data),
     staleTime: 30_000,
-    // Poll every 5 mins when a gameweek is in progress
+    // Keep polling for newly created upcoming competitions until fixtures appear,
+    // then fall back to low-frequency polling only while a gameweek is live.
     refetchInterval: (query) => {
       const data = query.state.data as Fixture[] | undefined;
+      if (comp?.status === 'UPCOMING' && (!data || data.length === 0)) {
+        return 3_000;
+      }
       const inProgress = data?.some((f) => f.gameweekStatus === 'IN_PROGRESS');
       return inProgress ? 300_000 : false;
     },
@@ -744,7 +748,14 @@ export default function CompetitionHomePage() {
         </div>
       ) : !sortedWeeks.length ? (
         <div className="card text-center py-10">
-          <p className="text-gray-400">No fixtures available yet</p>
+          <p className="text-gray-300 font-medium">
+            {comp?.status === 'UPCOMING' ? 'Fixtures are syncing…' : 'No fixtures available yet'}
+          </p>
+          {comp?.status === 'UPCOMING' && (
+            <p className="mt-2 text-sm text-gray-500">
+              This page will update automatically as soon as the first gameweeks are ready.
+            </p>
+          )}
         </div>
       ) : (
         <div className="space-y-4">
