@@ -89,6 +89,14 @@ public class CompetitionController {
         }).toList();
     }
 
+    @GetMapping("/code/{joinCode}")
+    public CompetitionResponse getCompetitionByJoinCode(@PathVariable String joinCode) {
+        Competition c = competitionService.getCompetitionByJoinCode(joinCode);
+        long[] cnt = batchParticipantCounts().getOrDefault(c.getId(), new long[]{0, 0});
+        return CompetitionResponse.from(c, (int) cnt[0], (int) cnt[1],
+                batchWinners().get(c.getId()), firstGameweekDate(c.getId()));
+    }
+
     @GetMapping("/past")
     public List<CompetitionResponse> getPastCompetitions(
             @AuthenticationPrincipal UserDetailsImpl userDetails,

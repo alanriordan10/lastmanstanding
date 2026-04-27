@@ -52,6 +52,13 @@ public class Competition {
     @Column(name = "payment_mode", nullable = false)
     private PaymentMode paymentMode = PaymentMode.FREE;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "visibility", nullable = false)
+    private CompetitionVisibility visibility = CompetitionVisibility.PUBLIC;
+
+    @Column(name = "join_code", nullable = false, unique = true, length = 12)
+    private String joinCode;
+
     @Column(name = "prize_pool", precision = 10, scale = 2)
     private BigDecimal prizePool;
 
@@ -218,5 +225,21 @@ public class Competition {
 
     public void setPrizePool(BigDecimal prizePool) {
         this.prizePool = prizePool;
+    }
+
+    public CompetitionVisibility getVisibility() {
+        return visibility;
+    }
+
+    public void setVisibility(CompetitionVisibility visibility) {
+        this.visibility = visibility;
+    }
+
+    public String getJoinCode() {
+        return joinCode;
+    }
+
+    public void setJoinCode(String joinCode) {
+        this.joinCode = joinCode;
     }
 }

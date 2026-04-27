@@ -32,6 +32,7 @@ export default function ClubAdminPage() {
   const [postponedConsumesTeam, setPostponedConsumesTeam] = useState(true);
   const [passFeeToParticipant, setPassFeeToParticipant] = useState(false);
   const [paymentMode, setPaymentMode] = useState<'FREE' | 'MANUAL' | 'STRIPE'>('FREE');
+  const [visibility, setVisibility] = useState<'PUBLIC' | 'PRIVATE'>('PRIVATE');
   const [prizePool, setPrizePool] = useState('');
   const [startDate, setStartDate] = useState('');
   const [showAssignAdmin, setShowAssignAdmin] = useState(false);
@@ -70,10 +71,14 @@ export default function ClubAdminPage() {
       postponedConsumesTeam,
       passFeeToParticipant,
       paymentMode,
+      visibility,
       startDate,
     }),
     onSuccess: (response) => {
-      toast.success('Competition created!');
+      const created = response.data as Competition;
+      toast.success(created.joinCode
+        ? `Competition created! Join code: ${created.joinCode}`
+        : 'Competition created!');
       queryClient.setQueryData<Competition[]>(['club-admin', 'competitions'], (old) =>
         old ? [response.data, ...old] : [response.data]
       );
@@ -88,6 +93,7 @@ export default function ClubAdminPage() {
       setPostponedConsumesTeam(true);
       setPassFeeToParticipant(false);
       setPaymentMode('FREE');
+      setVisibility('PRIVATE');
       setPrizePool('');
     },
     onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to create competition'),
@@ -301,6 +307,32 @@ export default function ClubAdminPage() {
               </p>
             </div>
             <div className="sm:col-span-2">
+              <label className="mb-2 block text-sm font-medium text-gray-300">Visibility</label>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {([
+                  { value: 'PRIVATE', label: 'Private', icon: '🔐', desc: 'Hidden from browse. Join by code or invite link.' },
+                  { value: 'PUBLIC', label: 'Public', icon: '🌍', desc: 'Visible in the main competitions list.' },
+                ] as const).map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setVisibility(opt.value)}
+                    className={`flex items-center gap-3 rounded-lg border p-3 text-left text-xs transition-colors ${
+                      visibility === opt.value
+                        ? 'border-brand-500 bg-brand-600/20 text-white'
+                        : 'border-gray-600 bg-surface-700 text-gray-400 hover:border-gray-500'
+                    }`}
+                  >
+                    <span className="text-xl">{opt.icon}</span>
+                    <span>
+                      <span className="block font-semibold">{opt.label}</span>
+                      <span className="block leading-tight">{opt.desc}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="sm:col-span-2">
               <label className="mb-2 block text-sm font-medium text-gray-300">Payment Mode</label>
               <div className="grid gap-2 sm:grid-cols-3">
                 {([
@@ -503,18 +535,40 @@ export default function ClubAdminPage() {
                               comp.status === 'ACTIVE' ? 'badge-green' :
                               comp.status === 'UPCOMING' ? 'badge-blue' : 'badge-gray'
                             }>{comp.status}</span>
+                            {comp.visibility === 'PRIVATE' && <span className="badge-yellow">Private</span>}
                             <h3 className="font-semibold text-gray-100 truncate">{comp.name}</h3>
                           </div>
-                          <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400">
-                            <span>Starts {format(parseDate(comp.startDate), 'MMM d, yyyy')}</span>
-                            <span>{comp.participantCount} players ({comp.activeCount} active)</span>
-                            {comp.entryFee > 0 && <span className="text-brand-400 font-semibold">€{comp.entryFee}</span>}
-                          </div>
+                        <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400">
+                          <span>Starts {format(parseDate(comp.startDate), 'MMM d, yyyy')}</span>
+                          <span>{comp.participantCount} players ({comp.activeCount} active)</span>
+                          {comp.entryFee > 0 && <span className="text-brand-400 font-semibold">€{comp.entryFee}</span>}
                         </div>
-                        <div className="flex flex-wrap gap-2 sm:shrink-0 sm:justify-end">
-                          <Link to={`/competitions/${comp.id}`} className="btn-secondary text-xs px-3 py-1.5">View</Link>
+                        {comp.visibility === 'PRIVATE' && comp.joinCode && (
+                          <div className="mt-2 inline-flex w-fit items-center gap-2 rounded-lg border border-brand-500/25 bg-brand-500/8 px-2.5 py-1 text-[11px] text-brand-200">
+                            <span className="font-semibold uppercase tracking-[0.12em] text-brand-300">Invite code</span>
+                            <span className="rounded bg-brand-500/12 px-1.5 py-0.5 font-mono text-[12px] font-semibold tracking-[0.14em] text-white">
+                              {comp.joinCode}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2 sm:shrink-0 sm:justify-end">
+                        {comp.joinCode && (
                           <button
-                            onClick={() => setManagingComp(managingComp?.id === comp.id ? null : comp)}
+                            onClick={() => {
+                              const inviteUrl = `${window.location.origin}/competitions?code=${encodeURIComponent(comp.joinCode ?? '')}`;
+                              navigator.clipboard.writeText(inviteUrl).then(() => {
+                                toast.success(`Invite link copied for ${comp.name}`);
+                              }).catch(() => toast.error('Could not copy invite link'));
+                            }}
+                            className="text-xs px-3 py-1.5 rounded-lg bg-brand-600/15 hover:bg-brand-600/30 text-brand-300 transition"
+                          >
+                            Copy Invite
+                          </button>
+                        )}
+                        <Link to={`/competitions/${comp.id}`} className="btn-secondary text-xs px-3 py-1.5">View</Link>
+                        <button
+                          onClick={() => setManagingComp(managingComp?.id === comp.id ? null : comp)}
                             className="text-xs px-3 py-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 text-gray-300 transition"
                           >
                             {managingComp?.id === comp.id ? 'Close ▲' : 'Participants ▼'}

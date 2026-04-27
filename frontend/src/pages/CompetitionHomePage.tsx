@@ -288,11 +288,13 @@ export default function CompetitionHomePage() {
     return <div className="card py-16 text-center"><p className="text-red-400">Competition not found</p></div>;
   }
 
-  const isParticipant = !!myStatus;
-  const isEliminated = myStatus?.participant.status === 'ELIMINATED';
-  const isWinner = myStatus?.participant.status === 'WINNER';
-  const paymentState = myStatus?.participant.paymentState;
+  const participant = myStatus?.participant;
+  const isParticipant = !!participant;
+  const isEliminated = participant?.status === 'ELIMINATED';
+  const isWinner = participant?.status === 'WINNER';
+  const paymentState = participant?.paymentState;
   const awaitingPayment = paymentState === 'AWAITING_PAYMENT';
+  const joinLink = `${window.location.origin}/competitions?code=${encodeURIComponent(comp.joinCode ?? String(compId))}`;
 
   // Build a map of gameweekId -> pick for this user
   const pickByGwId = new Map<number, { teamId: number; teamName: string; teamShortName: string; locked: boolean; outcome: string }>();
@@ -413,7 +415,7 @@ export default function CompetitionHomePage() {
     actionMeta = latestResolvedPick ? `Winning path included ${latestResolvedPick.teamShortName} in GW${latestResolvedPick.weekNumber}.` : null;
   } else if (isEliminated) {
     actionTone = 'danger';
-    actionTitle = `Eliminated in Gameweek ${myStatus?.participant.eliminatedWeek}`;
+    actionTitle = `Eliminated in Gameweek ${participant?.eliminatedWeek}`;
     actionBody = 'You can no longer make picks, but fixtures, selections, and results stay available so you can follow the rest of the competition.';
     actionMeta = latestResolvedPick ? `Latest resolved pick: ${latestResolvedPick.teamShortName} in GW${latestResolvedPick.weekNumber}.` : null;
   } else if (openWeekWithoutPick) {
@@ -488,11 +490,16 @@ export default function CompetitionHomePage() {
             {shareOpen && (
               <div className="absolute left-0 right-auto top-full mt-1 z-50 w-[min(20rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] rounded-xl border border-gray-700 bg-surface-800 shadow-xl p-3 space-y-2 sm:left-auto sm:right-0 sm:w-64 sm:max-w-64">
                 <p className="text-xs font-semibold text-gray-300 mb-1">Share this competition</p>
+                {comp.joinCode && (
+                  <div className="rounded-lg border border-brand-500/20 bg-brand-500/10 px-3 py-2 text-xs text-brand-100">
+                    <span className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-brand-300">Join code</span>
+                    <span className="mt-1 block text-sm font-bold tracking-[0.22em]">{comp.joinCode}</span>
+                  </div>
+                )}
                 {/* Copy link */}
                 <button
                   onClick={() => {
-                    const url = `${window.location.origin}/competitions/${compId}`;
-                    navigator.clipboard.writeText(url).then(() => {
+                    navigator.clipboard.writeText(joinLink).then(() => {
                       toast.success('Link copied!');
                       setShareOpen(false);
                     }).catch(() => toast.error('Could not copy'));
@@ -503,7 +510,7 @@ export default function CompetitionHomePage() {
                 </button>
                 {/* WhatsApp */}
                 <a
-                  href={`https://wa.me/?text=${encodeURIComponent(`Join me in ${comp.name} on Last Man Standing!\n${window.location.origin}/competitions/${compId}`)}`}
+                  href={`https://wa.me/?text=${encodeURIComponent(`Join me in ${comp.name} on Last Man Standing!\nUse code ${comp.joinCode ?? ''}\n${joinLink}`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => setShareOpen(false)}
@@ -513,7 +520,7 @@ export default function CompetitionHomePage() {
                 </a>
                 {/* Email */}
                 <a
-                  href={`mailto:?subject=${encodeURIComponent(`Join ${comp.name} — Last Man Standing`)}&body=${encodeURIComponent(`Hi,\n\nI'd like to invite you to join my Last Man Standing competition: ${comp.name}.\n${comp.entryFee > 0 ? `Entry fee: €${comp.entryFee}\n` : ''}${comp.description ? `\n${comp.description}\n` : ''}\nSign up and join here:\n${window.location.origin}/competitions/${compId}\n\nGood luck!`)}`}
+                  href={`mailto:?subject=${encodeURIComponent(`Join ${comp.name} — Last Man Standing`)}&body=${encodeURIComponent(`Hi,\n\nI'd like to invite you to join my Last Man Standing competition: ${comp.name}.\n${comp.entryFee > 0 ? `Entry fee: €${comp.entryFee}\n` : ''}${comp.description ? `\n${comp.description}\n` : ''}${comp.joinCode ? `\nJoin code: ${comp.joinCode}\n` : ''}\nSign up and join here:\n${joinLink}\n\nGood luck!`)}`}
                   onClick={() => setShareOpen(false)}
                   className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-700 hover:bg-surface-600 text-gray-200 text-xs transition"
                 >
@@ -540,7 +547,7 @@ export default function CompetitionHomePage() {
           body={actionBody}
           meta={actionMeta}
           cta={!isParticipant && comp.status === 'UPCOMING' ? (
-            <Link to={`/competitions?join=${compId}`} className="btn-primary w-full sm:w-auto text-sm">
+            <Link to={`/competitions?code=${encodeURIComponent(comp.joinCode ?? String(compId))}`} className="btn-primary w-full sm:w-auto text-sm">
               Go to join flow
             </Link>
           ) : (
@@ -904,10 +911,10 @@ export default function CompetitionHomePage() {
                 {!isCollapsed && (
                   <div id={`gw-${wn}-fixtures`} className="space-y-2 mt-4">
                     {/* Show message if user was eliminated before this gameweek */}
-                    {isEliminated && myStatus?.participant.eliminatedWeek != null && wn > myStatus.participant.eliminatedWeek && (
+                    {isEliminated && participant?.eliminatedWeek != null && wn > participant.eliminatedWeek && (
                       <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm">
                         <p className="text-red-400 font-medium">
-                          ⚠️ You were eliminated in Gameweek {myStatus.participant.eliminatedWeek} and cannot make picks for this gameweek.
+                          ⚠️ You were eliminated in Gameweek {participant.eliminatedWeek} and cannot make picks for this gameweek.
                         </p>
                       </div>
                     )}
@@ -916,9 +923,9 @@ export default function CompetitionHomePage() {
                       .map((f) => {
                         // Check if user can pick for THIS specific gameweek
                         // Cannot pick if: not a participant, eliminated, winner, locked, OR eliminated in an earlier gameweek
-                        const eliminatedBeforeThisGw = isEliminated && 
-                          myStatus?.participant.eliminatedWeek != null && 
-                          wn > myStatus.participant.eliminatedWeek;
+                        const eliminatedBeforeThisGw = isEliminated &&
+                          participant?.eliminatedWeek != null &&
+                          wn > participant.eliminatedWeek;
                         const canPickThisGw = isParticipant && !isEliminated && !isWinner && !isLocked && !eliminatedBeforeThisGw;
                         const homeIsMyPick = myPickForGw?.teamId === f.homeTeamId;
                         const awayIsMyPick = myPickForGw?.teamId === f.awayTeamId;

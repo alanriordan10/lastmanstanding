@@ -50,6 +50,9 @@ export default function App() {
         <Route path="/register-club" element={<RegisterClubPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/competitions" element={<Layout><CompetitionsPage /></Layout>} />
+        <Route path="/competitions/:id" element={<Layout><CompetitionHomePage /></Layout>} />
+        <Route path="/competitions/:id/survivor-table" element={<Layout><SurvivorTablePage /></Layout>} />
 
         {/* Protected routes */}
         <Route
@@ -58,11 +61,8 @@ export default function App() {
             <ProtectedRoute>
               <Layout>
                 <Routes>
-                  <Route path="/competitions" element={<CompetitionsPage />} />
-                  <Route path="/competitions/:id" element={<CompetitionHomePage />} />
                   <Route path="/competitions/:id/gameweeks/:gwId/selections" element={<GameweekSelectionsPage />} />
                   <Route path="/competitions/:id/gameweeks/:gwId/results" element={<GameweekResultsPage />} />
-                  <Route path="/competitions/:id/survivor-table" element={<SurvivorTablePage />} />
                   <Route path="/admin" element={<AdminPage />} />
                   <Route path="/club-admin" element={<ClubAdminPage />} />
                   <Route path="/profile" element={<ProfilePage />} />

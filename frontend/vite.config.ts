@@ -55,7 +55,7 @@ export default defineConfig({
         changeOrigin: true,
         bypass: (req) => req.headers['accept']?.includes('text/html') ? req.url : null,
       },
-      '^/competitions/(\\d+|upcoming|my|past|clubs)': {
+      '/competitions/': {
         target: 'http://localhost:8080',
         changeOrigin: true,
         bypass: (req) => req.headers['accept']?.includes('text/html') ? req.url : null,
