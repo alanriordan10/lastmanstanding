@@ -253,8 +253,12 @@ export default function CompetitionsPage() {
   return (
     <div className="space-y-5 sm:space-y-6">
       {/* ── Page header ── */}
-      <div className="relative overflow-hidden rounded-[1.75rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.22),transparent_28rem),linear-gradient(135deg,rgba(15,23,42,0.95),rgba(8,15,30,0.92))] px-4 py-5 shadow-[0_28px_70px_rgba(2,6,23,0.42)] sm:px-6 sm:py-6">
-        <div className="absolute right-0 top-0 h-24 w-24 translate-x-8 -translate-y-8 rounded-full bg-yellow-300/10 blur-2xl" />
+      <div className="relative overflow-hidden rounded-[1.75rem] border border-white/8 bg-[radial-gradient(circle_at_10%_0%,rgba(251,191,36,0.18),transparent_28rem),radial-gradient(circle_at_85%_15%,rgba(56,189,248,0.18),transparent_24rem),linear-gradient(135deg,rgba(15,23,42,0.92),rgba(8,15,30,0.9))] px-4 py-5 shadow-[0_28px_70px_rgba(2,6,23,0.42)] sm:px-6 sm:py-6">
+        <div className="absolute right-0 top-0 h-24 w-24 translate-x-8 -translate-y-8 rounded-full bg-amber-300/15 blur-2xl" />
+        <div className="absolute inset-0 opacity-[0.08] pointer-events-none" style={{
+          backgroundImage: 'radial-gradient(rgba(255,255,255,0.5) 0.5px, transparent 0.5px)',
+          backgroundSize: '12px 12px',
+        }} />
         <div className="relative flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
             <div className="inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-200">
@@ -274,9 +278,9 @@ export default function CompetitionsPage() {
       </div>
 
       {/* ── Navigation + controls ── */}
-      <div className="card p-3 sm:p-4">
+      <div className="rounded-2xl border border-white/8 bg-[linear-gradient(135deg,rgba(30,41,59,0.7),rgba(15,23,42,0.75))] p-3 shadow-[0_20px_50px_rgba(2,6,23,0.35)] sm:p-4">
         <div className="flex flex-col gap-3">
-          <div className="grid grid-cols-2 gap-2 rounded-2xl border border-white/8 bg-black/10 p-1.5 lg:flex lg:flex-wrap">
+          <div className="grid grid-cols-2 rounded-2xl border border-white/8 bg-[linear-gradient(135deg,rgba(30,41,59,0.65),rgba(15,23,42,0.7))] p-1.5 overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] lg:flex lg:flex-wrap">
             <ModeTab
               active={viewMode === 'available'}
               onClick={() => setViewMode('available')}
@@ -637,8 +641,8 @@ function CompListView({ comps, joinedSet, onJoin, isPending }: {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-medium text-sm text-white truncate">{c.name}</span>
-                {c.clubName && <span className="badge-yellow text-xs shrink-0">{c.clubName}</span>}
-                {joined && <span className="badge shrink-0 bg-brand-600/20 border border-brand-500/40 text-brand-400 text-xs">Joined</span>}
+                {c.clubName && <span className="badge-yellow badge-soft shrink-0">{c.clubName}</span>}
+                {joined && <span className="badge-brand shrink-0">Joined</span>}
               </div>
               <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-500">
                 {dateStr && <span>{format(parseDate(dateStr), 'MMM d, yyyy')}</span>}
@@ -721,15 +725,15 @@ function ModeTab({
   return (
     <button
       onClick={onClick}
-      className={`flex min-w-0 items-center justify-between gap-3 rounded-2xl border px-3 py-3 text-left transition-all sm:px-4 ${className} ${
+      className={`group flex min-w-0 items-center justify-between gap-3 rounded-none border border-transparent px-3 py-3 text-left transition-all sm:px-4 ${className} ${
         active
-          ? 'border-brand-500/45 bg-[linear-gradient(135deg,rgba(56,189,248,0.18),rgba(14,165,233,0.08))] text-white shadow-[0_12px_30px_rgba(14,165,233,0.12)]'
-          : 'border-white/8 bg-white/[0.03] text-gray-300 hover:border-white/15 hover:bg-white/[0.06] hover:text-white'
+          ? 'bg-[linear-gradient(135deg,rgba(56,189,248,0.22),rgba(14,165,233,0.1))] text-white shadow-[0_16px_36px_rgba(14,165,233,0.16)]'
+          : 'bg-transparent text-gray-300 hover:bg-white/[0.06] hover:text-white'
       }`}
     >
       <span className="min-w-0">
-        <span className="block truncate text-sm font-semibold">{label}</span>
-        <span className={`block truncate text-[11px] ${active ? 'text-brand-100/80' : 'text-gray-500'}`}>{hint}</span>
+        <span className="block truncate text-sm font-semibold tracking-tight">{label}</span>
+        <span className={`block truncate text-[11px] ${active ? 'text-brand-100/80' : 'text-gray-500 group-hover:text-gray-300'}`}>{hint}</span>
       </span>
       <span className="shrink-0">
         {isLoading ? (
@@ -744,7 +748,7 @@ function ModeTab({
 
 function CountBadge({ count, active }: { count: number; active: boolean }) {
   return (
-    <span className={`inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full text-xs font-bold ${
+    <span className={`inline-flex items-center justify-center min-w-[1.5rem] h-6 px-2 rounded-full text-[11px] font-bold ${
       active ? 'bg-white/20 text-white' : 'bg-white/8 text-gray-300'
     }`}>{count}</span>
   );
@@ -752,9 +756,9 @@ function CountBadge({ count, active }: { count: number; active: boolean }) {
 
 function HeroMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/8 bg-white/[0.04] px-3 py-2 text-center backdrop-blur-sm">
+    <div className="rounded-2xl border border-white/8 bg-[linear-gradient(135deg,rgba(251,191,36,0.08),rgba(15,23,42,0.65))] px-3 py-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
       <div className="text-lg font-black text-white sm:text-xl">{value}</div>
-      <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">{label}</div>
+      <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-200/80">{label}</div>
     </div>
   );
 }
@@ -881,7 +885,7 @@ function CompetitionCard({ comp, joined, onJoin, isPending, isHighlighted = fals
         </div>
         <div className="flex items-start">
           {joined ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-brand-600/20 border border-brand-500/40 px-2 py-0.5 text-xs font-medium text-brand-400">
+          <span className="badge-brand inline-flex items-center gap-1">
             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
             </svg>
@@ -893,7 +897,7 @@ function CompetitionCard({ comp, joined, onJoin, isPending, isHighlighted = fals
 
       <h3 className="text-base sm:text-lg font-bold leading-snug line-clamp-2">{comp.name}</h3>
       <div className="mt-1 min-h-[18px]">
-        {comp.clubName && <span className="inline-flex max-w-full truncate badge-yellow text-xs align-top">{comp.clubName}</span>}
+        {comp.clubName && <span className="inline-flex max-w-full truncate badge-yellow badge-soft align-top">{comp.clubName}</span>}
       </div>
       {comp.visibility === 'PRIVATE' && comp.joinCode && (
         <div className="mt-1 inline-flex w-fit items-center gap-2 rounded-lg border border-brand-500/25 bg-brand-500/8 px-2.5 py-1 text-[11px] text-brand-200">
@@ -1006,7 +1010,7 @@ function MyCompetitionCard({ myComp }: { myComp: MyCompetition }) {
 
       <h3 className="text-base sm:text-lg font-bold leading-snug line-clamp-2">{comp.name}</h3>
       <div className="mt-1 min-h-[18px]">
-        {comp.clubName && <span className="inline-flex max-w-full truncate badge-yellow text-xs align-top">{comp.clubName}</span>}
+        {comp.clubName && <span className="inline-flex max-w-full truncate badge-yellow badge-soft align-top">{comp.clubName}</span>}
       </div>
       <div className="mt-1.5 min-h-[32px]">
         {comp.description ? (
@@ -1086,7 +1090,7 @@ function PastCompetitionCard({ comp }: { comp: Competition }) {
       <div className="mb-2.5"><span className="badge-gray">FINISHED</span></div>
       <h3 className="text-base sm:text-lg font-bold leading-snug line-clamp-2">{comp.name}</h3>
       <div className="mt-1 min-h-[18px]">
-        {comp.clubName && <span className="inline-flex max-w-full truncate badge-yellow text-xs align-top">{comp.clubName}</span>}
+        {comp.clubName && <span className="inline-flex max-w-full truncate badge-yellow badge-soft align-top">{comp.clubName}</span>}
       </div>
       <div className="mt-1.5 min-h-[32px]">
         {comp.description ? (

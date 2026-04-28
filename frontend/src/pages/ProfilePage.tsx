@@ -30,9 +30,9 @@ export default function ProfilePage() {
     : '??';
 
   const roleBadge: Record<string, { label: string; cls: string }> = {
-    ADMIN:      { label: 'Admin',      cls: 'bg-red-500/20 text-red-400 border border-red-500/30' },
-    CLUB_ADMIN: { label: 'Club Admin', cls: 'bg-purple-500/20 text-purple-400 border border-purple-500/30' },
-    USER:       { label: 'Member',     cls: 'bg-brand-500/20 text-brand-400 border border-brand-500/30' },
+    ADMIN:      { label: 'Admin',      cls: 'badge-red' },
+    CLUB_ADMIN: { label: 'Club Admin', cls: 'badge-purple' },
+    USER:       { label: 'Member',     cls: 'badge-brand' },
   };
   const badge = roleBadge[user?.role ?? 'USER'] ?? roleBadge.USER;
 
@@ -78,7 +78,7 @@ export default function ProfilePage() {
           <div className="min-w-0">
             <h1 className="text-2xl font-bold text-white truncate">{user?.username}</h1>
             <p className="text-sm text-gray-400 truncate">{user?.email}</p>
-            <span className={`mt-2 inline-block rounded-full px-3 py-0.5 text-xs font-semibold ${badge.cls}`}>
+            <span className={`mt-2 inline-block ${badge.cls}`}>
               {badge.label}
             </span>
           </div>

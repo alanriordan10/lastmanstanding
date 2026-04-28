@@ -19,10 +19,10 @@ interface ConfirmDialogProps {
 }
 
 const variantStyles: Record<Variant, { border: string; iconBg: string; confirmBtn: string; badge: string }> = {
-  danger:  { border: 'border-red-500/30',    iconBg: 'bg-red-500/10',    confirmBtn: 'bg-red-600 hover:bg-red-500 text-white',           badge: 'bg-red-500/10 border-red-500/30 text-red-400' },
-  warning: { border: 'border-yellow-500/30', iconBg: 'bg-yellow-500/10', confirmBtn: 'bg-yellow-500 hover:bg-yellow-400 text-black font-semibold', badge: 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400' },
-  info:    { border: 'border-brand-500/30',  iconBg: 'bg-brand-500/10',  confirmBtn: 'bg-brand-600 hover:bg-brand-500 text-white',        badge: 'bg-brand-500/10 border-brand-500/30 text-brand-400' },
-  success: { border: 'border-green-500/30',  iconBg: 'bg-green-500/10',  confirmBtn: 'bg-green-600 hover:bg-green-500 text-white',        badge: 'bg-green-500/10 border-green-500/30 text-green-400' },
+  danger:  { border: 'border-red-500/30',    iconBg: 'bg-red-500/10',    confirmBtn: 'bg-red-600 hover:bg-red-500 text-white',           badge: 'badge-red' },
+  warning: { border: 'border-yellow-500/30', iconBg: 'bg-yellow-500/10', confirmBtn: 'bg-yellow-500 hover:bg-yellow-400 text-black font-semibold', badge: 'badge-yellow' },
+  info:    { border: 'border-brand-500/30',  iconBg: 'bg-brand-500/10',  confirmBtn: 'bg-brand-600 hover:bg-brand-500 text-white',        badge: 'badge-brand' },
+  success: { border: 'border-green-500/30',  iconBg: 'bg-green-500/10',  confirmBtn: 'bg-green-600 hover:bg-green-500 text-white',        badge: 'badge-green' },
 };
 
 const defaultIcons: Record<Variant, string> = {

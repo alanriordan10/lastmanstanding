@@ -257,7 +257,7 @@ public class CompetitionController {
         }
 
         for (CompetitionParticipant cp : participants) {
-            states.putIfAbsent(cp.getCompetition().getId(), derivePaymentState(cp.getCompetition(), java.util.List.of()));
+            states.putIfAbsent(cp.getCompetition().getId(), derivePaymentState(cp.getCompetition(), List.of()));
         }
 
         return states;

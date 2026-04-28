@@ -17,9 +17,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
+import java.util.Objects;
 /**
  * Endpoints for CLUB_ADMIN users — scoped to their own club only.
  * Super ADMINs can also call these endpoints.
@@ -37,6 +38,7 @@ public class ClubAdminController {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final PaymentRepository paymentRepository;
+        private final AuditLogRepository auditLogRepository;
 
     public ClubAdminController(ClubRepository clubRepository,
                                CompetitionRepository competitionRepository,
@@ -45,7 +47,8 @@ public class ClubAdminController {
                                FixtureSyncService fixtureSyncService,
                                UserRepository userRepository,
                                PasswordEncoder passwordEncoder,
-                               PaymentRepository paymentRepository) {
+                               PaymentRepository paymentRepository,
+                               AuditLogRepository auditLogRepository) {
         this.clubRepository = clubRepository;
         this.competitionRepository = competitionRepository;
         this.participantRepository = participantRepository;
@@ -54,6 +57,7 @@ public class ClubAdminController {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.paymentRepository = paymentRepository;
+        this.auditLogRepository = auditLogRepository;
     }
 
     // ── My Club ──────────────────────────────────────────────────────────
@@ -102,6 +106,9 @@ public class ClubAdminController {
         log.info("Club admin {} transferred admin of club '{}' to user '{}'",
                 userDetails.getUsername(), club.getName(), newAdmin.getUsername());
 
+        logAudit(userDetails, "Club", club.getId(), "clubAdmin", oldAdmin != null ? oldAdmin.getUsername() : null,
+                newAdmin.getUsername(), "ASSIGN_ADMIN");
+
         return ResponseEntity.ok(ClubResponse.from(club));
     }
 
@@ -143,6 +150,7 @@ public class ClubAdminController {
                 request.name(), request.description(), request.entryFee(), request.prizePool(),
                 request.missedPickMode(), request.postponedConsumesTeam(), request.passFeeToParticipant(),
                 request.paymentMode(), request.visibility(), request.startDate(), userDetails.getId(), club.getId());
+        logAudit(userDetails, "Competition", c.getId(), "name", null, c.getName(), "CREATE");
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(CompetitionResponse.from(c, 0, 0, null));
     }
@@ -153,6 +161,20 @@ public class ClubAdminController {
                                                  @AuthenticationPrincipal UserDetailsImpl userDetails) {
         Club club = resolveClub(userDetails);
         assertOwnsCompetition(id, club);
+                Competition existing = competitionRepository.findById(id)
+                                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Competition not found"));
+                String oldName = existing.getName();
+                String oldDescription = existing.getDescription();
+                String oldEntryFee = existing.getEntryFee() != null ? existing.getEntryFee().toString() : null;
+                String oldPrizePool = existing.getPrizePool() != null ? existing.getPrizePool().toString() : null;
+                String oldMissedPickMode = existing.getMissedPickMode() != null ? existing.getMissedPickMode().name() : null;
+                String oldPostponedConsumesTeam = String.valueOf(existing.isPostponedConsumesTeam());
+                String oldPassFeeToParticipant = String.valueOf(existing.isPassFeeToParticipant());
+                String oldPaymentMode = existing.getPaymentMode() != null ? existing.getPaymentMode().name() : null;
+                String oldVisibility = existing.getVisibility() != null ? existing.getVisibility().name() : null;
+                String oldStartDate = existing.getStartDate() != null ? existing.getStartDate().toString() : null;
+                String oldStatus = existing.getStatus() != null ? existing.getStatus().name() : null;
+                String oldClubId = existing.getClub() != null ? String.valueOf(existing.getClub().getId()) : null;
         Competition c = competitionService.updateCompetition(id,
                 request.name(), request.description(), request.entryFee(), request.prizePool(),
                 request.missedPickMode(),
@@ -160,6 +182,53 @@ public class ClubAdminController {
                 request.passFeeToParticipant(),
                 request.paymentMode(), request.visibility(),
                 request.startDate(), request.status(), club.getId());
+                logAudit(userDetails, "Competition", id, "request", null, request.toString(), "UPDATE");
+                if (!Objects.equals(oldName, c.getName())) {
+                        logAudit(userDetails, "Competition", c.getId(), "name", oldName, c.getName(), "UPDATE_FIELD");
+                }
+                if (!Objects.equals(oldDescription, c.getDescription())) {
+                        logAudit(userDetails, "Competition", c.getId(), "description", oldDescription, c.getDescription(), "UPDATE_FIELD");
+                }
+                String newEntryFee = c.getEntryFee() != null ? c.getEntryFee().toString() : null;
+                if (!Objects.equals(oldEntryFee, newEntryFee)) {
+                        logAudit(userDetails, "Competition", c.getId(), "entryFee", oldEntryFee, newEntryFee, "UPDATE_FIELD");
+                }
+                String newPrizePool = c.getPrizePool() != null ? c.getPrizePool().toString() : null;
+                if (!Objects.equals(oldPrizePool, newPrizePool)) {
+                        logAudit(userDetails, "Competition", c.getId(), "prizePool", oldPrizePool, newPrizePool, "UPDATE_FIELD");
+                }
+                String newMissedPickMode = c.getMissedPickMode() != null ? c.getMissedPickMode().name() : null;
+                if (!Objects.equals(oldMissedPickMode, newMissedPickMode)) {
+                        logAudit(userDetails, "Competition", c.getId(), "missedPickMode", oldMissedPickMode, newMissedPickMode, "UPDATE_FIELD");
+                }
+                String newPostponedConsumesTeam = String.valueOf(c.isPostponedConsumesTeam());
+                if (!Objects.equals(oldPostponedConsumesTeam, newPostponedConsumesTeam)) {
+                        logAudit(userDetails, "Competition", c.getId(), "postponedConsumesTeam", oldPostponedConsumesTeam, newPostponedConsumesTeam, "UPDATE_FIELD");
+                }
+                String newPassFeeToParticipant = String.valueOf(c.isPassFeeToParticipant());
+                if (!Objects.equals(oldPassFeeToParticipant, newPassFeeToParticipant)) {
+                        logAudit(userDetails, "Competition", c.getId(), "passFeeToParticipant", oldPassFeeToParticipant, newPassFeeToParticipant, "UPDATE_FIELD");
+                }
+                String newPaymentMode = c.getPaymentMode() != null ? c.getPaymentMode().name() : null;
+                if (!Objects.equals(oldPaymentMode, newPaymentMode)) {
+                        logAudit(userDetails, "Competition", c.getId(), "paymentMode", oldPaymentMode, newPaymentMode, "UPDATE_FIELD");
+                }
+                String newVisibility = c.getVisibility() != null ? c.getVisibility().name() : null;
+                if (!Objects.equals(oldVisibility, newVisibility)) {
+                        logAudit(userDetails, "Competition", c.getId(), "visibility", oldVisibility, newVisibility, "UPDATE_FIELD");
+                }
+                String newStartDate = c.getStartDate() != null ? c.getStartDate().toString() : null;
+                if (!Objects.equals(oldStartDate, newStartDate)) {
+                        logAudit(userDetails, "Competition", c.getId(), "startDate", oldStartDate, newStartDate, "UPDATE_FIELD");
+                }
+                String newStatus = c.getStatus() != null ? c.getStatus().name() : null;
+                if (!Objects.equals(oldStatus, newStatus)) {
+                        logAudit(userDetails, "Competition", c.getId(), "status", oldStatus, newStatus, "UPDATE_FIELD");
+                }
+                String newClubId = c.getClub() != null ? String.valueOf(c.getClub().getId()) : null;
+                if (!Objects.equals(oldClubId, newClubId)) {
+                        logAudit(userDetails, "Competition", c.getId(), "clubId", oldClubId, newClubId, "UPDATE_FIELD");
+                }
         String winner = getWinnerUsername(id);
         return CompetitionResponse.from(c, 0, 0, winner);
     }
@@ -190,7 +259,10 @@ public class ClubAdminController {
                                                   @AuthenticationPrincipal UserDetailsImpl userDetails) {
         Club club = resolveClub(userDetails);
         assertOwnsCompetition(id, club);
+        Competition comp = competitionRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Competition not found"));
         competitionService.deleteCompetition(id);
+        logAudit(userDetails, "Competition", id, "name", comp.getName(), null, "DELETE");
         return ResponseEntity.noContent().build();
     }
 
@@ -212,7 +284,10 @@ public class ClubAdminController {
                                                   @AuthenticationPrincipal UserDetailsImpl userDetails) {
         Club club = resolveClub(userDetails);
         assertOwnsCompetition(compId, club);
+        CompetitionParticipant cp = participantRepository.findByCompetitionIdAndUserId(compId, userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Participant not found"));
         competitionService.removeParticipant(compId, userId);
+        logAudit(userDetails, "CompetitionParticipant", cp.getId(), "userId", String.valueOf(userId), null, "REMOVE_PARTICIPANT");
         return ResponseEntity.noContent().build();
     }
 
@@ -240,12 +315,12 @@ public class ClubAdminController {
         Competition comp = competitionRepository.findById(compId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Competition not found"));
 
-        if (comp.getPaymentMode() != com.lastmanstanding.entity.PaymentMode.MANUAL) {
+        if (comp.getPaymentMode() != PaymentMode.MANUAL) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "This competition does not use manual payment");
         }
 
-        com.lastmanstanding.entity.User user = userRepository.findById(userId)
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
         // Verify the player is registered
@@ -255,20 +330,26 @@ public class ClubAdminController {
         }
 
         // Record payment confirmation if not already done
+        Payment payment;
         if (!paymentRepository.existsByUserIdAndCompetitionIdAndStatus(
-                userId, compId, com.lastmanstanding.entity.Payment.PaymentStatus.SUCCEEDED)) {
-            com.lastmanstanding.entity.Payment payment = new com.lastmanstanding.entity.Payment(
+                userId, compId, Payment.PaymentStatus.SUCCEEDED)) {
+            payment = new Payment(
                     user, comp, null,
                     comp.getEntryFee() != null
                             ? comp.getEntryFee().multiply(java.math.BigDecimal.valueOf(100)).intValue()
                             : 0,
                     "eur");
-            payment.setStatus(com.lastmanstanding.entity.Payment.PaymentStatus.SUCCEEDED);
+            payment.setStatus(Payment.PaymentStatus.SUCCEEDED);
             paymentRepository.save(payment);
+        } else {
+            payment = paymentRepository.findSucceededByCompetitionAndUser(compId, userId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Payment not found"));
         }
 
         log.info("Club admin {} confirmed manual payment from user {} for competition {}",
                 userDetails.getUsername(), user.getUsername(), comp.getName());
+
+        logAudit(userDetails, "Payment", payment.getId(), "status", null, "SUCCEEDED", "MARK_PAID");
 
         return ResponseEntity.ok().build();
     }
@@ -287,19 +368,21 @@ public class ClubAdminController {
         Competition comp = competitionRepository.findById(compId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Competition not found"));
 
-        if (comp.getPaymentMode() != com.lastmanstanding.entity.PaymentMode.MANUAL) {
+        if (comp.getPaymentMode() != PaymentMode.MANUAL) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "This competition does not use manual payment");
         }
 
-        com.lastmanstanding.entity.Payment payment = paymentRepository.findSucceededByCompetitionAndUser(compId, userId)
+        Payment payment = paymentRepository.findSucceededByCompetitionAndUser(compId, userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No confirmed manual payment found for this user"));
 
         // Mark the payment as FAILED to indicate it is no longer confirmed (keeps audit trail)
-        paymentRepository.updateStatus(payment.getId(), com.lastmanstanding.entity.Payment.PaymentStatus.FAILED);
+        paymentRepository.updateStatus(payment.getId(), Payment.PaymentStatus.FAILED);
 
         log.info("Club admin {} reverted manual payment for user {} on competition {}",
                 userDetails.getUsername(), userId, comp.getName());
+
+        logAudit(userDetails, "Payment", payment.getId(), "status", "SUCCEEDED", "FAILED", "UNMARK_PAID");
 
         return ResponseEntity.ok().build();
     }
@@ -339,21 +422,24 @@ public class ClubAdminController {
         log.info("Club admin manually declared {} as winner of competition {}",
                 winner.getUser().getUsername(), compId);
 
+        logAudit(userDetails, "Competition", compId, "winnerUserId", null, String.valueOf(userId), "DECLARE_WINNER");
+
         int total = participantRepository.findByCompetitionId(compId).size();
         return ResponseEntity.ok(CompetitionResponse.from(comp, total, 1, winner.getUser().getUsername()));
     }
 
     @PostMapping("/competitions/{id}/sync-fixtures")
-    public ResponseEntity<java.util.Map<String, Object>> syncFixtures(
+    public ResponseEntity<Map<String, Object>> syncFixtures(
             @PathVariable Long id,
             @AuthenticationPrincipal UserDetailsImpl userDetails) {
         Club club = resolveClub(userDetails);
         assertOwnsCompetition(id, club);
         Competition comp = competitionRepository.findById(id)
-                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Competition not found"));
         int count = fixtureSyncService.syncForCompetition(comp);
-        return ResponseEntity.ok(java.util.Map.of(
+        logAudit(userDetails, "Competition", id, "fixturesAdded", null, String.valueOf(count), "SYNC_FIXTURES");
+        return ResponseEntity.ok(Map.of(
                 "competitionId", id,
                 "fixturesAdded", count,
                 "message", count > 0
@@ -392,6 +478,7 @@ public class ClubAdminController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Competition not found"));
 
         User user;
+        boolean createdGuest = false;
         if (request.userId() != null) {
             user = userRepository.findById(request.userId())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
@@ -406,6 +493,7 @@ public class ClubAdminController {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists");
             user = new User(email, username, passwordEncoder.encode(java.util.UUID.randomUUID().toString()), Role.USER);
             user = userRepository.save(user);
+            createdGuest = true;
             log.info("Club admin {} created guest '{}' for competition '{}'",
                     userDetails.getUsername(), username, comp.getName());
         } else {
@@ -417,6 +505,10 @@ public class ClubAdminController {
 
         CompetitionParticipant cp = new CompetitionParticipant(comp, user, ParticipantStatus.ACTIVE);
         cp = participantRepository.save(cp);
+                if (createdGuest) {
+                        logAudit(userDetails, "User", user.getId(), "guest", null, user.getUsername(), "CREATE_GUEST");
+                }
+                logAudit(userDetails, "CompetitionParticipant", cp.getId(), "userId", null, String.valueOf(user.getId()), "ADD_PARTICIPANT");
         return ResponseEntity.status(HttpStatus.CREATED).body(ParticipantResponse.from(cp));
     }
 
@@ -440,4 +532,19 @@ public class ClubAdminController {
                     "This competition does not belong to your club");
         }
     }
+
+        private void logAudit(UserDetailsImpl actor, String entityType, Long entityId,
+                                                  String fieldName, String oldValue, String newValue, String action) {
+                if (entityId == null) {
+                        entityId = 0L;
+                }
+                if (actor == null) {
+                        return;
+                }
+                User user = userRepository.findById(actor.getId()).orElse(null);
+                if (user == null) {
+                        return;
+                }
+                auditLogRepository.save(new AuditLog(user, entityType, entityId, fieldName, oldValue, newValue, action));
+        }
 }

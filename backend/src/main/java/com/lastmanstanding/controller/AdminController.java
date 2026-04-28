@@ -2,6 +2,7 @@ package com.lastmanstanding.controller;
 
 import com.lastmanstanding.dto.CompetitionDtos.*;
 import com.lastmanstanding.entity.*;
+import com.lastmanstanding.repository.AuditLogRepository;
 import com.lastmanstanding.repository.ClubRepository;
 import com.lastmanstanding.repository.CompetitionParticipantRepository;
 import com.lastmanstanding.repository.CompetitionRepository;
@@ -27,12 +28,16 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/admin")
@@ -54,6 +59,7 @@ public class AdminController {
     private final TestDataGenerator testDataGenerator;
     private final com.lastmanstanding.service.FixtureSyncService fixtureSyncService;
     private final Optional<FootballDataProvider> footballDataProvider;
+    private final AuditLogRepository auditLogRepository;
 
     public AdminController(AdminService adminService,
                            CompetitionService competitionService,
@@ -69,7 +75,8 @@ public class AdminController {
                            PickResultRepository pickResultRepository,
                            TestDataGenerator testDataGenerator,
                            com.lastmanstanding.service.FixtureSyncService fixtureSyncService,
-                           Optional<FootballDataProvider> footballDataProvider) {
+                           Optional<FootballDataProvider> footballDataProvider,
+                           AuditLogRepository auditLogRepository) {
         this.adminService = adminService;
         this.competitionService = competitionService;
         this.clubRepository = clubRepository;
@@ -85,6 +92,7 @@ public class AdminController {
         this.testDataGenerator = testDataGenerator;
         this.fixtureSyncService = fixtureSyncService;
         this.footballDataProvider = footballDataProvider;
+        this.auditLogRepository = auditLogRepository;
     }
 
     // ── Clubs ───────────────────────────────────────────────────────────
@@ -118,13 +126,19 @@ public class AdminController {
         }
 
         club = clubRepository.save(club);
+        logAudit(userDetails, "Club", club.getId(), "name", null, club.getName(), "CREATE");
         return ResponseEntity.status(HttpStatus.CREATED).body(ClubResponse.from(club));
     }
 
     @PutMapping("/clubs/{id}")
-    public ClubResponse updateClub(@PathVariable Long id, @RequestBody ClubRequest request) {
+    public ClubResponse updateClub(@PathVariable Long id,
+                                   @RequestBody ClubRequest request,
+                                   @AuthenticationPrincipal UserDetailsImpl userDetails) {
         Club club = clubRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Club not found"));
+        String oldName = club.getName();
+        String oldDescription = club.getDescription();
+        String oldAdminName = club.getClubAdmin() != null ? club.getClubAdmin().getUsername() : null;
         if (request.name() != null) club.setName(request.name());
         if (request.description() != null) club.setDescription(request.description());
 
@@ -147,12 +161,24 @@ public class AdminController {
                 userRepository.save(clubAdmin);
             }
         }
-
-        return ClubResponse.from(clubRepository.save(club));
+        Club saved = clubRepository.save(club);
+        logAudit(userDetails, "Club", saved.getId(), "request", null, request.toString(), "UPDATE");
+        if (!Objects.equals(oldName, saved.getName())) {
+            logAudit(userDetails, "Club", saved.getId(), "name", oldName, saved.getName(), "UPDATE_FIELD");
+        }
+        if (!Objects.equals(oldDescription, saved.getDescription())) {
+            logAudit(userDetails, "Club", saved.getId(), "description", oldDescription, saved.getDescription(), "UPDATE_FIELD");
+        }
+        String newAdminName = saved.getClubAdmin() != null ? saved.getClubAdmin().getUsername() : null;
+        if (!Objects.equals(oldAdminName, newAdminName)) {
+            logAudit(userDetails, "Club", saved.getId(), "clubAdmin", oldAdminName, newAdminName, "ASSIGN_ADMIN");
+        }
+        return ClubResponse.from(saved);
     }
 
     @DeleteMapping("/clubs/{id}")
-    public ResponseEntity<Void> deleteClub(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteClub(@PathVariable Long id,
+                                           @AuthenticationPrincipal UserDetailsImpl userDetails) {
         Club club = clubRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Club not found"));
         // Demote club admin back to USER if not admin elsewhere
@@ -165,6 +191,7 @@ public class AdminController {
                 userRepository.save(oldAdmin);
             }
         }
+        logAudit(userDetails, "Club", club.getId(), "name", club.getName(), null, "DELETE");
         clubRepository.deleteById(id);
         return ResponseEntity.noContent().build();
     }
@@ -206,13 +233,29 @@ public class AdminController {
                 request.name(), request.description(), request.entryFee(), request.prizePool(),
                 request.missedPickMode(), request.postponedConsumesTeam(), request.passFeeToParticipant(),
                 request.paymentMode(), request.visibility(), request.startDate(), userDetails.getId(), request.clubId());
+        logAudit(userDetails, "Competition", c.getId(), "name", null, c.getName(), "CREATE");
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(CompetitionResponse.from(c, 0, 0, null));
     }
 
     @PutMapping("/competitions/{id}")
     public CompetitionResponse updateCompetition(@PathVariable Long id,
-                                                 @Valid @RequestBody UpdateCompetitionRequest request) {
+                             @Valid @RequestBody UpdateCompetitionRequest request,
+                             @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        Competition existing = competitionRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Competition not found"));
+        String oldName = existing.getName();
+        String oldDescription = existing.getDescription();
+        String oldEntryFee = existing.getEntryFee() != null ? existing.getEntryFee().toString() : null;
+        String oldPrizePool = existing.getPrizePool() != null ? existing.getPrizePool().toString() : null;
+        String oldMissedPickMode = existing.getMissedPickMode() != null ? existing.getMissedPickMode().name() : null;
+        String oldPostponedConsumesTeam = String.valueOf(existing.isPostponedConsumesTeam());
+        String oldPassFeeToParticipant = String.valueOf(existing.isPassFeeToParticipant());
+        String oldPaymentMode = existing.getPaymentMode() != null ? existing.getPaymentMode().name() : null;
+        String oldVisibility = existing.getVisibility() != null ? existing.getVisibility().name() : null;
+        String oldStartDate = existing.getStartDate() != null ? existing.getStartDate().toString() : null;
+        String oldStatus = existing.getStatus() != null ? existing.getStatus().name() : null;
+        String oldClubId = existing.getClub() != null ? String.valueOf(existing.getClub().getId()) : null;
         Competition c = competitionService.updateCompetition(id,
                 request.name(), request.description(), request.entryFee(), request.prizePool(),
                 request.missedPickMode(),
@@ -220,6 +263,53 @@ public class AdminController {
                 request.passFeeToParticipant(),
                 request.paymentMode(), request.visibility(),
                 request.startDate(), request.status(), request.clubId());
+        logAudit(userDetails, "Competition", c.getId(), "request", null, request.toString(), "UPDATE");
+        if (!Objects.equals(oldName, c.getName())) {
+            logAudit(userDetails, "Competition", c.getId(), "name", oldName, c.getName(), "UPDATE_FIELD");
+        }
+        if (!Objects.equals(oldDescription, c.getDescription())) {
+            logAudit(userDetails, "Competition", c.getId(), "description", oldDescription, c.getDescription(), "UPDATE_FIELD");
+        }
+        String newEntryFee = c.getEntryFee() != null ? c.getEntryFee().toString() : null;
+        if (!Objects.equals(oldEntryFee, newEntryFee)) {
+            logAudit(userDetails, "Competition", c.getId(), "entryFee", oldEntryFee, newEntryFee, "UPDATE_FIELD");
+        }
+        String newPrizePool = c.getPrizePool() != null ? c.getPrizePool().toString() : null;
+        if (!Objects.equals(oldPrizePool, newPrizePool)) {
+            logAudit(userDetails, "Competition", c.getId(), "prizePool", oldPrizePool, newPrizePool, "UPDATE_FIELD");
+        }
+        String newMissedPickMode = c.getMissedPickMode() != null ? c.getMissedPickMode().name() : null;
+        if (!Objects.equals(oldMissedPickMode, newMissedPickMode)) {
+            logAudit(userDetails, "Competition", c.getId(), "missedPickMode", oldMissedPickMode, newMissedPickMode, "UPDATE_FIELD");
+        }
+        String newPostponedConsumesTeam = String.valueOf(c.isPostponedConsumesTeam());
+        if (!Objects.equals(oldPostponedConsumesTeam, newPostponedConsumesTeam)) {
+            logAudit(userDetails, "Competition", c.getId(), "postponedConsumesTeam", oldPostponedConsumesTeam, newPostponedConsumesTeam, "UPDATE_FIELD");
+        }
+        String newPassFeeToParticipant = String.valueOf(c.isPassFeeToParticipant());
+        if (!Objects.equals(oldPassFeeToParticipant, newPassFeeToParticipant)) {
+            logAudit(userDetails, "Competition", c.getId(), "passFeeToParticipant", oldPassFeeToParticipant, newPassFeeToParticipant, "UPDATE_FIELD");
+        }
+        String newPaymentMode = c.getPaymentMode() != null ? c.getPaymentMode().name() : null;
+        if (!Objects.equals(oldPaymentMode, newPaymentMode)) {
+            logAudit(userDetails, "Competition", c.getId(), "paymentMode", oldPaymentMode, newPaymentMode, "UPDATE_FIELD");
+        }
+        String newVisibility = c.getVisibility() != null ? c.getVisibility().name() : null;
+        if (!Objects.equals(oldVisibility, newVisibility)) {
+            logAudit(userDetails, "Competition", c.getId(), "visibility", oldVisibility, newVisibility, "UPDATE_FIELD");
+        }
+        String newStartDate = c.getStartDate() != null ? c.getStartDate().toString() : null;
+        if (!Objects.equals(oldStartDate, newStartDate)) {
+            logAudit(userDetails, "Competition", c.getId(), "startDate", oldStartDate, newStartDate, "UPDATE_FIELD");
+        }
+        String newStatus = c.getStatus() != null ? c.getStatus().name() : null;
+        if (!Objects.equals(oldStatus, newStatus)) {
+            logAudit(userDetails, "Competition", c.getId(), "status", oldStatus, newStatus, "UPDATE_FIELD");
+        }
+        String newClubId = c.getClub() != null ? String.valueOf(c.getClub().getId()) : null;
+        if (!Objects.equals(oldClubId, newClubId)) {
+            logAudit(userDetails, "Competition", c.getId(), "clubId", oldClubId, newClubId, "UPDATE_FIELD");
+        }
         String winner = getWinnerUsername(id);
         return CompetitionResponse.from(c, 0, 0, winner);
     }
@@ -246,17 +336,24 @@ public class AdminController {
     }
 
     @DeleteMapping("/competitions/{id}")
-    public ResponseEntity<Void> deleteCompetition(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteCompetition(@PathVariable Long id,
+                                                  @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        Competition comp = competitionRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Competition not found"));
+        logAudit(userDetails, "Competition", comp.getId(), "name", comp.getName(), null, "DELETE");
         competitionService.deleteCompetition(id);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/competitions/{id}/sync-fixtures")
-    public ResponseEntity<java.util.Map<String, Object>> syncFixturesForCompetition(@PathVariable Long id) {
+    public ResponseEntity<Map<String, Object>> syncFixturesForCompetition(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
         Competition comp = competitionRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Competition not found"));
         int count = fixtureSyncService.syncForCompetition(comp);
-        return ResponseEntity.ok(java.util.Map.of(
+        logAudit(userDetails, "Competition", comp.getId(), "fixturesAdded", null, String.valueOf(count), "SYNC_FIXTURES");
+        return ResponseEntity.ok(Map.of(
                 "competitionId", id,
                 "competitionName", comp.getName(),
                 "fixturesAdded", count,
@@ -276,8 +373,13 @@ public class AdminController {
     }
 
     @DeleteMapping("/competitions/{compId}/participants/{userId}")
-    public ResponseEntity<Void> removeParticipant(@PathVariable Long compId, @PathVariable Long userId) {
+    public ResponseEntity<Void> removeParticipant(@PathVariable Long compId,
+                                                  @PathVariable Long userId,
+                                                  @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        CompetitionParticipant cp = participantRepository.findByCompetitionIdAndUserId(compId, userId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Participant not found"));
         competitionService.removeParticipant(compId, userId);
+        logAudit(userDetails, "CompetitionParticipant", cp.getId(), "userId", String.valueOf(userId), null, "REMOVE_PARTICIPANT");
         return ResponseEntity.noContent().build();
     }
 
@@ -313,6 +415,7 @@ public class AdminController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Competition not found"));
 
         User user;
+        boolean createdGuest = false;
 
         if (request.userId() != null) {
             // Add existing user
@@ -338,6 +441,7 @@ public class AdminController {
             String randomPassword = java.util.UUID.randomUUID().toString();
             user = new User(email, username, passwordEncoder.encode(randomPassword), Role.USER);
             user = userRepository.save(user);
+                createdGuest = true;
             log.info("Admin {} created guest account '{}' for competition '{}'",
                     admin.getUsername(), username, comp.getName());
         } else {
@@ -352,6 +456,10 @@ public class AdminController {
 
         CompetitionParticipant cp = new CompetitionParticipant(comp, user, ParticipantStatus.ACTIVE);
         cp = participantRepository.save(cp);
+        if (createdGuest) {
+            logAudit(admin, "User", user.getId(), "guest", null, user.getUsername(), "CREATE_GUEST");
+        }
+        logAudit(admin, "CompetitionParticipant", cp.getId(), "userId", null, String.valueOf(user.getId()), "ADD_PARTICIPANT");
         return ResponseEntity.status(HttpStatus.CREATED).body(ParticipantResponse.from(cp));
     }
 
@@ -359,7 +467,8 @@ public class AdminController {
     @Transactional
     public ResponseEntity<CompetitionResponse> declareWinner(
             @PathVariable Long compId,
-            @PathVariable Long userId) {
+            @PathVariable Long userId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
 
         Competition comp = competitionRepository.findById(compId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Competition not found"));
@@ -384,6 +493,7 @@ public class AdminController {
         competitionRepository.save(comp);
 
         log.info("Admin manually declared {} as winner of competition {}", winner.getUser().getUsername(), compId);
+        logAudit(userDetails, "Competition", compId, "winnerId", null, String.valueOf(userId), "DECLARE_WINNER");
 
         int total = participantRepository.findByCompetitionId(compId).size();
         return ResponseEntity.ok(CompetitionResponse.from(comp, total, 1, winner.getUser().getUsername()));
@@ -392,11 +502,13 @@ public class AdminController {
     // ── Fixture Sync ────────────────────────────────────────────────────
 
     @PostMapping("/fixtures/import/sync")
-    public ResponseEntity<java.util.Map<String, Object>> triggerSync() {
+    public ResponseEntity<Map<String, Object>> triggerSync(
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
         // Evict the provider cache so we get fresh data
         footballDataProvider.ifPresent(FootballDataProvider::evictAll);
         adminService.triggerSync();
-        return ResponseEntity.ok(java.util.Map.of(
+        logAudit(userDetails, "FixtureSync", 0L, null, null, null, "FULL_SYNC");
+        return ResponseEntity.ok(Map.of(
                 "status", "ok",
                 "message", "Full fixture sync triggered. Cache evicted.",
                 "provider", footballDataProvider.isPresent() ? "football-data.org" : "mock"
@@ -404,9 +516,11 @@ public class AdminController {
     }
 
     @DeleteMapping("/fixtures/cache")
-    public ResponseEntity<java.util.Map<String, String>> evictFixtureCache() {
+    public ResponseEntity<Map<String, String>> evictFixtureCache(
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
         footballDataProvider.ifPresent(FootballDataProvider::evictAll);
-        return ResponseEntity.ok(java.util.Map.of("message", "Fixture cache evicted. Next sync will fetch fresh data."));
+        logAudit(userDetails, "FixtureCache", 0L, null, null, null, "EVICT_CACHE");
+        return ResponseEntity.ok(Map.of("message", "Fixture cache evicted. Next sync will fetch fresh data."));
     }
 
     // ── Fixture Overrides ───────────────────────────────────────────────
@@ -430,8 +544,31 @@ public class AdminController {
 
     @GetMapping("/audit")
     public Page<AuditLogResponse> getAuditLogs(@RequestParam(defaultValue = "0") int page,
-                                               @RequestParam(defaultValue = "50") int size) {
-        return adminService.getAuditLogs(PageRequest.of(page, size))
+                               @RequestParam(defaultValue = "50") int size,
+                               @RequestParam(required = false) String action,
+                               @RequestParam(required = false) String entityType,
+                               @RequestParam(required = false) Long entityId,
+                               @RequestParam(required = false) String fieldName,
+                               @RequestParam(required = false) String username,
+                               @RequestParam(required = false) String from,
+                               @RequestParam(required = false) String to) {
+        Optional<LocalDateTime> fromDate = Optional.ofNullable(from)
+            .map(LocalDate::parse)
+            .map(d -> d.atStartOfDay().atOffset(ZoneOffset.UTC).toLocalDateTime());
+        Optional<LocalDateTime> toDate = Optional.ofNullable(to)
+            .map(LocalDate::parse)
+            .map(d -> d.atTime(23, 59, 59).atOffset(ZoneOffset.UTC).toLocalDateTime());
+
+        return adminService.getAuditLogsFiltered(
+            PageRequest.of(page, size),
+            Optional.ofNullable(action),
+            Optional.ofNullable(entityType),
+            Optional.ofNullable(entityId),
+            Optional.ofNullable(fieldName),
+            Optional.ofNullable(username),
+            fromDate,
+            toDate
+        )
                 .map(AuditLogResponse::from);
     }
 
@@ -452,7 +589,8 @@ public class AdminController {
     }
 
     @PostMapping("/users")
-    public ResponseEntity<UserResponse> createUser(@RequestBody CreateUserRequest request) {
+    public ResponseEntity<UserResponse> createUser(@RequestBody CreateUserRequest request,
+                                                   @AuthenticationPrincipal UserDetailsImpl userDetails) {
         if (userRepository.existsByEmail(request.email())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already in use");
         }
@@ -465,24 +603,32 @@ public class AdminController {
                 passwordEncoder.encode(request.password()),
                 request.role() != null ? request.role() : Role.USER);
         user = userRepository.save(user);
+        logAudit(userDetails, "User", user.getId(), "role", null, user.getRole().name(), "CREATE");
         return ResponseEntity.status(HttpStatus.CREATED).body(UserResponse.from(user));
     }
 
     @PutMapping("/users/{userId}/role")
-    public UserResponse updateRole(@PathVariable Long userId, @RequestBody UpdateRoleRequest request) {
+    public UserResponse updateRole(@PathVariable Long userId,
+                                   @RequestBody UpdateRoleRequest request,
+                                   @AuthenticationPrincipal UserDetailsImpl userDetails) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        String oldRole = user.getRole().name();
         user.setRole(request.role());
         userRepository.save(user);
+        logAudit(userDetails, "User", userId, "role", oldRole, request.role().name(), "UPDATE_ROLE");
         return UserResponse.from(user);
     }
 
     @PutMapping("/users/{userId}/toggle-disabled")
-    public UserResponse toggleDisabled(@PathVariable Long userId) {
+    public UserResponse toggleDisabled(@PathVariable Long userId,
+                                       @AuthenticationPrincipal UserDetailsImpl userDetails) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        String oldDisabled = String.valueOf(user.isDisabled());
         user.setDisabled(!user.isDisabled());
         userRepository.save(user);
+        logAudit(userDetails, "User", userId, "disabled", oldDisabled, String.valueOf(user.isDisabled()), "TOGGLE_DISABLED");
         return UserResponse.from(user);
     }
 
@@ -497,6 +643,8 @@ public class AdminController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "You cannot delete your own account");
         }
 
+        User user = userRepository.findById(userId).orElseThrow();
+
         // 1. Find all picks by this user and delete their results first
         List<Pick> picks = pickRepository.findByUserId(userId);
         List<Long> pickIds = picks.stream().map(Pick::getId).toList();
@@ -509,6 +657,7 @@ public class AdminController {
         participantRepository.deleteByUserId(userId);
 
         // 3. Delete the user
+        logAudit(currentUser, "User", userId, "username", user.getUsername(), null, "DELETE");
         userRepository.deleteById(userId);
 
         return ResponseEntity.noContent().build();
@@ -557,6 +706,8 @@ public class AdminController {
         boolean skipAutoComplete = request.skipAutoComplete() != null && request.skipAutoComplete();
         gameweekProcessingService.processGameweekResultsAsync(gwId, skipAutoComplete);
 
+        logAudit(userDetails, "Gameweek", gwId, "competitionId", null, String.valueOf(compId), "SIMULATE_RESULTS");
+
         return ResponseEntity.accepted().body(new SimulateResponse(
                 gwId, "PROCESSING",
                 "Processing started — results will be ready shortly. Refresh to see updates.",
@@ -595,12 +746,15 @@ public class AdminController {
      */
     @PostMapping("/test/generate")
     @Transactional
-    public ResponseEntity<TestGenerationResponse> generateTestData(@RequestBody TestGenerationRequest request) {
+        public ResponseEntity<TestGenerationResponse> generateTestData(@RequestBody TestGenerationRequest request,
+                                       @AuthenticationPrincipal UserDetailsImpl userDetails) {
         var result = testDataGenerator.generateTestUsers(
                 request.competitionId(),
                 request.userCount(),
                 request.gameweeksToSeedPicks()
         );
+        logAudit(userDetails, "Competition", request.competitionId(), "userCount", null,
+            String.valueOf(request.userCount()), "GENERATE_TEST_DATA");
         return ResponseEntity.ok(new TestGenerationResponse(
                 result.usersCreated(),
                 result.participantsAdded(),
@@ -614,9 +768,31 @@ public class AdminController {
      */
     @DeleteMapping("/test/cleanup")
     @Transactional
-    public ResponseEntity<TestCleanupResponse> cleanupTestData() {
+    public ResponseEntity<TestCleanupResponse> cleanupTestData(
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
         int deleted = testDataGenerator.cleanupTestUsers();
+        logAudit(userDetails, "TestData", 0L, "usersDeleted", null, String.valueOf(deleted), "CLEANUP_TEST_DATA");
         return ResponseEntity.ok(new TestCleanupResponse(deleted, "Test users cleaned up"));
+    }
+
+    private void logAudit(UserDetailsImpl actor,
+                          String entityType,
+                          Long entityId,
+                          String fieldName,
+                          String oldValue,
+                          String newValue,
+                          String action) {
+        if (entityId == null) {
+            entityId = 0L;
+        }
+        if (actor == null) {
+            return;
+        }
+        User user = userRepository.findById(actor.getId()).orElse(null);
+        if (user == null) {
+            return;
+        }
+        auditLogRepository.save(new AuditLog(user, entityType, entityId, fieldName, oldValue, newValue, action));
     }
 
     // ── Simulate DTOs ─────────────────────────────────────────────────
@@ -626,7 +802,7 @@ public class AdminController {
     public record SimulateResponse(Long gameweekId, String newStatus, String message, String competitionStatus, Integer activeParticipants) {}
     public record GameweekWithFixturesResponse(
             Long id, int weekNumber, String status,
-            java.time.LocalDateTime lockAt, java.time.LocalDateTime startsAt,
+            LocalDateTime lockAt, LocalDateTime startsAt,
             List<FixtureResponse> fixtures
     ) {}
 

@@ -134,12 +134,12 @@ public class CompetitionService {
         comp.setPassFeeToParticipant(passFeeToParticipant);
         comp.setPrizePool(prizePool);
         if (paymentMode != null) {
-            try { comp.setPaymentMode(com.lastmanstanding.entity.PaymentMode.valueOf(paymentMode)); }
+            try { comp.setPaymentMode(PaymentMode.valueOf(paymentMode)); }
             catch (IllegalArgumentException ignored) {}
         } else {
-            comp.setPaymentMode(entryFee == null || entryFee.compareTo(java.math.BigDecimal.ZERO) == 0
-                    ? com.lastmanstanding.entity.PaymentMode.FREE
-                    : com.lastmanstanding.entity.PaymentMode.STRIPE);
+            comp.setPaymentMode(entryFee == null || entryFee.compareTo(BigDecimal.ZERO) == 0
+                    ? PaymentMode.FREE
+                    : PaymentMode.STRIPE);
         }
         comp.setVisibility(parseVisibility(visibility));
         comp.setJoinCode(generateJoinCode());
@@ -183,7 +183,7 @@ public class CompetitionService {
         comp.setPostponedConsumesTeam(postponedConsumesTeam);
         if (passFeeToParticipant != null) comp.setPassFeeToParticipant(passFeeToParticipant);
         if (paymentMode != null) {
-            try { comp.setPaymentMode(com.lastmanstanding.entity.PaymentMode.valueOf(paymentMode)); }
+            try { comp.setPaymentMode(PaymentMode.valueOf(paymentMode)); }
             catch (IllegalArgumentException ignored) {}
         }
         if (visibility != null) {

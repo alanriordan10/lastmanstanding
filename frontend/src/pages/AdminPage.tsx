@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import api from '../api';
 import type { Competition, AuditLog, Participant, Club } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -73,7 +73,6 @@ export default function AdminPage() {
           </button>
         ))}
       </div>
-
       {tab === 'competitions' && <ErrorBoundary><CompetitionsTab /></ErrorBoundary>}
       {tab === 'clubs' && <ErrorBoundary><ClubsTab /></ErrorBoundary>}
       {tab === 'users' && <ErrorBoundary><UsersTab /></ErrorBoundary>}
@@ -704,48 +703,55 @@ function ParticipantsPanel({ competitionId, competitionName }: { competitionId: 
         <>
           <div className="divide-y divide-gray-700/30">
             {paginated.map((p) => (
-              <div key={p.id} className="px-4 py-3 text-sm">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0 space-y-2">
-                    <div className="flex items-center gap-2 flex-wrap min-w-0">
-                      <span className="font-medium text-gray-200 truncate">{p.username}</span>
-                      <span className={
-                        p.status === 'ACTIVE'    ? 'badge-green' :
-                        p.status === 'ELIMINATED' ? 'badge-red'   : 'badge-yellow'
-                      }>
-                        {p.status}
-                      </span>
-                      {p.eliminatedWeek && (
-                        <span className="text-xs text-gray-500 shrink-0">GW{p.eliminatedWeek}</span>
-                      )}
+              <div
+                key={p.id}
+                className={`px-4 py-3 text-sm border-l-2 ${
+                  p.status === 'ACTIVE'
+                    ? 'border-green-400/80 bg-green-400/15'
+                    : p.status === 'ELIMINATED'
+                    ? 'border-red-400/80 bg-red-400/15'
+                    : 'border-yellow-300/80 bg-yellow-300/15'
+                }`}
+              >
+                <div className="flex flex-col gap-2">
+                  <div className="grid grid-cols-[1fr_auto] items-center gap-[2px] pr-2">
+                    <div className="min-w-0">
+                      <span className="font-medium text-gray-200 truncate block">{p.username}</span>
                     </div>
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
-                      <span>Joined {parseDate(p.joinedAt).toLocaleDateString()}</span>
+                    <div className="flex flex-nowrap items-center gap-1 justify-self-end">
                       {p.status === 'ACTIVE' && counts.ACTIVE > 1 && (
-                        <span className="text-yellow-500/80">Eligible to be declared winner</span>
+                        <button
+                          onClick={() => setWinnerDialogUser(p)}
+                          disabled={declareWinnerMutation.isPending}
+                          className="text-[10px] px-1.5 py-1 rounded bg-yellow-600/20 hover:bg-yellow-600/40 text-yellow-300 transition"
+                          title="Declare as winner and end competition"
+                          aria-label="Declare winner"
+                        >
+                          <span className="sm:hidden">🏆</span>
+                          <span className="hidden sm:inline">🏆 Winner</span>
+                        </button>
                       )}
+                      <button
+                        onClick={() => setRemoveDialogUser(p)}
+                        disabled={removeMutation.isPending}
+                        className="text-[10px] px-1 py-[3px] rounded bg-red-600/20 hover:bg-red-600/40 text-red-300 transition"
+                        aria-label="Remove participant"
+                      >
+                        <span className="sm:hidden">🗑️</span>
+                        <span className="hidden sm:inline">Remove</span>
+                      </button>
                     </div>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
-                  {p.status === 'ACTIVE' && counts.ACTIVE > 1 && (
-                    <button
-                      onClick={() => setWinnerDialogUser(p)}
-                      disabled={declareWinnerMutation.isPending}
-                      className="text-xs px-2.5 py-1.5 rounded bg-yellow-600/20 hover:bg-yellow-600/40 text-yellow-400 transition"
-                      title="Declare as winner and end competition"
-                    >
-                      🏆 Winner
-                    </button>
-                  )}
-                  <button
-                    onClick={() => setRemoveDialogUser(p)}
-                    disabled={removeMutation.isPending}
-                    className="text-xs px-2.5 py-1.5 rounded bg-red-600/20 hover:bg-red-600/40 text-red-400 transition"
-                  >
-                    Remove
-                  </button>
+                  <div className="hidden sm:flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+                    <span>Joined {parseDate(p.joinedAt).toLocaleDateString()}</span>
+                    {p.eliminatedWeek && (
+                      <span className="text-xs text-gray-500">GW{p.eliminatedWeek}</span>
+                    )}
+                    {p.status === 'ACTIVE' && counts.ACTIVE > 1 && (
+                      <span className="text-yellow-500/80">Eligible to be declared winner</span>
+                    )}
+                  </div>
                 </div>
-              </div>
               </div>
             ))}
           </div>
@@ -2292,16 +2298,86 @@ function TestDataTab() {
 // ── Audit Tab ───────────────────────────────────────────────────────
 
 function AuditTab() {
-  const { data, isLoading } = useQuery<{ content: AuditLog[] }>({
-    queryKey: ['audit'],
-    queryFn: () => api.get('/admin/audit?page=0&size=50').then((r) => r.data),
+  const [query, setQuery] = useState('');
+  const [actionFilter, setActionFilter] = useState('all');
+  const [entityFilter, setEntityFilter] = useState('all');
+  const [adminFilter, setAdminFilter] = useState('all');
+  const [fieldFilter, setFieldFilter] = useState('all');
+  const [entityIdFilter, setEntityIdFilter] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [page, setPage] = useState(0);
+  const [pageInput, setPageInput] = useState('1');
+  const [pageSize, setPageSize] = useState(50);
+
+  useEffect(() => {
+    setPage(0);
+  }, [actionFilter, entityFilter, adminFilter, fieldFilter, entityIdFilter, dateFrom, dateTo, query, pageSize]);
+  useEffect(() => {
+    setPageInput(String((data?.number ?? page) + 1));
+  }, [data?.number, page]);
+  const auditParams = useMemo(() => {
+    const params: Record<string, string> = {
+      page: String(page),
+      size: String(pageSize),
+    };
+    if (actionFilter !== 'all') params.action = actionFilter;
+    if (entityFilter !== 'all') params.entityType = entityFilter;
+    if (adminFilter !== 'all') params.username = adminFilter;
+    if (fieldFilter !== 'all') params.fieldName = fieldFilter;
+    if (entityIdFilter.trim()) params.entityId = entityIdFilter.trim();
+    if (dateFrom) params.from = dateFrom;
+    if (dateTo) params.to = dateTo;
+    return params;
+  }, [actionFilter, entityFilter, adminFilter, fieldFilter, entityIdFilter, dateFrom, dateTo, page]);
+  const { data, isLoading } = useQuery<{ content: AuditLog[]; totalPages?: number; number?: number; totalElements?: number }>({
+    queryKey: ['audit', auditParams],
+    queryFn: () => api.get('/admin/audit', { params: auditParams }).then((r) => r.data),
   });
+  const totalPages = data?.totalPages ?? 1;
+  const currentPage = data?.number ?? page;
 
   if (isLoading) {
     return <div className="flex justify-center py-10"><div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" /></div>;
   }
 
   const logs = data?.content ?? [];
+  const actions = useMemo(
+    () => Array.from(new Set(logs.map((log) => log.action).filter(Boolean))).sort(),
+    [logs]
+  );
+  const entities = useMemo(
+    () => Array.from(new Set(logs.map((log) => log.entityType).filter(Boolean))).sort(),
+    [logs]
+  );
+  const admins = useMemo(
+    () => Array.from(new Set(logs.map((log) => log.username).filter(Boolean))).sort(),
+    [logs]
+  );
+  const fields = useMemo(
+    () => Array.from(new Set(logs.map((log) => log.fieldName).filter(Boolean))).sort(),
+    [logs]
+  );
+  const filteredLogs = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return logs.filter((log) => {
+      if (!q) return true;
+      const haystack = [
+        log.username,
+        log.action,
+        log.entityType,
+        String(log.entityId ?? ''),
+        log.fieldName,
+        log.oldValue,
+        log.newValue,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [logs, query]);
+  const totalElements = data?.totalElements ?? logs.length;
 
   return (
     <div className="space-y-6">
@@ -2310,84 +2386,289 @@ function AuditTab() {
         title="Audit Log"
         description="Review who changed what, when it happened, and how entity values moved over time."
       />
-      <div className="card overflow-hidden">
-      {logs.length === 0 ? (
-        <p className="text-gray-400 py-8 text-center">No audit entries yet</p>
-      ) : (
-        <>
-          <div className="divide-y divide-gray-700/50 sm:hidden">
-            {logs.map((log) => (
-              <div key={log.id} className="py-3 space-y-2">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-xs text-gray-500">
-                      {parseDate(log.createdAt).toLocaleString(undefined, {
-                        day: '2-digit', month: '2-digit', year: 'numeric',
-                        hour: '2-digit', minute: '2-digit', hour12: false
-                      })}
-                    </p>
-                    <p className="mt-1 text-sm text-gray-100 truncate">{log.username ?? '—'}</p>
-                  </div>
-                  <span className="badge-blue shrink-0">{log.action}</span>
-                </div>
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div>
-                    <div className="text-gray-500 uppercase tracking-[0.14em]">Entity</div>
-                    <div className="mt-1 text-gray-300">{log.entityType} #{log.entityId}</div>
-                  </div>
-                  <div>
-                    <div className="text-gray-500 uppercase tracking-[0.14em]">Field</div>
-                    <div className="mt-1 text-gray-300">{log.fieldName ?? '—'}</div>
-                  </div>
-                </div>
-                <div className="text-xs text-gray-400 break-words">
-                  {log.oldValue && <span className="text-red-400">{log.oldValue}</span>}
-                  {log.oldValue && log.newValue && <span className="mx-1">→</span>}
-                  {log.newValue && <span className="text-green-400">{log.newValue}</span>}
-                  {!log.oldValue && !log.newValue && '—'}
-                </div>
-              </div>
-            ))}
+      <div className="card space-y-4">
+        <div className="flex flex-col gap-4">
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_repeat(3,13rem)]">
+            <div className="lg:col-span-1">
+              <label className="block text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 mb-2">
+                Search
+              </label>
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search admin, action, entity, field, values"
+                className="input-field"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 mb-2">
+                Action
+              </label>
+              <select
+                value={actionFilter}
+                onChange={(e) => setActionFilter(e.target.value)}
+                className="input-field"
+              >
+                <option value="all">All actions</option>
+                {actions.map((action) => (
+                  <option key={action} value={action}>{action}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 mb-2">
+                Entity
+              </label>
+              <select
+                value={entityFilter}
+                onChange={(e) => setEntityFilter(e.target.value)}
+                className="input-field"
+              >
+                <option value="all">All entities</option>
+                {entities.map((entity) => (
+                  <option key={entity} value={entity}>{entity}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 mb-2">
+                Admin
+              </label>
+              <select
+                value={adminFilter}
+                onChange={(e) => setAdminFilter(e.target.value)}
+                className="input-field"
+              >
+                <option value="all">All admins</option>
+                {admins.map((admin) => (
+                  <option key={admin} value={admin}>{admin}</option>
+                ))}
+              </select>
+            </div>
           </div>
-
-          <div className="hidden sm:block overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-700 text-left text-gray-400">
-                  <th className="py-3 px-4">Time</th>
-                  <th className="py-3 px-4">Admin</th>
-                  <th className="py-3 px-4">Action</th>
-                  <th className="py-3 px-4">Entity</th>
-                  <th className="py-3 px-4">Field</th>
-                  <th className="py-3 px-4">Old → New</th>
-                </tr>
-              </thead>
-              <tbody>
-                {logs.map((log) => (
-                  <tr key={log.id} className="border-b border-gray-700/50">
-                    <td className="py-3 px-4 text-gray-400 whitespace-nowrap">
-                      {parseDate(log.createdAt).toLocaleString(undefined, {
-                        day: '2-digit', month: '2-digit', year: 'numeric',
-                        hour: '2-digit', minute: '2-digit', hour12: false
-                      })}
-                    </td>
-                    <td className="py-3 px-4">{log.username ?? '—'}</td>
-                    <td className="py-3 px-4"><span className="badge-blue">{log.action}</span></td>
-                    <td className="py-3 px-4 text-gray-400">{log.entityType} #{log.entityId}</td>
-                    <td className="py-3 px-4 text-gray-400">{log.fieldName ?? '—'}</td>
-                    <td className="py-3 px-4 text-gray-400">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_10rem_10rem_10rem]">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 mb-2">
+                Field
+              </label>
+              <select
+                value={fieldFilter}
+                onChange={(e) => setFieldFilter(e.target.value)}
+                className="input-field"
+              >
+                <option value="all">All fields</option>
+                {fields.map((field) => (
+                  <option key={field} value={field}>{field}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 mb-2">
+                Entity ID
+              </label>
+              <input
+                value={entityIdFilter}
+                onChange={(e) => setEntityIdFilter(e.target.value)}
+                placeholder="e.g. 42"
+                className="input-field"
+                inputMode="numeric"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 mb-2">
+                From
+              </label>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="input-field"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 mb-2">
+                To
+              </label>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="input-field"
+              />
+            </div>
+            <div className="flex items-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setQuery('');
+                  setActionFilter('all');
+                  setEntityFilter('all');
+                  setAdminFilter('all');
+                  setFieldFilter('all');
+                  setEntityIdFilter('');
+                  setDateFrom('');
+                  setDateTo('');
+                }}
+                className="w-full px-3 py-2 rounded-lg border border-white/10 text-xs font-semibold text-gray-300 hover:bg-white/[0.04]"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-xs text-gray-400">{totalElements} entries</span>
+            <div className="flex items-center gap-3">
+              <label className="text-[11px] uppercase tracking-[0.16em] text-gray-500">
+                Page size
+              </label>
+              <select
+                value={String(pageSize)}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="input-field h-9 w-24 text-xs"
+              >
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+              <span className="text-[11px] text-gray-500">Server-side filters applied</span>
+            </div>
+          </div>
+        </div>
+        <div className="overflow-hidden rounded-xl border border-white/8">
+          {filteredLogs.length === 0 ? (
+            <p className="text-gray-400 py-8 text-center">No audit entries yet</p>
+          ) : (
+            <>
+              <div className="divide-y divide-gray-700/50 sm:hidden">
+                {filteredLogs.map((log) => (
+                  <div key={log.id} className="py-3 space-y-2">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-xs text-gray-500">
+                          {parseDate(log.createdAt).toLocaleString(undefined, {
+                            day: '2-digit', month: '2-digit', year: 'numeric',
+                            hour: '2-digit', minute: '2-digit', hour12: false
+                          })}
+                        </p>
+                        <p className="mt-1 text-sm text-gray-100 truncate">{log.username ?? '—'}</p>
+                      </div>
+                      <span className="badge-blue shrink-0">{log.action}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <div className="text-gray-500 uppercase tracking-[0.14em]">Entity</div>
+                        <div className="mt-1 text-gray-300">{log.entityType} #{log.entityId}</div>
+                      </div>
+                      <div>
+                        <div className="text-gray-500 uppercase tracking-[0.14em]">Field</div>
+                        <div className="mt-1 text-gray-300">{log.fieldName ?? '—'}</div>
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-400 break-words">
                       {log.oldValue && <span className="text-red-400">{log.oldValue}</span>}
                       {log.oldValue && log.newValue && <span className="mx-1">→</span>}
                       {log.newValue && <span className="text-green-400">{log.newValue}</span>}
                       {!log.oldValue && !log.newValue && '—'}
-                    </td>
-                  </tr>
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-700 text-left text-gray-400">
+                      <th className="py-3 px-4">Time</th>
+                      <th className="py-3 px-4">Admin</th>
+                      <th className="py-3 px-4">Action</th>
+                      <th className="py-3 px-4">Entity</th>
+                      <th className="py-3 px-4">Field</th>
+                      <th className="py-3 px-4">Old → New</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredLogs.map((log) => (
+                      <tr key={log.id} className="border-b border-gray-700/50">
+                        <td className="py-3 px-4 text-gray-400 whitespace-nowrap">
+                          {parseDate(log.createdAt).toLocaleString(undefined, {
+                            day: '2-digit', month: '2-digit', year: 'numeric',
+                            hour: '2-digit', minute: '2-digit', hour12: false
+                          })}
+                        </td>
+                        <td className="py-3 px-4">{log.username ?? '—'}</td>
+                        <td className="py-3 px-4"><span className="badge-blue">{log.action}</span></td>
+                        <td className="py-3 px-4 text-gray-400">{log.entityType} #{log.entityId}</td>
+                        <td className="py-3 px-4 text-gray-400">{log.fieldName ?? '—'}</td>
+                        <td className="py-3 px-4 text-gray-400">
+                          {log.oldValue && <span className="text-red-400">{log.oldValue}</span>}
+                          {log.oldValue && log.newValue && <span className="mx-1">→</span>}
+                          {log.newValue && <span className="text-green-400">{log.newValue}</span>}
+                          {!log.oldValue && !log.newValue && '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-xs text-gray-500">Page {currentPage + 1} of {totalPages}</div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPage(0)}
+              disabled={currentPage <= 0}
+              className="px-3 py-2 rounded-lg border border-white/10 text-xs font-semibold text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/[0.04]"
+            >
+              First
+            </button>
+            <button
+              type="button"
+              onClick={() => setPage((prev) => Math.max(prev - 1, 0))}
+              disabled={currentPage <= 0}
+              className="px-3 py-2 rounded-lg border border-white/10 text-xs font-semibold text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/[0.04]"
+            >
+              Previous
+            </button>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">Go to</span>
+              <input
+                value={pageInput}
+                onChange={(e) => setPageInput(e.target.value)}
+                onBlur={() => {
+                  const parsed = Number(pageInput);
+                  if (!Number.isFinite(parsed)) return;
+                  const target = Math.min(Math.max(Math.floor(parsed) - 1, 0), Math.max(totalPages - 1, 0));
+                  setPage(target);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter') return;
+                  e.currentTarget.blur();
+                }}
+                className="input-field h-9 w-16 text-xs text-center"
+                inputMode="numeric"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setPage((prev) => Math.min(prev + 1, totalPages - 1))}
+              disabled={currentPage >= totalPages - 1}
+              className="px-3 py-2 rounded-lg border border-white/10 text-xs font-semibold text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/[0.04]"
+            >
+              Next
+            </button>
+            <button
+              type="button"
+              onClick={() => setPage(Math.max(totalPages - 1, 0))}
+              disabled={currentPage >= totalPages - 1}
+              className="px-3 py-2 rounded-lg border border-white/10 text-xs font-semibold text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/[0.04]"
+            >
+              Last
+            </button>
           </div>
-        </>
-      )}
+        </div>
       </div>
     </div>
   );
