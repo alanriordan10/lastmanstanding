@@ -98,6 +98,7 @@ function AdminHeroStat({ label, value, accent }: { label: string; value: string;
 function CompetitionsTab() {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
+  const [editingComp, setEditingComp] = useState<Competition | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [entryFee, setEntryFee] = useState('0');
@@ -109,6 +110,7 @@ function CompetitionsTab() {
   const [visibility, setVisibility] = useState<'PUBLIC' | 'PRIVATE'>('PRIVATE');
   const [startDate, setStartDate] = useState('');
   const [clubId, setClubId] = useState<string>('');
+  const [status, setStatus] = useState<'UPCOMING' | 'ACTIVE' | 'COMPLETED'>('UPCOMING');
 
   const { data: clubs } = useQuery<Club[]>({
     queryKey: ['admin', 'clubs'],
@@ -124,6 +126,55 @@ function CompetitionsTab() {
     ),
     staleTime: 0,
   });
+
+  const resetForm = () => {
+    setEditingComp(null);
+    setShowForm(false);
+    setName('');
+    setDescription('');
+    setEntryFee('0');
+    setPrizePool('');
+    setMissedPickMode('ELIMINATE');
+    setPostponedConsumesTeam(true);
+    setPassFeeToParticipant(false);
+    setPaymentMode('FREE');
+    setVisibility('PRIVATE');
+    setStartDate('');
+    setClubId('');
+    setStatus('UPCOMING');
+  };
+
+  const populateForm = (competition: Competition) => {
+    setEditingComp(competition);
+    setShowForm(true);
+    setName(competition.name);
+    setDescription(competition.description ?? '');
+    setEntryFee(String(competition.entryFee ?? 0));
+    setPrizePool(competition.prizePool != null ? String(competition.prizePool) : '');
+    setMissedPickMode(competition.missedPickMode);
+    setPostponedConsumesTeam(competition.postponedConsumesTeam);
+    setPassFeeToParticipant(Boolean(competition.passFeeToParticipant));
+    setPaymentMode((competition.paymentMode ?? 'FREE') as 'FREE' | 'MANUAL' | 'STRIPE');
+    setVisibility((competition.visibility ?? 'PRIVATE') as 'PUBLIC' | 'PRIVATE');
+    setStartDate(competition.startDate);
+    setClubId(competition.clubId != null ? String(competition.clubId) : 'none');
+    setStatus((competition.status ?? 'UPCOMING') as 'UPCOMING' | 'ACTIVE' | 'COMPLETED');
+  };
+
+  const competitionPayload = {
+    name,
+    description,
+    entryFee: parseFloat(entryFee) || 0,
+    prizePool: prizePool ? parseFloat(prizePool) : null,
+    missedPickMode,
+    postponedConsumesTeam,
+    passFeeToParticipant,
+    paymentMode,
+    visibility,
+    startDate,
+    status,
+    clubId: clubId === '' ? null : clubId === 'none' ? 0 : Number(clubId),
+  };
 
   const createMutation = useMutation({
     mutationFn: () =>
@@ -150,18 +201,30 @@ function CompetitionsTab() {
       );
       queryClient.invalidateQueries({ queryKey: ['admin', 'competitions'] });
       queryClient.invalidateQueries({ queryKey: ['competitions'] });
-      setShowForm(false);
-      setName('');
-      setDescription('');
-      setEntryFee('0');
-      setPrizePool('');
-      setStartDate('');
-      setPassFeeToParticipant(false);
-      setPaymentMode('FREE');
-      setVisibility('PRIVATE');
+      resetForm();
     },
     onError: (err: any) => {
       toast.error(err.response?.data?.message || 'Failed to create');
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: () => {
+      if (!editingComp) throw new Error('No competition selected for edit');
+      return api.put(`/admin/competitions/${editingComp.id}`, competitionPayload);
+    },
+    onSuccess: (response) => {
+      const updated = response.data as Competition;
+      toast.success(`"${updated.name}" updated`);
+      queryClient.setQueryData<Competition[]>(['admin', 'competitions'], (old) =>
+        old ? old.map((competition) => competition.id === updated.id ? updated : competition) : [updated]
+      );
+      queryClient.invalidateQueries({ queryKey: ['admin', 'competitions'] });
+      queryClient.invalidateQueries({ queryKey: ['competitions'] });
+      resetForm();
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || 'Failed to update competition');
     },
   });
 
@@ -172,8 +235,21 @@ function CompetitionsTab() {
           <h2 className="text-xl font-semibold text-white">Manage Competitions</h2>
           <p className="mt-1 text-sm text-gray-400">Create new pools, inspect invite settings, and manage the full competition roster.</p>
         </div>
-        <button onClick={() => setShowForm(!showForm)} className="btn-primary">
-          {showForm ? 'Cancel' : '+ New Competition'}
+        <button
+          onClick={() => {
+            if (showForm && !editingComp) {
+              resetForm();
+              return;
+            }
+            if (editingComp) {
+              resetForm();
+              return;
+            }
+            setShowForm(true);
+          }}
+          className="btn-primary"
+        >
+          {editingComp ? 'Cancel Edit' : showForm ? 'Cancel' : '+ New Competition'}
         </button>
       </div>
 
@@ -181,10 +257,25 @@ function CompetitionsTab() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
+            if (editingComp) {
+              updateMutation.mutate();
+              return;
+            }
             createMutation.mutate();
           }}
           className="card space-y-4"
         >
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-white">{editingComp ? `Edit ${editingComp.name}` : 'New Competition'}</h3>
+              <p className="text-sm text-gray-400">
+                {editingComp ? 'Update competition settings, fees, timing, and visibility.' : 'Set up a new competition and its entry settings.'}
+              </p>
+            </div>
+            {editingComp && (
+              <span className="badge-blue self-start sm:self-auto">Editing</span>
+            )}
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-300">Name</label>
@@ -196,7 +287,7 @@ function CompetitionsTab() {
                 <input
                   type="date"
                   value={startDate}
-                  min={new Date().toISOString().split('T')[0]}
+                  min={editingComp ? undefined : new Date().toISOString().split('T')[0]}
                   onChange={(e) => setStartDate(e.target.value)}
                   required
                   className="input-field w-full pr-10 [color-scheme:dark] cursor-pointer"
@@ -323,12 +414,22 @@ function CompetitionsTab() {
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-300">Club (optional)</label>
               <select value={clubId} onChange={(e) => setClubId(e.target.value)} className="input-field">
-                <option value="">No Club</option>
+                <option value={editingComp ? 'none' : ''}>No Club</option>
                 {clubs?.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
             </div>
+            {editingComp && (
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-300">Status</label>
+                <select value={status} onChange={(e) => setStatus(e.target.value as 'UPCOMING' | 'ACTIVE' | 'COMPLETED')} className="input-field">
+                  <option value="UPCOMING">Upcoming</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="COMPLETED">Completed</option>
+                </select>
+              </div>
+            )}
             <div className="sm:col-span-2">
               <label className="mb-1 block text-sm font-medium text-gray-300">Description</label>
               <textarea value={description} onChange={(e) => setDescription(e.target.value)} className="input-field" rows={2} />
@@ -361,9 +462,20 @@ function CompetitionsTab() {
               )}
             </div>
           </div>
-          <button type="submit" disabled={createMutation.isPending} className="btn-primary">
-            {createMutation.isPending ? 'Creating…' : 'Create Competition'}
-          </button>
+          <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
+            <button
+              type="submit"
+              disabled={createMutation.isPending || updateMutation.isPending}
+              className="btn-primary"
+            >
+              {editingComp
+                ? (updateMutation.isPending ? 'Saving…' : 'Save Changes')
+                : (createMutation.isPending ? 'Creating…' : 'Create Competition')}
+            </button>
+            <button type="button" onClick={resetForm} className="btn-secondary">
+              Cancel
+            </button>
+          </div>
         </form>
       )}
 
@@ -374,7 +486,7 @@ function CompetitionsTab() {
             <table className="w-full text-sm">
               <tbody>
                 {competitions.map((c) => (
-                  <CompetitionRow key={c.id} comp={c} />
+                  <CompetitionRow key={c.id} comp={c} onEdit={populateForm} />
                 ))}
               </tbody>
             </table>
@@ -394,18 +506,18 @@ function CompetitionsTab() {
               </thead>
               <tbody>
                 {competitions.map((c) => (
-                  <CompetitionRow key={c.id} comp={c} />
+                  <CompetitionRow key={c.id} comp={c} onEdit={populateForm} />
                 ))}
               </tbody>
             </table>
           </div>
-          </div>
+        </div>
       )}
     </div>
   );
 }
 
-function CompetitionRow({ comp }: { comp: Competition }) {
+function CompetitionRow({ comp, onEdit }: { comp: Competition; onEdit: (competition: Competition) => void }) {
   const queryClient = useQueryClient();
   const [showParticipants, setShowParticipants] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -454,6 +566,10 @@ function CompetitionRow({ comp }: { comp: Competition }) {
               <span>⚙️ {comp.missedPickMode}</span>
             </div>
             <div className="flex flex-wrap gap-2">
+              <button onClick={() => onEdit(comp)}
+                className="text-xs px-3 py-1.5 rounded bg-cyan-600/20 hover:bg-cyan-600/40 text-cyan-300 transition">
+                Edit
+              </button>
               <button onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending}
                 className="text-xs px-3 py-1.5 rounded bg-brand-600/20 hover:bg-brand-600/40 text-brand-400 transition">
                 {syncMutation.isPending ? '⏳' : '🔄 Sync'}
@@ -494,6 +610,10 @@ function CompetitionRow({ comp }: { comp: Competition }) {
         </td>
         <td className="py-3 px-4 text-gray-400 whitespace-nowrap">{comp.missedPickMode}</td>
         <td className="py-3 px-4 text-right whitespace-nowrap space-x-2">
+          <button onClick={() => onEdit(comp)}
+            className="text-sm px-3 py-1 rounded bg-cyan-600/20 hover:bg-cyan-600/40 text-cyan-300 transition">
+            Edit
+          </button>
           <button onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending}
             className="text-sm px-3 py-1 rounded bg-brand-600/20 hover:bg-brand-600/40 text-brand-400 transition"
             title="Re-sync fixtures from provider">
@@ -1615,7 +1735,7 @@ function SimulateTab() {
         const poll = setInterval(async () => {
           try {
             const gws = await api.get(`/admin/competitions/${selectedCompId}/gameweeks`);
-            const gw = gws.data?.find((g: any) => g.id === selectedGwId);
+            const gw = gws.data?.find((g: any) => g.id === Number(selectedGwId));
             if (gw && gw.status !== 'LOCKED' && gw.status !== 'IN_PROGRESS') {
               clearInterval(poll);
               toast.success(`Gameweek ${data.gameweekId} processing complete! Status: ${gw.status}` +
@@ -1777,7 +1897,7 @@ function SimulateTab() {
             setSelectedGwId('');
             setFixtureResults({});
           }}
-          className="input-field"
+          className="input-field bg-surface-800 text-white [color-scheme:dark]"
         >
           <option value="">Choose a competition…</option>
           {competitions?.map((c) => (
@@ -1805,7 +1925,7 @@ function SimulateTab() {
                 setSelectedGwId(e.target.value);
                 setFixtureResults({});
               }}
-              className="input-field"
+              className="input-field bg-surface-800 text-white [color-scheme:dark]"
             >
               <option value="">Choose a gameweek…</option>
               {gameweeks.map((gw) => (
@@ -2313,9 +2433,6 @@ function AuditTab() {
   useEffect(() => {
     setPage(0);
   }, [actionFilter, entityFilter, adminFilter, fieldFilter, entityIdFilter, dateFrom, dateTo, query, pageSize]);
-  useEffect(() => {
-    setPageInput(String((data?.number ?? page) + 1));
-  }, [data?.number, page]);
   const auditParams = useMemo(() => {
     const params: Record<string, string> = {
       page: String(page),
@@ -2329,11 +2446,14 @@ function AuditTab() {
     if (dateFrom) params.from = dateFrom;
     if (dateTo) params.to = dateTo;
     return params;
-  }, [actionFilter, entityFilter, adminFilter, fieldFilter, entityIdFilter, dateFrom, dateTo, page]);
+  }, [actionFilter, entityFilter, adminFilter, fieldFilter, entityIdFilter, dateFrom, dateTo, page, pageSize]);
   const { data, isLoading } = useQuery<{ content: AuditLog[]; totalPages?: number; number?: number; totalElements?: number }>({
     queryKey: ['audit', auditParams],
     queryFn: () => api.get('/admin/audit', { params: auditParams }).then((r) => r.data),
   });
+  useEffect(() => {
+    setPageInput(String((data?.number ?? page) + 1));
+  }, [data?.number, page]);
   const totalPages = data?.totalPages ?? 1;
   const currentPage = data?.number ?? page;
 
@@ -2343,19 +2463,19 @@ function AuditTab() {
 
   const logs = data?.content ?? [];
   const actions = useMemo(
-    () => Array.from(new Set(logs.map((log) => log.action).filter(Boolean))).sort(),
+    () => Array.from(new Set(logs.map((log) => log.action).filter((value): value is string => Boolean(value)))).sort(),
     [logs]
   );
   const entities = useMemo(
-    () => Array.from(new Set(logs.map((log) => log.entityType).filter(Boolean))).sort(),
+    () => Array.from(new Set(logs.map((log) => log.entityType).filter((value): value is string => Boolean(value)))).sort(),
     [logs]
   );
   const admins = useMemo(
-    () => Array.from(new Set(logs.map((log) => log.username).filter(Boolean))).sort(),
+    () => Array.from(new Set(logs.map((log) => log.username).filter((value): value is string => Boolean(value)))).sort(),
     [logs]
   );
   const fields = useMemo(
-    () => Array.from(new Set(logs.map((log) => log.fieldName).filter(Boolean))).sort(),
+    () => Array.from(new Set(logs.map((log) => log.fieldName).filter((value): value is string => Boolean(value)))).sort(),
     [logs]
   );
   const filteredLogs = useMemo(() => {

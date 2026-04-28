@@ -9,6 +9,7 @@ export default function LoginPage() {
   const [searchParams] = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Show OAuth2 error if redirected back with ?error=
@@ -82,16 +83,26 @@ export default function LoginPage() {
                 Forgot password?
               </Link>
             </div>
-            <input
-              id="password"
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="input-field"
-              placeholder="••••••••"
-              autoComplete="current-password"
-            />
+            <div className="relative">
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="input-field pr-12"
+                placeholder="••••••••"
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((value) => !value)}
+                className="absolute inset-y-0 right-3 text-sm font-medium text-gray-400 transition hover:text-white"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
           </div>
           <button type="submit" disabled={loading} className="btn-primary w-full">
             {loading ? 'Signing in…' : 'Sign In'}

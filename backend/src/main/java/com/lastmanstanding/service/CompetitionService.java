@@ -176,7 +176,7 @@ public class CompetitionService {
         Competition comp = competitionRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Competition not found"));
         if (name != null) comp.setName(name);
-        if (description != null) comp.setDescription(description);
+        if (description != null) comp.setDescription(description.isBlank() ? null : description);
         if (entryFee != null) comp.setEntryFee(entryFee);
         comp.setPrizePool(prizePool); // null is valid (clears it)
         if (missedPickMode != null) comp.setMissedPickMode(missedPickMode);
@@ -192,9 +192,13 @@ public class CompetitionService {
         if (startDate != null) comp.setStartDate(startDate);
         if (status != null) comp.setStatus(status);
         if (clubId != null) {
-            Club club = clubRepository.findById(clubId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Club not found"));
-            comp.setClub(club);
+            if (clubId <= 0) {
+                comp.setClub(null);
+            } else {
+                Club club = clubRepository.findById(clubId)
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Club not found"));
+                comp.setClub(club);
+            }
         }
         return competitionRepository.save(comp);
     }
