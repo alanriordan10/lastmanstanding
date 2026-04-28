@@ -281,7 +281,7 @@ public class GameweekEmailService {
             return;
         }
         List<CompetitionParticipant> active = participantRepository.findByCompetitionIdAndStatus(
-                comp.getId(), com.lastmanstanding.entity.ParticipantStatus.ACTIVE);
+                comp.getId(), ParticipantStatus.ACTIVE);
 
         // Find who has already picked
         java.util.Set<Long> alreadyPicked = pickRepository

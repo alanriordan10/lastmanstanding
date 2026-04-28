@@ -85,7 +85,7 @@ public class AuthController {
     ) {}
 
     @PostMapping("/register-club")
-    @org.springframework.transaction.annotation.Transactional
+    @Transactional
     public ResponseEntity<RegisterClubResponse> registerClub(
             @Valid @RequestBody RegisterClubRequest request) {
 

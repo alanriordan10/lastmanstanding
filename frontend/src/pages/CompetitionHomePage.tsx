@@ -72,6 +72,7 @@ export default function CompetitionHomePage() {
   const [initialised, setInitialised] = useState(false);
   const [historyCollapsed, setHistoryCollapsed] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Close share dropdown on outside click
   useEffect(() => {
@@ -83,6 +84,17 @@ export default function CompetitionHomePage() {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [shareOpen]);
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem('lms.sidebarCollapsed');
+    if (stored !== null) {
+      setSidebarCollapsed(stored === 'true');
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem('lms.sidebarCollapsed', String(sidebarCollapsed));
+  }, [sidebarCollapsed]);
 
   const { data: comp, isLoading: compLoading } = useQuery<Competition>({
     queryKey: ['competition', compId],
@@ -461,11 +473,61 @@ export default function CompetitionHomePage() {
     toast.success('Browser alerts enabled');
   };
 
+  const reminderPanel = showReminderSetup ? (
+    <section className="card p-4 sm:p-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="max-w-2xl">
+          <h2 className="text-lg font-semibold text-gray-100">Reminder setup</h2>
+          <p className="mt-2 text-sm text-gray-300">
+            You have not picked for Gameweek {openWeekWithoutPick.weekNumber} yet. Turn on reminders now so you are less likely to miss the lock.
+          </p>
+          <p className="mt-2 text-xs text-gray-400">
+            Picks lock {formatDistanceToNow(parseDate(openWeekWithoutPick.data.lockAt), { addSuffix: true })}.
+          </p>
+        </div>
+
+        <div className="grid w-full gap-3 sm:w-[22rem]">
+          <div className="rounded-xl border border-gray-700/50 bg-surface-800/70 px-3 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">Email reminders</p>
+            <p className="mt-1 text-sm text-gray-100">{user?.emailResultsOptIn ? 'Enabled' : 'Disabled'}</p>
+            <p className="mt-1 text-xs text-gray-400">
+              Uses your profile notification setting for lock reminders and result updates.
+            </p>
+            {!user?.emailResultsOptIn && (
+              <Link to="/profile" className="mt-3 inline-flex text-xs font-medium text-brand-400 hover:text-brand-300">
+                Turn on in profile →
+              </Link>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-gray-700/50 bg-surface-800/70 px-3 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">Browser alerts</p>
+            <p className="mt-1 text-sm text-gray-100">
+              {!browserAlertsSupported ? 'Not supported here' : browserAlertsEnabled ? 'Enabled on this device' : 'Disabled on this device'}
+            </p>
+            <p className="mt-1 text-xs text-gray-400">
+              Best for quick on-device nudges when this browser supports notifications.
+            </p>
+            {browserAlertsSupported && !browserAlertsEnabled && (
+              <button
+                type="button"
+                onClick={handleEnableBrowserAlerts}
+                className="mt-3 inline-flex rounded-lg bg-brand-600 px-3 py-2 text-xs font-medium text-white transition hover:bg-brand-500"
+              >
+                Enable browser alerts
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  ) : null;
+
 
   return (
     <div className="space-y-8">
       {/* ── Header ── */}
-      <section className="relative overflow-hidden rounded-[1.9rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.22),transparent_24rem),radial-gradient(circle_at_85%_18%,rgba(250,204,21,0.10),transparent_18rem),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))] px-5 py-5 shadow-[0_30px_75px_rgba(2,6,23,0.48)] sm:px-6 sm:py-6">
+      <section className="relative overflow-hidden rounded-[1.9rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.22),transparent_24rem),radial-gradient(circle_at_85%_18%,rgba(250,204,21,0.10),transparent_18rem),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))] px-5 py-5 shadow-[0_30px_75px_rgba(2,6,23,0.48)] sm:px-6 sm:py-6 lg:px-8 lg:py-7">
         <div className="absolute inset-y-0 right-0 hidden w-1/3 bg-[linear-gradient(180deg,transparent,rgba(255,255,255,0.02),transparent)] lg:block" />
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="max-w-2xl">
@@ -479,15 +541,15 @@ export default function CompetitionHomePage() {
               {isEliminated && <span className="badge-red">ELIMINATED</span>}
               {isWinner && <span className="badge-green">🏆 WINNER</span>}
             </div>
-            <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">{comp.name}</h1>
-            {comp.description && <p className="mt-2 max-w-xl text-sm leading-6 text-gray-300 sm:text-[15px]">{comp.description}</p>}
-            <div className="mt-4 grid max-w-xl grid-cols-3 gap-2">
+            <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-5xl">{comp.name}</h1>
+            {comp.description && <p className="mt-2 max-w-xl text-sm leading-6 text-gray-300 sm:text-[15px] lg:text-base">{comp.description}</p>}
+            <div className="mt-4 grid max-w-xl grid-cols-3 gap-2 sm:gap-3 lg:gap-4">
               <HeroStat label="Players" value={String(comp.participantCount ?? 0)} />
               <HeroStat label="Active" value={String(comp.activeCount ?? 0)} />
               <HeroStat label="Entry" value={comp.entryFee > 0 ? `€${comp.entryFee}` : 'Free'} />
             </div>
           </div>
-          <div className="flex gap-2 flex-wrap items-start">
+          <div className="flex gap-2 flex-wrap items-start lg:flex-col lg:items-end">
           {/* Share / Invite */}
           <div className="relative" data-share-menu>
             <button
@@ -550,531 +612,534 @@ export default function CompetitionHomePage() {
         </div>
       </section>
 
-      <div className="grid gap-4 xl:grid-cols-[1.35fr_1fr]">
-        <ActionPanel
-          tone={actionTone}
-          title={actionTitle}
-          body={actionBody}
-          meta={actionMeta}
-          cta={!isParticipant && comp.status === 'UPCOMING' ? (
-            <Link to={`/competitions?code=${encodeURIComponent(comp.joinCode ?? String(compId))}`} className="btn-primary w-full sm:w-auto text-sm">
-              Go to join flow
-            </Link>
-          ) : (
-            <Link
-              to={`/competitions/${compId}/survivor-table`}
-              className="btn-secondary w-full sm:w-auto text-sm text-center"
-            >
-              Open survivor table
-            </Link>
-          )}
-        />
-
-        <section className="card p-4 sm:p-5">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-100">Rules & Status</h2>
-              <p className="mt-1 text-xs text-gray-400">The competition contract, payment state, and team-pool picture in one panel.</p>
-            </div>
-          </div>
-
-          <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-            <SummaryTile
-              label="Entry"
-              value={comp.entryFee > 0 ? `€${comp.entryFee}` : 'Free'}
-              detail={
-                awaitingPayment && comp.paymentMode === 'MANUAL'
-                  ? 'Awaiting organiser confirmation'
-                  : paymentState === 'PAID'
-                  ? 'Payment settled'
-                  : comp.paymentMode === 'MANUAL'
-                  ? 'Pay organiser directly'
-                  : comp.paymentMode === 'STRIPE'
-                  ? 'Paid online'
-                  : 'No payment required'
-              }
-              accent={comp.entryFee > 0 ? 'text-brand-400' : 'text-green-400'}
-            />
-            <SummaryTile
-              label="Prize Pool"
-              value={comp.prizePool && comp.prizePool > 0 ? `€${comp.prizePool}` : 'TBD'}
-              detail={comp.prizePool && comp.prizePool > 0 ? 'Visible to all players' : 'No fixed amount set'}
-              accent={comp.prizePool && comp.prizePool > 0 ? 'text-yellow-400' : 'text-gray-300'}
-            />
-            <SummaryTile
-              label="Missed Pick"
-              value={comp.missedPickMode === 'AUTO_ASSIGN' ? 'Auto-Assign' : 'Eliminate'}
-              detail={comp.missedPickMode === 'AUTO_ASSIGN' ? 'Best available team is used' : 'No pick means you are out'}
-            />
-            <SummaryTile
-              label="Postponed Match"
-              value={comp.postponedConsumesTeam ? 'Counts as used' : 'Can be reused'}
-              detail={comp.postponedConsumesTeam ? 'That team is still burned' : 'The pick does not consume the team'}
-            />
-            <SummaryTile
-              label="Players"
-              value={String(comp.participantCount ?? 0)}
-              detail={comp.status === 'ACTIVE' ? `${comp.activeCount ?? 0} still active` : comp.winnerUsername ? `Winner: ${comp.winnerUsername}` : 'Registration overview'}
-            />
-            <SummaryTile
-              label="Your Team Pool"
-              value={isParticipant ? `${usedTeamIds.size} used` : 'Join to track'}
-              detail={isParticipant && remainingTeamsCount !== null ? `${remainingTeamsCount} teams still available` : 'Usage updates after each pick'}
-            />
-            {isParticipant && (
-              <SummaryTile
-                label="Payment"
-                value={paymentState === 'PAID' ? 'Paid' : paymentState === 'AWAITING_PAYMENT' ? 'Awaiting' : 'Not needed'}
-                detail={paymentState === 'AWAITING_PAYMENT' ? 'Entry still needs payment confirmation' : paymentState === 'PAID' ? 'Entry is confirmed' : 'No payment required'}
-                accent={paymentState === 'PAID' ? 'text-green-400' : paymentState === 'AWAITING_PAYMENT' ? 'text-yellow-400' : 'text-gray-300'}
-              />
-            )}
-          </div>
-        </section>
+      <div className="hidden lg:flex justify-end">
+        <button
+          type="button"
+          onClick={() => setSidebarCollapsed((prev) => !prev)}
+          className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-gray-300 transition hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
+          aria-pressed={sidebarCollapsed}
+          aria-label={sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
+        >
+          <span className="text-sm">{sidebarCollapsed ? '▸' : '▾'}</span>
+          {sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
+        </button>
       </div>
 
-      {isParticipant && !isEliminated && !isWinner && myStatus.picks.length === 0 && (
-        <section className="card p-4 sm:p-5">
-          <h2 className="text-lg font-semibold text-gray-100">Your first pick</h2>
-          <p className="mt-2 text-sm text-gray-300">
-            Pick one team from the next open gameweek. Once you use a team, you cannot use it again later in the competition.
-          </p>
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <SummaryTile
-              label="Step 1"
-              value="Open the next week"
-              detail={openWeekWithoutPick ? `Gameweek ${openWeekWithoutPick.weekNumber} is the next one to complete.` : 'The next upcoming gameweek appears at the top of the fixtures list.'}
+      <div className={clsx(
+        'grid gap-6',
+        sidebarCollapsed
+          ? 'lg:grid-cols-1'
+          : 'lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_420px] 2xl:grid-cols-[minmax(0,1fr)_460px]'
+      )}>
+        <div className="order-2 space-y-8 lg:order-1">
+          {sidebarCollapsed && (
+            <ActionPanel
+              tone={actionTone}
+              title={actionTitle}
+              body={actionBody}
+              meta={actionMeta}
+              cta={!isParticipant && comp.status === 'UPCOMING' ? (
+                <Link to={`/competitions?code=${encodeURIComponent(comp.joinCode ?? String(compId))}`} className="btn-primary w-full sm:w-auto text-sm">
+                  Go to join flow
+                </Link>
+              ) : (
+                <Link
+                  to={`/competitions/${compId}/survivor-table`}
+                  className="btn-secondary w-full sm:w-auto text-sm text-center"
+                >
+                  Open survivor table
+                </Link>
+              )}
             />
-            <SummaryTile
-              label="Step 2"
-              value="Choose one team"
-              detail="Tap either side of a fixture to save your selection instantly."
-            />
-            <SummaryTile
-              label="Step 3"
-              value="Check the lock time"
-              detail={nextLockDateForHook ? `Picks close ${formatDistanceToNow(nextLockDateForHook, { addSuffix: true })}.` : 'Make your pick before the gameweek locks.'}
-            />
-          </div>
-        </section>
-      )}
-
-      {showReminderSetup && (
-        <section className="card p-4 sm:p-5">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="max-w-2xl">
-              <h2 className="text-lg font-semibold text-gray-100">Reminder setup</h2>
+          )}
+          {isParticipant && !isEliminated && !isWinner && myStatus.picks.length === 0 && (
+            <section className="card p-4 sm:p-5">
+              <h2 className="text-lg font-semibold text-gray-100">Your first pick</h2>
               <p className="mt-2 text-sm text-gray-300">
-                You have not picked for Gameweek {openWeekWithoutPick.weekNumber} yet. Turn on reminders now so you are less likely to miss the lock.
+                Pick one team from the next open gameweek. Once you use a team, you cannot use it again later in the competition.
               </p>
-              <p className="mt-2 text-xs text-gray-400">
-                Picks lock {formatDistanceToNow(parseDate(openWeekWithoutPick.data.lockAt), { addSuffix: true })}.
-              </p>
-            </div>
-
-            <div className="grid w-full gap-3 sm:w-[22rem]">
-              <div className="rounded-xl border border-gray-700/50 bg-surface-800/70 px-3 py-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">Email reminders</p>
-                <p className="mt-1 text-sm text-gray-100">{user?.emailResultsOptIn ? 'Enabled' : 'Disabled'}</p>
-                <p className="mt-1 text-xs text-gray-400">
-                  Uses your profile notification setting for lock reminders and result updates.
-                </p>
-                {!user?.emailResultsOptIn && (
-                  <Link to="/profile" className="mt-3 inline-flex text-xs font-medium text-brand-400 hover:text-brand-300">
-                    Turn on in profile →
-                  </Link>
-                )}
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <SummaryTile
+                  label="Step 1"
+                  value="Open the next week"
+                  detail={openWeekWithoutPick ? `Gameweek ${openWeekWithoutPick.weekNumber} is the next one to complete.` : 'The next upcoming gameweek appears at the top of the fixtures list.'}
+                />
+                <SummaryTile
+                  label="Step 2"
+                  value="Choose one team"
+                  detail="Tap either side of a fixture to save your selection instantly."
+                />
+                <SummaryTile
+                  label="Step 3"
+                  value="Check the lock time"
+                  detail={nextLockDateForHook ? `Picks close ${formatDistanceToNow(nextLockDateForHook, { addSuffix: true })}.` : 'Make your pick before the gameweek locks.'}
+                />
               </div>
+            </section>
+          )}
 
-              <div className="rounded-xl border border-gray-700/50 bg-surface-800/70 px-3 py-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">Browser alerts</p>
-                <p className="mt-1 text-sm text-gray-100">
-                  {!browserAlertsSupported ? 'Not supported here' : browserAlertsEnabled ? 'Enabled on this device' : 'Disabled on this device'}
+          {reminderPanel && <div className="lg:hidden">{reminderPanel}</div>}
+
+          {/* ── Next Lock Countdown ── */}
+          {nextLockDateForHook && !countdown.expired && (
+            <div className={clsx(
+              'rounded-xl border px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3',
+              countdown.totalSeconds < 1800
+                ? 'border-red-500/40 bg-red-500/10'
+                : countdown.totalSeconds < 7200
+                ? 'border-yellow-500/40 bg-yellow-500/10'
+                : 'border-brand-500/30 bg-brand-500/10'
+            )}>
+              <div>
+                <p className={clsx('text-sm font-medium', countdown.totalSeconds < 1800 ? 'text-red-400' : countdown.totalSeconds < 7200 ? 'text-yellow-400' : 'text-brand-400')}>
+                  {countdown.totalSeconds < 1800 ? '⚠️ Picks lock very soon!' : '⏰ Next gameweek lock'}
                 </p>
-                <p className="mt-1 text-xs text-gray-400">
-                  Best for quick on-device nudges when this browser supports notifications.
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {nextLockDateForHook.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}{', '}
+                  {nextLockDateForHook.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })}
                 </p>
-                {browserAlertsSupported && !browserAlertsEnabled && (
-                  <button
-                    type="button"
-                    onClick={handleEnableBrowserAlerts}
-                    className="mt-3 inline-flex rounded-lg bg-brand-600 px-3 py-2 text-xs font-medium text-white transition hover:bg-brand-500"
-                  >
-                    Enable browser alerts
-                  </button>
-                )}
               </div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ── Next Lock Countdown ── */}
-      {nextLockDateForHook && !countdown.expired && (
-        <div className={clsx(
-          'rounded-xl border px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3',
-          countdown.totalSeconds < 1800
-            ? 'border-red-500/40 bg-red-500/10'
-            : countdown.totalSeconds < 7200
-            ? 'border-yellow-500/40 bg-yellow-500/10'
-            : 'border-brand-500/30 bg-brand-500/10'
-        )}>
-          <div>
-            <p className={clsx('text-sm font-medium', countdown.totalSeconds < 1800 ? 'text-red-400' : countdown.totalSeconds < 7200 ? 'text-yellow-400' : 'text-brand-400')}>
-              {countdown.totalSeconds < 1800 ? '⚠️ Picks lock very soon!' : '⏰ Next gameweek lock'}
-            </p>
-            <p className="text-xs text-gray-400 mt-0.5">
-              {nextLockDateForHook.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}{', '}
-              {nextLockDateForHook.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 font-mono text-2xl font-bold">
-            {countdown.days > 0 && (
-              <>
-                <CountdownUnit value={countdown.days} label="d" />
+              <div className="flex items-center gap-2 font-mono text-2xl font-bold">
+                {countdown.days > 0 && (
+                  <>
+                    <CountdownUnit value={countdown.days} label="d" />
+                    <span className="text-gray-500">:</span>
+                  </>
+                )}
+                <CountdownUnit value={countdown.hours} label="h" urgent={countdown.totalSeconds < 3600} />
                 <span className="text-gray-500">:</span>
-              </>
-            )}
-            <CountdownUnit value={countdown.hours} label="h" urgent={countdown.totalSeconds < 3600} />
-            <span className="text-gray-500">:</span>
-            <CountdownUnit value={countdown.minutes} label="m" urgent={countdown.totalSeconds < 1800} />
-            <span className="text-gray-500">:</span>
-            <CountdownUnit value={countdown.seconds} label="s" urgent={countdown.totalSeconds < 1800} />
-          </div>
-        </div>
-      )}
-
-      {/* ── Fixtures with inline pick selection ── */}
-      {fixturesLoading ? (
-        <div className="space-y-3 animate-pulse">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="card p-4 space-y-3">
-              <div className="flex justify-between items-center">
-                <div className="h-5 w-28 bg-surface-600 rounded" />
-                <div className="h-5 w-20 bg-surface-600 rounded" />
+                <CountdownUnit value={countdown.minutes} label="m" urgent={countdown.totalSeconds < 1800} />
+                <span className="text-gray-500">:</span>
+                <CountdownUnit value={countdown.seconds} label="s" urgent={countdown.totalSeconds < 1800} />
               </div>
-              {[...Array(3)].map((_, j) => (
-                <div key={j} className="flex justify-between items-center py-2 border-b border-gray-700/40">
-                  <div className="h-4 w-24 bg-surface-700 rounded" />
-                  <div className="h-4 w-12 bg-surface-700 rounded" />
-                  <div className="h-4 w-24 bg-surface-700 rounded" />
+            </div>
+          )}
+
+          {/* ── Fixtures with inline pick selection ── */}
+          {fixturesLoading ? (
+            <div className="space-y-3 animate-pulse">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="card p-4 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <div className="h-5 w-28 bg-surface-600 rounded" />
+                    <div className="h-5 w-20 bg-surface-600 rounded" />
+                  </div>
+                  {[...Array(3)].map((_, j) => (
+                    <div key={j} className="flex justify-between items-center py-2 border-b border-gray-700/40">
+                      <div className="h-4 w-24 bg-surface-700 rounded" />
+                      <div className="h-4 w-12 bg-surface-700 rounded" />
+                      <div className="h-4 w-24 bg-surface-700 rounded" />
+                    </div>
+                  ))}
                 </div>
               ))}
             </div>
-          ))}
-        </div>
-      ) : !sortedWeeks.length ? (
-        <div className="card text-center py-10">
-          <p className="text-gray-300 font-medium">
-            {comp?.status === 'UPCOMING' ? 'Fixtures are syncing…' : 'No fixtures available yet'}
-          </p>
-          {comp?.status === 'UPCOMING' && (
-            <p className="mt-2 text-sm text-gray-500">
-              This page will update automatically as soon as the first gameweeks are ready.
-            </p>
-          )}
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {sortedWeeks.map((wn) => {
-            const gwData = fixturesByWeek.get(wn)!;
-            const gwId = gwData.gwId;
-            const gwFixtures = gwData.fixtures;
-            const lockAt = gwData.lockAt;
-            const gwStatus = gwData.gwStatus;
+          ) : !sortedWeeks.length ? (
+            <div className="card text-center py-10">
+              <p className="text-gray-300 font-medium">
+                {comp?.status === 'UPCOMING' ? 'Fixtures are syncing…' : 'No fixtures available yet'}
+              </p>
+              {comp?.status === 'UPCOMING' && (
+                <p className="mt-2 text-sm text-gray-500">
+                  This page will update automatically as soon as the first gameweeks are ready.
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {sortedWeeks.map((wn) => {
+                const gwData = fixturesByWeek.get(wn)!;
+                const gwId = gwData.gwId;
+                const gwFixtures = gwData.fixtures;
+                const lockAt = gwData.lockAt;
+                const gwStatus = gwData.gwStatus;
 
-            const isLocked = gwStatus === 'LOCKED' || gwStatus === 'IN_PROGRESS' || gwStatus === 'COMPLETED' || isPast(parseDate(lockAt));
-            const isCompleted = gwStatus === 'COMPLETED' || gwFixtures.every(f => f.status === 'FINISHED' || f.status === 'POSTPONED' || f.status === 'CANCELLED');
-            const isCollapsed = collapsedWeeks.has(wn);
-            const myPickForGw = pickByGwId.get(gwId);
+                const isLocked = gwStatus === 'LOCKED' || gwStatus === 'IN_PROGRESS' || gwStatus === 'COMPLETED' || isPast(parseDate(lockAt));
+                const isCompleted = gwStatus === 'COMPLETED' || gwFixtures.every(f => f.status === 'FINISHED' || f.status === 'POSTPONED' || f.status === 'CANCELLED');
+                const isCollapsed = collapsedWeeks.has(wn);
+                const myPickForGw = pickByGwId.get(gwId);
 
-            return (
-              <div key={wn} className={clsx('card overflow-hidden', {
-                'border-brand-500/40': myPickForGw && !isCompleted,
-                'border-gray-700/30 opacity-75': isCompleted,
-              })}>
-                {/* ── Gameweek header — clickable toggle ── */}
-                <button
-                  onClick={() => toggleWeek(wn)}
-                  className="w-full flex items-start justify-between text-left group"
-                  aria-expanded={!isCollapsed}
-                  aria-controls={`gw-${wn}-fixtures`}
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <h3 className="text-lg font-semibold shrink-0">Gameweek {wn}</h3>
-                      {isCompleted ? (
-                        <span className="badge-gray text-xs">Completed</span>
-                      ) : isLocked ? (
-                        <span className="badge-red text-xs">🔒 Locked</span>
-                      ) : (
-                        <span className="badge-yellow text-xs">
-                          Locks {formatDistanceToNow(parseDate(lockAt), { addSuffix: true })}
-                        </span>
-                      )}
-                      {/* Desktop collapsed summary */}
-                      {isCollapsed && myPickForGw && (
-                        <span className="hidden sm:inline text-sm text-gray-400 truncate">
-                          — <span className={clsx('font-semibold', {
-                            'text-green-400': myPickForGw.outcome === 'ADVANCE',
-                            'text-red-400': myPickForGw.outcome === 'ELIMINATED',
-                            'text-yellow-400': myPickForGw.outcome === 'POSTPONED_ADVANCE',
-                            'text-brand-400': myPickForGw.outcome === 'PENDING',
-                          })}>
-                            {myPickForGw.teamShortName}
-                          </span>
-                          {myPickForGw.outcome !== 'PENDING' && (
-                            <span className="ml-1"><OutcomeBadge outcome={myPickForGw.outcome} /></span>
+                return (
+                  <div key={wn} className={clsx('card overflow-hidden', {
+                    'border-brand-500/40': myPickForGw && !isCompleted,
+                    'border-gray-700/30 opacity-75': isCompleted,
+                  })}>
+                    {/* ── Gameweek header — clickable toggle ── */}
+                    <button
+                      onClick={() => toggleWeek(wn)}
+                      className="w-full flex items-start justify-between text-left group"
+                      aria-expanded={!isCollapsed}
+                      aria-controls={`gw-${wn}-fixtures`}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <h3 className="text-lg font-semibold shrink-0">Gameweek {wn}</h3>
+                          {isCompleted ? (
+                            <span className="badge-gray text-xs">Completed</span>
+                          ) : isLocked ? (
+                            <span className="badge-red text-xs">🔒 Locked</span>
+                          ) : (
+                            <span className="badge-yellow text-xs">
+                              Locks {formatDistanceToNow(parseDate(lockAt), { addSuffix: true })}
+                            </span>
                           )}
-                        </span>
-                      )}
-                      {isCollapsed && !myPickForGw && isParticipant && !isEliminated && !isWinner && !isLocked && (
-                        <span className="hidden sm:inline text-xs text-yellow-400 italic">— no pick yet</span>
-                      )}
-                    </div>
+                          {/* Desktop collapsed summary */}
+                          {isCollapsed && myPickForGw && (
+                            <span className="hidden sm:inline text-sm text-gray-400 truncate">
+                              — <span className={clsx('font-semibold', {
+                                'text-green-400': myPickForGw.outcome === 'ADVANCE',
+                                'text-red-400': myPickForGw.outcome === 'ELIMINATED',
+                                'text-yellow-400': myPickForGw.outcome === 'POSTPONED_ADVANCE',
+                                'text-brand-400': myPickForGw.outcome === 'PENDING',
+                              })}>
+                                {myPickForGw.teamShortName}
+                              </span>
+                              {myPickForGw.outcome !== 'PENDING' && (
+                                <span className="ml-1"><OutcomeBadge outcome={myPickForGw.outcome} /></span>
+                              )}
+                            </span>
+                          )}
+                          {isCollapsed && !myPickForGw && isParticipant && !isEliminated && !isWinner && !isLocked && (
+                            <span className="hidden sm:inline text-xs text-yellow-400 italic">— no pick yet</span>
+                          )}
+                        </div>
 
-                    {isCollapsed && myPickForGw && (
-                      <div className="sm:hidden mt-1 text-xs text-gray-400">
-                        Selected:{' '}
-                        <span className={clsx('font-semibold', {
-                          'text-green-400': myPickForGw.outcome === 'ADVANCE',
-                          'text-red-400': myPickForGw.outcome === 'ELIMINATED',
-                          'text-yellow-400': myPickForGw.outcome === 'POSTPONED_ADVANCE',
-                          'text-brand-400': myPickForGw.outcome === 'PENDING',
-                        })}>
-                          {myPickForGw.teamShortName}
-                        </span>
-                      </div>
-                    )}
-                    {isCollapsed && !myPickForGw && isParticipant && !isEliminated && !isWinner && !isLocked && (
-                      <div className="sm:hidden mt-1 text-xs text-yellow-400 italic">No pick yet</div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0 ml-2">
-                    {!isCollapsed && myPickForGw && (
-                      <span className="text-sm text-gray-300 hidden sm:inline">
-                        Your pick:{' '}
-                        <span className={clsx('font-bold', {
-                          'text-green-400': myPickForGw.outcome === 'ADVANCE',
-                          'text-red-400': myPickForGw.outcome === 'ELIMINATED',
-                          'text-yellow-400': myPickForGw.outcome === 'POSTPONED_ADVANCE',
-                          'text-brand-400': myPickForGw.outcome === 'PENDING',
-                        })}>{myPickForGw.teamShortName}</span>
-                        {myPickForGw.outcome !== 'PENDING' && (
-                          <span className="ml-1"><OutcomeBadge outcome={myPickForGw.outcome} /></span>
+                        {isCollapsed && myPickForGw && (
+                          <div className="sm:hidden mt-1 text-xs text-gray-400">
+                            Selected:{' '}
+                            <span className={clsx('font-semibold', {
+                              'text-green-400': myPickForGw.outcome === 'ADVANCE',
+                              'text-red-400': myPickForGw.outcome === 'ELIMINATED',
+                              'text-yellow-400': myPickForGw.outcome === 'POSTPONED_ADVANCE',
+                              'text-brand-400': myPickForGw.outcome === 'PENDING',
+                            })}>
+                              {myPickForGw.teamShortName}
+                            </span>
+                          </div>
                         )}
-                      </span>
-                    )}
+                        {isCollapsed && !myPickForGw && isParticipant && !isEliminated && !isWinner && !isLocked && (
+                          <div className="sm:hidden mt-1 text-xs text-yellow-400 italic">No pick yet</div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0 ml-2">
+                        {!isCollapsed && myPickForGw && (
+                          <span className="text-sm text-gray-300 hidden sm:inline">
+                            Your pick:{' '}
+                            <span className={clsx('font-bold', {
+                              'text-green-400': myPickForGw.outcome === 'ADVANCE',
+                              'text-red-400': myPickForGw.outcome === 'ELIMINATED',
+                              'text-yellow-400': myPickForGw.outcome === 'POSTPONED_ADVANCE',
+                              'text-brand-400': myPickForGw.outcome === 'PENDING',
+                            })}>{myPickForGw.teamShortName}</span>
+                            {myPickForGw.outcome !== 'PENDING' && (
+                              <span className="ml-1"><OutcomeBadge outcome={myPickForGw.outcome} /></span>
+                            )}
+                          </span>
+                        )}
+                        {!isCollapsed && isLocked && (
+                          <div className="flex items-center gap-3">
+                            <Link
+                              to={`/competitions/${compId}/gameweeks/${gwId}/selections`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-xs text-brand-400 hover:text-brand-300 hidden sm:inline"
+                            >
+                              All selections →
+                            </Link>
+                            {isCompleted && (
+                              <Link
+                                to={`/competitions/${compId}/gameweeks/${gwId}/results`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="text-xs text-green-400 hover:text-green-300 hidden sm:inline font-medium"
+                              >
+                                📊 Results →
+                              </Link>
+                            )}
+                          </div>
+                        )}
+                        {/* Chevron */}
+                        <svg
+                          className={clsx('w-5 h-5 text-gray-400 group-hover:text-gray-200 transition-transform duration-200', {
+                            'rotate-180': !isCollapsed,
+                          })}
+                          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </button>
+
+                    {/* Selections/Results links on mobile when expanded */}
                     {!isCollapsed && isLocked && (
-                      <div className="flex items-center gap-3">
+                      <div className="mt-2 sm:hidden flex gap-3">
                         <Link
                           to={`/competitions/${compId}/gameweeks/${gwId}/selections`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="text-xs text-brand-400 hover:text-brand-300 hidden sm:inline"
+                          className="text-xs text-brand-400 hover:text-brand-300"
                         >
-                          All selections →
+                          View all selections →
                         </Link>
                         {isCompleted && (
                           <Link
                             to={`/competitions/${compId}/gameweeks/${gwId}/results`}
-                            onClick={(e) => e.stopPropagation()}
-                            className="text-xs text-green-400 hover:text-green-300 hidden sm:inline font-medium"
+                            className="text-xs text-green-400 hover:text-green-300 font-medium"
                           >
                             📊 Results →
                           </Link>
                         )}
                       </div>
                     )}
-                    {/* Chevron */}
-                    <svg
-                      className={clsx('w-5 h-5 text-gray-400 group-hover:text-gray-200 transition-transform duration-200', {
-                        'rotate-180': !isCollapsed,
-                      })}
-                      fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-                </button>
 
-                {/* Selections/Results links on mobile when expanded */}
-                {!isCollapsed && isLocked && (
-                  <div className="mt-2 sm:hidden flex gap-3">
-                    <Link
-                      to={`/competitions/${compId}/gameweeks/${gwId}/selections`}
-                      className="text-xs text-brand-400 hover:text-brand-300"
-                    >
-                      View all selections →
-                    </Link>
-                    {isCompleted && (
-                      <Link
-                        to={`/competitions/${compId}/gameweeks/${gwId}/results`}
-                        className="text-xs text-green-400 hover:text-green-300 font-medium"
-                      >
-                        📊 Results →
-                      </Link>
-                    )}
-                  </div>
-                )}
+                    {/* ── Fixture rows — collapsible ── */}
+                    {!isCollapsed && (
+                      <div id={`gw-${wn}-fixtures`} className="space-y-2 mt-4">
+                        {/* Show message if user was eliminated before this gameweek */}
+                        {isEliminated && participant?.eliminatedWeek != null && wn > participant.eliminatedWeek && (
+                          <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm">
+                            <p className="text-red-400 font-medium">
+                              ⚠️ You were eliminated in Gameweek {participant.eliminatedWeek} and cannot make picks for this gameweek.
+                            </p>
+                          </div>
+                        )}
+                        {gwFixtures
+                          .sort((a, b) => parseDate(a.kickoffAt).getTime() - parseDate(b.kickoffAt).getTime())
+                          .map((f) => {
+                            // Check if user can pick for THIS specific gameweek
+                            // Cannot pick if: not a participant, eliminated, winner, locked, OR eliminated in an earlier gameweek
+                            const eliminatedBeforeThisGw = isEliminated &&
+                              participant?.eliminatedWeek != null &&
+                              wn > participant.eliminatedWeek;
+                            const canPickThisGw = isParticipant && !isEliminated && !isWinner && !isLocked && !eliminatedBeforeThisGw;
+                            const homeIsMyPick = myPickForGw?.teamId === f.homeTeamId;
+                            const awayIsMyPick = myPickForGw?.teamId === f.awayTeamId;
+                            const homeUsed = usedTeamIds.has(f.homeTeamId) && !homeIsMyPick;
+                            const awayUsed = usedTeamIds.has(f.awayTeamId) && !awayIsMyPick;
+                            const gwStats = pickStatsByGwId.get(gwId);
+                            const homeStat = gwStats?.find(s => s.teamId === f.homeTeamId);
+                            const awayStat = gwStats?.find(s => s.teamId === f.awayTeamId);
 
-                {/* ── Fixture rows — collapsible ── */}
-                {!isCollapsed && (
-                  <div id={`gw-${wn}-fixtures`} className="space-y-2 mt-4">
-                    {/* Show message if user was eliminated before this gameweek */}
-                    {isEliminated && participant?.eliminatedWeek != null && wn > participant.eliminatedWeek && (
-                      <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm">
-                        <p className="text-red-400 font-medium">
-                          ⚠️ You were eliminated in Gameweek {participant.eliminatedWeek} and cannot make picks for this gameweek.
-                        </p>
+                            return (
+                              <div
+                                key={f.id}
+                                className="grid grid-cols-[1fr_auto_1fr] items-start gap-2 rounded-lg bg-surface-700/50 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3 lg:gap-4"
+                              >
+                                <TeamButton
+                                  name={f.homeTeamName}
+                                  shortName={f.homeTeamShortName}
+                                  isMyPick={homeIsMyPick}
+                                  isUsed={homeUsed}
+                                  isClickable={canPickThisGw && !homeUsed}
+                                  align="right"
+                                  pickStat={homeStat}
+                                  onClick={() => handlePick(gwId, f.homeTeamId, lockAt)}
+                                />
+                              <div className="flex flex-col items-center min-w-[52px] sm:min-w-[72px] lg:min-w-[96px] pt-2">
+                                {f.status === 'FINISHED' ? (
+                                  <span className="font-bold text-white text-xs sm:text-sm lg:text-base">{f.scoreHome} - {f.scoreAway}</span>
+                                ) : f.status === 'POSTPONED' ? (
+                                  <span className="badge-yellow text-xs">PP</span>
+                                ) : f.status === 'IN_PLAY' ? (
+                                  <span className="text-green-400 text-xs font-bold animate-pulse lg:text-sm">LIVE</span>
+                                ) : (
+                                  <>
+                                  <span className="text-gray-400 text-[10px] sm:text-xs lg:text-sm">{formatKickoffDate(f.kickoffAt)}</span>
+                                    <span className="text-gray-300 text-[10px] sm:text-xs lg:text-sm font-medium">{formatKickoffTime(f.kickoffAt)}</span>
+                                  </>
+                                )}
+                              </div>
+                                <TeamButton
+                                  name={f.awayTeamName}
+                                  shortName={f.awayTeamShortName}
+                                  isMyPick={awayIsMyPick}
+                                  isUsed={awayUsed}
+                                  isClickable={canPickThisGw && !awayUsed}
+                                  align="left"
+                                  pickStat={awayStat}
+                                  onClick={() => handlePick(gwId, f.awayTeamId, lockAt)}
+                                />
+                              </div>
+                            );
+                          })}
                       </div>
                     )}
-                    {gwFixtures
-                      .sort((a, b) => parseDate(a.kickoffAt).getTime() - parseDate(b.kickoffAt).getTime())
-                      .map((f) => {
-                        // Check if user can pick for THIS specific gameweek
-                        // Cannot pick if: not a participant, eliminated, winner, locked, OR eliminated in an earlier gameweek
-                        const eliminatedBeforeThisGw = isEliminated &&
-                          participant?.eliminatedWeek != null &&
-                          wn > participant.eliminatedWeek;
-                        const canPickThisGw = isParticipant && !isEliminated && !isWinner && !isLocked && !eliminatedBeforeThisGw;
-                        const homeIsMyPick = myPickForGw?.teamId === f.homeTeamId;
-                        const awayIsMyPick = myPickForGw?.teamId === f.awayTeamId;
-                        const homeUsed = usedTeamIds.has(f.homeTeamId) && !homeIsMyPick;
-                        const awayUsed = usedTeamIds.has(f.awayTeamId) && !awayIsMyPick;
-                        const gwStats = pickStatsByGwId.get(gwId);
-                        const homeStat = gwStats?.find(s => s.teamId === f.homeTeamId);
-                        const awayStat = gwStats?.find(s => s.teamId === f.awayTeamId);
-
-                        return (
-                          <div
-                            key={f.id}
-                            className="grid grid-cols-[1fr_auto_1fr] items-start gap-2 rounded-lg bg-surface-700/50 px-3 py-2.5"
-                          >
-                            <TeamButton
-                              name={f.homeTeamName}
-                              shortName={f.homeTeamShortName}
-                              isMyPick={homeIsMyPick}
-                              isUsed={homeUsed}
-                              isClickable={canPickThisGw && !homeUsed}
-                              align="right"
-                              pickStat={homeStat}
-                              onClick={() => handlePick(gwId, f.homeTeamId, lockAt)}
-                            />
-                          <div className="flex flex-col items-center min-w-[52px] sm:min-w-[72px] pt-2">
-                            {f.status === 'FINISHED' ? (
-                              <span className="font-bold text-white text-xs sm:text-sm">{f.scoreHome} - {f.scoreAway}</span>
-                            ) : f.status === 'POSTPONED' ? (
-                              <span className="badge-yellow text-xs">PP</span>
-                            ) : f.status === 'IN_PLAY' ? (
-                              <span className="text-green-400 text-xs font-bold animate-pulse">LIVE</span>
-                            ) : (
-                              <>
-                              <span className="text-gray-400 text-[10px] sm:text-xs">{formatKickoffDate(f.kickoffAt)}</span>
-                                <span className="text-gray-300 text-[10px] sm:text-xs font-medium">{formatKickoffTime(f.kickoffAt)}</span>
-                              </>
-                            )}
-                          </div>
-                            <TeamButton
-                              name={f.awayTeamName}
-                              shortName={f.awayTeamShortName}
-                              isMyPick={awayIsMyPick}
-                              isUsed={awayUsed}
-                              isClickable={canPickThisGw && !awayUsed}
-                              align="left"
-                              pickStat={awayStat}
-                              onClick={() => handlePick(gwId, f.awayTeamId, lockAt)}
-                            />
-                          </div>
-                        );
-                      })}
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* ── Pick History ── */}
-      {myStatus && myStatus.picks.length > 0 && (
-        <div className="card overflow-hidden">
-          <button
-            onClick={() => setHistoryCollapsed((c) => !c)}
-            className="w-full flex items-center justify-between text-left group"
-            aria-expanded={!historyCollapsed}
-            aria-controls="pick-history"
-          >
-            <h2 className="text-xl font-bold">My Pick History</h2>
-            <svg
-              className={clsx('w-5 h-5 text-gray-400 group-hover:text-gray-200 transition-transform duration-200', {
-                'rotate-180': !historyCollapsed,
+                );
               })}
-              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
+            </div>
+          )}
 
-          {!historyCollapsed && (
-            <div id="pick-history" className="mt-4">
-              <div className="divide-y divide-gray-700/50 sm:hidden">
-                {myStatus.picks
-                  .sort((a, b) => a.weekNumber - b.weekNumber)
-                  .map((pick) => (
-                    <div key={pick.pickId} className="py-3 space-y-2">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-xs uppercase tracking-[0.14em] text-gray-500">Gameweek {pick.weekNumber}</p>
-                          <p className="mt-1 text-sm font-semibold text-gray-100">{pick.teamShortName}</p>
-                          <p className="text-xs text-gray-400 truncate">{pick.teamName}</p>
-                        </div>
-                        <OutcomeBadge outcome={pick.outcome} />
-                      </div>
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-gray-500">
-                          {pick.source === 'AUTO' ? 'Auto-picked' : 'Self-picked'}
-                        </span>
-                        {pick.source === 'AUTO' ? <span className="badge-yellow text-[10px]">Auto</span> : <span className="badge-gray text-[10px]">Self</span>}
-                      </div>
-                    </div>
-                  ))}
-              </div>
+          {/* ── Pick History ── */}
+          {myStatus && myStatus.picks.length > 0 && (
+            <div className="card overflow-hidden">
+              <button
+                onClick={() => setHistoryCollapsed((c) => !c)}
+                className="w-full flex items-center justify-between text-left group"
+                aria-expanded={!historyCollapsed}
+                aria-controls="pick-history"
+              >
+                <h2 className="text-xl font-bold">My Pick History</h2>
+                <svg
+                  className={clsx('w-5 h-5 text-gray-400 group-hover:text-gray-200 transition-transform duration-200', {
+                    'rotate-180': !historyCollapsed,
+                  })}
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
 
-              <div className="hidden sm:block overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-700 text-gray-400 text-left">
-                      <th className="py-3 px-4">GW</th>
-                      <th className="py-3 px-4">Team</th>
-                      <th className="py-3 px-4">Pick Type</th>
-                      <th className="py-3 px-4">Outcome</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+              {!historyCollapsed && (
+                <div id="pick-history" className="mt-4">
+                  <div className="divide-y divide-gray-700/50 sm:hidden">
                     {myStatus.picks
                       .sort((a, b) => a.weekNumber - b.weekNumber)
                       .map((pick) => (
-                      <tr key={pick.pickId} className="border-b border-gray-700/50 hover:bg-surface-700/30">
-                        <td className="py-3 px-4 font-medium">{pick.weekNumber}</td>
-                        <td className="py-3 px-4">
-                          <span className="font-semibold">{pick.teamShortName}</span>
-                          <span className="text-gray-400 ml-2 text-xs">{pick.teamName}</span>
-                        </td>
-                        <td className="py-3 px-4">
-                          {pick.source === 'AUTO' ? <span className="badge-yellow">Auto</span> : <span className="badge-gray">Self</span>}
-                        </td>
-                        <td className="py-3 px-4">
-                          <OutcomeBadge outcome={pick.outcome} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                        <div key={pick.pickId} className="py-3 space-y-2">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-xs uppercase tracking-[0.14em] text-gray-500">Gameweek {pick.weekNumber}</p>
+                              <p className="mt-1 text-sm font-semibold text-gray-100">{pick.teamShortName}</p>
+                              <p className="text-xs text-gray-400 truncate">{pick.teamName}</p>
+                            </div>
+                            <OutcomeBadge outcome={pick.outcome} />
+                          </div>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-gray-500">
+                              {pick.source === 'AUTO' ? 'Auto-picked' : 'Self-picked'}
+                            </span>
+                            {pick.source === 'AUTO' ? <span className="badge-yellow text-[10px]">Auto</span> : <span className="badge-gray text-[10px]">Self</span>}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+
+                  <div className="hidden sm:block overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-700 text-gray-400 text-left">
+                          <th className="py-3 px-4">GW</th>
+                          <th className="py-3 px-4">Team</th>
+                          <th className="py-3 px-4">Pick Type</th>
+                          <th className="py-3 px-4">Outcome</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {myStatus.picks
+                          .sort((a, b) => a.weekNumber - b.weekNumber)
+                          .map((pick) => (
+                          <tr key={pick.pickId} className="border-b border-gray-700/50 hover:bg-surface-700/30">
+                            <td className="py-3 px-4 font-medium">{pick.weekNumber}</td>
+                            <td className="py-3 px-4">
+                              <span className="font-semibold">{pick.teamShortName}</span>
+                              <span className="text-gray-400 ml-2 text-xs">{pick.teamName}</span>
+                            </td>
+                            <td className="py-3 px-4">
+                              {pick.source === 'AUTO' ? <span className="badge-yellow">Auto</span> : <span className="badge-gray">Self</span>}
+                            </td>
+                            <td className="py-3 px-4">
+                              <OutcomeBadge outcome={pick.outcome} />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
-      )}
+
+        <aside
+          className={clsx(
+            'order-1 space-y-4 lg:order-2 lg:sticky lg:top-24 lg:transition-all lg:duration-300 lg:ease-out lg:overflow-hidden',
+            sidebarCollapsed
+              ? 'lg:max-h-0 lg:opacity-0 lg:translate-y-2 lg:pointer-events-none'
+              : 'lg:max-h-[2000px] lg:opacity-100 lg:translate-y-0'
+          )}
+          aria-hidden={sidebarCollapsed}
+        >
+            <ActionPanel
+              tone={actionTone}
+              title={actionTitle}
+              body={actionBody}
+              meta={actionMeta}
+              cta={!isParticipant && comp.status === 'UPCOMING' ? (
+                <Link to={`/competitions?code=${encodeURIComponent(comp.joinCode ?? String(compId))}`} className="btn-primary w-full sm:w-auto text-sm">
+                  Go to join flow
+                </Link>
+              ) : (
+                <Link
+                  to={`/competitions/${compId}/survivor-table`}
+                  className="btn-secondary w-full sm:w-auto text-sm text-center"
+                >
+                  Open survivor table
+                </Link>
+              )}
+            />
+
+            <section className="card p-4 sm:p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-100">Rules & Status</h2>
+                  <p className="mt-1 text-xs text-gray-400">The competition contract, payment state, and team-pool picture in one panel.</p>
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                <SummaryTile
+                  label="Entry"
+                  value={comp.entryFee > 0 ? `€${comp.entryFee}` : 'Free'}
+                  detail={
+                    awaitingPayment && comp.paymentMode === 'MANUAL'
+                      ? 'Awaiting organiser confirmation'
+                      : paymentState === 'PAID'
+                      ? 'Payment settled'
+                      : comp.paymentMode === 'MANUAL'
+                      ? 'Pay organiser directly'
+                      : comp.paymentMode === 'STRIPE'
+                      ? 'Paid online'
+                      : 'No payment required'
+                  }
+                  accent={comp.entryFee > 0 ? 'text-brand-400' : 'text-green-400'}
+                />
+                <SummaryTile
+                  label="Prize Pool"
+                  value={comp.prizePool && comp.prizePool > 0 ? `€${comp.prizePool}` : 'TBD'}
+                  detail={comp.prizePool && comp.prizePool > 0 ? 'Visible to all players' : 'No fixed amount set'}
+                  accent={comp.prizePool && comp.prizePool > 0 ? 'text-yellow-400' : 'text-gray-300'}
+                />
+                <SummaryTile
+                  label="Missed Pick"
+                  value={comp.missedPickMode === 'AUTO_ASSIGN' ? 'Auto-Assign' : 'Eliminate'}
+                  detail={comp.missedPickMode === 'AUTO_ASSIGN' ? 'Best available team is used' : 'No pick means you are out'}
+                />
+                <SummaryTile
+                  label="Postponed Match"
+                  value={comp.postponedConsumesTeam ? 'Counts as used' : 'Can be reused'}
+                  detail={comp.postponedConsumesTeam ? 'That team is still burned' : 'The pick does not consume the team'}
+                />
+                <SummaryTile
+                  label="Players"
+                  value={String(comp.participantCount ?? 0)}
+                  detail={comp.status === 'ACTIVE' ? `${comp.activeCount ?? 0} still active` : comp.winnerUsername ? `Winner: ${comp.winnerUsername}` : 'Registration overview'}
+                />
+                <SummaryTile
+                  label="Your Team Pool"
+                  value={isParticipant ? `${usedTeamIds.size} used` : 'Join to track'}
+                  detail={isParticipant && remainingTeamsCount !== null ? `${remainingTeamsCount} teams still available` : 'Usage updates after each pick'}
+                />
+                {isParticipant && (
+                  <SummaryTile
+                    label="Payment"
+                    value={paymentState === 'PAID' ? 'Paid' : paymentState === 'AWAITING_PAYMENT' ? 'Awaiting' : 'Not needed'}
+                    detail={paymentState === 'AWAITING_PAYMENT' ? 'Entry still needs payment confirmation' : paymentState === 'PAID' ? 'Entry is confirmed' : 'No payment required'}
+                    accent={paymentState === 'PAID' ? 'text-green-400' : paymentState === 'AWAITING_PAYMENT' ? 'text-yellow-400' : 'text-gray-300'}
+                  />
+                )}
+              </div>
+            </section>
+            {reminderPanel && <div className="hidden lg:block">{reminderPanel}</div>}
+        </aside>
+      </div>
     </div>
   );
 }
@@ -1095,7 +1160,7 @@ function TeamButton({
         name
       }
       className={clsx(
-        'flex flex-col gap-0.5 rounded-lg px-1.5 sm:px-3 py-2 w-full transition-all',
+        'flex flex-col gap-0.5 rounded-lg px-1.5 sm:px-3 lg:px-4 py-2 sm:py-2.5 w-full transition-all',
         align === 'right' ? 'items-end text-right' : 'items-start text-left',
         isMyPick && 'bg-brand-600 border-2 border-brand-400 text-white font-bold shadow-lg shadow-brand-900/50',
         isUsed && !isMyPick && 'bg-transparent text-gray-700 cursor-not-allowed',
@@ -1107,8 +1172,8 @@ function TeamButton({
     >
       {/* Team name row */}
       <div className={clsx('flex items-center gap-1 sm:gap-2 w-full', align === 'right' ? 'flex-row-reverse' : 'flex-row')}>
-        <span className={clsx('font-bold text-xs shrink-0', isMyPick ? 'text-white' : isUsed ? 'line-through' : '')}>{shortName}</span>
-        <span className="hidden sm:block truncate text-xs font-normal opacity-90 flex-1">{name}</span>
+        <span className={clsx('font-bold text-xs sm:text-sm shrink-0', isMyPick ? 'text-white' : isUsed ? 'line-through' : '')}>{shortName}</span>
+        <span className="hidden sm:block truncate text-[11px] sm:text-xs lg:text-sm font-normal opacity-90 flex-1">{name}</span>
         {isMyPick && <span className="text-xs shrink-0 font-bold">✓</span>}
         {isUsed && !isMyPick && <span className="hidden sm:inline text-[10px] text-gray-600 shrink-0">used</span>}
       </div>

@@ -2,6 +2,9 @@ package com.lastmanstanding.service;
 
 import com.lastmanstanding.entity.*;
 import com.lastmanstanding.repository.*;
+import java.time.LocalDateTime;
+import java.util.Optional;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -119,6 +122,41 @@ public class AdminService {
         return auditLogRepository.findAllByOrderByCreatedAtDesc(pageable);
     }
 
+        public Page<AuditLog> getAuditLogsFiltered(Pageable pageable,
+                                                                                           Optional<String> action,
+                                                                                           Optional<String> entityType,
+                                                                                           Optional<Long> entityId,
+                                                                                           Optional<String> fieldName,
+                                                                                           Optional<String> username,
+                                                                                           Optional<LocalDateTime> from,
+                                                                                           Optional<LocalDateTime> to) {
+                Specification<AuditLog> spec = Specification.where(null);
+
+                if (action.isPresent()) {
+                        spec = spec.and((root, query, cb) -> cb.equal(root.get("action"), action.get()));
+                }
+                if (entityType.isPresent()) {
+                        spec = spec.and((root, query, cb) -> cb.equal(root.get("entityType"), entityType.get()));
+                }
+                if (entityId.isPresent()) {
+                        spec = spec.and((root, query, cb) -> cb.equal(root.get("entityId"), entityId.get()));
+                }
+                if (fieldName.isPresent()) {
+                        spec = spec.and((root, query, cb) -> cb.equal(root.get("fieldName"), fieldName.get()));
+                }
+                if (username.isPresent()) {
+                        spec = spec.and((root, query, cb) -> cb.equal(root.join("user").get("username"), username.get()));
+                }
+                if (from.isPresent()) {
+                        spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("createdAt"), from.get()));
+                }
+                if (to.isPresent()) {
+                        spec = spec.and((root, query, cb) -> cb.lessThanOrEqualTo(root.get("createdAt"), to.get()));
+                }
+
+                return auditLogRepository.findAll(spec, pageable);
+        }
+
     public List<AuditLog> getAuditLogsForFixture(Long fixtureId) {
         return auditLogRepository.findByEntityTypeAndEntityIdOrderByCreatedAtDesc("Fixture", fixtureId);
     }
@@ -133,7 +171,7 @@ public class AdminService {
     public record FixtureOverrideRequest(
             Long homeTeamId,
             Long awayTeamId,
-            java.time.LocalDateTime kickoffAt,
+            LocalDateTime kickoffAt,
             FixtureStatus status,
             Integer scoreHome,
             Integer scoreAway
