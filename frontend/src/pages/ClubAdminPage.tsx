@@ -23,6 +23,7 @@ export default function ClubAdminPage() {
   const { isClubAdmin, isAdmin, loginWithToken } = useAuth();
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
+  const [editingComp, setEditingComp] = useState<Competition | null>(null);
   const [managingComp, setManagingComp] = useState<Competition | null>(null);
   const [deletingComp, setDeletingComp] = useState<Competition | null>(null);
   const [name, setName] = useState('');
@@ -35,6 +36,7 @@ export default function ClubAdminPage() {
   const [visibility, setVisibility] = useState<'PUBLIC' | 'PRIVATE'>('PRIVATE');
   const [prizePool, setPrizePool] = useState('');
   const [startDate, setStartDate] = useState('');
+  const [status, setStatus] = useState<'UPCOMING' | 'ACTIVE' | 'COMPLETED'>('UPCOMING');
   const [showAssignAdmin, setShowAssignAdmin] = useState(false);
   const [adminSearchQuery, setAdminSearchQuery] = useState('');
   const [adminSearchResults, setAdminSearchResults] = useState<{id: number; username: string; email: string}[]>([]);
@@ -61,6 +63,52 @@ export default function ClubAdminPage() {
     staleTime: 0,
   });
 
+  const resetCompetitionForm = () => {
+    setEditingComp(null);
+    setShowForm(false);
+    setName('');
+    setDescription('');
+    setEntryFee('0');
+    setMissedPickMode('ELIMINATE');
+    setPostponedConsumesTeam(true);
+    setPassFeeToParticipant(false);
+    setPaymentMode('FREE');
+    setVisibility('PRIVATE');
+    setPrizePool('');
+    setStartDate('');
+    setStatus('UPCOMING');
+  };
+
+  const populateCompetitionForm = (competition: Competition) => {
+    setEditingComp(competition);
+    setShowForm(true);
+    setName(competition.name);
+    setDescription(competition.description ?? '');
+    setEntryFee(String(competition.entryFee ?? 0));
+    setMissedPickMode(competition.missedPickMode);
+    setPostponedConsumesTeam(competition.postponedConsumesTeam);
+    setPassFeeToParticipant(Boolean(competition.passFeeToParticipant));
+    setPaymentMode((competition.paymentMode ?? 'FREE') as 'FREE' | 'MANUAL' | 'STRIPE');
+    setVisibility((competition.visibility ?? 'PRIVATE') as 'PUBLIC' | 'PRIVATE');
+    setPrizePool(competition.prizePool != null ? String(competition.prizePool) : '');
+    setStartDate(competition.startDate);
+    setStatus((competition.status ?? 'UPCOMING') as 'UPCOMING' | 'ACTIVE' | 'COMPLETED');
+  };
+
+  const competitionPayload = {
+    name,
+    description,
+    entryFee: parseFloat(entryFee) || 0,
+    prizePool: prizePool ? parseFloat(prizePool) : null,
+    missedPickMode,
+    postponedConsumesTeam,
+    passFeeToParticipant,
+    paymentMode,
+    visibility,
+    startDate,
+    status,
+  };
+
   const createMutation = useMutation({
     mutationFn: () => api.post('/club-admin/competitions', {
       name,
@@ -84,19 +132,27 @@ export default function ClubAdminPage() {
       );
       queryClient.invalidateQueries({ queryKey: ['club-admin', 'competitions'] });
       queryClient.invalidateQueries({ queryKey: ['competitions'] });
-      setShowForm(false);
-      setName('');
-      setDescription('');
-      setEntryFee('0');
-      setStartDate('');
-      setMissedPickMode('ELIMINATE');
-      setPostponedConsumesTeam(true);
-      setPassFeeToParticipant(false);
-      setPaymentMode('FREE');
-      setVisibility('PRIVATE');
-      setPrizePool('');
+      resetCompetitionForm();
     },
     onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to create competition'),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: () => {
+      if (!editingComp) throw new Error('No competition selected for edit');
+      return api.put(`/club-admin/competitions/${editingComp.id}`, competitionPayload);
+    },
+    onSuccess: (response) => {
+      const updated = response.data as Competition;
+      toast.success(`"${updated.name}" updated`);
+      queryClient.setQueryData<Competition[]>(['club-admin', 'competitions'], (old) =>
+        old ? old.map((competition) => competition.id === updated.id ? updated : competition) : [updated]
+      );
+      queryClient.invalidateQueries({ queryKey: ['club-admin', 'competitions'] });
+      queryClient.invalidateQueries({ queryKey: ['competitions'] });
+      resetCompetitionForm();
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to update competition'),
   });
 
   const deleteMutation = useMutation({
@@ -219,8 +275,17 @@ export default function ClubAdminPage() {
           <div className="text-xs uppercase tracking-[0.16em] text-gray-400">
             Admin: <span className="text-gray-200">{myClub.clubAdminUsername ?? '—'}</span>
           </div>
-          <button onClick={() => setShowForm(!showForm)} className="btn-primary w-full sm:w-auto">
-            {showForm ? 'Cancel' : '+ New Competition'}
+          <button
+            onClick={() => {
+              if (editingComp || showForm) {
+                resetCompetitionForm();
+                return;
+              }
+              setShowForm(true);
+            }}
+            className="btn-primary w-full sm:w-auto"
+          >
+            {editingComp ? 'Cancel Edit' : showForm ? 'Cancel' : '+ New Competition'}
           </button>
         </div>
       </section>
@@ -285,10 +350,25 @@ export default function ClubAdminPage() {
       {/* Create form */}
       {showForm && (
         <form
-          onSubmit={(e) => { e.preventDefault(); createMutation.mutate(); }}
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (editingComp) {
+              updateMutation.mutate();
+              return;
+            }
+            createMutation.mutate();
+          }}
           className="card space-y-4"
         >
-          <h2 className="font-semibold text-gray-200">New Competition</h2>
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="font-semibold text-gray-200">{editingComp ? `Edit ${editingComp.name}` : 'New Competition'}</h2>
+              <p className="text-sm text-gray-400">
+                {editingComp ? 'Update prize money, entry settings, timing, and visibility.' : 'Create a new club competition and configure how players join.'}
+              </p>
+            </div>
+            {editingComp && <span className="badge-blue self-start sm:self-auto">Editing</span>}
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-300">Name *</label>
@@ -309,7 +389,7 @@ export default function ClubAdminPage() {
                   onChange={(e) => setStartDate(e.target.value)}
                   className="input-field w-full pr-10 [color-scheme:dark] cursor-pointer"
                   required
-                  min={new Date().toISOString().split('T')[0]}
+                  min={editingComp ? undefined : new Date().toISOString().split('T')[0]}
                 />
                 <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -413,6 +493,16 @@ export default function ClubAdminPage() {
                 <option value="AUTO_ASSIGN">Auto-Assign (pick best available)</option>
               </select>
             </div>
+            {editingComp && (
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-300">Status</label>
+                <select value={status} onChange={(e) => setStatus(e.target.value as 'UPCOMING' | 'ACTIVE' | 'COMPLETED')} className="input-field">
+                  <option value="UPCOMING">Upcoming</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="COMPLETED">Completed</option>
+                </select>
+              </div>
+            )}
             <div className="sm:col-span-2">
               <label className="mb-1 block text-sm font-medium text-gray-300">Description</label>
               <input value={description} onChange={(e) => setDescription(e.target.value)}
@@ -449,10 +539,12 @@ export default function ClubAdminPage() {
             )}
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
-            <button type="submit" disabled={createMutation.isPending} className="btn-primary w-full sm:w-auto">
-              {createMutation.isPending ? 'Creating…' : 'Create Competition'}
+            <button type="submit" disabled={createMutation.isPending || updateMutation.isPending} className="btn-primary w-full sm:w-auto">
+              {editingComp
+                ? (updateMutation.isPending ? 'Saving…' : 'Save Changes')
+                : (createMutation.isPending ? 'Creating…' : 'Create Competition')}
             </button>
-            <button type="button" onClick={() => setShowForm(false)} className="btn-secondary w-full sm:w-auto">
+            <button type="button" onClick={resetCompetitionForm} className="btn-secondary w-full sm:w-auto">
               Cancel
             </button>
           </div>
@@ -581,6 +673,12 @@ export default function ClubAdminPage() {
                             Copy Invite
                           </button>
                         )}
+                        <button
+                          onClick={() => populateCompetitionForm(comp)}
+                          className="text-xs px-3 py-1.5 rounded-lg bg-cyan-600/20 hover:bg-cyan-600/40 text-cyan-300 transition"
+                        >
+                          Edit
+                        </button>
                         <Link to={`/competitions/${comp.id}`} className="btn-secondary text-xs px-3 py-1.5">View</Link>
                         <button
                           onClick={() => setManagingComp(managingComp?.id === comp.id ? null : comp)}

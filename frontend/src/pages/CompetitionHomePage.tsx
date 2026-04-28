@@ -41,6 +41,28 @@ function formatKickoffTime(value: string | number[]): string {
   return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
+function hasPendingResultProcessing(fixtures: Fixture[] | undefined): boolean {
+  if (!fixtures || fixtures.length === 0) return false;
+
+  const byGameweek = new Map<number, Fixture[]>();
+  for (const fixture of fixtures) {
+    const list = byGameweek.get(fixture.gameweekId) ?? [];
+    list.push(fixture);
+    byGameweek.set(fixture.gameweekId, list);
+  }
+
+  for (const gameweekFixtures of byGameweek.values()) {
+    const allResolved = gameweekFixtures.every((fixture) =>
+      fixture.status === 'FINISHED' || fixture.status === 'POSTPONED' || fixture.status === 'CANCELLED'
+    );
+    if (allResolved && gameweekFixtures[0]?.gameweekStatus !== 'COMPLETED') {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 /** Fetches pick stats for a list of locked gameweek IDs, returning a Map<gwId, stats[]> */
 function usePickStatsMap(compId: number, gwIds: number[]): Map<number, PickStat[]> {
   const results = useQueries({
@@ -100,6 +122,7 @@ export default function CompetitionHomePage() {
     queryKey: ['competition', compId],
     queryFn: () => api.get(`/competitions/${compId}`).then((r) => r.data),
     staleTime: 30_000,
+    refetchInterval: () => hasPendingResultProcessing(queryClient.getQueryData<Fixture[]>(['fixtures', compId])) ? 3_000 : false,
   });
 
   const { data: myStatus, isLoading: statusLoading } = useQuery<MyStatus>({
@@ -107,6 +130,7 @@ export default function CompetitionHomePage() {
     queryFn: () => api.get(`/competitions/${compId}/me`).then((r) => r.data),
     retry: false,
     staleTime: 30_000,
+    refetchInterval: () => hasPendingResultProcessing(queryClient.getQueryData<Fixture[]>(['fixtures', compId])) ? 3_000 : false,
   });
 
   const { data: fixtures, isLoading: fixturesLoading } = useQuery<Fixture[]>({
@@ -141,6 +165,7 @@ export default function CompetitionHomePage() {
   }, [fixtures]);
 
   const pickStatsByGwId = usePickStatsMap(compId, lockedGwIds);
+  const resultsProcessing = hasPendingResultProcessing(fixtures);
 
   const pickMutation = useMutation({
     mutationFn: ({ gwId, teamId }: { gwId: number; teamId: number }) =>
@@ -344,6 +369,10 @@ export default function CompetitionHomePage() {
   });
   const totalTeamsCount = uniqueTeamIds.size;
   const remainingTeamsCount = totalTeamsCount > 0 ? Math.max(totalTeamsCount - usedTeamIds.size, 0) : null;
+  const eliminatedCount = Math.max((comp.participantCount ?? 0) - (comp.activeCount ?? 0), 0);
+  const survivalRate = comp.participantCount > 0
+    ? Math.round(((comp.activeCount ?? 0) / comp.participantCount) * 100)
+    : 0;
 
   const upcomingWeek = sortedWeeks
     .map((wn) => ({ weekNumber: wn, data: fixturesByWeek.get(wn)! }))
@@ -373,6 +402,98 @@ export default function CompetitionHomePage() {
   const latestResolvedPick = myStatus?.picks
     .filter((p) => p.outcome !== 'PENDING')
     .sort((a, b) => b.weekNumber - a.weekNumber)[0];
+
+  const latestCompletedWeek = [...sortedWeeks]
+    .reverse()
+    .map((weekNumber) => ({ weekNumber, data: fixturesByWeek.get(weekNumber)! }))
+    .find(({ data }) => data.gwStatus === 'COMPLETED');
+
+  const latestCompletedStats = latestCompletedWeek
+    ? [...(pickStatsByGwId.get(latestCompletedWeek.data.gwId) ?? [])].sort((a, b) => b.pickCount - a.pickCount)
+    : [];
+
+  const latestCompletedTeamResults = new Map<number, 'WIN' | 'LOSS' | 'DRAW' | 'POSTPONED'>();
+  if (latestCompletedWeek) {
+    latestCompletedWeek.data.fixtures.forEach((fixture) => {
+      if (fixture.status === 'POSTPONED' || fixture.status === 'CANCELLED') {
+        latestCompletedTeamResults.set(fixture.homeTeamId, 'POSTPONED');
+        latestCompletedTeamResults.set(fixture.awayTeamId, 'POSTPONED');
+        return;
+      }
+      if (fixture.status !== 'FINISHED' || fixture.scoreHome == null || fixture.scoreAway == null) {
+        return;
+      }
+      if (fixture.scoreHome > fixture.scoreAway) {
+        latestCompletedTeamResults.set(fixture.homeTeamId, 'WIN');
+        latestCompletedTeamResults.set(fixture.awayTeamId, 'LOSS');
+      } else if (fixture.scoreHome < fixture.scoreAway) {
+        latestCompletedTeamResults.set(fixture.homeTeamId, 'LOSS');
+        latestCompletedTeamResults.set(fixture.awayTeamId, 'WIN');
+      } else {
+        latestCompletedTeamResults.set(fixture.homeTeamId, 'DRAW');
+        latestCompletedTeamResults.set(fixture.awayTeamId, 'DRAW');
+      }
+    });
+  }
+
+  const mostBackedTeam = latestCompletedStats[0];
+  const biggestCasualty = latestCompletedStats.find((stat) => latestCompletedTeamResults.get(stat.teamId) === 'LOSS');
+  const contrarianSurvivor = [...latestCompletedStats]
+    .reverse()
+    .find((stat) => {
+      const result = latestCompletedTeamResults.get(stat.teamId);
+      return stat.pickCount > 0 && (result === 'WIN' || result === 'DRAW' || result === 'POSTPONED');
+    });
+  const survivingPickedTeams = latestCompletedStats.filter((stat) => {
+    const result = latestCompletedTeamResults.get(stat.teamId);
+    return result === 'WIN' || result === 'DRAW' || result === 'POSTPONED';
+  });
+  const doomedPickedTeams = latestCompletedStats.filter((stat) => latestCompletedTeamResults.get(stat.teamId) === 'LOSS');
+  const totalResolvedPicks = latestCompletedStats.reduce((sum, stat) => sum + stat.pickCount, 0);
+  const survivingResolvedPicks = survivingPickedTeams.reduce((sum, stat) => sum + stat.pickCount, 0);
+  const weeklySurvivalRate = totalResolvedPicks > 0 ? Math.round((survivingResolvedPicks / totalResolvedPicks) * 100) : null;
+
+  let storylineTitle = 'Competition pressure is building';
+  let storylineBody = comp.status === 'UPCOMING'
+    ? 'Registration is open and the first real pressure point is the next lock.'
+    : 'The next pick window is where this competition starts to separate cautious players from survivors.';
+
+  if (latestCompletedWeek && biggestCasualty) {
+    storylineTitle = `Gameweek ${latestCompletedWeek.weekNumber} shook the field`;
+    storylineBody = `${biggestCasualty.pickCount} players trusted ${biggestCasualty.teamShortName} and paid for it. ${comp.activeCount} survivor${comp.activeCount === 1 ? '' : 's'} remain.`;
+  } else if (latestCompletedWeek && mostBackedTeam) {
+    storylineTitle = `Gameweek ${latestCompletedWeek.weekNumber} followed the crowd`;
+    storylineBody = `${mostBackedTeam.pickCount} players backed ${mostBackedTeam.teamShortName}. The table is still tightening with ${comp.activeCount} left standing.`;
+  } else if (openWeekWithoutPick) {
+    storylineTitle = `Your next decision is Gameweek ${openWeekWithoutPick.weekNumber}`;
+    storylineBody = 'You still have time to pick, but every unused team choice gets more valuable from here.';
+  } else if (openWeekWithPick) {
+    storylineTitle = `Gameweek ${openWeekWithPick.weekNumber} is loaded`;
+    storylineBody = 'Your pick is in. Now the tension shifts to whether the crowd follows you or walks into a trap.';
+  }
+
+  const spotlightCards = [
+    {
+      eyebrow: 'Knockout pressure',
+      title: `${eliminatedCount} out, ${comp.activeCount} alive`,
+      detail: comp.participantCount > 0
+        ? `${survivalRate}% of the field is still standing.`
+        : 'The field will tighten as results come in.',
+      accent: eliminatedCount > 0 ? 'text-yellow-300' : 'text-brand-200',
+    },
+    {
+      eyebrow: 'Your runway',
+      title: isParticipant
+        ? remainingTeamsCount !== null ? `${remainingTeamsCount} teams left to use` : 'Tracking available teams'
+        : upcomingWeek ? `Gameweek ${upcomingWeek.weekNumber} is next` : 'Watch the next lock',
+      detail: isParticipant
+        ? `${usedTeamIds.size} team${usedTeamIds.size === 1 ? '' : 's'} already burned from your pool.`
+        : comp.status === 'UPCOMING'
+        ? 'Join early so your first pick is not rushed.'
+        : 'Entries are closed, but the drama is still live.',
+      accent: 'text-cyan-200',
+    },
+  ];
 
   const toggleWeek = (wn: number) => {
     setCollapsedWeeks((prev) => {
@@ -473,6 +594,46 @@ export default function CompetitionHomePage() {
     toast.success('Browser alerts enabled');
   };
 
+  const sidebarStatusLabel = !isParticipant
+    ? (comp.status === 'UPCOMING' ? 'Not joined' : 'Viewer')
+    : awaitingPayment
+    ? 'Pending payment'
+    : isWinner
+    ? 'Winner'
+    : isEliminated
+    ? `Out in GW${participant?.eliminatedWeek}`
+    : openWeekWithoutPick
+    ? `Pick due GW${openWeekWithoutPick.weekNumber}`
+    : openWeekWithPick
+    ? `Pick saved GW${openWeekWithPick.weekNumber}`
+    : 'Active';
+
+  const sidebarSummary = !isParticipant
+    ? (comp.status === 'UPCOMING'
+        ? 'Join the competition and complete the entry flow before the next lock.'
+        : 'You can follow results and selections, but new entries are closed.')
+    : awaitingPayment
+    ? (comp.paymentMode === 'MANUAL'
+        ? 'Your place is registered. The organiser still needs to confirm payment.'
+        : 'Your entry exists, but payment has not fully settled yet.')
+    : isWinner
+    ? 'You have already won this competition. Use the quick actions below to review the final table and results.'
+    : isEliminated
+    ? 'You are out of this run, but you can still track every remaining fixture and survivor.'
+    : openWeekWithoutPick
+    ? 'You still need to choose a team for the next open gameweek.'
+    : openWeekWithPick
+    ? 'Your selection is saved. You can still change it until the lock time.'
+    : 'No immediate action is needed right now.';
+
+  const sidebarMeta = awaitingPayment
+    ? actionMeta
+    : openWeekWithoutPick
+    ? `Deadline: ${formatDistanceToNow(parseDate(openWeekWithoutPick.data.lockAt), { addSuffix: true })}`
+    : openWeekWithPick
+    ? `Next lock: ${formatDistanceToNow(parseDate(openWeekWithPick.data.lockAt), { addSuffix: true })}`
+    : actionMeta;
+
   const reminderPanel = showReminderSetup ? (
     <section className="card p-4 sm:p-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -546,7 +707,7 @@ export default function CompetitionHomePage() {
             <div className="mt-4 grid max-w-xl grid-cols-3 gap-2 sm:gap-3 lg:gap-4">
               <HeroStat label="Players" value={String(comp.participantCount ?? 0)} />
               <HeroStat label="Active" value={String(comp.activeCount ?? 0)} />
-              <HeroStat label="Entry" value={comp.entryFee > 0 ? `€${comp.entryFee}` : 'Free'} />
+              <HeroStat label="Prize" value={comp.prizePool && comp.prizePool > 0 ? `€${comp.prizePool}` : comp.entryFee > 0 ? `€${comp.entryFee}` : 'Free'} />
             </div>
           </div>
           <div className="flex gap-2 flex-wrap items-start lg:flex-col lg:items-end">
@@ -610,7 +771,94 @@ export default function CompetitionHomePage() {
           </Link>
         </div>
         </div>
+        <div className="relative mt-6 grid gap-3 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)]">
+          <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4 backdrop-blur-sm">
+            <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-200/80">
+              <span>Competition Pulse</span>
+              {latestCompletedWeek && <span className="text-gray-500">•</span>}
+              {latestCompletedWeek && <span className="text-yellow-200/90">Latest: GW{latestCompletedWeek.weekNumber}</span>}
+            </div>
+            <h2 className="mt-3 text-2xl font-black tracking-tight text-white sm:text-3xl">{storylineTitle}</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-300 sm:text-[15px]">{storylineBody}</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <span className="rounded-full border border-white/10 bg-black/15 px-3 py-1.5 text-xs font-medium text-gray-200">
+                {eliminatedCount} eliminated
+              </span>
+              <span className="rounded-full border border-white/10 bg-black/15 px-3 py-1.5 text-xs font-medium text-gray-200">
+                {survivalRate}% survival rate
+              </span>
+              {weeklySurvivalRate != null && (
+                <span className="rounded-full border border-white/10 bg-black/15 px-3 py-1.5 text-xs font-medium text-gray-200">
+                  GW survival {weeklySurvivalRate}%
+                </span>
+              )}
+              {mostBackedTeam && (
+                <span className="rounded-full border border-white/10 bg-black/15 px-3 py-1.5 text-xs font-medium text-gray-200">
+                  Crowd pick: {mostBackedTeam.teamShortName} {mostBackedTeam.percentage}%
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+            {spotlightCards.map((card) => (
+              <NarrativeCard
+                key={card.eyebrow}
+                eyebrow={card.eyebrow}
+                title={card.title}
+                detail={card.detail}
+                accent={card.accent}
+              />
+            ))}
+          </div>
+        </div>
       </section>
+
+      <section className="grid gap-4 lg:grid-cols-3">
+        <InsightPanel
+          eyebrow="Crowd read"
+          title={mostBackedTeam ? `${mostBackedTeam.teamShortName} carried the weight` : 'Waiting for the first crowd signal'}
+          detail={mostBackedTeam
+            ? `${mostBackedTeam.pickCount} players backed ${mostBackedTeam.teamName} in the latest resolved week, accounting for ${mostBackedTeam.percentage}% of tracked picks.`
+            : 'Once a gameweek locks, this area highlights where the crowd moved together.'}
+          tone="brand"
+        />
+        <InsightPanel
+          eyebrow="Knockout blow"
+          title={biggestCasualty ? `${biggestCasualty.teamShortName} was the trapdoor` : 'No major casualty yet'}
+          detail={biggestCasualty
+            ? `${biggestCasualty.pickCount} entries went out backing ${biggestCasualty.teamName}. This is the kind of swing that changes a competition fast.`
+            : latestCompletedWeek
+            ? 'The latest resolved week did not produce a clear mass-casualty team.'
+            : 'Once results land, this surfaces the team that took the most players down.'}
+          tone="danger"
+        />
+        <InsightPanel
+          eyebrow="Contrarian edge"
+          title={contrarianSurvivor ? `${contrarianSurvivor.teamShortName} rewarded nerve` : 'No contrarian hero yet'}
+          detail={contrarianSurvivor
+            ? `Only ${contrarianSurvivor.pickCount} player${contrarianSurvivor.pickCount === 1 ? '' : 's'} trusted ${contrarianSurvivor.teamName}, and they stayed alive.`
+            : 'When a low-owned team gets players through, it shows up here as the smartest unpopular move.'}
+          tone="success"
+        />
+      </section>
+
+      {resultsProcessing && (
+        <section className="rounded-[1.35rem] border border-yellow-500/30 bg-yellow-500/10 px-4 py-4 sm:px-5">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-yellow-300">Processing Update</div>
+              <h2 className="mt-1 text-lg font-semibold text-white">Simulated results are still being finalized</h2>
+              <p className="mt-1 text-sm text-gray-300">
+                Fixture outcomes are in, but eliminations and survivor counts are still syncing. This page will refresh automatically when processing completes.
+              </p>
+            </div>
+            <div className="inline-flex items-center gap-2 self-start rounded-full border border-yellow-400/30 bg-black/10 px-3 py-1.5 text-xs font-medium text-yellow-200">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-yellow-300" />
+              Updating
+            </div>
+          </div>
+        </section>
+      )}
 
       <div className="hidden lg:flex justify-end">
         <button
@@ -635,9 +883,10 @@ export default function CompetitionHomePage() {
           {sidebarCollapsed && (
             <ActionPanel
               tone={actionTone}
-              title={actionTitle}
-              body={actionBody}
-              meta={actionMeta}
+              title="Status & Actions"
+              statusLabel={sidebarStatusLabel}
+              body={sidebarSummary}
+              meta={sidebarMeta}
               cta={!isParticipant && comp.status === 'UPCOMING' ? (
                 <Link to={`/competitions?code=${encodeURIComponent(comp.joinCode ?? String(compId))}`} className="btn-primary w-full sm:w-auto text-sm">
                   Go to join flow
@@ -1059,9 +1308,10 @@ export default function CompetitionHomePage() {
         >
             <ActionPanel
               tone={actionTone}
-              title={actionTitle}
-              body={actionBody}
-              meta={actionMeta}
+              title="Status & Actions"
+              statusLabel={sidebarStatusLabel}
+              body={sidebarSummary}
+              meta={sidebarMeta}
               cta={!isParticipant && comp.status === 'UPCOMING' ? (
                 <Link to={`/competitions?code=${encodeURIComponent(comp.joinCode ?? String(compId))}`} className="btn-primary w-full sm:w-auto text-sm">
                   Go to join flow
@@ -1144,6 +1394,52 @@ export default function CompetitionHomePage() {
   );
 }
 
+function NarrativeCard({
+  eyebrow,
+  title,
+  detail,
+  accent,
+}: {
+  eyebrow: string;
+  title: string;
+  detail: string;
+  accent: string;
+}) {
+  return (
+    <div className="rounded-[1.35rem] border border-white/8 bg-white/[0.045] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">{eyebrow}</div>
+      <div className={clsx('mt-2 text-lg font-black tracking-tight', accent)}>{title}</div>
+      <p className="mt-2 text-sm leading-6 text-gray-400">{detail}</p>
+    </div>
+  );
+}
+
+function InsightPanel({
+  eyebrow,
+  title,
+  detail,
+  tone,
+}: {
+  eyebrow: string;
+  title: string;
+  detail: string;
+  tone: 'brand' | 'danger' | 'success';
+}) {
+  const toneClasses = {
+    brand: 'border-brand-500/20 bg-brand-500/[0.08] text-brand-200',
+    danger: 'border-red-500/20 bg-red-500/[0.08] text-red-200',
+    success: 'border-green-500/20 bg-green-500/[0.08] text-green-200',
+  } as const;
+
+  return (
+    <div className={clsx('rounded-[1.4rem] border p-4 sm:p-5', toneClasses[tone])}>
+      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] opacity-70">{eyebrow}</div>
+      <h3 className="mt-2 text-lg font-semibold tracking-tight text-white">{title}</h3>
+      <p className="mt-2 text-sm leading-6 text-gray-300">{detail}</p>
+    </div>
+  );
+}
+
 function TeamButton({
   name, shortName, isMyPick, isUsed, isClickable, align, pickStat, onClick,
 }: {
@@ -1206,12 +1502,14 @@ function TeamButton({
 function ActionPanel({
   tone,
   title,
+  statusLabel,
   body,
   meta,
   cta,
 }: {
   tone: 'brand' | 'warning' | 'danger' | 'success';
   title: string;
+  statusLabel: string;
   body: string;
   meta?: string | null;
   cta?: ReactNode;
@@ -1225,11 +1523,17 @@ function ActionPanel({
 
   return (
     <section className="card p-4 sm:p-5">
-      <div className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${toneClasses[tone]}`}>
-        Next step
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">Next Action</div>
+          <h2 className="mt-2 text-lg font-semibold tracking-tight text-white">{title}</h2>
+          <p className="mt-1 text-sm font-medium text-gray-400">{statusLabel}</p>
+        </div>
+        <div className={`inline-flex shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${toneClasses[tone]}`}>
+          {tone === 'danger' ? 'Urgent' : tone === 'warning' ? 'Attention' : tone === 'success' ? 'Ready' : 'Live'}
+        </div>
       </div>
-      <h2 className="mt-3 text-xl font-semibold tracking-tight text-white">{title}</h2>
-      <p className="mt-2 text-sm leading-6 text-gray-300">{body}</p>
+      <p className="mt-3 text-sm leading-6 text-gray-300">{body}</p>
       {meta && <p className="mt-3 rounded-xl border border-white/8 bg-black/10 px-3 py-2 text-xs text-gray-400">{meta}</p>}
       {cta && <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">{cta}</div>}
     </section>

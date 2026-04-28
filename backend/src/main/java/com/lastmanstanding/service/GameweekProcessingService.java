@@ -161,14 +161,20 @@ public class GameweekProcessingService {
             List<PickResult> autoResults = savedPicks.stream()
                     .map(p -> new PickResult(p, PickOutcome.PENDING)).toList();
             pickResultRepository.saveAll(autoResults);
+        } else {
+            toEliminate.addAll(missed);
+        }
+
+        if (!toEliminate.isEmpty()) {
+            toEliminate.forEach(cp -> {
+                cp.setStatus(ParticipantStatus.ELIMINATED);
+                cp.setEliminatedWeek(gw.getWeekNumber());
+            });
+            participantRepository.saveAll(toEliminate);
 
             for (CompetitionParticipant cp : toEliminate) {
                 eliminateParticipant(cp, gw);
-            }
-        } else {
-            for (CompetitionParticipant cp : missed) {
-                eliminateParticipant(cp, gw);
-                log.info("Missed pick (ELIMINATE mode) — eliminated user {}", cp.getUser().getUsername());
+                log.info("Missed pick — eliminated user {}", cp.getUser().getUsername());
             }
         }
     }
