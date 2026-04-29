@@ -133,6 +133,9 @@ export interface GameweekSelectionsData {
   selections: GameweekSelection[];
   byeGranted: boolean;
   weekNumber: number;
+  activeAtStart?: number;
+  advancedThisWeek?: number;
+  eliminatedThisWeek?: number;
 }
 
 export interface Team {

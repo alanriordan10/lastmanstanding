@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/lastmanstanding?prepareThreshold=0}
+    url: ${DB_URL}
     username: ${DB_USERNAME:lmsuser}
     password: ${DB_PASSWORD:lmspassword}
     driver-class-name: org.postgresql.Driver

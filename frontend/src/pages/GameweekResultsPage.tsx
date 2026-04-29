@@ -544,7 +544,7 @@ export default function GameweekResultsPage() {
                 <div key={f.id} className="bg-surface-700/50 rounded-lg px-4 py-3 text-sm">
                   <div className="sm:hidden space-y-2">
                     <div className="flex items-center justify-between gap-3">
-                      <span className="font-medium text-gray-200">{f.homeTeamShortName}</span>
+                      <span className="font-medium text-gray-200 min-w-0 truncate">{f.homeTeamShortName}</span>
                       <div className="flex items-center justify-center min-w-[60px]">
                         {f.status === 'FINISHED' ? (
                           <span className="font-bold text-white">{f.scoreHome} - {f.scoreAway}</span>
@@ -554,16 +554,16 @@ export default function GameweekResultsPage() {
                           <span className="text-gray-400 text-xs">{format(parseDate(f.kickoffAt), 'HH:mm')}</span>
                         )}
                       </div>
-                      <span className="font-medium text-gray-200">{f.awayTeamShortName}</span>
+                      <span className="font-medium text-gray-200 min-w-0 truncate">{f.awayTeamShortName}</span>
                     </div>
                     <div className="text-center text-xs text-gray-400">
                       {f.homeTeamName} vs {f.awayTeamName}
                     </div>
                   </div>
 
-                  <div className="hidden sm:grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-                    <span className="text-gray-200 text-right">{f.homeTeamName}</span>
-                    <div className="flex items-center justify-center min-w-[60px]">
+                  <div className="hidden sm:grid grid-cols-[minmax(0,1fr)_72px_minmax(0,1fr)] items-center gap-3">
+                    <span className="text-gray-200 text-right min-w-0 truncate">{f.homeTeamName}</span>
+                    <div className="flex items-center justify-center min-w-[72px]">
                       {f.status === 'FINISHED' ? (
                         <span className="font-bold text-white">{f.scoreHome} - {f.scoreAway}</span>
                       ) : f.status === 'POSTPONED' ? (
@@ -572,7 +572,7 @@ export default function GameweekResultsPage() {
                         <span className="text-gray-400 text-xs">{format(parseDate(f.kickoffAt), 'HH:mm')}</span>
                       )}
                     </div>
-                    <span className="text-gray-200">{f.awayTeamName}</span>
+                    <span className="text-gray-200 min-w-0 truncate">{f.awayTeamName}</span>
                   </div>
                 </div>
               ))}

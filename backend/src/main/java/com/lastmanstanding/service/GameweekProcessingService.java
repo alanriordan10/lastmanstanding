@@ -81,6 +81,10 @@ public class GameweekProcessingService {
 
     private void doLockGameweek(Gameweek gw) {
         Competition comp = competitionRepository.findById(gw.getCompetition().getId()).orElseThrow();
+        if (comp.getStatus() == CompetitionStatus.UPCOMING) {
+            comp.setStatus(CompetitionStatus.ACTIVE);
+            competitionRepository.save(comp);
+        }
         List<CompetitionParticipant> activeParticipants =
                 participantRepository.findByCompetitionIdAndStatus(comp.getId(), ParticipantStatus.ACTIVE);
 
@@ -123,6 +127,8 @@ public class GameweekProcessingService {
 
     private void handleMissedPicksBatch(Competition comp, Gameweek gw,
                                         List<CompetitionParticipant> missed, Set<Long> teamsWithFixture) {
+        List<CompetitionParticipant> toEliminate = new ArrayList<>();
+
         if (comp.getMissedPickMode() == MissedPickMode.AUTO_ASSIGN) {
             // Load used team IDs for ALL missed-pick users in ONE query — avoid N+1
             List<Long> missedUserIds = missed.stream().map(cp -> cp.getUser().getId()).toList();
@@ -135,7 +141,6 @@ public class GameweekProcessingService {
 
             List<Team> allTeams = teamRepository.findAllByOrderByNameAsc();
             List<Pick> autoPicks = new ArrayList<>();
-            List<CompetitionParticipant> toEliminate = new ArrayList<>();
 
             for (CompetitionParticipant cp : missed) {
                 Set<Long> usedTeamIds = usedTeamsByUser.getOrDefault(cp.getUser().getId(), Set.of());
