@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useRef, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api';
 import type { Competition, Club, Participant } from '../types';
@@ -42,6 +43,8 @@ export default function ClubAdminPage() {
   const [adminSearchResults, setAdminSearchResults] = useState<{id: number; username: string; email: string}[]>([]);
   const [adminSearching, setAdminSearching] = useState(false);
   const adminDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
 
   // Competition list controls
   const [compSearch, setCompSearch] = useState('');
@@ -78,6 +81,13 @@ export default function ClubAdminPage() {
     setStartDate('');
     setStatus('UPCOMING');
   };
+
+  useEffect(() => {
+    if (!showForm) return;
+    requestAnimationFrame(() => {
+      nameInputRef.current?.focus();
+    });
+  }, [showForm, editingComp]);
 
   const populateCompetitionForm = (competition: Competition) => {
     setEditingComp(competition);
@@ -126,7 +136,9 @@ export default function ClubAdminPage() {
       const created = response.data as Competition;
       toast.success(created.joinCode
         ? `Competition created! Join code: ${created.joinCode}`
-        : 'Competition created!');
+        : created.visibility === 'PUBLIC'
+          ? 'Competition created! Public competitions do not use a join code.'
+          : 'Competition created!');
       queryClient.setQueryData<Competition[]>(['club-admin', 'competitions'], (old) =>
         old ? [response.data, ...old] : [response.data]
       );
@@ -266,7 +278,16 @@ export default function ClubAdminPage() {
             </p>
           </div>
           <div className="grid grid-cols-3 gap-2 sm:gap-3">
-            <AdminHeroStat label="Competitions" value={String(competitions?.length ?? 0)} accent="text-brand-200" />
+            <AdminHeroStat
+              label={(
+                <>
+                  <span className="sm:hidden">Comps</span>
+                  <span className="hidden sm:inline">Competitions</span>
+                </>
+              )}
+              value={String(competitions?.length ?? 0)}
+              accent="text-brand-200"
+            />
             <AdminHeroStat label="Upcoming" value={String(competitions?.filter((c) => c.status === 'UPCOMING').length ?? 0)} accent="text-cyan-200" />
             <AdminHeroStat label="Active" value={String(competitions?.filter((c) => c.status === 'ACTIVE').length ?? 0)} accent="text-green-200" />
           </div>
@@ -347,32 +368,49 @@ export default function ClubAdminPage() {
         )}
       </div>
 
-      {/* Create form */}
+      {/* Create/Edit form (modal) */}
       {showForm && (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (editingComp) {
-              updateMutation.mutate();
-              return;
-            }
-            createMutation.mutate();
-          }}
-          className="card space-y-4"
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/70 px-4 py-10 sm:py-12"
+          onClick={resetCompetitionForm}
         >
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="font-semibold text-gray-200">{editingComp ? `Edit ${editingComp.name}` : 'New Competition'}</h2>
-              <p className="text-sm text-gray-400">
-                {editingComp ? 'Update prize money, entry settings, timing, and visibility.' : 'Create a new club competition and configure how players join.'}
-              </p>
-            </div>
-            {editingComp && <span className="badge-blue self-start sm:self-auto">Editing</span>}
-          </div>
+          <div className="w-full max-w-3xl" onClick={(e) => e.stopPropagation()}>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (editingComp) {
+                  updateMutation.mutate();
+                  return;
+                }
+                createMutation.mutate();
+              }}
+              ref={formRef}
+              className="card space-y-4 border border-white/10 shadow-[0_30px_80px_rgba(2,6,23,0.55)]"
+            >
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="font-semibold text-gray-200">{editingComp ? `Edit ${editingComp.name}` : 'New Competition'}</h2>
+                  <p className="text-sm text-gray-400">
+                    {editingComp ? 'Update prize money, entry settings, timing, and visibility.' : 'Create a new club competition and configure how players join.'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {editingComp && <span className="badge-blue">Editing</span>}
+                  <button
+                    type="button"
+                    onClick={resetCompetitionForm}
+                    className="inline-flex items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-xs text-gray-300 transition hover:bg-white/[0.08] hover:text-white"
+                    aria-label="Close competition editor"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-300">Name *</label>
               <input
+                ref={nameInputRef}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="input-field"
@@ -548,7 +586,9 @@ export default function ClubAdminPage() {
               Cancel
             </button>
           </div>
-        </form>
+            </form>
+          </div>
+        </div>
       )}
 
       {/* Competitions list */}
@@ -642,7 +682,9 @@ export default function ClubAdminPage() {
                               comp.status === 'ACTIVE' ? 'badge-green' :
                               comp.status === 'UPCOMING' ? 'badge-blue' : 'badge-gray'
                             }>{comp.status}</span>
-                            {comp.visibility === 'PRIVATE' && <span className="badge-yellow">Private</span>}
+                            {comp.visibility === 'PRIVATE'
+                              ? <span className="badge-yellow">Private</span>
+                              : <span className="badge-gray">Public</span>}
                             <h3 className="font-semibold text-gray-100 truncate">{comp.name}</h3>
                           </div>
                         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400">
@@ -650,20 +692,24 @@ export default function ClubAdminPage() {
                           <span>{comp.participantCount} players ({comp.activeCount} active)</span>
                           {comp.entryFee > 0 && <span className="text-brand-400 font-semibold">€{comp.entryFee}</span>}
                         </div>
-                        {comp.visibility === 'PRIVATE' && comp.joinCode && (
+                        {comp.visibility === 'PRIVATE' && comp.joinCode ? (
                           <div className="mt-2 inline-flex w-fit items-center gap-2 rounded-lg border border-brand-500/25 bg-brand-500/8 px-2.5 py-1 text-[11px] text-brand-200">
                             <span className="font-semibold uppercase tracking-[0.12em] text-brand-300">Invite code</span>
                             <span className="rounded bg-brand-500/12 px-1.5 py-0.5 font-mono text-[12px] font-semibold tracking-[0.14em] text-white">
                               {comp.joinCode}
                             </span>
                           </div>
+                        ) : (
+                          <div className="mt-2 inline-flex w-fit items-center rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-gray-300">
+                            Public - no invite code required.
+                          </div>
                         )}
                       </div>
                       <div className="flex flex-wrap gap-2 sm:shrink-0 sm:justify-end">
-                        {comp.joinCode && (
+                        {comp.joinCode ? (
                           <button
                             onClick={() => {
-                              const inviteUrl = `${window.location.origin}/competitions?code=${encodeURIComponent(comp.joinCode ?? '')}`;
+                              const inviteUrl = `${window.location.origin}/invite/${encodeURIComponent(comp.joinCode ?? '')}`;
                               navigator.clipboard.writeText(inviteUrl).then(() => {
                                 toast.success(`Invite link copied for ${comp.name}`);
                               }).catch(() => toast.error('Could not copy invite link'));
@@ -671,6 +717,18 @@ export default function ClubAdminPage() {
                             className="text-xs px-3 py-1.5 rounded-lg bg-brand-600/15 hover:bg-brand-600/30 text-brand-300 transition"
                           >
                             Copy Invite
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              const inviteUrl = `${window.location.origin}/competitions/${comp.id}`;
+                              navigator.clipboard.writeText(inviteUrl).then(() => {
+                                toast.success(`Public link copied for ${comp.name}`);
+                              }).catch(() => toast.error('Could not copy public link'));
+                            }}
+                            className="text-xs px-3 py-1.5 rounded-lg bg-brand-600/15 hover:bg-brand-600/30 text-brand-300 transition"
+                          >
+                            Copy Public Link
                           </button>
                         )}
                         <button
@@ -751,7 +809,7 @@ export default function ClubAdminPage() {
   );
 }
 
-function AdminHeroStat({ label, value, accent }: { label: string; value: string; accent: string }) {
+function AdminHeroStat({ label, value, accent }: { label: ReactNode; value: string; accent: string }) {
   return (
     <div className="rounded-2xl border border-white/8 bg-white/[0.045] px-3 py-2 text-center backdrop-blur-sm">
       <div className={`text-lg font-black ${accent}`}>{value}</div>

@@ -56,7 +56,7 @@ public class Competition {
     @Column(name = "visibility", nullable = false)
     private CompetitionVisibility visibility = CompetitionVisibility.PUBLIC;
 
-    @Column(name = "join_code", nullable = false, unique = true, length = 12)
+    @Column(name = "join_code", unique = true, length = 12)
     private String joinCode;
 
     @Column(name = "prize_pool", precision = 10, scale = 2)

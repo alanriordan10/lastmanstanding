@@ -208,7 +208,18 @@ public class CompetitionController {
     @GetMapping("/{id}/me")
     public MyStatusResponse myStatus(@PathVariable Long id,
                                      @AuthenticationPrincipal UserDetailsImpl userDetails) {
-        var info = competitionService.getMyStatus(id, userDetails.getId());
+        CompetitionService.ParticipantInfo info;
+        try {
+            info = competitionService.getMyStatus(id, userDetails.getId());
+        } catch (ResponseStatusException ex) {
+            if (ex.getStatusCode() == HttpStatus.NOT_FOUND) {
+                if (!competitionRepository.existsById(id)) {
+                    throw ex;
+                }
+                return new MyStatusResponse(null, List.of(), List.of());
+            }
+            throw ex;
+        }
 
         // Build pick result map
         Map<Long, PickResult> resultMap = info.results().stream()
@@ -426,7 +437,23 @@ public class CompetitionController {
             );
         }).toList();
 
-        return new GameweekSelectionsData(selections, gw.isByeGranted(), gw.getWeekNumber());
+            List<CompetitionParticipant> participants = participantRepository.findByCompetitionId(id);
+            int activeAtStart = (int) participants.stream()
+                .filter(cp -> cp.getEliminatedWeek() == null || cp.getEliminatedWeek() >= gw.getWeekNumber())
+                .count();
+            int eliminatedThisWeek = (int) participants.stream()
+                .filter(cp -> cp.getEliminatedWeek() != null && cp.getEliminatedWeek() == gw.getWeekNumber())
+                .count();
+            int advancedThisWeek = Math.max(activeAtStart - eliminatedThisWeek, 0);
+
+            return new GameweekSelectionsData(
+                selections,
+                gw.isByeGranted(),
+                gw.getWeekNumber(),
+                activeAtStart,
+                advancedThisWeek,
+                eliminatedThisWeek
+            );
     }
 
     // ── Survivor Table ───────────────────────────────────────────────────

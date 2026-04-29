@@ -89,6 +89,13 @@ public final class CompetitionDtos {
             String clubName,
             String winnerUsername
     ) {
+                private static String joinCodeFor(Competition c) {
+                        if (c.getVisibility() == CompetitionVisibility.PRIVATE) {
+                                return c.getJoinCode();
+                        }
+                        return null;
+                }
+
         public static CompetitionResponse from(Competition c, int participantCount, int activeCount, String winnerUsername) {
             return new CompetitionResponse(
                     c.getId(), c.getName(), c.getDescription(), c.getEntryFee(), c.getPrizePool(),
@@ -96,7 +103,7 @@ public final class CompetitionDtos {
                     c.isPostponedConsumesTeam(), c.isPassFeeToParticipant(),
                     c.getPaymentMode() != null ? c.getPaymentMode().name() : "FREE",
                     c.getVisibility() != null ? c.getVisibility().name() : "PUBLIC",
-                    c.getJoinCode(),
+                                        joinCodeFor(c),
                     c.getStartDate(), null,
                     c.getCreatedBy().getUsername(),
                     participantCount, activeCount,
@@ -114,7 +121,7 @@ public final class CompetitionDtos {
                     c.isPostponedConsumesTeam(), c.isPassFeeToParticipant(),
                     c.getPaymentMode() != null ? c.getPaymentMode().name() : "FREE",
                     c.getVisibility() != null ? c.getVisibility().name() : "PUBLIC",
-                    c.getJoinCode(),
+                    joinCodeFor(c),
                     c.getStartDate(), firstGameweekDate,
                     c.getCreatedBy().getUsername(),
                     participantCount, activeCount,
@@ -252,7 +259,10 @@ public final class CompetitionDtos {
     public record GameweekSelectionsData(
             List<GameweekSelectionResponse> selections,
             boolean byeGranted,
-            Integer weekNumber
+            Integer weekNumber,
+            Integer activeAtStart,
+            Integer advancedThisWeek,
+            Integer eliminatedThisWeek
     ) {}
 
     public record TeamResponse(

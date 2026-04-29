@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { type CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import api from '../api';
 import type { Competition, AuditLog, Participant, Club } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -21,6 +22,29 @@ export default function AdminPage() {
   const { isAdmin } = useAuth();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<'competitions' | 'clubs' | 'users' | 'sync' | 'simulate' | 'testdata' | 'audit'>('competitions');
+  const [statusTone, setStatusTone] = useState<'ok' | 'info' | 'warn' | 'error'>('ok');
+  const [statusMessage, setStatusMessage] = useState('All systems nominal');
+
+  const tabs = [
+    { key: 'competitions', label: 'Competitions' },
+    { key: 'clubs', label: 'Clubs' },
+    { key: 'users', label: 'Users' },
+    { key: 'sync', label: 'Fixture Sync' },
+    { key: 'simulate', label: 'Simulate Results' },
+    { key: 'testdata', label: 'Test Data' },
+    { key: 'audit', label: 'Audit Log' },
+  ] as const;
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ tone: 'ok' | 'info' | 'warn' | 'error'; message: string }>).detail;
+      if (!detail) return;
+      setStatusTone(detail.tone);
+      setStatusMessage(detail.message);
+    };
+    window.addEventListener('admin-status', handler);
+    return () => window.removeEventListener('admin-status', handler);
+  }, []);
 
   if (!isAdmin) {
     return (
@@ -51,25 +75,51 @@ export default function AdminPage() {
         </div>
       </section>
 
+      <div className="rounded-2xl border border-white/8 bg-white/[0.035] px-4 py-3 text-xs text-gray-300">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
+            <span
+              className={`inline-flex h-2 w-2 rounded-full ${
+                statusTone === 'error'
+                  ? 'bg-red-400'
+                  : statusTone === 'warn'
+                  ? 'bg-yellow-400'
+                  : statusTone === 'info'
+                  ? 'bg-brand-400'
+                  : 'bg-green-400'
+              }`}
+            />
+            <span className="font-semibold text-gray-200">Status</span>
+            <span className="text-gray-400">{statusMessage}</span>
+          </div>
+          <span className="text-gray-500">Admin tooling is ready for operations.</span>
+        </div>
+      </div>
+
       {/* Tabs */}
-      <div className="flex gap-2 overflow-x-auto rounded-2xl border border-white/8 bg-black/10 p-1.5">
-        {(['competitions', 'clubs', 'users', 'sync', 'simulate', 'testdata', 'audit'] as const).map((t) => (
+      <div className="sm:hidden">
+        <label className="block text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Admin section</label>
+        <div className="mt-2">
+          <AdminSelect
+            value={tab}
+            onChange={(next) => setTab(next as typeof tab)}
+            options={tabs.map((t) => ({ value: t.key, label: t.label }))}
+          />
+        </div>
+      </div>
+
+      <div className="hidden sm:flex gap-2 overflow-x-auto rounded-2xl border border-white/8 bg-black/10 p-1.5">
+        {tabs.map((t) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
+            key={t.key}
+            onClick={() => setTab(t.key)}
             className={`rounded-xl px-4 py-2.5 text-sm font-medium transition-all whitespace-nowrap ${
-              tab === t
+              tab === t.key
                 ? 'bg-[linear-gradient(135deg,rgba(56,189,248,0.18),rgba(14,165,233,0.08))] text-white shadow-[0_12px_30px_rgba(14,165,233,0.12)]'
                 : 'text-gray-400 hover:bg-white/[0.05] hover:text-white'
             }`}
           >
-            {t === 'competitions' ? 'Competitions' :
-             t === 'clubs' ? 'Clubs' :
-             t === 'users' ? 'Users' :
-             t === 'sync' ? 'Fixture Sync' :
-             t === 'simulate' ? 'Simulate Results' :
-             t === 'testdata' ? 'Test Data' :
-             'Audit Log'}
+            {t.label}
           </button>
         ))}
       </div>
@@ -86,9 +136,153 @@ export default function AdminPage() {
 
 function AdminHeroStat({ label, value, accent }: { label: string; value: string; accent: string }) {
   return (
-    <div className="rounded-2xl border border-white/8 bg-white/[0.045] px-3 py-2 text-center backdrop-blur-sm">
-      <div className={`text-lg font-black ${accent}`}>{value}</div>
-      <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">{label}</div>
+    <div className="min-w-0 rounded-2xl border border-white/8 bg-white/[0.045] px-3 py-2 text-center backdrop-blur-sm">
+      <div className={`text-base sm:text-lg font-black leading-tight ${accent}`}>{value}</div>
+      <div className="mt-0.5 text-[8px] sm:text-[10px] font-semibold uppercase tracking-[0.06em] sm:tracking-[0.18em] text-gray-400 leading-tight break-words">
+        <span className="sm:hidden">
+          {label === 'Competitions' ? 'Comps' : label === 'Fixture Sync' ? 'Sync' : label}
+        </span>
+        <span className="hidden sm:inline">{label}</span>
+      </div>
+    </div>
+  );
+}
+
+type AdminSelectOption = {
+  value: string;
+  label: string;
+  disabled?: boolean;
+};
+
+function AdminSelect({
+  value,
+  onChange,
+  options,
+  placeholder,
+  disabled,
+  className,
+  menuClassName,
+}: {
+  value: string;
+  onChange: (nextValue: string) => void;
+  options: AdminSelectOption[];
+  placeholder?: string;
+  disabled?: boolean;
+  className?: string;
+  menuClassName?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const [menuStyle, setMenuStyle] = useState<CSSProperties>({});
+
+  const selected = options.find((opt) => opt.value === value);
+  const displayLabel = selected?.label ?? placeholder ?? 'Select';
+
+  const updatePosition = useCallback(() => {
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const top = rect.bottom + 8;
+    const left = rect.left;
+    setMenuStyle({
+      position: 'fixed',
+      top,
+      left,
+      width: rect.width,
+      zIndex: 60,
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (open) updatePosition();
+  }, [open, updatePosition]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (buttonRef.current?.contains(target)) return;
+      if (menuRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    const handleScroll = () => updatePosition();
+    const handleResize = () => updatePosition();
+    document.addEventListener('mousedown', handleClick);
+    window.addEventListener('scroll', handleScroll, true);
+    window.addEventListener('resize', handleResize);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      window.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [open, updatePosition]);
+
+  return (
+    <div className="relative">
+      <button
+        ref={buttonRef}
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen((prev) => !prev)}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') setOpen(false);
+          if (event.key === 'Enter' || event.key === ' ') setOpen((prev) => !prev);
+        }}
+        className={`input-field flex items-center justify-between gap-2 text-left ${className ?? ''}`}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span className={value ? 'text-gray-100' : 'text-gray-500'}>{displayLabel}</span>
+        <svg
+          className={`h-4 w-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          aria-hidden="true"
+        >
+          <path
+            fillRule="evenodd"
+            d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.94l3.71-3.71a.75.75 0 1 1 1.06 1.06l-4.24 4.24a.75.75 0 0 1-1.06 0L5.21 8.29a.75.75 0 0 1 .02-1.08Z"
+            clipRule="evenodd"
+          />
+        </svg>
+      </button>
+      {open &&
+        createPortal(
+          <div
+            ref={menuRef}
+            role="listbox"
+            className={`max-h-64 overflow-auto rounded-xl border border-white/10 bg-surface-900/95 shadow-[0_20px_45px_rgba(2,6,23,0.45)] backdrop-blur ${menuClassName ?? ''}`}
+            style={menuStyle}
+          >
+            {options.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                role="option"
+                aria-selected={opt.value === value}
+                disabled={opt.disabled}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  if (opt.disabled) return;
+                  const scrollTop = window.scrollY;
+                  onChange(opt.value);
+                  setOpen(false);
+                  requestAnimationFrame(() => {
+                    window.scrollTo({ top: scrollTop, behavior: 'auto' });
+                  });
+                }}
+                className={`w-full px-3 py-2 text-left text-sm transition ${
+                  opt.value === value
+                    ? 'bg-brand-600/20 text-white'
+                    : 'text-gray-200 hover:bg-white/[0.06]'
+                } ${opt.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
@@ -195,7 +389,9 @@ function CompetitionsTab() {
       const created = response.data as Competition;
       toast.success(created.joinCode
         ? `Competition created! Join code: ${created.joinCode}`
-        : 'Competition created!');
+        : created.visibility === 'PUBLIC'
+          ? 'Competition created! Public competitions do not use a join code.'
+          : 'Competition created!');
       queryClient.setQueryData<Competition[]>(['admin', 'competitions'], (old) =>
         old ? [response.data, ...old] : [response.data]
       );
@@ -406,28 +602,38 @@ function CompetitionsTab() {
 
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-300">Missed Pick Mode</label>
-              <select value={missedPickMode} onChange={(e) => setMissedPickMode(e.target.value)} className="input-field">
-                <option value="ELIMINATE">Eliminate</option>
-                <option value="AUTO_ASSIGN">Auto-Assign</option>
-              </select>
+              <AdminSelect
+                value={missedPickMode}
+                onChange={(next) => setMissedPickMode(next)}
+                options={[
+                  { value: 'ELIMINATE', label: 'Eliminate' },
+                  { value: 'AUTO_ASSIGN', label: 'Auto-Assign' },
+                ]}
+              />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-300">Club (optional)</label>
-              <select value={clubId} onChange={(e) => setClubId(e.target.value)} className="input-field">
-                <option value={editingComp ? 'none' : ''}>No Club</option>
-                {clubs?.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+              <AdminSelect
+                value={clubId}
+                onChange={(next) => setClubId(next)}
+                options={[
+                  { value: editingComp ? 'none' : '', label: 'No Club' },
+                  ...(clubs ?? []).map((club) => ({ value: String(club.id), label: club.name })),
+                ]}
+              />
             </div>
             {editingComp && (
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-300">Status</label>
-                <select value={status} onChange={(e) => setStatus(e.target.value as 'UPCOMING' | 'ACTIVE' | 'COMPLETED')} className="input-field">
-                  <option value="UPCOMING">Upcoming</option>
-                  <option value="ACTIVE">Active</option>
-                  <option value="COMPLETED">Completed</option>
-                </select>
+                <AdminSelect
+                  value={status}
+                  onChange={(next) => setStatus(next as 'UPCOMING' | 'ACTIVE' | 'COMPLETED')}
+                  options={[
+                    { value: 'UPCOMING', label: 'Upcoming' },
+                    { value: 'ACTIVE', label: 'Active' },
+                    { value: 'COMPLETED', label: 'Completed' },
+                  ]}
+                />
               </div>
             )}
             <div className="sm:col-span-2">
@@ -1077,14 +1283,17 @@ function ClubsTab() {
                 Assign Club Admin
                 <span className="ml-2 text-xs text-gray-500 font-normal">— this user will manage the club's competitions</span>
               </label>
-              <select value={clubAdminUserId} onChange={(e) => setClubAdminUserId(e.target.value)} className="input-field">
-                <option value="">No admin yet (assign later)</option>
-                {eligibleUsers.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.username} ({u.email}){u.role === 'CLUB_ADMIN' ? ' — already a Club Admin' : ''}
-                  </option>
-                ))}
-              </select>
+              <AdminSelect
+                value={clubAdminUserId}
+                onChange={(next) => setClubAdminUserId(next)}
+                options={[
+                  { value: '', label: 'No admin yet (assign later)' },
+                  ...eligibleUsers.map((u) => ({
+                    value: String(u.id),
+                    label: `${u.username} (${u.email})${u.role === 'CLUB_ADMIN' ? ' — already a Club Admin' : ''}`,
+                  })),
+                ]}
+              />
               {clubAdminUserId && (
                 <p className="mt-1 text-xs text-yellow-400">This user will be promoted to Club Admin role automatically.</p>
               )}
@@ -1100,14 +1309,18 @@ function ClubsTab() {
       {assigningClub && (
         <div className="card border-brand-500/40 space-y-4">
           <h3 className="font-semibold text-gray-200">Assign Admin to "{assigningClub.name}"</h3>
-          <select value={assignUserId} onChange={(e) => setAssignUserId(e.target.value)} className="input-field" autoFocus>
-            <option value="">Select a user…</option>
-            {eligibleUsers.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.username} ({u.email}){u.role === 'CLUB_ADMIN' ? ' — Club Admin' : ''}
-              </option>
-            ))}
-          </select>
+          <AdminSelect
+            value={assignUserId}
+            onChange={(next) => setAssignUserId(next)}
+            options={[
+              { value: '', label: 'Select a user…' },
+              ...eligibleUsers.map((u) => ({
+                value: String(u.id),
+                label: `${u.username} (${u.email})${u.role === 'CLUB_ADMIN' ? ' — Club Admin' : ''}`,
+              })),
+            ]}
+            className="h-10"
+          />
           <div className="flex gap-3">
             <button
               onClick={() => assignAdminMutation.mutate({ clubId: assigningClub.id, userId: Number(assignUserId) })}
@@ -1140,13 +1353,12 @@ function ClubsTab() {
             </span>
             <div className="flex items-center gap-2 text-sm text-gray-400">
               <span>Rows per page:</span>
-              <select
-                value={pageSize}
-                onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
-                className="rounded bg-surface-700 border border-gray-600 px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-brand-500"
-              >
-                {[5, 10, 20, 50].map((n) => <option key={n} value={n}>{n}</option>)}
-              </select>
+              <AdminSelect
+                value={String(pageSize)}
+                onChange={(next) => { setPageSize(Number(next)); setCurrentPage(1); }}
+                options={[5, 10, 20, 50].map((n) => ({ value: String(n), label: String(n) }))}
+                className="h-9 w-24 text-xs"
+              />
             </div>
           </div>
 
@@ -1392,11 +1604,15 @@ function UsersTab() {
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-300">Role</label>
-              <select value={role} onChange={(e) => setRole(e.target.value as 'USER' | 'CLUB_ADMIN' | 'ADMIN')} className="input-field">
-                <option value="USER">User</option>
-                <option value="CLUB_ADMIN">Club Admin</option>
-                <option value="ADMIN">Admin</option>
-              </select>
+              <AdminSelect
+                value={role}
+                onChange={(next) => setRole(next as 'USER' | 'CLUB_ADMIN' | 'ADMIN')}
+                options={[
+                  { value: 'USER', label: 'User' },
+                  { value: 'CLUB_ADMIN', label: 'Club Admin' },
+                  { value: 'ADMIN', label: 'Admin' },
+                ]}
+              />
             </div>
           </div>
           <button type="submit" disabled={createMutation.isPending} className="btn-primary">
@@ -1423,13 +1639,12 @@ function UsersTab() {
             </span>
             <div className="flex items-center gap-2 text-sm text-gray-400">
               <span>Rows per page:</span>
-              <select
-                value={pageSize}
-                onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
-                className="rounded bg-surface-700 border border-gray-600 px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-brand-500"
-              >
-                {[10, 20, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
-              </select>
+              <AdminSelect
+                value={String(pageSize)}
+                onChange={(next) => { setPageSize(Number(next)); setCurrentPage(1); }}
+                options={[10, 20, 50, 100].map((n) => ({ value: String(n), label: String(n) }))}
+                className="h-9 w-24 text-xs"
+              />
             </div>
           </div>
 
@@ -1448,15 +1663,16 @@ function UsersTab() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <select
+                  <AdminSelect
                     value={u.role}
-                    onChange={(e) => changeRoleMutation.mutate({ userId: u.id, newRole: e.target.value })}
-                    className="rounded bg-surface-700 border border-gray-600 px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-brand-500"
-                  >
-                    <option value="USER">USER</option>
-                    <option value="CLUB_ADMIN">CLUB_ADMIN</option>
-                    <option value="ADMIN">ADMIN</option>
-                  </select>
+                    onChange={(next) => changeRoleMutation.mutate({ userId: u.id, newRole: next })}
+                    options={[
+                      { value: 'USER', label: 'USER' },
+                      { value: 'CLUB_ADMIN', label: 'CLUB_ADMIN' },
+                      { value: 'ADMIN', label: 'ADMIN' },
+                    ]}
+                    className="h-9 w-32 text-xs"
+                  />
                   <button
                     onClick={() => toggleDisabledMutation.mutate(u.id)}
                     disabled={toggleDisabledMutation.isPending}
@@ -1499,15 +1715,16 @@ function UsersTab() {
                     <td className="py-3 px-4 font-medium">{u.username}</td>
                     <td className="py-3 px-4 text-gray-400">{u.email}</td>
                     <td className="py-3 px-4">
-                      <select
+                      <AdminSelect
                         value={u.role}
-                        onChange={(e) => changeRoleMutation.mutate({ userId: u.id, newRole: e.target.value })}
-                        className="rounded bg-surface-700 border border-gray-600 px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-brand-500"
-                      >
-                        <option value="USER">USER</option>
-                        <option value="CLUB_ADMIN">CLUB_ADMIN</option>
-                        <option value="ADMIN">ADMIN</option>
-                      </select>
+                        onChange={(next) => changeRoleMutation.mutate({ userId: u.id, newRole: next })}
+                        options={[
+                          { value: 'USER', label: 'USER' },
+                          { value: 'CLUB_ADMIN', label: 'CLUB_ADMIN' },
+                          { value: 'ADMIN', label: 'ADMIN' },
+                        ]}
+                        className="h-9 w-32 text-xs"
+                      />
                     </td>
                     <td className="py-3 px-4">
                       {u.disabled ? <span className="badge-red">Disabled</span> : <span className="badge-green">Active</span>}
@@ -1631,8 +1848,23 @@ function UsersTab() {
 function SyncTab() {
   const syncMutation = useMutation({
     mutationFn: () => api.post('/admin/fixtures/import/sync'),
-    onSuccess: () => toast.success('Sync triggered successfully!'),
-    onError: () => toast.error('Sync failed'),
+    onMutate: () => {
+      window.dispatchEvent(new CustomEvent('admin-status', {
+        detail: { tone: 'info', message: 'Triggering fixture sync...' },
+      }));
+    },
+    onSuccess: () => {
+      toast.success('Sync triggered successfully!');
+      window.dispatchEvent(new CustomEvent('admin-status', {
+        detail: { tone: 'ok', message: 'Fixture sync triggered' },
+      }));
+    },
+    onError: () => {
+      toast.error('Sync failed');
+      window.dispatchEvent(new CustomEvent('admin-status', {
+        detail: { tone: 'error', message: 'Fixture sync failed' },
+      }));
+    },
   });
 
   return (
@@ -1695,6 +1927,7 @@ function SimulateTab() {
   const [selectedGwId, setSelectedGwId] = useState<string>('');
   const [fixtureResults, setFixtureResults] = useState<Record<number, { status: string; scoreHome: string; scoreAway: string }>>({});
   const [skipAutoComplete, setSkipAutoComplete] = useState(false);
+  const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable');
 
   const { data: competitions } = useQuery<Competition[]>({
     queryKey: ['admin', 'competitions'],
@@ -1727,6 +1960,11 @@ function SimulateTab() {
         skipAutoComplete: skipAutoComplete
       });
     },
+    onMutate: () => {
+      window.dispatchEvent(new CustomEvent('admin-status', {
+        detail: { tone: 'info', message: 'Processing gameweek simulation...' },
+      }));
+    },
     onSuccess: (response) => {
       const data = response.data;
       if (data.newStatus === 'PROCESSING') {
@@ -1740,6 +1978,9 @@ function SimulateTab() {
               clearInterval(poll);
               toast.success(`Gameweek ${data.gameweekId} processing complete! Status: ${gw.status}` +
                 (gw.activeParticipants !== undefined ? ` — ${gw.activeParticipants} active remaining.` : ''), { duration: 5000 });
+              window.dispatchEvent(new CustomEvent('admin-status', {
+                detail: { tone: 'ok', message: 'Processing complete' },
+              }));
               queryClient.invalidateQueries({ queryKey: ['admin', 'gameweeks', selectedCompId] });
               queryClient.invalidateQueries({ queryKey: ['admin', 'participants'] });
               queryClient.invalidateQueries({ queryKey: ['admin', 'competitions'] });
@@ -1757,6 +1998,9 @@ function SimulateTab() {
           message += ` ${data.activeParticipants} active participant${data.activeParticipants !== 1 ? 's' : ''} remaining.`;
         }
         toast.success(message, { duration: 6000 });
+        window.dispatchEvent(new CustomEvent('admin-status', {
+          detail: { tone: 'ok', message: 'Processing complete' },
+        }));
         queryClient.invalidateQueries({ queryKey: ['admin', 'gameweeks', selectedCompId] });
         queryClient.invalidateQueries({ queryKey: ['admin', 'participants'] });
         queryClient.invalidateQueries({ queryKey: ['admin', 'competitions'] });
@@ -1764,7 +2008,12 @@ function SimulateTab() {
         setFixtureResults({});
       }
     },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Simulation failed'),
+    onError: (err: any) => {
+      window.dispatchEvent(new CustomEvent('admin-status', {
+        detail: { tone: 'error', message: 'Simulation failed' },
+      }));
+      toast.error(err.response?.data?.message || 'Simulation failed');
+    },
   });
 
   const handleSetResult = (fixtureId: number, field: 'status' | 'scoreHome' | 'scoreAway', value: string) => {
@@ -1854,6 +2103,11 @@ function SimulateTab() {
         skipAutoComplete: skipAutoComplete,
       });
     },
+    onMutate: () => {
+      window.dispatchEvent(new CustomEvent('admin-status', {
+        detail: { tone: 'info', message: 'Processing gameweek simulation...' },
+      }));
+    },
     onSuccess: (response) => {
       const data = response.data;
       // The backend processes results asynchronously — poll until the gameweek status changes
@@ -1866,6 +2120,9 @@ function SimulateTab() {
             clearInterval(poll);
             toast.success(`GW${data.gameweekId} processing complete! Status: ${gw.status}` +
               (gw.activeParticipants !== undefined ? ` — ${gw.activeParticipants} active remaining.` : ''), { duration: 5000 });
+            window.dispatchEvent(new CustomEvent('admin-status', {
+              detail: { tone: 'ok', message: 'Processing complete' },
+            }));
             queryClient.invalidateQueries({ queryKey: ['admin', 'gameweeks', selectedCompId] });
             queryClient.invalidateQueries({ queryKey: ['admin', 'participants'] });
             queryClient.invalidateQueries({ queryKey: ['admin', 'competitions'] });
@@ -1876,7 +2133,12 @@ function SimulateTab() {
       }, 2000);
       setTimeout(() => clearInterval(poll), 120_000);
     },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Bulk simulation failed'),
+    onError: (err: any) => {
+      window.dispatchEvent(new CustomEvent('admin-status', {
+        detail: { tone: 'error', message: 'Simulation failed' },
+      }));
+      toast.error(err.response?.data?.message || 'Bulk simulation failed');
+    },
   });
 
   return (
@@ -1887,25 +2149,42 @@ function SimulateTab() {
         description="Stress-test eliminations, byes, and downstream status changes before real match results arrive."
       />
 
+      <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-xs text-gray-300">
+        <span className="font-semibold text-gray-200">Density</span>
+        <div className="inline-flex rounded-lg border border-white/10 bg-white/[0.02] p-1">
+          {(['comfortable', 'compact'] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setDensity(mode)}
+              className={`px-3 py-1 text-xs font-semibold rounded-md transition ${
+                density === mode ? 'bg-brand-600/30 text-white' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              {mode === 'comfortable' ? 'Comfortable' : 'Compact'}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Step 1: Select Competition */}
       <div className="card space-y-4">
         <h3 className="font-semibold text-gray-200">1. Select Competition</h3>
-        <select
+        <AdminSelect
           value={selectedCompId}
-          onChange={(e) => {
-            setSelectedCompId(e.target.value);
+          onChange={(next) => {
+            setSelectedCompId(next);
             setSelectedGwId('');
             setFixtureResults({});
           }}
-          className="input-field bg-surface-800 text-white [color-scheme:dark]"
-        >
-          <option value="">Choose a competition…</option>
-          {competitions?.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name} ({c.status}) — {c.participantCount} participants
-            </option>
-          ))}
-        </select>
+          options={[
+            { value: '', label: 'Choose a competition…' },
+            ...(competitions ?? []).map((c) => ({
+              value: String(c.id),
+              label: `${c.name} (${c.status}) — ${c.participantCount} participants`,
+            })),
+          ]}
+        />
       </div>
 
       {/* Step 2: Select Gameweek */}
@@ -1919,21 +2198,20 @@ function SimulateTab() {
           ) : !gameweeks?.length ? (
             <p className="text-gray-400 text-sm">No gameweeks found for this competition.</p>
           ) : (
-            <select
+            <AdminSelect
               value={selectedGwId}
-              onChange={(e) => {
-                setSelectedGwId(e.target.value);
+              onChange={(next) => {
+                setSelectedGwId(next);
                 setFixtureResults({});
               }}
-              className="input-field bg-surface-800 text-white [color-scheme:dark]"
-            >
-              <option value="">Choose a gameweek…</option>
-              {gameweeks.map((gw) => (
-                <option key={gw.id} value={gw.id}>
-                  GW{gw.weekNumber} — {gw.status} — {gw.fixtures.length} fixtures — Locks: {parseDate(gw.lockAt).toLocaleString()}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: 'Choose a gameweek…' },
+                ...gameweeks.map((gw) => ({
+                  value: String(gw.id),
+                  label: `GW${gw.weekNumber} — ${gw.status} — ${gw.fixtures.length} fixtures — Locks: ${parseDate(gw.lockAt).toLocaleString()}`,
+                })),
+              ]}
+            />
           )}
         </div>
       )}
@@ -1941,14 +2219,14 @@ function SimulateTab() {
       {/* Step 3: Set Fixture Results */}
       {selectedGameweek && (
         <div className="card space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h3 className="font-semibold text-gray-200">
               3. Set Fixture Results for GW{selectedGameweek.weekNumber}
             </h3>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={handleRandomiseAll}
-                className="text-xs px-3 py-1.5 rounded bg-brand-600/20 hover:bg-brand-600/40 text-brand-400 transition font-medium"
+                className="btn-secondary w-full sm:w-auto text-xs"
                 title="Randomly generate results for all fixtures"
               >
                 🎲 Randomise All
@@ -1956,14 +2234,14 @@ function SimulateTab() {
               <button
                 onClick={() => bulkMutation.mutate()}
                 disabled={bulkMutation.isPending || !selectedGwId}
-                className="text-xs px-3 py-1.5 rounded bg-green-600/20 hover:bg-green-600/40 text-green-400 transition font-medium disabled:opacity-40"
+                className="btn-primary w-full sm:w-auto text-xs disabled:opacity-40"
                 title="Randomise all fixtures and immediately process results"
               >
                 {bulkMutation.isPending ? '⏳ Processing…' : '⚡ Randomise & Process All'}
               </button>
               <button
                 onClick={handleClearAll}
-                className="text-xs px-3 py-1.5 rounded bg-gray-600/20 hover:bg-gray-600/40 text-gray-400 transition"
+                className="text-xs px-3 py-1.5 rounded border border-white/10 text-gray-300 hover:bg-white/[0.04] transition w-full sm:w-auto"
                 title="Clear all results"
               >
                 ✕ Clear All
@@ -1982,16 +2260,16 @@ function SimulateTab() {
           {selectedGameweek.fixtures.length === 0 ? (
             <p className="text-gray-400 text-sm">No fixtures in this gameweek.</p>
           ) : (
-            <div className="space-y-3">
+            <div className={density === 'compact' ? 'space-y-2' : 'space-y-3'}>
               {selectedGameweek.fixtures.map((fixture) => {
                 const result = fixtureResults[fixture.id] || { status: '', scoreHome: '', scoreAway: '' };
                 const hasResult = !!result.status;
                 return (
-                  <div key={fixture.id} className={`rounded-lg p-4 space-y-3 transition-colors ${
+                  <div key={fixture.id} className={`rounded-lg transition-colors ${
                     hasResult ? 'bg-brand-600/10 border border-brand-600/30' : 'bg-surface-700/50'
-                  }`}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3 text-sm">
+                  } ${density === 'compact' ? 'p-3 space-y-2' : 'p-4 space-y-3'}`}>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex flex-wrap items-center gap-2 text-sm">
                         <span className="font-medium text-gray-200">{fixture.homeTeamName}</span>
                         {/* Live result preview */}
                         {hasResult && result.status === 'FINISHED' ? (
@@ -2010,7 +2288,7 @@ function SimulateTab() {
                           </span>
                         )}
                       </div>
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-gray-500 sm:text-right">
                         {parseDate(fixture.kickoffAt).toLocaleString(undefined, {
                           day: '2-digit', month: '2-digit', year: 'numeric',
                           hour: '2-digit', minute: '2-digit', hour12: false
@@ -2019,34 +2297,34 @@ function SimulateTab() {
                     </div>
 
                     {/* Quick Actions */}
-                    <div className="flex flex-wrap gap-2">
+                    <div className={`flex flex-wrap gap-2 ${density === 'compact' ? 'text-[11px]' : 'text-xs'}`}>
                       <button
                         onClick={() => handleQuickWin(fixture, 'home')}
-                        className="text-xs px-2.5 py-1 rounded bg-green-600/20 hover:bg-green-600/40 text-green-400 transition"
+                        className="text-xs px-2.5 py-1 rounded bg-green-600/20 hover:bg-green-600/40 text-green-400 transition w-full sm:w-auto"
                       >
                         {fixture.homeTeamShortName} Win
                       </button>
                       <button
                         onClick={() => handleQuickDraw(fixture)}
-                        className="text-xs px-2.5 py-1 rounded bg-gray-600/20 hover:bg-gray-600/40 text-gray-400 transition"
+                        className="text-xs px-2.5 py-1 rounded bg-gray-600/20 hover:bg-gray-600/40 text-gray-400 transition w-full sm:w-auto"
                       >
                         Draw
                       </button>
                       <button
                         onClick={() => handleQuickWin(fixture, 'away')}
-                        className="text-xs px-2.5 py-1 rounded bg-green-600/20 hover:bg-green-600/40 text-green-400 transition"
+                        className="text-xs px-2.5 py-1 rounded bg-green-600/20 hover:bg-green-600/40 text-green-400 transition w-full sm:w-auto"
                       >
                         {fixture.awayTeamShortName} Win
                       </button>
                       <button
                         onClick={() => handlePostpone(fixture)}
-                        className="text-xs px-2.5 py-1 rounded bg-orange-600/20 hover:bg-orange-600/40 text-orange-400 transition"
+                        className="text-xs px-2.5 py-1 rounded bg-orange-600/20 hover:bg-orange-600/40 text-orange-400 transition w-full sm:w-auto"
                       >
                         Postpone
                       </button>
                       <button
                         onClick={() => randomiseFixture(fixture)}
-                        className="text-xs px-2.5 py-1 rounded bg-brand-600/20 hover:bg-brand-600/40 text-brand-400 transition ml-auto"
+                        className="text-xs px-2.5 py-1 rounded bg-brand-600/20 hover:bg-brand-600/40 text-brand-400 transition w-full sm:w-auto sm:ml-auto"
                         title="Generate a random result for this fixture"
                       >
                         🎲
@@ -2054,19 +2332,20 @@ function SimulateTab() {
                     </div>
 
                     {/* Manual Entry */}
-                    <div className="grid grid-cols-3 gap-3 text-sm">
+                    <div className={`grid grid-cols-1 gap-3 sm:grid-cols-3 ${density === 'compact' ? 'text-xs' : 'text-sm'}`}>
                       <div>
                         <label className="block text-xs text-gray-400 mb-1">Status</label>
-                        <select
+                        <AdminSelect
                           value={result.status}
-                          onChange={(e) => handleSetResult(fixture.id, 'status', e.target.value)}
-                          className="w-full px-2 py-1 text-sm rounded bg-surface-800 border border-gray-600 text-gray-200 focus:outline-none focus:border-brand-500"
-                        >
-                          <option value="">—</option>
-                          <option value="FINISHED">FINISHED</option>
-                          <option value="POSTPONED">POSTPONED</option>
-                          <option value="CANCELLED">CANCELLED</option>
-                        </select>
+                          onChange={(next) => handleSetResult(fixture.id, 'status', next)}
+                          options={[
+                            { value: '', label: '—' },
+                            { value: 'FINISHED', label: 'FINISHED' },
+                            { value: 'POSTPONED', label: 'POSTPONED' },
+                            { value: 'CANCELLED', label: 'CANCELLED' },
+                          ]}
+                          className="text-sm py-2"
+                        />
                       </div>
                       <div>
                         <label className="block text-xs text-gray-400 mb-1">Home Score</label>
@@ -2075,7 +2354,7 @@ function SimulateTab() {
                           min="0"
                           value={result.scoreHome}
                           onChange={(e) => handleSetResult(fixture.id, 'scoreHome', e.target.value)}
-                          className="w-full px-2 py-1 text-sm rounded bg-surface-800 border border-gray-600 text-gray-200 focus:outline-none focus:border-brand-500"
+                          className="input-field text-sm py-2"
                           placeholder="0"
                         />
                       </div>
@@ -2086,7 +2365,7 @@ function SimulateTab() {
                           min="0"
                           value={result.scoreAway}
                           onChange={(e) => handleSetResult(fixture.id, 'scoreAway', e.target.value)}
-                          className="w-full px-2 py-1 text-sm rounded bg-surface-800 border border-gray-600 text-gray-200 focus:outline-none focus:border-brand-500"
+                          className="input-field text-sm py-2"
                           placeholder="0"
                         />
                       </div>
@@ -2216,26 +2495,52 @@ function TestDataTab() {
         gameweeksToSeedPicks: gwArray,
       }, { timeout: 120_000 }); // 2 min — large batches take time over Supabase pooler
     },
+    onMutate: () => {
+      window.dispatchEvent(new CustomEvent('admin-status', {
+        detail: { tone: 'info', message: 'Generating test data...' },
+      }));
+    },
     onSuccess: (response: any) => {
       const data = response.data;
       toast.success(
         `Created ${data.usersCreated} users, added ${data.participantsAdded} participants, created ${data.picksCreated} picks!`,
         { duration: 5000 }
       );
+      window.dispatchEvent(new CustomEvent('admin-status', {
+        detail: { tone: 'ok', message: 'Test data generated' },
+      }));
       queryClient.invalidateQueries({ queryKey: ['admin'] });
       queryClient.invalidateQueries({ queryKey: ['competitions'] });
     },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Generation failed'),
+    onError: (err: any) => {
+      window.dispatchEvent(new CustomEvent('admin-status', {
+        detail: { tone: 'error', message: 'Test data generation failed' },
+      }));
+      toast.error(err.response?.data?.message || 'Generation failed');
+    },
   });
 
   const cleanupMutation = useMutation({
     mutationFn: () => api.delete('/admin/test/cleanup', { timeout: 120_000 }),
+    onMutate: () => {
+      window.dispatchEvent(new CustomEvent('admin-status', {
+        detail: { tone: 'warn', message: 'Cleaning up test data...' },
+      }));
+    },
     onSuccess: (response: any) => {
       toast.success(`Deleted ${response.data.usersDeleted} test users`);
+      window.dispatchEvent(new CustomEvent('admin-status', {
+        detail: { tone: 'ok', message: 'Test data cleanup complete' },
+      }));
       queryClient.invalidateQueries({ queryKey: ['admin'] });
       queryClient.invalidateQueries({ queryKey: ['competitions'] });
     },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Cleanup failed'),
+    onError: (err: any) => {
+      window.dispatchEvent(new CustomEvent('admin-status', {
+        detail: { tone: 'error', message: 'Test data cleanup failed' },
+      }));
+      toast.error(err.response?.data?.message || 'Cleanup failed');
+    },
   });
 
   return (
@@ -2254,18 +2559,17 @@ function TestDataTab() {
         <div className="space-y-4">
           <div>
             <label className="block text-sm text-gray-400 mb-2">Select Competition</label>
-            <select
+            <AdminSelect
               value={selectedCompId}
-              onChange={(e) => setSelectedCompId(e.target.value)}
-              className="input-field"
-            >
-              <option value="">Choose a competition…</option>
-              {competitions?.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name} ({c.status}) — {c.participantCount} participants
-                </option>
-              ))}
-            </select>
+              onChange={(next) => setSelectedCompId(next)}
+              options={[
+                { value: '', label: 'Choose a competition…' },
+                ...(competitions ?? []).map((c) => ({
+                  value: String(c.id),
+                  label: `${c.name} (${c.status}) — ${c.participantCount} participants`,
+                })),
+              ]}
+            />
           </div>
 
           <div>
@@ -2429,6 +2733,7 @@ function AuditTab() {
   const [page, setPage] = useState(0);
   const [pageInput, setPageInput] = useState('1');
   const [pageSize, setPageSize] = useState(50);
+  const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable');
 
   useEffect(() => {
     setPage(0);
@@ -2452,14 +2757,21 @@ function AuditTab() {
     queryFn: () => api.get('/admin/audit', { params: auditParams }).then((r) => r.data),
   });
   useEffect(() => {
+    if (isLoading) {
+      window.dispatchEvent(new CustomEvent('admin-status', {
+        detail: { tone: 'info', message: 'Loading audit log...' },
+      }));
+      return;
+    }
+    window.dispatchEvent(new CustomEvent('admin-status', {
+      detail: { tone: 'ok', message: 'Audit log ready' },
+    }));
+  }, [isLoading]);
+  useEffect(() => {
     setPageInput(String((data?.number ?? page) + 1));
   }, [data?.number, page]);
   const totalPages = data?.totalPages ?? 1;
   const currentPage = data?.number ?? page;
-
-  if (isLoading) {
-    return <div className="flex justify-center py-10"><div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" /></div>;
-  }
 
   const logs = data?.content ?? [];
   const actions = useMemo(
@@ -2499,6 +2811,21 @@ function AuditTab() {
   }, [logs, query]);
   const totalElements = data?.totalElements ?? logs.length;
 
+  const activeFilters = [
+    actionFilter !== 'all' ? { key: 'action', label: `Action: ${actionFilter}`, onClear: () => setActionFilter('all') } : null,
+    entityFilter !== 'all' ? { key: 'entity', label: `Entity: ${entityFilter}`, onClear: () => setEntityFilter('all') } : null,
+    adminFilter !== 'all' ? { key: 'admin', label: `Admin: ${adminFilter}`, onClear: () => setAdminFilter('all') } : null,
+    fieldFilter !== 'all' ? { key: 'field', label: `Field: ${fieldFilter}`, onClear: () => setFieldFilter('all') } : null,
+    entityIdFilter.trim() ? { key: 'entityId', label: `Entity ID: ${entityIdFilter.trim()}`, onClear: () => setEntityIdFilter('') } : null,
+    dateFrom ? { key: 'from', label: `From: ${dateFrom}`, onClear: () => setDateFrom('') } : null,
+    dateTo ? { key: 'to', label: `To: ${dateTo}`, onClear: () => setDateTo('') } : null,
+    query.trim() ? { key: 'query', label: `Search: ${query.trim()}`, onClear: () => setQuery('') } : null,
+  ].filter(Boolean) as { key: string; label: string; onClear: () => void }[];
+
+  if (isLoading) {
+    return <div className="flex justify-center py-10"><div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" /></div>;
+  }
+
   return (
     <div className="space-y-6">
       <SectionIntro
@@ -2524,46 +2851,40 @@ function AuditTab() {
               <label className="block text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 mb-2">
                 Action
               </label>
-              <select
+              <AdminSelect
                 value={actionFilter}
-                onChange={(e) => setActionFilter(e.target.value)}
-                className="input-field"
-              >
-                <option value="all">All actions</option>
-                {actions.map((action) => (
-                  <option key={action} value={action}>{action}</option>
-                ))}
-              </select>
+                onChange={(next) => setActionFilter(next)}
+                options={[
+                  { value: 'all', label: 'All actions' },
+                  ...actions.map((action) => ({ value: action, label: action })),
+                ]}
+              />
             </div>
             <div>
               <label className="block text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 mb-2">
                 Entity
               </label>
-              <select
+              <AdminSelect
                 value={entityFilter}
-                onChange={(e) => setEntityFilter(e.target.value)}
-                className="input-field"
-              >
-                <option value="all">All entities</option>
-                {entities.map((entity) => (
-                  <option key={entity} value={entity}>{entity}</option>
-                ))}
-              </select>
+                onChange={(next) => setEntityFilter(next)}
+                options={[
+                  { value: 'all', label: 'All entities' },
+                  ...entities.map((entity) => ({ value: entity, label: entity })),
+                ]}
+              />
             </div>
             <div>
               <label className="block text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 mb-2">
                 Admin
               </label>
-              <select
+              <AdminSelect
                 value={adminFilter}
-                onChange={(e) => setAdminFilter(e.target.value)}
-                className="input-field"
-              >
-                <option value="all">All admins</option>
-                {admins.map((admin) => (
-                  <option key={admin} value={admin}>{admin}</option>
-                ))}
-              </select>
+                onChange={(next) => setAdminFilter(next)}
+                options={[
+                  { value: 'all', label: 'All admins' },
+                  ...admins.map((admin) => ({ value: admin, label: admin })),
+                ]}
+              />
             </div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_10rem_10rem_10rem]">
@@ -2571,16 +2892,14 @@ function AuditTab() {
               <label className="block text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 mb-2">
                 Field
               </label>
-              <select
+              <AdminSelect
                 value={fieldFilter}
-                onChange={(e) => setFieldFilter(e.target.value)}
-                className="input-field"
-              >
-                <option value="all">All fields</option>
-                {fields.map((field) => (
-                  <option key={field} value={field}>{field}</option>
-                ))}
-              </select>
+                onChange={(next) => setFieldFilter(next)}
+                options={[
+                  { value: 'all', label: 'All fields' },
+                  ...fields.map((field) => ({ value: field, label: field })),
+                ]}
+              />
             </div>
             <div>
               <label className="block text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 mb-2">
@@ -2641,27 +2960,72 @@ function AuditTab() {
               <label className="text-[11px] uppercase tracking-[0.16em] text-gray-500">
                 Page size
               </label>
-              <select
+              <AdminSelect
                 value={String(pageSize)}
-                onChange={(e) => setPageSize(Number(e.target.value))}
-                className="input-field h-9 w-24 text-xs"
-              >
-                <option value="25">25</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-              </select>
+                onChange={(next) => setPageSize(Number(next))}
+                options={['25', '50', '100'].map((val) => ({ value: val, label: val }))}
+                className="h-9 w-24 text-xs"
+              />
               <span className="text-[11px] text-gray-500">Server-side filters applied</span>
             </div>
           </div>
+          <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-gray-300">
+            <span className="font-semibold text-gray-200">Density</span>
+            <div className="inline-flex rounded-lg border border-white/10 bg-white/[0.02] p-1">
+              {(['comfortable', 'compact'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setDensity(mode)}
+                  className={`px-3 py-1 text-xs font-semibold rounded-md transition ${
+                    density === mode ? 'bg-brand-600/30 text-white' : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  {mode === 'comfortable' ? 'Comfortable' : 'Compact'}
+                </button>
+              ))}
+            </div>
+          </div>
+          {activeFilters.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {activeFilters.map((filter) => (
+                <button
+                  key={filter.key}
+                  type="button"
+                  onClick={filter.onClear}
+                  className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-gray-300 hover:bg-white/[0.08]"
+                >
+                  {filter.label}
+                  <span className="text-gray-500">×</span>
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => {
+                  setQuery('');
+                  setActionFilter('all');
+                  setEntityFilter('all');
+                  setAdminFilter('all');
+                  setFieldFilter('all');
+                  setEntityIdFilter('');
+                  setDateFrom('');
+                  setDateTo('');
+                }}
+                className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1 text-xs text-gray-400 hover:bg-white/[0.04]"
+              >
+                Clear all
+              </button>
+            </div>
+          )}
         </div>
         <div className="overflow-hidden rounded-xl border border-white/8">
           {filteredLogs.length === 0 ? (
             <p className="text-gray-400 py-8 text-center">No audit entries yet</p>
           ) : (
             <>
-              <div className="divide-y divide-gray-700/50 sm:hidden">
+              <div className={`divide-y divide-gray-700/50 sm:hidden ${density === 'compact' ? 'text-[11px]' : 'text-xs'}`}>
                 {filteredLogs.map((log) => (
-                  <div key={log.id} className="py-3 space-y-2">
+                  <div key={log.id} className={`${density === 'compact' ? 'py-2 space-y-1.5' : 'py-3 space-y-2'}`}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-xs text-gray-500">
@@ -2695,31 +3059,31 @@ function AuditTab() {
               </div>
 
               <div className="hidden sm:block overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className={`w-full ${density === 'compact' ? 'text-xs' : 'text-sm'}`}>
                   <thead>
                     <tr className="border-b border-gray-700 text-left text-gray-400">
-                      <th className="py-3 px-4">Time</th>
-                      <th className="py-3 px-4">Admin</th>
-                      <th className="py-3 px-4">Action</th>
-                      <th className="py-3 px-4">Entity</th>
-                      <th className="py-3 px-4">Field</th>
-                      <th className="py-3 px-4">Old → New</th>
+                      <th className={density === 'compact' ? 'py-2 px-3' : 'py-3 px-4'}>Time</th>
+                      <th className={density === 'compact' ? 'py-2 px-3' : 'py-3 px-4'}>Admin</th>
+                      <th className={density === 'compact' ? 'py-2 px-3' : 'py-3 px-4'}>Action</th>
+                      <th className={density === 'compact' ? 'py-2 px-3' : 'py-3 px-4'}>Entity</th>
+                      <th className={density === 'compact' ? 'py-2 px-3' : 'py-3 px-4'}>Field</th>
+                      <th className={density === 'compact' ? 'py-2 px-3' : 'py-3 px-4'}>Old → New</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredLogs.map((log) => (
                       <tr key={log.id} className="border-b border-gray-700/50">
-                        <td className="py-3 px-4 text-gray-400 whitespace-nowrap">
+                        <td className={`${density === 'compact' ? 'py-2 px-3' : 'py-3 px-4'} text-gray-400 whitespace-nowrap`}>
                           {parseDate(log.createdAt).toLocaleString(undefined, {
                             day: '2-digit', month: '2-digit', year: 'numeric',
                             hour: '2-digit', minute: '2-digit', hour12: false
                           })}
                         </td>
-                        <td className="py-3 px-4">{log.username ?? '—'}</td>
-                        <td className="py-3 px-4"><span className="badge-blue">{log.action}</span></td>
-                        <td className="py-3 px-4 text-gray-400">{log.entityType} #{log.entityId}</td>
-                        <td className="py-3 px-4 text-gray-400">{log.fieldName ?? '—'}</td>
-                        <td className="py-3 px-4 text-gray-400">
+                        <td className={density === 'compact' ? 'py-2 px-3' : 'py-3 px-4'}>{log.username ?? '—'}</td>
+                        <td className={density === 'compact' ? 'py-2 px-3' : 'py-3 px-4'}><span className="badge-blue">{log.action}</span></td>
+                        <td className={`${density === 'compact' ? 'py-2 px-3' : 'py-3 px-4'} text-gray-400`}>{log.entityType} #{log.entityId}</td>
+                        <td className={`${density === 'compact' ? 'py-2 px-3' : 'py-3 px-4'} text-gray-400`}>{log.fieldName ?? '—'}</td>
+                        <td className={`${density === 'compact' ? 'py-2 px-3' : 'py-3 px-4'} text-gray-400`}>
                           {log.oldValue && <span className="text-red-400">{log.oldValue}</span>}
                           {log.oldValue && log.newValue && <span className="mx-1">→</span>}
                           {log.newValue && <span className="text-green-400">{log.newValue}</span>}

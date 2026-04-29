@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import Layout from './components/Layout';
 
@@ -37,6 +37,13 @@ function RouteFallback() {
   );
 }
 
+function InviteRedirect() {
+  const { code } = useParams();
+  if (!code) return <Navigate to="/competitions" replace />;
+  const normalized = code.trim().toUpperCase();
+  return <Navigate to={`/competitions?code=${encodeURIComponent(normalized)}`} replace />;
+}
+
 export default function App() {
   const { user } = useAuth();
 
@@ -50,6 +57,7 @@ export default function App() {
         <Route path="/register-club" element={<RegisterClubPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/invite/:code" element={<InviteRedirect />} />
         <Route path="/competitions" element={<Layout><CompetitionsPage /></Layout>} />
         <Route path="/competitions/:id" element={<Layout><CompetitionHomePage /></Layout>} />
         <Route path="/competitions/:id/survivor-table" element={<Layout><SurvivorTablePage /></Layout>} />

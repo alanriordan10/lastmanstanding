@@ -18,6 +18,32 @@
       radial-gradient(circle at 85% 12%, rgba(250, 204, 21, 0.08), transparent 22rem),
       linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 1));
   }
+
+  select {
+    @apply rounded-xl border border-white/10 bg-white/[0.04] text-gray-100;
+    appearance: none;
+    color-scheme: dark;
+    padding: 0.55rem 2.5rem 0.55rem 1rem;
+    background-image:
+      linear-gradient(45deg, transparent 50%, #94a3b8 50%),
+      linear-gradient(135deg, #94a3b8 50%, transparent 50%),
+      linear-gradient(to right, rgba(255,255,255,0.08), rgba(255,255,255,0.08));
+    background-position:
+      calc(100% - 18px) 50%,
+      calc(100% - 12px) 50%,
+      calc(100% - 2.5rem) 50%;
+    background-size: 6px 6px, 6px 6px, 1px 1.4rem;
+    background-repeat: no-repeat;
+  }
+
+  select:focus {
+    @apply outline-none ring-1 ring-brand-500 border-brand-500;
+  }
+
+  select option {
+    background-color: #0f172a;
+    color: #e5e7eb;
+  }
 }
 
 @layer components {
@@ -41,6 +67,24 @@
   .input-field {
     @apply block w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm text-gray-100
            placeholder-gray-500 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 focus:outline-none transition-colors;
+  }
+  select.input-field {
+    @apply appearance-none pr-10;
+    color-scheme: dark;
+    background-image:
+      linear-gradient(45deg, transparent 50%, #94a3b8 50%),
+      linear-gradient(135deg, #94a3b8 50%, transparent 50%),
+      linear-gradient(to right, rgba(255,255,255,0.08), rgba(255,255,255,0.08));
+    background-position:
+      calc(100% - 18px) 50%,
+      calc(100% - 12px) 50%,
+      calc(100% - 2.5rem) 50%;
+    background-size: 6px 6px, 6px 6px, 1px 1.4rem;
+    background-repeat: no-repeat;
+  }
+  select.input-field option {
+    background-color: #0f172a;
+    color: #e5e7eb;
   }
   .badge {
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] ring-2 ring-inset shadow-sm;

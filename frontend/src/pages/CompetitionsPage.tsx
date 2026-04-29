@@ -53,6 +53,8 @@ export default function CompetitionsPage() {
   // Filter / sort / view state
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'UPCOMING' | 'ACTIVE'>('ALL');
+  const [feeFilter, setFeeFilter] = useState<'ALL' | 'FREE' | 'PAID'>('ALL');
+  const [startWindow, setStartWindow] = useState<'ALL' | '7' | '14' | '30'>('ALL');
   const [sortBy, setSortBy] = useState<'date' | 'players' | 'name'>('date');
   const [listView, setListView] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -62,7 +64,7 @@ export default function CompetitionsPage() {
   const PAGE_SIZE = 12;
 
   // Reset page when filters change
-  useEffect(() => { setCurrentPage(1); }, [search, statusFilter, sortBy, selectedClub, viewMode]);
+  useEffect(() => { setCurrentPage(1); }, [search, statusFilter, feeFilter, startWindow, sortBy, selectedClub, viewMode]);
 
   useEffect(() => {
     setJoinCodeInput(joinCodeParam);
@@ -177,6 +179,21 @@ export default function CompetitionsPage() {
       list = list.filter(c => c.name.toLowerCase().includes(q) || c.clubName?.toLowerCase().includes(q) || c.description?.toLowerCase().includes(q));
     }
     if (statusFilter !== 'ALL') list = list.filter(c => c.status === statusFilter);
+    if (feeFilter !== 'ALL') {
+      list = list.filter(c => feeFilter === 'FREE' ? (c.entryFee ?? 0) === 0 : (c.entryFee ?? 0) > 0);
+    }
+    if (startWindow !== 'ALL') {
+      const days = Number(startWindow);
+      const now = new Date();
+      const cutoff = new Date(now);
+      cutoff.setDate(now.getDate() + days);
+      list = list.filter((c) => {
+        const rawDate = c.firstGameweekDate ?? c.startDate;
+        if (!rawDate) return false;
+        const start = parseDate(rawDate);
+        return start >= now && start <= cutoff;
+      });
+    }
     switch (sortBy) {
       case 'players': list = [...list].sort((a, b) => b.participantCount - a.participantCount); break;
       case 'name':    list = [...list].sort((a, b) => a.name.localeCompare(b.name)); break;
@@ -196,7 +213,7 @@ export default function CompetitionsPage() {
       });
     }
     return list;
-  }, [allComps, search, statusFilter, sortBy, highlightedCompetitionId]);
+  }, [allComps, search, statusFilter, feeFilter, startWindow, sortBy, highlightedCompetitionId]);
 
   const filteredMine = useMemo(() => {
     let list = myComps;
@@ -234,6 +251,8 @@ export default function CompetitionsPage() {
   const showClubFilter = clubs && clubs.length > 0 && (viewMode === 'available' || (viewMode === 'past' && user?.role === 'ADMIN'));
   const activeFilterCount =
     (statusFilter !== 'ALL' ? 1 : 0) +
+    (feeFilter !== 'ALL' ? 1 : 0) +
+    (startWindow !== 'ALL' ? 1 : 0) +
     (sortBy !== 'date' ? 1 : 0) +
     (selectedClub ? 1 : 0) +
     (listView ? 1 : 0);
@@ -372,7 +391,7 @@ export default function CompetitionsPage() {
           </div>
 
           {viewMode === 'available' && (showFilters || activeFilterCount > 0) && (
-            <div className="grid gap-3 rounded-xl border border-gray-700/50 bg-surface-800/50 p-3 sm:grid-cols-[1.4fr_0.9fr_1fr_auto] sm:items-end">
+            <div className="grid gap-3 rounded-xl border border-gray-700/50 bg-surface-800/50 p-3 sm:grid-cols-[1.4fr_1fr_1fr_1fr_auto] sm:items-end">
               <div>
                 <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Status</p>
                 <div className="-mx-1 overflow-x-auto pb-1 sm:mx-0 sm:overflow-visible">
@@ -384,6 +403,55 @@ export default function CompetitionsPage() {
                       </button>
                     ))}
                   </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Entry fee</label>
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    { value: 'ALL', label: 'Any' },
+                    { value: 'FREE', label: 'Free' },
+                    { value: 'PAID', label: 'Paid' },
+                  ] as const).map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setFeeFilter(option.value)}
+                      className={`rounded-lg border px-3 py-2 text-xs font-medium transition ${
+                        feeFilter === option.value
+                          ? 'border-brand-500/40 bg-brand-500/10 text-brand-300'
+                          : 'border-gray-600/50 bg-surface-700 text-gray-300 hover:bg-surface-600'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Starts in</label>
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    { value: 'ALL', label: 'Anytime' },
+                    { value: '7', label: '7 days' },
+                    { value: '14', label: '14 days' },
+                    { value: '30', label: '30 days' },
+                  ] as const).map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setStartWindow(option.value)}
+                      className={`rounded-lg border px-3 py-2 text-xs font-medium transition ${
+                        startWindow === option.value
+                          ? 'border-brand-500/40 bg-brand-500/10 text-brand-300'
+                          : 'border-gray-600/50 bg-surface-700 text-gray-300 hover:bg-surface-600'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -443,6 +511,8 @@ export default function CompetitionsPage() {
                     type="button"
                     onClick={() => {
                       setStatusFilter('ALL');
+                      setFeeFilter('ALL');
+                      setStartWindow('ALL');
                       setSortBy('date');
                       setSelectedClub(null);
                       setListView(false);
@@ -456,7 +526,7 @@ export default function CompetitionsPage() {
             </div>
           )}
 
-          {(search || (viewMode === 'available' && (statusFilter !== 'ALL' || selectedClub || sortBy !== 'date'))) && (
+          {(search || (viewMode === 'available' && (statusFilter !== 'ALL' || feeFilter !== 'ALL' || startWindow !== 'ALL' || selectedClub || sortBy !== 'date'))) && (
             <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
               {viewMode === 'available' && (
                 <span>
@@ -465,6 +535,8 @@ export default function CompetitionsPage() {
               )}
               {search && <span className="rounded-full bg-surface-700 px-2 py-1 text-gray-300">Search: {search}</span>}
               {viewMode === 'available' && statusFilter !== 'ALL' && <span className="rounded-full bg-surface-700 px-2 py-1 text-gray-300">Status: {statusFilter.toLowerCase()}</span>}
+              {viewMode === 'available' && feeFilter !== 'ALL' && <span className="rounded-full bg-surface-700 px-2 py-1 text-gray-300">Fee: {feeFilter.toLowerCase()}</span>}
+              {viewMode === 'available' && startWindow !== 'ALL' && <span className="rounded-full bg-surface-700 px-2 py-1 text-gray-300">Starts in: {startWindow} days</span>}
               {viewMode === 'available' && selectedClub && <span className="rounded-full bg-surface-700 px-2 py-1 text-gray-300">Club: {selectedClub.name}</span>}
             </div>
           )}
@@ -881,7 +953,9 @@ function CompetitionCard({ comp, joined, onJoin, isPending, isHighlighted = fals
           <span className={comp.status === 'UPCOMING' ? 'badge-blue' : comp.status === 'ACTIVE' ? 'badge-green' : 'badge-gray'}>
             {comp.status}
           </span>
-          {comp.visibility === 'PRIVATE' && <span className="badge-yellow">Private</span>}
+          {comp.visibility === 'PRIVATE'
+            ? <span className="badge-yellow">Private</span>
+            : <span className="badge-gray">Public</span>}
         </div>
         <div className="flex items-start">
           {joined ? (
@@ -899,12 +973,16 @@ function CompetitionCard({ comp, joined, onJoin, isPending, isHighlighted = fals
       <div className="mt-1 min-h-[18px]">
         {comp.clubName && <span className="inline-flex max-w-full truncate badge-yellow badge-soft align-top">{comp.clubName}</span>}
       </div>
-      {comp.visibility === 'PRIVATE' && comp.joinCode && (
+      {comp.visibility === 'PRIVATE' && comp.joinCode ? (
         <div className="mt-1 inline-flex w-fit items-center gap-2 rounded-lg border border-brand-500/25 bg-brand-500/8 px-2.5 py-1 text-[11px] text-brand-200">
           <span className="font-semibold uppercase tracking-[0.12em] text-brand-300">Invite code</span>
           <span className="rounded bg-brand-500/12 px-1.5 py-0.5 font-mono text-[12px] font-semibold tracking-[0.14em] text-white">
             {comp.joinCode}
           </span>
+        </div>
+      ) : (
+        <div className="mt-1 inline-flex w-fit items-center rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-gray-300">
+          Public - no invite code required.
         </div>
       )}
       <div className="mt-1.5 min-h-[32px]">

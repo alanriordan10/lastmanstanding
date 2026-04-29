@@ -5,6 +5,8 @@ import com.lastmanstanding.repository.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.server.ResponseStatusException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -141,8 +143,13 @@ public class CompetitionService {
                     ? PaymentMode.FREE
                     : PaymentMode.STRIPE);
         }
-        comp.setVisibility(parseVisibility(visibility));
-        comp.setJoinCode(generateJoinCode());
+        CompetitionVisibility parsedVisibility = parseVisibility(visibility);
+        comp.setVisibility(parsedVisibility);
+        if (parsedVisibility == CompetitionVisibility.PRIVATE) {
+            comp.setJoinCode(generateJoinCode());
+        } else {
+            comp.setJoinCode(null);
+        }
 
         if (clubId != null) {
             Club club = clubRepository.findById(clubId)
@@ -151,18 +158,29 @@ public class CompetitionService {
         }
         Competition saved = competitionRepository.save(comp);
 
-        // Run fixture sync in background so the HTTP response returns immediately
+        // Run fixture sync in background after commit so the competition is visible to the thread.
         Long savedId = saved.getId();
         String savedName = saved.getName();
-        new Thread(() -> {
+        Runnable syncTask = () -> {
             try {
                 int fixtureCount = fixtureSyncService.syncForCompetition(
-                        competitionRepository.findById(savedId).orElseThrow());
+                        competitionRepository.findById(savedId)
+                                .orElseThrow(() -> new IllegalStateException("Competition not found for sync")));
                 log.info("Auto-synced {} fixtures for new competition '{}'", fixtureCount, savedName);
             } catch (Exception e) {
                 log.warn("Could not auto-sync fixtures for competition '{}': {}", savedName, e.getMessage());
             }
-        }, "fixture-sync-" + savedId).start();
+        };
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    new Thread(syncTask, "fixture-sync-" + savedId).start();
+                }
+            });
+        } else {
+            new Thread(syncTask, "fixture-sync-" + savedId).start();
+        }
 
         return saved;
     }
@@ -187,7 +205,15 @@ public class CompetitionService {
             catch (IllegalArgumentException ignored) {}
         }
         if (visibility != null) {
-            comp.setVisibility(parseVisibility(visibility));
+            CompetitionVisibility parsedVisibility = parseVisibility(visibility);
+            comp.setVisibility(parsedVisibility);
+            if (parsedVisibility == CompetitionVisibility.PRIVATE) {
+                if (comp.getJoinCode() == null || comp.getJoinCode().isBlank()) {
+                    comp.setJoinCode(generateJoinCode());
+                }
+            } else {
+                comp.setJoinCode(null);
+            }
         }
         if (startDate != null) comp.setStartDate(startDate);
         if (status != null) comp.setStatus(status);

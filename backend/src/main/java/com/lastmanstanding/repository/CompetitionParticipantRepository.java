@@ -27,7 +27,7 @@ public interface CompetitionParticipantRepository extends JpaRepository<Competit
     List<CompetitionParticipant> findByUserId(Long userId);
 
     /** Returns [competitionId, totalCount, activeCount] rows — avoids N+1 when listing competitions */
-    @Query("SELECT cp.competition.id, COUNT(cp), SUM(CASE WHEN cp.status = 'ACTIVE' THEN 1 ELSE 0 END) FROM CompetitionParticipant cp GROUP BY cp.competition.id")
+    @Query("SELECT cp.competition.id, COUNT(cp), SUM(CASE WHEN cp.status IN ('ACTIVE','WINNER') THEN 1 ELSE 0 END) FROM CompetitionParticipant cp GROUP BY cp.competition.id")
     List<Object[]> countParticipantsGroupedByCompetition();
 
     /** Load all winners across all competitions in one query */
