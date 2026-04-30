@@ -431,7 +431,7 @@ export default function CompetitionHomePage() {
   const remainingTeamsCount = totalTeamsCount > 0 ? Math.max(totalTeamsCount - usedTeamIds.size, 0) : null;
   const eliminatedCount = Math.max((comp.participantCount ?? 0) - (comp.activeCount ?? 0), 0);
   const survivalRate = comp.participantCount > 0
-    ? Math.round(((comp.activeCount ?? 0) / comp.participantCount) * 100)
+    ? Math.max(Math.round(((comp.activeCount ?? 0) / comp.participantCount) * 100), (comp.activeCount ?? 0) > 0 ? 1 : 0)
     : 0;
 
   const upcomingWeek = sortedWeeks
@@ -539,9 +539,31 @@ export default function CompetitionHomePage() {
     ? 'Registration is open and the first real pressure point is the next lock.'
     : 'The next pick window is where this competition starts to separate cautious players from survivors.';
 
-  if (latestCompletedWeek && biggestCasualty) {
-    storylineTitle = `Gameweek ${latestCompletedWeek.weekNumber} shook the field`;
-    storylineBody = `${biggestCasualty.pickCount} players trusted ${biggestCasualty.teamShortName} and paid for it. ${comp.activeCount} survivor${comp.activeCount === 1 ? '' : 's'} remain.`;
+  if (comp.status === 'COMPLETED' || comp.activeCount === 1) {
+    const winnerLabel = isWinner ? 'You won this competition' : 'We have a winner';
+    storylineTitle = winnerLabel;
+    const winnerName = comp.winnerUsername ?? (isWinner ? 'You' : 'One player');
+    storylineBody = comp.activeCount === 1
+      ? `${winnerName} is the last survivor standing after ${latestCompletedWeek ? `Gameweek ${latestCompletedWeek.weekNumber}` : 'the final gameweek'}. Every round survived, every pick paid off.`
+      : `${winnerName} made it through every round to claim the title. This competition is over.`;
+  } else if (latestCompletedWeek && biggestCasualty) {
+    const wn = latestCompletedWeek.weekNumber;
+    const bigLoss = biggestCasualty.pickCount >= 3;
+    const titleOptions = bigLoss
+      ? [
+          `Gameweek ${wn} shook the field`,
+          `Gameweek ${wn} had a costly upset`,
+          `Gameweek ${wn} caught the crowd out`,
+          `Gameweek ${wn} made its mark`,
+        ]
+      : [
+          `Gameweek ${wn} had a casualty`,
+          `Gameweek ${wn} claimed a victim`,
+          `Gameweek ${wn} stung a few`,
+          `Gameweek ${wn} took its toll`,
+        ];
+    storylineTitle = titleOptions[wn % titleOptions.length];
+    storylineBody = `${biggestCasualty.pickCount} player${biggestCasualty.pickCount === 1 ? '' : 's'} trusted ${biggestCasualty.teamShortName} and paid for it. ${comp.activeCount} survivor${comp.activeCount === 1 ? '' : 's'} remain.`;
   } else if (latestCompletedWeek && weeklySurvivalRate != null && weeklySurvivalRate < 50) {
     storylineTitle = `Gameweek ${latestCompletedWeek.weekNumber} was chaos`;
     storylineBody = `${weeklyEliminatedCount} players went out in the latest week. Only ${weeklySurvivalRate}% survived the round.`;
@@ -574,8 +596,12 @@ export default function CompetitionHomePage() {
   const spotlightCards = [
     {
       eyebrow: 'Knockout pressure',
-      title: `${eliminatedCount} out, ${comp.activeCount} alive`,
-      detail: comp.participantCount > 0
+      title: comp.activeCount === 1
+        ? '1 survivor remains'
+        : `${eliminatedCount} out, ${comp.activeCount} alive`,
+      detail: comp.activeCount === 1
+        ? 'One player has made it through every round.'
+        : comp.participantCount > 0
         ? `${survivalRate}% of the field is still standing.`
         : 'The field will tighten as results come in.',
       accent: eliminatedCount > 0 ? 'text-yellow-300' : 'text-brand-200',
@@ -953,6 +979,12 @@ export default function CompetitionHomePage() {
             </div>
             <h2 className="mt-3 text-2xl font-black tracking-tight text-white sm:text-3xl">{storylineTitle}</h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-300 sm:text-[15px]">{storylineBody}</p>
+            {(comp.status === 'COMPLETED' || comp.activeCount === 1) && comp.winnerUsername && (
+              <div className="mt-3 inline-flex items-center gap-2 rounded-xl border border-yellow-400/30 bg-yellow-400/10 px-4 py-2 text-sm font-semibold text-yellow-200">
+                <span>🏆</span>
+                <span>{isWinner ? 'You are the winner!' : `Winner: ${comp.winnerUsername}`}</span>
+              </div>
+            )}
             <div className="mt-4 flex flex-wrap gap-2">
               <span className="rounded-full border border-white/10 bg-black/15 px-3 py-1.5 text-xs font-medium text-gray-200">
                 {eliminatedCount} eliminated
@@ -1373,8 +1405,8 @@ export default function CompetitionHomePage() {
                     {/* ── Fixture rows — collapsible ── */}
                     {!isCollapsed && (
                       <div id={`gw-${wn}-fixtures`} className="space-y-2 mt-4">
-                        {/* Show message if user was eliminated before this gameweek */}
-                        {isEliminated && participant?.eliminatedWeek != null && wn > participant.eliminatedWeek && (
+                        {/* Show message if user was eliminated before this gameweek (only for non-completed gameweeks) */}
+                        {isEliminated && participant?.eliminatedWeek != null && wn > participant.eliminatedWeek && gwStatus !== 'COMPLETED' && (
                           <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm">
                             <p className="text-red-400 font-medium">
                               ⚠️ You were eliminated in Gameweek {participant.eliminatedWeek} and cannot make picks for this gameweek.
@@ -1401,7 +1433,7 @@ export default function CompetitionHomePage() {
                             return (
                               <div
                                 key={f.id}
-                                className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-2 rounded-lg bg-surface-700/50 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3 lg:gap-4"
+                                className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-lg bg-surface-700/50 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3 lg:gap-4"
                               >
                                 <TeamButton
                                   name={f.homeTeamName}
@@ -1413,7 +1445,7 @@ export default function CompetitionHomePage() {
                                   pickStat={homeStat}
                                   onClick={() => handlePick(gwId, f.homeTeamId, lockAt)}
                                 />
-                              <div className="flex flex-col items-center justify-center min-w-[52px] sm:min-w-[72px] lg:min-w-[96px]">
+                                <div className="flex flex-col items-center justify-center min-w-[80px] sm:min-w-[80px] lg:min-w-[96px] px-1">
                                 {f.status === 'FINISHED' ? (
                                   <span className="font-bold text-white text-xs sm:text-sm lg:text-base">{f.scoreHome} - {f.scoreAway}</span>
                                 ) : f.status === 'POSTPONED' ? (
@@ -1426,7 +1458,7 @@ export default function CompetitionHomePage() {
                                     <span className="text-gray-300 text-[10px] sm:text-xs lg:text-sm font-medium">{formatKickoffTime(f.kickoffAt)}</span>
                                   </>
                                 )}
-                              </div>
+                                </div>
                                 <TeamButton
                                   name={f.awayTeamName}
                                   shortName={f.awayTeamShortName}
@@ -1765,7 +1797,7 @@ function TeamButton({
         name
       }
       className={clsx(
-        'flex h-full flex-col gap-0.5 rounded-lg px-1.5 sm:px-3 lg:px-4 py-2 sm:py-2.5 w-full transition-all min-h-[64px] sm:min-h-[72px] lg:min-h-[80px]',
+        'flex h-full flex-col justify-center gap-0.5 rounded-lg px-1.5 sm:px-3 lg:px-4 py-0.5 sm:py-1 w-full min-w-0 transition-all min-h-[28px] sm:min-h-[36px] lg:min-h-[44px]',
         align === 'right' ? 'items-end text-right' : 'items-start text-left',
         isMyPick && 'bg-brand-600 border-2 border-brand-400 text-white font-bold shadow-lg shadow-brand-900/50',
         isUsed && !isMyPick && 'bg-transparent text-gray-700 cursor-not-allowed',
@@ -1776,11 +1808,20 @@ function TeamButton({
       aria-label={`Pick ${name}`}
     >
       {/* Team name row */}
-      <div className={clsx('grid w-full items-center gap-1 sm:gap-2', align === 'right' ? 'grid-cols-[auto_1fr_auto] text-right' : 'grid-cols-[auto_1fr_auto] text-left')}>
-        <span className={clsx('font-bold text-xs sm:text-sm', isMyPick ? 'text-white' : isUsed ? 'line-through' : '')} style={{ width: '3ch' }}>
+      {/* Mobile: centered within each box */}
+      <div className={clsx('flex sm:hidden w-full items-center gap-1', align === 'right' ? 'justify-end' : 'justify-start')}>
+        <span className={clsx('font-bold text-xs', isMyPick ? 'text-white' : isUsed ? 'line-through' : '')}>
           {shortName}
         </span>
-        <span className={clsx('hidden sm:block truncate text-[11px] sm:text-xs lg:text-sm font-normal opacity-90', align === 'right' && 'justify-self-end')}>
+        {isMyPick && <span className="text-xs font-bold text-white">✓</span>}
+        {isUsed && !isMyPick && <span className="text-[10px] font-bold text-gray-500">used</span>}
+      </div>
+      {/* Desktop: full grid with name + checkmark */}
+      <div className={clsx('hidden sm:grid w-full items-center gap-2', align === 'right' ? 'grid-cols-[auto_1fr_auto] text-right' : 'grid-cols-[auto_1fr_auto] text-left')}>
+        <span className={clsx('font-bold sm:text-sm', isMyPick ? 'text-white' : isUsed ? 'line-through' : '')} style={{ width: '3ch' }}>
+          {shortName}
+        </span>
+        <span className={clsx('truncate text-xs lg:text-sm font-normal opacity-90', align === 'right' && 'justify-self-end')}>
           {name}
         </span>
         <span className={clsx('text-xs font-bold', align === 'right' ? 'justify-self-start' : 'justify-self-end')}>
@@ -1798,11 +1839,11 @@ function TeamButton({
           </div>
           <div className={clsx('flex w-full', align === 'right' ? 'justify-end' : 'justify-start')}>
             <div className={clsx(
-              'inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full',
+              'inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap',
               isMyPick ? 'bg-white/20 text-white' : 'bg-brand-500/20 text-brand-300'
             )}>
               {pickStat.percentage}%
-              <span className={clsx('font-normal', isMyPick ? 'text-white/60' : 'text-gray-400')}>
+              <span className={clsx('font-normal whitespace-nowrap', isMyPick ? 'text-white/60' : 'text-gray-400')}>
                 · {pickStat.pickCount} {pickStat.pickCount === 1 ? 'player' : 'players'}
               </span>
             </div>
