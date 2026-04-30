@@ -1443,6 +1443,7 @@ export default function CompetitionHomePage() {
                                   isClickable={canPickThisGw && !homeUsed}
                                   align="right"
                                   pickStat={homeStat}
+                                  showResultsLayout={!!gwStats}
                                   onClick={() => handlePick(gwId, f.homeTeamId, lockAt)}
                                 />
                                 <div className="flex flex-col items-center justify-center min-w-[80px] sm:min-w-[80px] lg:min-w-[96px] px-1">
@@ -1467,6 +1468,7 @@ export default function CompetitionHomePage() {
                                   isClickable={canPickThisGw && !awayUsed}
                                   align="left"
                                   pickStat={awayStat}
+                                  showResultsLayout={!!gwStats}
                                   onClick={() => handlePick(gwId, f.awayTeamId, lockAt)}
                                 />
                               </div>
@@ -1782,10 +1784,10 @@ function InsightPanel({
 }
 
 function TeamButton({
-  name, shortName, isMyPick, isUsed, isClickable, align, pickStat, onClick,
+  name, shortName, isMyPick, isUsed, isClickable, align, pickStat, showResultsLayout, onClick,
 }: {
   name: string; shortName: string; isMyPick: boolean; isUsed: boolean;
-  isClickable: boolean; align: 'left' | 'right'; pickStat?: PickStat; onClick: () => void;
+  isClickable: boolean; align: 'left' | 'right'; pickStat?: PickStat; showResultsLayout?: boolean; onClick: () => void;
 }) {
   return (
     <button
@@ -1798,7 +1800,13 @@ function TeamButton({
       }
       className={clsx(
         'flex h-full flex-col justify-center gap-0.5 rounded-lg px-1.5 sm:px-3 lg:px-4 py-0.5 sm:py-1 w-full min-w-0 transition-all min-h-[28px] sm:min-h-[36px] lg:min-h-[44px]',
-        align === 'right' ? 'items-end text-right' : 'items-start text-left',
+        showResultsLayout
+          ? align === 'right'
+            ? 'sm:w-[15rem] sm:ml-auto items-end text-right'
+            : 'sm:w-[15rem] sm:mr-auto items-start text-left'
+          : align === 'right'
+          ? 'items-end text-right'
+          : 'items-start text-left',
         isMyPick && 'bg-brand-600 border-2 border-brand-400 text-white font-bold shadow-lg shadow-brand-900/50',
         isUsed && !isMyPick && 'bg-transparent text-gray-700 cursor-not-allowed',
         isClickable && !isMyPick && 'bg-surface-600/50 border border-gray-600 hover:border-brand-500 hover:bg-brand-500/10 text-gray-200 cursor-pointer font-medium',
@@ -1807,59 +1815,111 @@ function TeamButton({
       aria-pressed={isMyPick}
       aria-label={`Pick ${name}`}
     >
-      {/* Team name row */}
-      {/* Mobile: centered within each box */}
-      <div className={clsx('flex sm:hidden w-full items-center gap-1', align === 'right' ? 'justify-end' : 'justify-start')}>
-        <span className={clsx('font-bold text-xs', isMyPick ? 'text-white' : isUsed ? 'line-through' : '')}>
-          {shortName}
-        </span>
-        {isMyPick && <span className="text-xs font-bold text-white">✓</span>}
-        {isUsed && !isMyPick && <span className="text-[10px] font-bold text-gray-500">used</span>}
-      </div>
-      {/* Desktop: full grid with name + checkmark */}
-      <div className={clsx(
-        'hidden sm:flex w-full items-center gap-3',
-        align === 'right' ? 'justify-end text-right' : 'justify-start text-left'
-      )}>
-        <span
-          className={clsx(
-            'w-12 shrink-0 font-bold sm:text-sm',
-            isMyPick ? 'text-white' : isUsed ? 'line-through' : ''
-          )}
-        >
-          {shortName}
-        </span>
-        <span className={clsx(
-          'min-w-0 flex-1 truncate text-xs lg:text-sm font-normal opacity-90'
-        )}>
-          {name}
-        </span>
-        <span className={clsx(
-          'w-8 shrink-0 text-xs font-bold',
-          align === 'right' ? 'text-left' : 'text-right'
-        )}>
-          {isMyPick ? '✓' : isUsed && !isMyPick ? 'used' : ''}
-        </span>
+      <div className={clsx('flex w-full flex-col justify-center', showResultsLayout ? 'gap-2' : 'gap-0')}>
+        {/* Mobile: centered within each box */}
+        <div className={clsx('flex sm:hidden w-full items-center gap-1', align === 'right' ? 'justify-end' : 'justify-start')}>
+          <span className={clsx('font-bold text-xs', isMyPick ? 'text-white' : isUsed ? 'line-through' : '')}>
+            {shortName}
+          </span>
+          {isMyPick && <span className="text-xs font-bold text-white">✓</span>}
+          {isUsed && !isMyPick && <span className="text-[10px] font-bold text-gray-500">used</span>}
+        </div>
+        {/* Desktop: use a centered result layout once pick stats exist */}
+        {showResultsLayout ? (
+          <div className={clsx(
+            'hidden sm:flex w-full flex-col justify-center',
+            align === 'right' ? 'items-end text-right' : 'items-start text-left'
+          )}>
+            {align === 'right' ? (
+              <div className="grid w-full grid-cols-[1.75rem_minmax(0,1fr)_3.25rem] items-center gap-2 text-right">
+                <span className="shrink-0 text-left text-xs font-bold">
+                  {isMyPick ? '✓' : isUsed && !isMyPick ? 'used' : ''}
+                </span>
+                <span className="min-w-0 truncate text-right text-xs lg:text-sm font-normal opacity-90">
+                  {name}
+                </span>
+                <span
+                  className={clsx(
+                    'shrink-0 justify-self-end text-right font-bold sm:text-sm',
+                    isMyPick ? 'text-white' : isUsed ? 'line-through' : ''
+                  )}
+                >
+                  {shortName}
+                </span>
+            </div>
+            ) : (
+              <div className="grid w-full grid-cols-[3.25rem_minmax(0,1fr)_1.75rem] items-center gap-2 text-left">
+                <span
+                  className={clsx(
+                    'shrink-0 justify-self-start text-left font-bold sm:text-sm',
+                    isMyPick ? 'text-white' : isUsed ? 'line-through' : ''
+                  )}
+                >
+                  {shortName}
+                </span>
+                <span className="min-w-0 truncate text-left text-xs lg:text-sm font-normal opacity-90">
+                  {name}
+                </span>
+                <span className="shrink-0 text-right text-xs font-bold">
+                  {isMyPick ? '✓' : isUsed && !isMyPick ? 'used' : ''}
+                </span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className={clsx(
+            'hidden sm:flex w-full items-center gap-3',
+            align === 'right' ? 'justify-end text-right' : 'justify-start text-left'
+          )}>
+            <span
+              className={clsx(
+                'w-12 shrink-0 font-bold sm:text-sm',
+                isMyPick ? 'text-white' : isUsed ? 'line-through' : ''
+              )}
+            >
+              {shortName}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-xs lg:text-sm font-normal opacity-90">
+              {name}
+            </span>
+            <span className={clsx(
+              'w-8 shrink-0 text-xs font-bold',
+              align === 'right' ? 'text-left' : 'text-right'
+            )}>
+              {isMyPick ? '✓' : isUsed && !isMyPick ? 'used' : ''}
+            </span>
+          </div>
+        )}
       </div>
       {/* Pick stat bar — shown after gameweek locks */}
-      {pickStat ? (
-        <div className="w-full mt-1.5 space-y-1 min-h-[28px]">
-          <div className={clsx('w-full h-2 rounded-full overflow-hidden bg-surface-500', align === 'right' && 'scale-x-[-1]')}>
+      {showResultsLayout ? (
+        <div className="w-full space-y-1 min-h-[28px]">
+          <div className={clsx(
+            'h-2 w-full max-w-[6.5rem] rounded-full overflow-hidden bg-surface-500',
+            align === 'right' ? 'ml-auto scale-x-[-1]' : 'mr-auto'
+          )}>
             <div
               className={clsx('h-2 rounded-full transition-all duration-700', isMyPick ? 'bg-white/80' : 'bg-brand-500')}
-              style={{ width: `${Math.max(pickStat.percentage, 2)}%` }}
+              style={{ width: pickStat ? `max(${pickStat.percentage}%, 0.75rem)` : '0.75rem', opacity: pickStat ? 1 : 0.35 }}
             />
           </div>
           <div className={clsx('flex w-full', align === 'right' ? 'justify-end' : 'justify-start')}>
-            <div className={clsx(
-              'inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap',
-              isMyPick ? 'bg-white/20 text-white' : 'bg-brand-500/20 text-brand-300'
-            )}>
-              {pickStat.percentage}%
-              <span className={clsx('font-normal whitespace-nowrap', isMyPick ? 'text-white/60' : 'text-gray-400')}>
-                · {pickStat.pickCount} {pickStat.pickCount === 1 ? 'player' : 'players'}
-              </span>
-            </div>
+            {pickStat ? (
+              <div className={clsx(
+                'inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap',
+                isMyPick ? 'bg-white/20 text-white' : 'bg-brand-500/20 text-brand-300'
+              )}>
+                {pickStat.percentage}%
+                <span className={clsx('font-normal whitespace-nowrap', isMyPick ? 'text-white/60' : 'text-gray-400')}>
+                  · {pickStat.pickCount} {pickStat.pickCount === 1 ? 'player' : 'players'}
+                </span>
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap bg-surface-600/40 text-gray-500">
+                0.0%
+                <span className="font-normal whitespace-nowrap text-gray-500">· 0 players</span>
+              </div>
+            )}
           </div>
         </div>
       ) : null}
