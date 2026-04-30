@@ -1,7 +1,7 @@
 spring:
   datasource:
     url: ${DB_URL}
-    username: ${postgres.upxwggogevpziplqqjvv}
+    username: postgres.upxwggogevpziplqqjvv
     password: ${DB_PASSWORD:lmspassword}
     driver-class-name: org.postgresql.Driver
     hikari:
