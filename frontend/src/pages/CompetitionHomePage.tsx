@@ -1124,7 +1124,7 @@ export default function CompetitionHomePage() {
         'grid gap-6',
         sidebarCollapsed
           ? 'lg:grid-cols-1'
-          : 'lg:grid-cols-[minmax(0,1fr)_420px] xl:grid-cols-[minmax(0,1fr)_480px] 2xl:grid-cols-[minmax(0,1fr)_520px]'
+          : 'lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px] 2xl:grid-cols-[minmax(0,1fr)_440px]'
       )}>
         <div className="order-2 space-y-8 lg:order-1">
           {sidebarCollapsed && (
@@ -1433,7 +1433,7 @@ export default function CompetitionHomePage() {
                             return (
                               <div
                                 key={f.id}
-                                className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-lg bg-surface-700/50 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3 lg:gap-4"
+                                className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-lg bg-surface-700/50 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3 lg:grid-cols-[minmax(0,1fr)_6rem_minmax(0,1fr)] lg:gap-4"
                               >
                                 <TeamButton
                                   name={f.homeTeamName}
@@ -1817,20 +1817,33 @@ function TeamButton({
         {isUsed && !isMyPick && <span className="text-[10px] font-bold text-gray-500">used</span>}
       </div>
       {/* Desktop: full grid with name + checkmark */}
-      <div className={clsx('hidden sm:grid w-full items-center gap-2', align === 'right' ? 'grid-cols-[auto_1fr_auto] text-right' : 'grid-cols-[auto_1fr_auto] text-left')}>
-        <span className={clsx('font-bold sm:text-sm', isMyPick ? 'text-white' : isUsed ? 'line-through' : '')} style={{ width: '3ch' }}>
+      <div className={clsx(
+        'hidden sm:flex w-full items-center gap-3',
+        align === 'right' ? 'justify-end text-right' : 'justify-start text-left'
+      )}>
+        <span
+          className={clsx(
+            'w-12 shrink-0 font-bold sm:text-sm',
+            isMyPick ? 'text-white' : isUsed ? 'line-through' : ''
+          )}
+        >
           {shortName}
         </span>
-        <span className={clsx('truncate text-xs lg:text-sm font-normal opacity-90', align === 'right' && 'justify-self-end')}>
+        <span className={clsx(
+          'min-w-0 flex-1 truncate text-xs lg:text-sm font-normal opacity-90'
+        )}>
           {name}
         </span>
-        <span className={clsx('text-xs font-bold', align === 'right' ? 'justify-self-start' : 'justify-self-end')}>
+        <span className={clsx(
+          'w-8 shrink-0 text-xs font-bold',
+          align === 'right' ? 'text-left' : 'text-right'
+        )}>
           {isMyPick ? '✓' : isUsed && !isMyPick ? 'used' : ''}
         </span>
       </div>
       {/* Pick stat bar — shown after gameweek locks */}
       {pickStat ? (
-        <div className="w-full mt-2 space-y-1 min-h-[28px]">
+        <div className="w-full mt-1.5 space-y-1 min-h-[28px]">
           <div className={clsx('w-full h-2 rounded-full overflow-hidden bg-surface-500', align === 'right' && 'scale-x-[-1]')}>
             <div
               className={clsx('h-2 rounded-full transition-all duration-700', isMyPick ? 'bg-white/80' : 'bg-brand-500')}
@@ -1849,9 +1862,7 @@ function TeamButton({
             </div>
           </div>
         </div>
-      ) : (
-        <div className="w-full mt-2 min-h-[28px]" />
-      )}
+      ) : null}
     </button>
   );
 }

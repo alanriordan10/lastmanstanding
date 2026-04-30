@@ -12,6 +12,9 @@ interface RegisterClubResponse {
   clubName: string;
 }
 
+type UsernameCheckState = 'idle' | 'checking' | 'available' | 'taken' | 'error';
+type EmailCheckState = 'idle' | 'checking' | 'available' | 'taken' | 'error';
+
 export default function RegisterClubPage() {
   const navigate = useNavigate();
   const { loginWithData } = useAuth();
@@ -23,13 +26,68 @@ export default function RegisterClubPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
+  const [usernameStatus, setUsernameStatus] = useState<UsernameCheckState>('idle');
+  const [usernameMessage, setUsernameMessage] = useState('');
+  const [emailStatus, setEmailStatus] = useState<EmailCheckState>('idle');
+  const [emailMessage, setEmailMessage] = useState('');
+
+  const checkUsernameAvailability = async () => {
+    const normalized = username.trim();
+    if (normalized.length < 3) {
+      setUsernameStatus('idle');
+      setUsernameMessage('');
+      return true;
+    }
+
+    setUsernameStatus('checking');
+    setUsernameMessage('');
+
+    try {
+      const { data } = await api.get<{ available: boolean; message: string }>('/auth/username-availability', {
+        params: { username: normalized },
+      });
+      setUsernameStatus(data.available ? 'available' : 'taken');
+      setUsernameMessage(data.message);
+      return data.available;
+    } catch (err: any) {
+      setUsernameStatus('error');
+      setUsernameMessage(err.response?.data?.message || 'Could not verify username right now');
+      return false;
+    }
+  };
+
+  const checkEmailAvailability = async () => {
+    const normalized = email.trim();
+    if (!normalized) {
+      setEmailStatus('idle');
+      setEmailMessage('');
+      return true;
+    }
+
+    setEmailStatus('checking');
+    setEmailMessage('');
+
+    try {
+      const { data } = await api.get<{ available: boolean; message: string }>('/auth/email-availability', {
+        params: { email: normalized },
+      });
+      setEmailStatus(data.available ? 'available' : 'taken');
+      setEmailMessage(data.message);
+      return data.available;
+    } catch (err: any) {
+      setEmailStatus('error');
+      setEmailMessage(err.response?.data?.message || 'Could not verify email right now');
+      return false;
+    }
+  };
 
   const mutation = useMutation({
     mutationFn: () => api.post<RegisterClubResponse>('/auth/register-club', {
       clubName,
       clubDescription: clubDescription || null,
-      username,
+      username: username.trim(),
       email,
       password,
     }),
@@ -54,7 +112,23 @@ export default function RegisterClubPage() {
     e.preventDefault();
     if (password !== confirmPassword) { toast.error('Passwords do not match'); return; }
     if (password.length < 6) { toast.error('Password must be at least 6 characters'); return; }
-    mutation.mutate();
+    checkUsernameAvailability().then((usernameAvailable) => {
+      if (!usernameAvailable) {
+        if (usernameStatus !== 'taken') {
+          toast.error('Please fix the username before creating your club.');
+        }
+        return;
+      }
+      checkEmailAvailability().then((emailAvailable) => {
+        if (!emailAvailable) {
+          if (emailStatus !== 'taken') {
+            toast.error('Please fix the email before creating your club.');
+          }
+          return;
+        }
+        mutation.mutate();
+      });
+    });
   };
 
   return (
@@ -216,14 +290,38 @@ export default function RegisterClubPage() {
                   </label>
                   <input
                     value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="input-field"
+                    onChange={(e) => {
+                      setUsername(e.target.value);
+                      setUsernameStatus('idle');
+                      setUsernameMessage('');
+                    }}
+                    onBlur={checkUsernameAvailability}
+                    className={`input-field ${
+                      usernameStatus === 'available'
+                        ? 'border-green-500/60 focus:border-green-400'
+                        : usernameStatus === 'taken' || usernameStatus === 'error'
+                        ? 'border-red-500/60 focus:border-red-400'
+                        : ''
+                    }`}
                     placeholder="yourname"
                     required
                     minLength={3}
                     maxLength={30}
                     autoFocus
                   />
+                  {usernameStatus !== 'idle' && (
+                    <p
+                      className={`mt-1 text-xs ${
+                        usernameStatus === 'available'
+                          ? 'text-green-400'
+                          : usernameStatus === 'checking'
+                          ? 'text-gray-400'
+                          : 'text-red-400'
+                      }`}
+                    >
+                      {usernameStatus === 'checking' ? 'Checking username…' : usernameMessage}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1.5">
@@ -232,11 +330,35 @@ export default function RegisterClubPage() {
                   <input
                     type="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="input-field"
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setEmailStatus('idle');
+                      setEmailMessage('');
+                    }}
+                    onBlur={checkEmailAvailability}
+                    className={`input-field ${
+                      emailStatus === 'available'
+                        ? 'border-green-500/60 focus:border-green-400'
+                        : emailStatus === 'taken' || emailStatus === 'error'
+                        ? 'border-red-500/60 focus:border-red-400'
+                        : ''
+                    }`}
                     placeholder="you@example.com"
                     required
                   />
+                  {emailStatus !== 'idle' && (
+                    <p
+                      className={`mt-1 text-xs ${
+                        emailStatus === 'available'
+                          ? 'text-green-400'
+                          : emailStatus === 'checking'
+                          ? 'text-gray-400'
+                          : 'text-red-400'
+                      }`}
+                    >
+                      {emailStatus === 'checking' ? 'Checking email…' : emailMessage}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -268,14 +390,23 @@ export default function RegisterClubPage() {
                 <label className="block text-sm font-medium text-gray-300 mb-1.5">
                   Confirm Password <span className="text-red-400">*</span>
                 </label>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className={`input-field ${confirmPassword && confirmPassword !== password ? 'border-red-500' : ''}`}
-                  placeholder="Repeat your password"
-                  required
-                />
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className={`input-field pr-12 ${confirmPassword && confirmPassword !== password ? 'border-red-500' : ''}`}
+                    placeholder="Repeat your password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-sm"
+                  >
+                    {showConfirmPassword ? 'Hide' : 'Show'}
+                  </button>
+                </div>
                 {confirmPassword && confirmPassword !== password && (
                   <p className="text-xs text-red-400 mt-1">Passwords do not match</p>
                 )}
@@ -283,8 +414,15 @@ export default function RegisterClubPage() {
 
               <button
                 type="submit"
-                disabled={mutation.isPending || (!!confirmPassword && confirmPassword !== password)}
-                className="btn-primary w-full disabled:opacity-50"
+                disabled={
+                  mutation.isPending ||
+                  usernameStatus === 'checking' ||
+                  usernameStatus === 'taken' ||
+                  emailStatus === 'checking' ||
+                  emailStatus === 'taken' ||
+                  (!!confirmPassword && confirmPassword !== password)
+                }
+                className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {mutation.isPending ? (
                   <span className="flex items-center justify-center gap-2">

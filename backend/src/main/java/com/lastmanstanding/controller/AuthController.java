@@ -26,6 +26,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -84,6 +85,9 @@ public class AuthController {
         String clubName
     ) {}
 
+    public record UsernameAvailabilityResponse(boolean available, String message) {}
+    public record EmailAvailabilityResponse(boolean available, String message) {}
+
     @PostMapping("/register-club")
     @Transactional
     public ResponseEntity<RegisterClubResponse> registerClub(
@@ -92,7 +96,7 @@ public class AuthController {
         if (userRepository.existsByEmail(request.email())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email is already in use");
         }
-        if (userRepository.existsByUsername(request.username())) {
+        if (userRepository.existsByUsernameIgnoreCase(request.username().trim())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Username is already taken");
         }
         if (clubRepository.existsByName(request.clubName())) {
@@ -119,12 +123,30 @@ public class AuthController {
 
     // ── Sign-up ─────────────────────────────────────────────────────────
 
+    @GetMapping("/username-availability")
+    public ResponseEntity<UsernameAvailabilityResponse> checkUsernameAvailability(
+            @RequestParam @NotBlank @Size(min = 3, max = 30) String username) {
+        String normalized = username.trim();
+        boolean available = !userRepository.existsByUsernameIgnoreCase(normalized);
+        String message = available ? "Username is available" : "Username is already taken";
+        return ResponseEntity.ok(new UsernameAvailabilityResponse(available, message));
+    }
+
+    @GetMapping("/email-availability")
+    public ResponseEntity<EmailAvailabilityResponse> checkEmailAvailability(
+            @RequestParam @NotBlank @Email String email) {
+        String normalized = email.trim();
+        boolean available = !userRepository.existsByEmail(normalized);
+        String message = available ? "Email is available" : "Email is already in use";
+        return ResponseEntity.ok(new EmailAvailabilityResponse(available, message));
+    }
+
     @PostMapping("/signup")
     public ResponseEntity<AuthResponse> signup(@Valid @RequestBody SignupRequest request) {
         if (userRepository.existsByEmail(request.email())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email is already in use");
         }
-        if (userRepository.existsByUsername(request.username())) {
+        if (userRepository.existsByUsernameIgnoreCase(request.username().trim())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Username is already taken");
         }
 

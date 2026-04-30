@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import api from '../api';
 import toast from 'react-hot-toast';
+
+type UsernameCheckState = 'idle' | 'checking' | 'available' | 'taken' | 'error';
+type EmailCheckState = 'idle' | 'checking' | 'available' | 'taken' | 'error';
 
 export default function SignupPage() {
   const { signup, user } = useAuth();
@@ -9,15 +13,90 @@ export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [usernameStatus, setUsernameStatus] = useState<UsernameCheckState>('idle');
+  const [usernameMessage, setUsernameMessage] = useState('');
+  const [emailStatus, setEmailStatus] = useState<EmailCheckState>('idle');
+  const [emailMessage, setEmailMessage] = useState('');
 
   if (user) return <Navigate to="/competitions" replace />;
 
+  const checkUsernameAvailability = async () => {
+    const normalized = username.trim();
+    if (normalized.length < 3) {
+      setUsernameStatus('idle');
+      setUsernameMessage('');
+      return true;
+    }
+
+    setUsernameStatus('checking');
+    setUsernameMessage('');
+
+    try {
+      const { data } = await api.get<{ available: boolean; message: string }>('/auth/username-availability', {
+        params: { username: normalized },
+      });
+      setUsernameStatus(data.available ? 'available' : 'taken');
+      setUsernameMessage(data.message);
+      return data.available;
+    } catch (err: any) {
+      setUsernameStatus('error');
+      setUsernameMessage(err.response?.data?.message || 'Could not verify username right now');
+      return false;
+    }
+  };
+
+  const checkEmailAvailability = async () => {
+    const normalized = email.trim();
+    if (!normalized) {
+      setEmailStatus('idle');
+      setEmailMessage('');
+      return true;
+    }
+
+    setEmailStatus('checking');
+    setEmailMessage('');
+
+    try {
+      const { data } = await api.get<{ available: boolean; message: string }>('/auth/email-availability', {
+        params: { email: normalized },
+      });
+      setEmailStatus(data.available ? 'available' : 'taken');
+      setEmailMessage(data.message);
+      return data.available;
+    } catch (err: any) {
+      setEmailStatus('error');
+      setEmailMessage(err.response?.data?.message || 'Could not verify email right now');
+      return false;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (password !== confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+    const usernameAvailable = await checkUsernameAvailability();
+    if (!usernameAvailable) {
+      if (usernameStatus !== 'taken') {
+        toast.error('Please fix the username before creating your account.');
+      }
+      return;
+    }
+    const emailAvailable = await checkEmailAvailability();
+    if (!emailAvailable) {
+      if (emailStatus !== 'taken') {
+        toast.error('Please fix the email before creating your account.');
+      }
+      return;
+    }
     setLoading(true);
     try {
-      await signup(email, username, password);
+      await signup(email.trim(), username.trim(), password);
       navigate('/competitions');
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Signup failed');
@@ -58,11 +137,35 @@ export default function SignupPage() {
               type="email"
               required
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="input-field"
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setEmailStatus('idle');
+                setEmailMessage('');
+              }}
+              onBlur={checkEmailAvailability}
+              className={`input-field ${
+                emailStatus === 'available'
+                  ? 'border-green-500/60 focus:border-green-400'
+                  : emailStatus === 'taken' || emailStatus === 'error'
+                  ? 'border-red-500/60 focus:border-red-400'
+                  : ''
+              }`}
               placeholder="you@example.com"
               autoComplete="email"
             />
+            {emailStatus !== 'idle' && (
+              <p
+                className={`mt-1 text-xs ${
+                  emailStatus === 'available'
+                    ? 'text-green-400'
+                    : emailStatus === 'checking'
+                    ? 'text-gray-400'
+                    : 'text-red-400'
+                }`}
+              >
+                {emailStatus === 'checking' ? 'Checking email…' : emailMessage}
+              </p>
+            )}
           </div>
           <div>
             <label htmlFor="username" className="mb-1.5 block text-sm font-medium text-gray-300">
@@ -75,29 +178,101 @@ export default function SignupPage() {
               minLength={3}
               maxLength={30}
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="input-field"
+              onChange={(e) => {
+                setUsername(e.target.value);
+                setUsernameStatus('idle');
+                setUsernameMessage('');
+              }}
+              onBlur={checkUsernameAvailability}
+              className={`input-field ${
+                usernameStatus === 'available'
+                  ? 'border-green-500/60 focus:border-green-400'
+                  : usernameStatus === 'taken' || usernameStatus === 'error'
+                  ? 'border-red-500/60 focus:border-red-400'
+                  : ''
+              }`}
               placeholder="yourname"
               autoComplete="username"
             />
+            {usernameStatus !== 'idle' && (
+              <p
+                className={`mt-1 text-xs ${
+                  usernameStatus === 'available'
+                    ? 'text-green-400'
+                    : usernameStatus === 'checking'
+                    ? 'text-gray-400'
+                    : 'text-red-400'
+                }`}
+              >
+                {usernameStatus === 'checking' ? 'Checking username…' : usernameMessage}
+              </p>
+            )}
           </div>
           <div>
             <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-gray-300">
               Password
             </label>
-            <input
-              id="password"
-              type="password"
-              required
-              minLength={8}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="input-field"
-              placeholder="Minimum 8 characters"
-              autoComplete="new-password"
-            />
+            <div className="relative">
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                required
+                minLength={8}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="input-field pr-12"
+                placeholder="Minimum 8 characters"
+                autoComplete="new-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-sm"
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
           </div>
-          <button type="submit" disabled={loading} className="btn-primary w-full">
+          <div>
+            <label htmlFor="confirmPassword" className="mb-1.5 block text-sm font-medium text-gray-300">
+              Confirm Password
+            </label>
+            <div className="relative">
+              <input
+                id="confirmPassword"
+                type={showConfirmPassword ? 'text' : 'password'}
+                required
+                minLength={8}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className={`input-field pr-12 ${confirmPassword && confirmPassword !== password ? 'border-red-500/60 focus:border-red-400' : ''}`}
+                placeholder="Repeat your password"
+                autoComplete="new-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-sm"
+              >
+                {showConfirmPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
+            {confirmPassword && confirmPassword !== password && (
+              <p className="mt-1 text-xs text-red-400">Passwords do not match</p>
+            )}
+          </div>
+          <button
+            type="submit"
+            disabled={
+              loading ||
+              usernameStatus === 'checking' ||
+              usernameStatus === 'taken' ||
+              emailStatus === 'checking' ||
+              emailStatus === 'taken' ||
+              (!!confirmPassword && confirmPassword !== password)
+            }
+            className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-60"
+          >
             {loading ? 'Creating account…' : 'Create Account'}
           </button>
         </form>

@@ -522,6 +522,29 @@ export default function ClubAdminPage() {
                 className="input-field"
                 placeholder="e.g. 200"
               />
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {[50, 100, 200, 500].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setPrizePool(String(preset))}
+                    className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                      prizePool === String(preset) ? 'bg-brand-600 text-white' : 'bg-surface-700 hover:bg-surface-600 text-gray-300'
+                    }`}
+                  >
+                    €{preset}
+                  </button>
+                ))}
+                {prizePool && (
+                  <button
+                    type="button"
+                    onClick={() => setPrizePool('')}
+                    className="px-2.5 py-1 rounded text-xs font-medium transition-colors bg-surface-800 hover:bg-surface-700 text-gray-400"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
               <p className="mt-1 text-xs text-gray-500">Set a fixed prize amount to display on the competition card.</p>
             </div>
             <div>
