@@ -56,16 +56,28 @@ public final class CompetitionDtos {
             String name,
             String description,
             Long clubAdminId,
-            String clubAdminUsername
+            String clubAdminUsername,
+            String primaryColor,
+            String secondaryColor,
+            String logoUrl
     ) {
         public static ClubResponse from(Club c) {
             return new ClubResponse(
                     c.getId(), c.getName(), c.getDescription(),
                     c.getClubAdmin() != null ? c.getClubAdmin().getId() : null,
-                    c.getClubAdmin() != null ? c.getClubAdmin().getUsername() : null
+                    c.getClubAdmin() != null ? c.getClubAdmin().getUsername() : null,
+                    c.getPrimaryColor(),
+                    c.getSecondaryColor(),
+                    c.getLogoUrl()
             );
         }
     }
+
+    public record UpdateClubBrandingRequest(
+            String primaryColor,
+            String secondaryColor,
+            String logoUrl
+    ) {}
 
     public record CompetitionResponse(
             Long id,
@@ -87,7 +99,10 @@ public final class CompetitionDtos {
             int activeCount,
             Long clubId,
             String clubName,
-            String winnerUsername
+            String winnerUsername,
+            String clubPrimaryColor,
+            String clubSecondaryColor,
+            String clubLogoUrl
     ) {
                 private static String joinCodeFor(Competition c) {
                         if (c.getVisibility() == CompetitionVisibility.PRIVATE) {
@@ -109,7 +124,10 @@ public final class CompetitionDtos {
                     participantCount, activeCount,
                     c.getClub() != null ? c.getClub().getId() : null,
                     c.getClub() != null ? c.getClub().getName() : null,
-                    winnerUsername
+                    winnerUsername,
+                    c.getClub() != null ? c.getClub().getPrimaryColor() : null,
+                    c.getClub() != null ? c.getClub().getSecondaryColor() : null,
+                    c.getClub() != null ? c.getClub().getLogoUrl() : null
             );
         }
 
@@ -127,7 +145,10 @@ public final class CompetitionDtos {
                     participantCount, activeCount,
                     c.getClub() != null ? c.getClub().getId() : null,
                     c.getClub() != null ? c.getClub().getName() : null,
-                    winnerUsername
+                    winnerUsername,
+                    c.getClub() != null ? c.getClub().getPrimaryColor() : null,
+                    c.getClub() != null ? c.getClub().getSecondaryColor() : null,
+                    c.getClub() != null ? c.getClub().getLogoUrl() : null
             );
         }
     }
