@@ -192,6 +192,34 @@ export default function ClubAdminPage() {
     onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to assign admin'),
   });
 
+  const [brandingPrimary, setBrandingPrimary] = useState('');
+  const [brandingSecondary, setBrandingSecondary] = useState('');
+  const [brandingLogoUrl, setBrandingLogoUrl] = useState('');
+  const [showBrandingForm, setShowBrandingForm] = useState(false);
+
+  // Initialise branding fields when club data loads
+  useEffect(() => {
+    if (myClub) {
+      setBrandingPrimary(myClub.primaryColor ?? '');
+      setBrandingSecondary(myClub.secondaryColor ?? '');
+      setBrandingLogoUrl(myClub.logoUrl ?? '');
+    }
+  }, [myClub]);
+
+  const brandingMutation = useMutation({
+    mutationFn: () => api.put('/club-admin/my-club/branding', {
+      primaryColor: brandingPrimary || null,
+      secondaryColor: brandingSecondary || null,
+      logoUrl: brandingLogoUrl || null,
+    }),
+    onSuccess: () => {
+      toast.success('Club branding saved');
+      queryClient.invalidateQueries({ queryKey: ['club-admin', 'my-club'] });
+      setShowBrandingForm(false);
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to save branding'),
+  });
+
   // Debounced user search for assign admin
   useEffect(() => {
     if (!showAssignAdmin) return;
@@ -368,6 +396,135 @@ export default function ClubAdminPage() {
         )}
       </div>
 
+      {/* Club Branding card */}
+      <div className="card space-y-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-[0.16em] text-gray-200">Club Branding</h2>
+            <p className="mt-1 text-xs text-gray-400">
+              Set a logo and colour scheme that appears on your competition pages.
+            </p>
+          </div>
+          <button
+            onClick={() => setShowBrandingForm((v) => !v)}
+            className="w-full sm:w-auto text-xs px-3 py-1.5 rounded-xl border border-white/10 bg-white/[0.04] text-gray-300 transition hover:border-white/15 hover:bg-white/[0.08]"
+          >
+            {showBrandingForm ? '✕ Cancel' : '🎨 Edit Branding'}
+          </button>
+        </div>
+
+        {/* Preview strip */}
+        {(myClub?.primaryColor || myClub?.logoUrl) && !showBrandingForm && (
+          <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3">
+            {myClub.logoUrl && (
+              <img src={myClub.logoUrl} alt="Club logo" className="h-10 w-10 rounded-full object-cover border border-white/20" />
+            )}
+            <div className="flex items-center gap-2">
+              {myClub.primaryColor && (
+                <span className="flex items-center gap-1.5 text-xs text-gray-300">
+                  <span className="h-4 w-4 rounded-full border border-white/20" style={{ backgroundColor: myClub.primaryColor }} />
+                  {myClub.primaryColor}
+                </span>
+              )}
+              {myClub.secondaryColor && (
+                <span className="flex items-center gap-1.5 text-xs text-gray-300">
+                  <span className="h-4 w-4 rounded-full border border-white/20" style={{ backgroundColor: myClub.secondaryColor }} />
+                  {myClub.secondaryColor}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {showBrandingForm && (
+          <div className="rounded-lg border border-brand-500/30 bg-brand-500/5 p-4 space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-gray-300">Primary Colour</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={brandingPrimary || '#6366f1'}
+                    onChange={(e) => setBrandingPrimary(e.target.value)}
+                    className="h-9 w-9 cursor-pointer rounded border border-white/20 bg-transparent p-0.5"
+                  />
+                  <input
+                    type="text"
+                    value={brandingPrimary}
+                    onChange={(e) => setBrandingPrimary(e.target.value)}
+                    placeholder="#6366f1"
+                    maxLength={7}
+                    className="input-field flex-1 text-sm font-mono"
+                  />
+                  {brandingPrimary && (
+                    <button onClick={() => setBrandingPrimary('')} className="text-xs text-gray-500 hover:text-gray-300">✕</button>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-gray-300">Secondary Colour <span className="text-gray-500">(optional)</span></label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={brandingSecondary || '#a5b4fc'}
+                    onChange={(e) => setBrandingSecondary(e.target.value)}
+                    className="h-9 w-9 cursor-pointer rounded border border-white/20 bg-transparent p-0.5"
+                  />
+                  <input
+                    type="text"
+                    value={brandingSecondary}
+                    onChange={(e) => setBrandingSecondary(e.target.value)}
+                    placeholder="#a5b4fc"
+                    maxLength={7}
+                    className="input-field flex-1 text-sm font-mono"
+                  />
+                  {brandingSecondary && (
+                    <button onClick={() => setBrandingSecondary('')} className="text-xs text-gray-500 hover:text-gray-300">✕</button>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-gray-300">Club Logo <span className="text-gray-500">(PNG, JPG, SVG — max 500 KB)</span></label>
+              <div className="flex items-center gap-3">
+                {brandingLogoUrl && (
+                  <img src={brandingLogoUrl} alt="Logo preview" className="h-12 w-12 rounded-full object-cover border border-white/20 shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                )}
+                <label className="flex-1 cursor-pointer">
+                  <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-gray-300 hover:border-white/20 hover:bg-white/[0.07] transition">
+                    <span>📁</span>
+                    <span>{brandingLogoUrl ? 'Replace logo…' : 'Choose file…'}</span>
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                    className="sr-only"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if (file.size > 500 * 1024) { toast.error('Logo must be under 500 KB'); return; }
+                      const reader = new FileReader();
+                      reader.onload = () => setBrandingLogoUrl(reader.result as string);
+                      reader.readAsDataURL(file);
+                    }}
+                  />
+                </label>
+                {brandingLogoUrl && (
+                  <button onClick={() => setBrandingLogoUrl('')} className="text-xs text-gray-500 hover:text-gray-300 shrink-0">✕ Remove</button>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={() => brandingMutation.mutate()}
+              disabled={brandingMutation.isPending}
+              className="btn-primary w-full sm:w-auto"
+            >
+              {brandingMutation.isPending ? 'Saving…' : 'Save Branding'}
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Create/Edit form (modal) */}
       {showForm && (
         <div
@@ -535,15 +692,6 @@ export default function ClubAdminPage() {
                     €{preset}
                   </button>
                 ))}
-                {prizePool && (
-                  <button
-                    type="button"
-                    onClick={() => setPrizePool('')}
-                    className="px-2.5 py-1 rounded text-xs font-medium transition-colors bg-surface-800 hover:bg-surface-700 text-gray-400"
-                  >
-                    Clear
-                  </button>
-                )}
               </div>
               <p className="mt-1 text-xs text-gray-500">Set a fixed prize amount to display on the competition card.</p>
             </div>
