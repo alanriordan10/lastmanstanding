@@ -962,6 +962,11 @@ export default function CompetitionHomePage() {
             <button
               onClick={() => setShareOpen((v) => !v)}
               className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 text-gray-300 transition border border-gray-600/50"
+              style={comp.clubPrimaryColor ? {
+                borderColor: `${comp.clubPrimaryColor}44`,
+                backgroundColor: `${comp.clubPrimaryColor}14`,
+                color: comp.clubPrimaryColor,
+              } : undefined}
             >
               📨 Invite
             </button>
@@ -1033,6 +1038,11 @@ export default function CompetitionHomePage() {
           <Link
             to={`/competitions/${compId}/survivor-table`}
             className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 text-gray-300 transition border border-gray-600/50"
+            style={comp.clubSecondaryColor ? {
+              borderColor: `${comp.clubSecondaryColor}44`,
+              backgroundColor: `${comp.clubSecondaryColor}12`,
+              color: comp.clubSecondaryColor,
+            } : undefined}
           >
             📊 Survivor Table
           </Link>
@@ -1208,6 +1218,7 @@ export default function CompetitionHomePage() {
               statusLabel={sidebarStatusLabel}
               body={sidebarSummary}
               meta={sidebarMeta}
+              accentColor={comp.clubPrimaryColor}
               cta={!isParticipant && comp.status === 'UPCOMING' ? (
                 <Link to={joinPath} className="btn-primary w-full sm:w-auto text-sm">
                   Go to join flow
@@ -1660,6 +1671,7 @@ export default function CompetitionHomePage() {
               statusLabel={sidebarStatusLabel}
               body={sidebarSummary}
               meta={sidebarMeta}
+              accentColor={comp.clubPrimaryColor}
               cta={!isParticipant && comp.status === 'UPCOMING' ? (
                 <Link to={joinPath} className="btn-primary w-full sm:w-auto text-sm">
                   Go to join flow
@@ -1960,6 +1972,7 @@ function ActionPanel({
   body,
   meta,
   cta,
+  accentColor,
 }: {
   tone: 'brand' | 'warning' | 'danger' | 'success';
   title: string;
@@ -1967,6 +1980,7 @@ function ActionPanel({
   body: string;
   meta?: string | null;
   cta?: ReactNode;
+  accentColor?: string | null;
 }) {
   const toneClasses = {
     brand: 'border-brand-500/30 bg-brand-500/10 text-brand-300',
@@ -1976,19 +1990,40 @@ function ActionPanel({
   } as const;
 
   return (
-    <section className="card p-4 sm:p-5">
+    <section
+      className="card p-4 sm:p-5"
+      style={tone === 'brand' && accentColor ? {
+        borderTopColor: accentColor,
+        borderTopWidth: '3px',
+        backgroundImage: `radial-gradient(circle at top right, ${accentColor}18, transparent 13rem)`,
+      } : undefined}
+    >
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">Next Action</div>
           <h2 className="mt-2 text-lg font-semibold tracking-tight text-white">{title}</h2>
           <p className="mt-1 text-sm font-medium text-gray-400">{statusLabel}</p>
         </div>
-        <div className={`inline-flex shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${toneClasses[tone]}`}>
+        <div
+          className={`inline-flex shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${toneClasses[tone]}`}
+          style={tone === 'brand' && accentColor ? {
+            borderColor: `${accentColor}55`,
+            backgroundColor: `${accentColor}22`,
+            color: accentColor,
+          } : undefined}
+        >
           {tone === 'danger' ? 'Urgent' : tone === 'warning' ? 'Attention' : tone === 'success' ? 'Ready' : 'Live'}
         </div>
       </div>
       <p className="mt-3 text-sm leading-6 text-gray-300">{body}</p>
-      {meta && <p className="mt-3 rounded-xl border border-white/8 bg-black/10 px-3 py-2 text-xs text-gray-400">{meta}</p>}
+      {meta && (
+        <p
+          className="mt-3 rounded-xl border border-white/8 bg-black/10 px-3 py-2 text-xs text-gray-400"
+          style={tone === 'brand' && accentColor ? { borderColor: `${accentColor}2f` } : undefined}
+        >
+          {meta}
+        </p>
+      )}
       {cta && <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">{cta}</div>}
     </section>
   );

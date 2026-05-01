@@ -14,6 +14,7 @@ export default function GameweekSelectionsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'table' | 'byteam'>('table');
   const [currentPage, setCurrentPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'RESOLVED' | 'LIVE'>('ALL');
   const itemsPerPage = 50;
 
   const { data: selectionsData, isLoading, error } = useQuery<GameweekSelectionsData>({
@@ -45,7 +46,7 @@ export default function GameweekSelectionsPage() {
   };
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery]);
+  }, [searchQuery, statusFilter, viewMode]);
 
   // NOW we can do early returns AFTER all hooks
   if (isLoading) {
@@ -84,6 +85,11 @@ export default function GameweekSelectionsPage() {
 
   // Filter with search
   let filteredSelections = selections;
+  if (statusFilter === 'RESOLVED') {
+    filteredSelections = filteredSelections.filter((s) => s.outcome !== 'PENDING');
+  } else if (statusFilter === 'LIVE') {
+    filteredSelections = filteredSelections.filter((s) => s.outcome === 'PENDING');
+  }
   if (searchQuery.trim()) {
     const query = searchQuery.toLowerCase();
     filteredSelections = filteredSelections.filter(s => 
@@ -119,9 +125,9 @@ export default function GameweekSelectionsPage() {
             <p className="mt-2 text-sm text-gray-300">{selections.length} picks revealed</p>
           </div>
           <div className="grid grid-cols-3 gap-2 sm:gap-3">
-            <MiniStat label="Picks" value={String(selections.length)} accent="text-white" />
-            <MiniStat label="Resolved" value={String(resolvedCount)} accent="text-green-300" />
-            <MiniStat label="Live" value={String(pendingCount)} accent="text-yellow-300" />
+            <MiniStat label="Picks" value={String(selections.length)} accent="text-white" isActive={statusFilter === 'ALL'} onClick={() => setStatusFilter('ALL')} />
+            <MiniStat label="Resolved" value={String(resolvedCount)} accent="text-green-300" isActive={statusFilter === 'RESOLVED'} onClick={() => setStatusFilter('RESOLVED')} />
+            <MiniStat label="Live" value={String(pendingCount)} accent="text-yellow-300" isActive={statusFilter === 'LIVE'} onClick={() => setStatusFilter('LIVE')} />
           </div>
         </div>
       </div>
@@ -205,6 +211,11 @@ export default function GameweekSelectionsPage() {
               {searchQuery && (
                 <div className="text-sm text-gray-400 mt-2">
                   Showing {filteredSelections.length} of {selections.length} participants
+                </div>
+              )}
+              {statusFilter !== 'ALL' && !searchQuery && (
+                <div className="text-sm text-gray-400 mt-2">
+                  Showing {filteredSelections.length} {statusFilter === 'LIVE' ? 'live' : 'resolved'} pick{filteredSelections.length !== 1 ? 's' : ''}
                 </div>
               )}
             </div>
@@ -331,12 +342,33 @@ export default function GameweekSelectionsPage() {
   );
 }
 
-function MiniStat({ label, value, accent }: { label: string; value: string; accent: string }) {
+function MiniStat({
+  label,
+  value,
+  accent,
+  isActive = false,
+  onClick,
+}: {
+  label: string;
+  value: string;
+  accent: string;
+  isActive?: boolean;
+  onClick?: () => void;
+}) {
   return (
-    <div className="rounded-2xl border border-white/8 bg-white/[0.045] px-3 py-2 text-center backdrop-blur-sm">
+    <button
+      type="button"
+      onClick={onClick}
+      className={clsx(
+        'rounded-2xl border px-3 py-2 text-center backdrop-blur-sm transition-all',
+        onClick ? 'hover:border-white/20 hover:bg-white/[0.07]' : 'cursor-default',
+        isActive ? 'border-white/20 bg-white/[0.09] shadow-[0_0_0_1px_rgba(255,255,255,0.05)]' : 'border-white/8 bg-white/[0.045]',
+      )}
+      aria-pressed={onClick ? isActive : undefined}
+    >
       <div className={`text-lg font-black ${accent}`}>{value}</div>
       <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">{label}</div>
-    </div>
+    </button>
   );
 }
 

@@ -68,6 +68,8 @@ export default function SurvivorTablePage() {
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const paginated = sorted.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const clubAccent = comp?.clubPrimaryColor ?? null;
+  const clubSupport = comp?.clubSecondaryColor ?? comp?.clubPrimaryColor ?? null;
 
   const handleSearch = (v: string) => { setSearch(v); setPage(1); };
   const handleStatusFilter = (s: typeof statusFilter) => { setStatusFilter(s); setPage(1); };
@@ -75,7 +77,15 @@ export default function SurvivorTablePage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="relative overflow-hidden rounded-[1.75rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_24rem),linear-gradient(135deg,rgba(15,23,42,0.96),rgba(8,15,30,0.94))] px-4 py-5 shadow-[0_28px_70px_rgba(2,6,23,0.42)] sm:px-6 sm:py-6">
+      <div
+        className="relative overflow-hidden rounded-[1.75rem] border border-white/8 px-4 py-5 shadow-[0_28px_70px_rgba(2,6,23,0.42)] sm:px-6 sm:py-6"
+        style={{
+          background: clubAccent
+            ? `radial-gradient(circle at top left, ${clubAccent}2e, transparent 24rem), radial-gradient(circle at 88% 18%, ${clubSupport ?? clubAccent}20, transparent 16rem), linear-gradient(135deg,rgba(15,23,42,0.96),rgba(8,15,30,0.94))`
+            : 'radial-gradient(circle at top left, rgba(56,189,248,0.18), transparent 24rem), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(8,15,30,0.94))',
+          ...(clubAccent ? { borderTopColor: clubAccent, borderTopWidth: '3px' } : {}),
+        }}
+      >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <Link to={`/competitions/${compId}`} className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-brand-200/85 hover:text-white">
@@ -117,6 +127,7 @@ export default function SurvivorTablePage() {
               className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
                 statusFilter === s ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'
               }`}
+              style={statusFilter === s && clubAccent ? { backgroundColor: clubAccent } : undefined}
             >
               {s} ({counts[s]})
             </button>
@@ -146,17 +157,27 @@ export default function SurvivorTablePage() {
               <button
                 onClick={() => { handleSearch(''); handleStatusFilter('ALL'); }}
                 className="text-brand-400 hover:text-brand-300 underline"
+                style={clubAccent ? { color: clubAccent } : undefined}
               >
                 Clear filters
               </button>
             )}
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border border-white/8 bg-white/[0.03] max-h-[70vh] shadow-[0_20px_50px_rgba(2,6,23,0.34)]">
+          <div
+            className="overflow-x-auto rounded-2xl border border-white/8 bg-white/[0.03] max-h-[70vh] shadow-[0_20px_50px_rgba(2,6,23,0.34)]"
+            style={clubAccent ? { borderColor: `${clubAccent}2f` } : undefined}
+          >
             <table className="w-full text-sm min-w-max">
               <thead className="sticky top-0 z-20">
-                <tr className="border-b border-gray-700/50 bg-surface-800">
-                  <th className="text-left py-3 px-4 font-semibold text-gray-300 sticky left-0 bg-surface-800/95 z-10 min-w-[140px]">
+                <tr
+                  className="border-b border-gray-700/50 bg-surface-800"
+                  style={clubAccent ? { boxShadow: `inset 0 -1px 0 ${clubAccent}22` } : undefined}
+                >
+                  <th
+                    className="text-left py-3 px-4 font-semibold text-gray-300 sticky left-0 bg-surface-800/95 z-10 min-w-[140px]"
+                    style={clubAccent ? { borderLeft: `3px solid ${clubAccent}` } : undefined}
+                  >
                     Participant
                   </th>
                   {gameweeks.map((gw) => (
@@ -288,7 +309,8 @@ export default function SurvivorTablePage() {
                   .map((p, idx) => p === '...'
                     ? <span key={`e${idx}`} className="px-2 text-xs text-gray-500">…</span>
                     : <button key={p} onClick={() => setPage(p as number)}
-                        className={`px-2.5 py-1 text-xs rounded transition ${currentPage === p ? 'bg-brand-600 text-white font-medium' : 'bg-surface-700 hover:bg-surface-600 text-gray-300'}`}>{p}</button>
+                        className={`px-2.5 py-1 text-xs rounded transition ${currentPage === p ? 'bg-brand-600 text-white font-medium' : 'bg-surface-700 hover:bg-surface-600 text-gray-300'}`}
+                        style={currentPage === p && clubAccent ? { backgroundColor: clubAccent } : undefined}>{p}</button>
                   )}
                 <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
                   className="px-3 py-1 text-xs rounded bg-surface-700 hover:bg-surface-600 text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed">Next →</button>
