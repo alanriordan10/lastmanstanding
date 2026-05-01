@@ -60,6 +60,9 @@ public class FootballDataProvider implements FixtureProvider {
     @Value("${football-data.live-cache-ttl:300}")
     private long liveCacheTtl;
 
+    @Value("${football-data.live-status-cache-ttl:30}")
+    private long liveStatusCacheTtl;
+
     private final HttpClient http = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(30))
             .build();
@@ -102,11 +105,13 @@ public class FootballDataProvider implements FixtureProvider {
 
     @Override
     public List<ProviderFixture> fetchFixtures(LocalDate from, LocalDate to) {
-        boolean hasLive = hasLiveMatches();
+        boolean hasLive = hasLiveMatchesNow();
         long ttl = hasLive ? liveCacheTtl : fixturesCacheTtl;
         String key = "fixtures:" + from + ":" + to;
-        Optional<List<ProviderFixture>> cached = fromCache(key);
-        if (cached.isPresent()) return cached.get();
+        if (!hasLive) {
+            Optional<List<ProviderFixture>> cached = fromCache(key);
+            if (cached.isPresent()) return cached.get();
+        }
         List<ProviderFixture> fixtures = loadMatches(from, to, false);
         putCache(key, fixtures, ttl);
         return fixtures;
@@ -125,6 +130,15 @@ public class FootballDataProvider implements FixtureProvider {
     // ── Private helpers ──────────────────────────────────────────────────
 
     /** True if any match in the competition is currently IN_PLAY or PAUSED. */
+    public boolean hasLiveMatchesNow() {
+        Optional<Boolean> cached = fromCache("live-status");
+        if (cached.isPresent()) return cached.get();
+
+        boolean live = hasLiveMatches();
+        putCache("live-status", live, liveStatusCacheTtl);
+        return live;
+    }
+
     private boolean hasLiveMatches() {
         try {
             String url = baseUrl + "/competitions/" + competitionCode + "/matches?status=IN_PLAY,PAUSED";
@@ -191,18 +205,9 @@ public class FootballDataProvider implements FixtureProvider {
                     .atOffset(ZoneOffset.UTC).toLocalDateTime();
 
             String status = mapStatus(m.status());
-            Integer homeScore = null, awayScore = null;
-
-            if (m.score() != null && m.score().fullTime() != null) {
-                homeScore = m.score().fullTime().home();
-                awayScore = m.score().fullTime().away();
-            }
-            // Fall back to current-time score for in-play
-            if ((homeScore == null || awayScore == null)
-                    && m.score() != null && m.score().halfTime() != null) {
-                homeScore = m.score().halfTime().home();
-                awayScore = m.score().halfTime().away();
-            }
+            Integer[] resolvedScore = resolveScore(m.score(), status);
+            Integer homeScore = resolvedScore[0];
+            Integer awayScore = resolvedScore[1];
 
             String homeId = m.homeTeam() != null ? String.valueOf(m.homeTeam().id()) : null;
             String awayId = m.awayTeam() != null ? String.valueOf(m.awayTeam().id()) : null;
@@ -237,6 +242,31 @@ public class FootballDataProvider implements FixtureProvider {
             case "TIMED","SCHEDULED"  -> "SCHEDULED";
             default                   -> "SCHEDULED";
         };
+    }
+
+    /**
+     * Resolve the most useful score for the current match state.
+     * For live matches we prefer the most current feed available.
+     */
+    private Integer[] resolveScore(ApiScore score, String status) {
+        if (score == null) return new Integer[]{null, null};
+
+        ApiScoreDetail primary =
+                "IN_PLAY".equals(status)
+                        ? firstPresent(score.fullTime(), score.regularTime(), score.halfTime())
+                        : firstPresent(score.fullTime(), score.regularTime(), score.halfTime());
+
+        if (primary == null) return new Integer[]{null, null};
+        return new Integer[]{primary.home(), primary.away()};
+    }
+
+    private ApiScoreDetail firstPresent(ApiScoreDetail... candidates) {
+        for (ApiScoreDetail candidate : candidates) {
+            if (candidate != null && candidate.home() != null && candidate.away() != null) {
+                return candidate;
+            }
+        }
+        return null;
     }
 
     // ── HTTP helper ──────────────────────────────────────────────────────
@@ -298,7 +328,7 @@ public class FootballDataProvider implements FixtureProvider {
     record ApiMatchTeam(long id, String name, String shortName, String tla, String crest) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record ApiScore(String winner, ApiScoreDetail fullTime, ApiScoreDetail halfTime) {}
+    record ApiScore(String winner, ApiScoreDetail fullTime, ApiScoreDetail regularTime, ApiScoreDetail halfTime) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record ApiScoreDetail(Integer home, Integer away) {}

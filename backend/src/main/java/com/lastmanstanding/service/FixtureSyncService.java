@@ -233,15 +233,26 @@ public class FixtureSyncService {
                 .map(Map.Entry::getKey)
                 .collect(Collectors.toSet());
 
-        Set<Integer> allSkipped = new HashSet<>();
-        allSkipped.addAll(startedWeeks);
-        allSkipped.addAll(weeksTooEarly);
+        // ── Pre-load ALL gameweeks for this competition ──────────────────────────
+        List<Gameweek> existingGameweeks = gameweekRepository.findByCompetitionIdOrderByWeekNumberAsc(comp.getId());
+        Map<Integer, Gameweek> gwByCompWeekNum = existingGameweeks.stream()
+                .collect(Collectors.toMap(Gameweek::getWeekNumber, gw -> gw));
 
-        // Filter eligible fixtures
+        // ── Pre-load ALL fixtures for this competition in ONE query ───────────────
+        List<Long> gwIds = existingGameweeks.stream().map(Gameweek::getId).toList();
+        Map<String, Fixture> existingFixtureByExtId = gwIds.isEmpty()
+                ? new HashMap<>()
+                : fixtureRepository.findByGameweekIdIn(gwIds).stream()
+                        .collect(Collectors.toMap(Fixture::getExternalFixtureId, f -> f, (a, b) -> a));
+
+        // Filter eligible fixtures.
+        // Started weeks must still be updated if the fixture already belongs to this competition,
+        // otherwise live status and scores will never propagate after kickoff.
         List<ProviderFixture> eligible = allFixtures.stream()
                 .filter(pf -> comp.getStartDate() == null
                         || !pf.kickoffAt().toLocalDate().isBefore(comp.getStartDate()))
-                .filter(pf -> !allSkipped.contains(pf.weekNumber()))
+                .filter(pf -> !weeksTooEarly.contains(pf.weekNumber()))
+                .filter(pf -> !startedWeeks.contains(pf.weekNumber()) || existingFixtureByExtId.containsKey(pf.externalFixtureId()))
                 .sorted(Comparator.comparingInt(ProviderFixture::weekNumber)
                         .thenComparing(ProviderFixture::kickoffAt))
                 .toList();
@@ -263,18 +274,6 @@ public class FixtureSyncService {
 
         log.info("syncForCompetition: {} valid weeks for '{}': {}",
                 validWeeks.size(), comp.getName(), validWeeks.stream().sorted().toList());
-
-        // ── Pre-load ALL gameweeks for this competition ──────────────────────────
-        List<Gameweek> existingGameweeks = gameweekRepository.findByCompetitionIdOrderByWeekNumberAsc(comp.getId());
-        Map<Integer, Gameweek> gwByCompWeekNum = existingGameweeks.stream()
-                .collect(Collectors.toMap(Gameweek::getWeekNumber, gw -> gw));
-
-        // ── Pre-load ALL fixtures for this competition in ONE query ───────────────
-        List<Long> gwIds = existingGameweeks.stream().map(Gameweek::getId).toList();
-        Map<String, Fixture> existingFixtureByExtId = gwIds.isEmpty()
-                ? new HashMap<>()
-                : fixtureRepository.findByGameweekIdIn(gwIds).stream()
-                        .collect(Collectors.toMap(Fixture::getExternalFixtureId, f -> f, (a, b) -> a));
 
         // Build providerWeek → compGwNumber mapping anchored to existing gameweeks
         Map<Integer, Integer> providerWeekToCompGw = new LinkedHashMap<>();

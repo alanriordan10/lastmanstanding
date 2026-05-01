@@ -53,6 +53,24 @@ public class FixtureSyncScheduler {
         }
     }
 
+    /**
+     * Runs every minute, but only when the upstream provider reports live matches.
+     * This keeps live scores fresher without pushing normal traffic near the API limit.
+     */
+    @Scheduled(fixedRate = 60_000)
+    public void syncLiveFixtures() {
+        try {
+            if (footballDataProvider.isEmpty() || !footballDataProvider.get().hasLiveMatchesNow()) {
+                return;
+            }
+            if (!fixtureSyncService.trySyncFixturesAndResults()) {
+                log.info("Skipping live fixture sync because another fixture update is already running.");
+            }
+        } catch (Exception e) {
+            log.error("Live fixture sync failed: {}", e.getMessage());
+        }
+    }
+
     /** Full sync once per day at 3am — evicts cache first so data is always fresh. */
     @Scheduled(cron = "0 0 3 * * *")
     public void dailyFullSync() {
