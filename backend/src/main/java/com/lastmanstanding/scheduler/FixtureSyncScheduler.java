@@ -45,6 +45,10 @@ public class FixtureSyncScheduler {
     @Scheduled(fixedRate = 300_000)
     public void syncFixtures() {
         try {
+            if (footballDataProvider.isPresent() && footballDataProvider.get().hasLiveMatchesNow()) {
+                log.debug("Skipping standard fixture sync because live sync cadence is active.");
+                return;
+            }
             if (!fixtureSyncService.trySyncFixturesAndResults()) {
                 log.info("Skipping scheduled fixture sync because another fixture update is already running.");
             }
