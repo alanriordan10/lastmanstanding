@@ -28,6 +28,15 @@ public class Club {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "primary_color", length = 7)
+    private String primaryColor;
+
+    @Column(name = "secondary_color", length = 7)
+    private String secondaryColor;
+
+    @Column(name = "logo_url", columnDefinition = "TEXT")
+    private String logoUrl;
+
     public Club() {}
 
     public Club(String name, String description, User createdBy) {
@@ -57,4 +66,13 @@ public class Club {
     public void setClubAdmin(User clubAdmin) { this.clubAdmin = clubAdmin; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
+
+    public String getPrimaryColor() { return primaryColor; }
+    public void setPrimaryColor(String primaryColor) { this.primaryColor = primaryColor; }
+
+    public String getSecondaryColor() { return secondaryColor; }
+    public void setSecondaryColor(String secondaryColor) { this.secondaryColor = secondaryColor; }
+
+    public String getLogoUrl() { return logoUrl; }
+    public void setLogoUrl(String logoUrl) { this.logoUrl = logoUrl; }
 }
