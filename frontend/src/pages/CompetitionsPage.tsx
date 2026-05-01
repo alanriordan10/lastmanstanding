@@ -713,6 +713,7 @@ function CompListView({ comps, joinedSet, onJoin, isPending }: {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-medium text-sm text-white truncate">{c.name}</span>
+                {c.clubLogoUrl && <img src={c.clubLogoUrl} alt="" className="h-5 w-5 rounded-md object-cover border border-white/15 shrink-0" />}
                 {c.clubName && <span className="badge-yellow badge-soft shrink-0">{c.clubName}</span>}
                 {joined && <span className="badge-brand shrink-0">Joined</span>}
               </div>
@@ -970,7 +971,8 @@ function CompetitionCard({ comp, joined, onJoin, isPending, isHighlighted = fals
       </div>
 
       <h3 className="text-base sm:text-lg font-bold leading-snug line-clamp-2">{comp.name}</h3>
-      <div className="mt-1 min-h-[18px]">
+      <div className="mt-1 min-h-[18px] flex items-center gap-1.5">
+        {comp.clubLogoUrl && <img src={comp.clubLogoUrl} alt="" className="h-5 w-5 rounded-md object-cover border border-white/15 shrink-0" />}
         {comp.clubName && <span className="inline-flex max-w-full truncate badge-yellow badge-soft align-top">{comp.clubName}</span>}
       </div>
       {comp.visibility === 'PRIVATE' && comp.joinCode ? (
@@ -1087,7 +1089,8 @@ function MyCompetitionCard({ myComp }: { myComp: MyCompetition }) {
       </div>
 
       <h3 className="text-base sm:text-lg font-bold leading-snug line-clamp-2">{comp.name}</h3>
-      <div className="mt-1 min-h-[18px]">
+      <div className="mt-1 min-h-[18px] flex items-center gap-1.5">
+        {comp.clubLogoUrl && <img src={comp.clubLogoUrl} alt="" className="h-5 w-5 rounded-md object-cover border border-white/15 shrink-0" />}
         {comp.clubName && <span className="inline-flex max-w-full truncate badge-yellow badge-soft align-top">{comp.clubName}</span>}
       </div>
       <div className="mt-1.5 min-h-[32px]">
@@ -1167,7 +1170,8 @@ function PastCompetitionCard({ comp }: { comp: Competition }) {
     <Link to={`/competitions/${comp.id}`} className="card flex flex-col p-3.5 sm:p-4.5 group transition-all hover:border-gray-600 block">
       <div className="mb-2.5"><span className="badge-gray">FINISHED</span></div>
       <h3 className="text-base sm:text-lg font-bold leading-snug line-clamp-2">{comp.name}</h3>
-      <div className="mt-1 min-h-[18px]">
+      <div className="mt-1 min-h-[18px] flex items-center gap-1.5">
+        {comp.clubLogoUrl && <img src={comp.clubLogoUrl} alt="" className="h-5 w-5 rounded-md object-cover border border-white/15 shrink-0" />}
         {comp.clubName && <span className="inline-flex max-w-full truncate badge-yellow badge-soft align-top">{comp.clubName}</span>}
       </div>
       <div className="mt-1.5 min-h-[32px]">
