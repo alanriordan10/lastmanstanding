@@ -147,6 +147,10 @@ export default function CompetitionHomePage() {
       if (comp?.status === 'UPCOMING' && (!data || data.length === 0)) {
         return 3_000;
       }
+      const live = data?.some((f) => f.status === 'IN_PLAY');
+      if (live) {
+        return 60_000;
+      }
       const inProgress = data?.some((f) => f.gameweekStatus === 'IN_PROGRESS');
       return inProgress ? 300_000 : false;
     },
@@ -441,6 +445,10 @@ export default function CompetitionHomePage() {
       return data.gwStatus === 'UPCOMING' && !isPast(lockDate);
     });
 
+  const inProgressWeek = sortedWeeks
+    .map((wn) => ({ weekNumber: wn, data: fixturesByWeek.get(wn)! }))
+    .find(({ data }) => data.gwStatus === 'IN_PROGRESS');
+
   const openWeekWithoutPick = isParticipant && !isEliminated && !isWinner
     ? sortedWeeks
         .map((wn) => ({ weekNumber: wn, data: fixturesByWeek.get(wn)! }))
@@ -472,6 +480,16 @@ export default function CompetitionHomePage() {
     ? [...(pickStatsByGwId.get(latestCompletedWeek.data.gwId) ?? [])].sort((a, b) => b.pickCount - a.pickCount)
     : [];
 
+  const liveInsightWeek = inProgressWeek
+    ?? [...sortedWeeks]
+        .reverse()
+        .map((weekNumber) => ({ weekNumber, data: fixturesByWeek.get(weekNumber)! }))
+        .find(({ data }) => data.gwStatus === 'LOCKED');
+
+  const liveInsightStats = liveInsightWeek
+    ? [...(pickStatsByGwId.get(liveInsightWeek.data.gwId) ?? [])].sort((a, b) => b.pickCount - a.pickCount)
+    : [];
+
   const latestCompletedTeamResults = new Map<number, 'WIN' | 'LOSS' | 'DRAW' | 'POSTPONED'>();
   if (latestCompletedWeek) {
     latestCompletedWeek.data.fixtures.forEach((fixture) => {
@@ -497,6 +515,7 @@ export default function CompetitionHomePage() {
   }
 
   const mostBackedTeam = latestCompletedStats[0];
+  const crowdReadTeam = liveInsightStats[0] ?? mostBackedTeam;
   const biggestCasualty = latestCompletedStats.find((stat) => latestCompletedTeamResults.get(stat.teamId) === 'LOSS');
   const contrarianSurvivor = [...latestCompletedStats]
     .reverse()
@@ -588,6 +607,12 @@ export default function CompetitionHomePage() {
   } else if (isEliminated) {
     storylineTitle = `Your run ended in Gameweek ${participant?.eliminatedWeek}`;
     storylineBody = 'You are out of this competition now, but you can still follow every remaining fixture, upset, and survivor.';
+  } else if (inProgressWeek) {
+    const livePick = pickByGwId.get(inProgressWeek.data.gwId);
+    storylineTitle = `Gameweek ${inProgressWeek.weekNumber} is underway`;
+    storylineBody = livePick
+      ? `${livePick.teamShortName} is already locked in. This round is now about survival, not the next pick.`
+      : 'This round is already live. Watch the current results before thinking about the next gameweek.';
   } else if (openWeekWithoutPick) {
     storylineTitle = `Your next decision is Gameweek ${openWeekWithoutPick.weekNumber}`;
     storylineBody = 'You still have time to pick, but every unused team choice gets more valuable from here.';
@@ -683,6 +708,14 @@ export default function CompetitionHomePage() {
     actionTitle = `Eliminated in Gameweek ${participant?.eliminatedWeek}`;
     actionBody = 'You can no longer make picks, but fixtures, selections, and results stay available so you can follow the rest of the competition.';
     actionMeta = latestResolvedPick ? `Latest resolved pick: ${latestResolvedPick.teamShortName} in GW${latestResolvedPick.weekNumber}.` : null;
+  } else if (inProgressWeek) {
+    const livePick = pickByGwId.get(inProgressWeek.data.gwId);
+    actionTone = 'brand';
+    actionTitle = `Gameweek ${inProgressWeek.weekNumber} is underway`;
+    actionBody = livePick
+      ? `${livePick.teamShortName} is locked in for the live round. Follow the current fixtures before the next pick window opens.`
+      : 'This gameweek is already in progress, so there is no next pick to make right now.';
+    actionMeta = 'The next pick window will open after the current round is completed.';
   } else if (openWeekWithoutPick) {
     actionTone = countdown.totalSeconds < 7200 ? 'warning' : 'brand';
     actionTitle = `Pick needed for Gameweek ${openWeekWithoutPick.weekNumber}`;
@@ -734,6 +767,8 @@ export default function CompetitionHomePage() {
     ? 'Winner'
     : isEliminated
     ? `Out in GW${participant?.eliminatedWeek}`
+    : inProgressWeek
+    ? `GW${inProgressWeek.weekNumber} live`
     : openWeekWithoutPick
     ? `Pick due GW${openWeekWithoutPick.weekNumber}`
     : openWeekWithPick
@@ -752,6 +787,8 @@ export default function CompetitionHomePage() {
     ? 'You have already won this competition. Use the quick actions below to review the final table and results.'
     : isEliminated
     ? 'You are out of this run. There is no next pick, but you can still track every remaining fixture and survivor.'
+    : inProgressWeek
+    ? 'The current gameweek is live. Focus on the active fixtures before the next pick window opens.'
     : openWeekWithoutPick
     ? 'You still need to choose a team for the next open gameweek.'
     : openWeekWithPick
@@ -761,6 +798,8 @@ export default function CompetitionHomePage() {
   const sidebarMeta = awaitingPayment
     ? actionMeta
     : isEliminated || isWinner
+    ? actionMeta
+    : inProgressWeek
     ? actionMeta
     : openWeekWithoutPick
     ? `Deadline: ${formatDistanceToNow(parseDate(openWeekWithoutPick.data.lockAt), { addSuffix: true })}`
@@ -818,7 +857,7 @@ export default function CompetitionHomePage() {
     </section>
   ) : null;
 
-  const openWeekForAction = openWeekWithoutPick ?? openWeekWithPick ?? upcomingWeek;
+  const openWeekForAction = inProgressWeek ? undefined : openWeekWithoutPick ?? openWeekWithPick ?? upcomingWeek;
   const openWeekNumber = openWeekForAction?.weekNumber ?? null;
   const openWeekTargetId = openWeekNumber ? `gw-card-${openWeekNumber}` : null;
 
@@ -839,9 +878,11 @@ export default function CompetitionHomePage() {
   const insightPanels = [
     {
       eyebrow: 'Crowd read',
-      title: mostBackedTeam ? `${mostBackedTeam.teamShortName} carried the weight` : 'Waiting for the first crowd signal',
-      detail: mostBackedTeam
-        ? `${mostBackedTeam.pickCount} players backed ${mostBackedTeam.teamName} in the latest resolved week, accounting for ${mostBackedTeam.percentage}% of tracked picks.`
+      title: crowdReadTeam ? `${crowdReadTeam.teamShortName} carried the weight` : 'Waiting for the first crowd signal',
+      detail: crowdReadTeam
+        ? liveInsightWeek && liveInsightWeek.data.gwStatus !== 'COMPLETED'
+          ? `${crowdReadTeam.pickCount} players are currently riding with ${crowdReadTeam.teamName} in Gameweek ${liveInsightWeek.weekNumber}, accounting for ${crowdReadTeam.percentage}% of tracked picks.`
+          : `${crowdReadTeam.pickCount} players backed ${crowdReadTeam.teamName} in the latest resolved week, accounting for ${crowdReadTeam.percentage}% of tracked picks.`
         : 'Once a gameweek locks, this area highlights where the crowd moved together.',
       tone: 'brand' as const,
     },
@@ -1485,7 +1526,14 @@ export default function CompetitionHomePage() {
                                 ) : f.status === 'POSTPONED' ? (
                                   <span className="badge-yellow text-xs">PP</span>
                                 ) : f.status === 'IN_PLAY' ? (
-                                  <span className="text-green-400 text-xs font-bold animate-pulse lg:text-sm">LIVE</span>
+                                  <>
+                                    <span className="font-bold text-white text-xs sm:text-sm lg:text-base">
+                                      {f.scoreHome != null && f.scoreAway != null ? `${f.scoreHome} - ${f.scoreAway}` : 'LIVE'}
+                                    </span>
+                                    <span className="text-green-400 text-[10px] font-bold animate-pulse uppercase tracking-[0.16em] lg:text-xs">
+                                      Live
+                                    </span>
+                                  </>
                                 ) : (
                                   <>
                                   <span className="text-gray-400 text-[10px] sm:text-xs lg:text-sm">{formatKickoffDate(f.kickoffAt)}</span>
