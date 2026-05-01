@@ -246,7 +246,7 @@ public class FootballDataProvider implements FixtureProvider {
                 .uri(URI.create(url))
                 .header("X-Auth-Token", apiKey)
                 .header("Accept", "application/json")
-                .timeout(Duration.ofSeconds(15))
+                .timeout(Duration.ofSeconds(45))
                 .GET()
                 .build();
 
