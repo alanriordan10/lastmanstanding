@@ -16,6 +16,9 @@ export interface Club {
   description: string | null;
   clubAdminId: number | null;
   clubAdminUsername: string | null;
+  primaryColor: string | null;
+  secondaryColor: string | null;
+  logoUrl: string | null;
 }
 
 export interface Competition {
@@ -39,6 +42,9 @@ export interface Competition {
   clubId?: number;
   clubName?: string;
   winnerUsername?: string;
+  clubPrimaryColor?: string | null;
+  clubSecondaryColor?: string | null;
+  clubLogoUrl?: string | null;
 }
 
 export interface Participant {

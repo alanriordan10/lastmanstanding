@@ -112,6 +112,39 @@ public class ClubAdminController {
         return ResponseEntity.ok(ClubResponse.from(club));
     }
 
+    @PutMapping("/my-club/branding")
+    @Transactional
+    public ResponseEntity<ClubResponse> updateBranding(
+            @RequestBody UpdateClubBrandingRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+
+        Club club = resolveClub(userDetails);
+
+        // Validate hex colors if provided
+        if (request.primaryColor() != null && !request.primaryColor().matches("^#[0-9a-fA-F]{6}$")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "primaryColor must be a valid hex color (e.g. #1a3c6e)");
+        }
+        if (request.secondaryColor() != null && !request.secondaryColor().matches("^#[0-9a-fA-F]{6}$")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "secondaryColor must be a valid hex color");
+        }
+        // Accept https:// URLs or base64 data URLs (file uploads)
+        if (request.logoUrl() != null && !request.logoUrl().isBlank()
+                && !request.logoUrl().startsWith("https://")
+                && !request.logoUrl().startsWith("data:image/")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "logoUrl must start with https:// or be an uploaded image");
+        }
+
+        club.setPrimaryColor(request.primaryColor());
+        club.setSecondaryColor(request.secondaryColor());
+        club.setLogoUrl(request.logoUrl() != null && request.logoUrl().isBlank() ? null : request.logoUrl());
+        clubRepository.save(club);
+
+        log.info("Club admin {} updated branding for club '{}'", userDetails.getUsername(), club.getName());
+        logAudit(userDetails, "Club", club.getId(), "branding", null, "updated", "UPDATE_BRANDING");
+
+        return ResponseEntity.ok(ClubResponse.from(club));
+    }
+
     // ── Competitions ─────────────────────────────────────────────────────
 
     @GetMapping("/competitions")

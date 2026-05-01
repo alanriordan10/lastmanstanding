@@ -534,12 +534,15 @@ export default function CompetitionHomePage() {
     ? Math.max(weeklyPickedCount - weeklyAdvancedCount, 0)
     : 0);
 
+  const hasWinner = comp.status === 'COMPLETED'
+    || (comp.activeCount === 1 && (comp.participantCount ?? 0) > 1);
+
   let storylineTitle = 'Competition pressure is building';
   let storylineBody = comp.status === 'UPCOMING'
     ? 'Registration is open and the first real pressure point is the next lock.'
     : 'The next pick window is where this competition starts to separate cautious players from survivors.';
 
-  if (comp.status === 'COMPLETED' || comp.activeCount === 1) {
+  if (hasWinner) {
     const winnerLabel = isWinner ? 'You won this competition' : 'We have a winner';
     storylineTitle = winnerLabel;
     const winnerName = comp.winnerUsername ?? (isWinner ? 'You' : 'One player');
@@ -866,7 +869,23 @@ export default function CompetitionHomePage() {
   return (
     <div className="space-y-8">
       {/* ── Header ── */}
-      <section className="relative overflow-hidden rounded-[1.9rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.22),transparent_24rem),radial-gradient(circle_at_85%_18%,rgba(250,204,21,0.10),transparent_18rem),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))] px-5 py-5 shadow-[0_30px_75px_rgba(2,6,23,0.48)] sm:px-6 sm:py-6 lg:px-8 lg:py-7">
+      <section
+        className="relative overflow-hidden rounded-[1.9rem] border border-white/8 px-5 py-5 shadow-[0_30px_75px_rgba(2,6,23,0.48)] sm:px-6 sm:py-6 lg:px-8 lg:py-7"
+        style={{
+          background: comp.clubPrimaryColor
+            ? `radial-gradient(circle at top left, ${comp.clubPrimaryColor}38, transparent 24rem), radial-gradient(circle at 85% 18%, ${comp.clubSecondaryColor ?? comp.clubPrimaryColor}22, transparent 18rem), linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))`
+            : undefined,
+          ...(comp.clubPrimaryColor ? { borderTopColor: comp.clubPrimaryColor, borderTopWidth: '3px' } : {}),
+        }}
+      >
+        {/* Club logo — top right corner (mobile/tablet only; desktop is in the right column) */}
+        {comp.clubLogoUrl && (
+          <img
+            src={comp.clubLogoUrl}
+            alt={comp.clubName ?? 'Club logo'}
+            className="absolute right-5 top-5 h-16 w-16 rounded-2xl object-cover border border-white/20 shadow-lg sm:h-20 sm:w-20 lg:hidden"
+          />
+        )}
         <div className="absolute inset-y-0 right-0 hidden w-1/3 bg-[linear-gradient(180deg,transparent,rgba(255,255,255,0.02),transparent)] lg:block" />
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="max-w-2xl">
@@ -889,6 +908,14 @@ export default function CompetitionHomePage() {
             </div>
           </div>
           <div className="flex gap-2 flex-wrap items-start lg:flex-col lg:items-end">
+          {/* Logo inline in this column on desktop */}
+          {comp.clubLogoUrl && (
+            <img
+              src={comp.clubLogoUrl}
+              alt={comp.clubName ?? 'Club logo'}
+              className="hidden lg:block h-24 w-24 rounded-2xl object-cover border border-white/20 shadow-lg mb-2"
+            />
+          )}
           {/* Share / Invite */}
           <div className="relative" data-share-menu>
             <button
@@ -971,15 +998,21 @@ export default function CompetitionHomePage() {
         </div>
         </div>
         <div className="relative mt-6 grid gap-3 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)]">
-          <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4 backdrop-blur-sm">
+          <div
+            className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4 backdrop-blur-sm"
+            style={comp.clubPrimaryColor ? { borderLeftColor: comp.clubPrimaryColor, borderLeftWidth: '3px' } : undefined}
+          >
             <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-200/80">
-              <span>Competition Pulse</span>
+              {comp.clubLogoUrl && (
+                <img src={comp.clubLogoUrl} alt="" className="h-6 w-6 rounded-md object-cover border border-white/20" />
+              )}
+              <span>{comp.clubName ? comp.clubName : 'Competition'} Pulse</span>
               {latestCompletedWeek && <span className="text-gray-500">•</span>}
               {latestCompletedWeek && <span className="text-yellow-200/90">Latest: GW{latestCompletedWeek.weekNumber}</span>}
             </div>
             <h2 className="mt-3 text-2xl font-black tracking-tight text-white sm:text-3xl">{storylineTitle}</h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-300 sm:text-[15px]">{storylineBody}</p>
-            {(comp.status === 'COMPLETED' || comp.activeCount === 1) && comp.winnerUsername && (
+            {hasWinner && comp.winnerUsername && (
               <div className="mt-3 inline-flex items-center gap-2 rounded-xl border border-yellow-400/30 bg-yellow-400/10 px-4 py-2 text-sm font-semibold text-yellow-200">
                 <span>🏆</span>
                 <span>{isWinner ? 'You are the winner!' : `Winner: ${comp.winnerUsername}`}</span>
@@ -1443,6 +1476,7 @@ export default function CompetitionHomePage() {
                                   isClickable={canPickThisGw && !homeUsed}
                                   align="right"
                                   pickStat={homeStat}
+                                  accentColor={comp.clubSecondaryColor}
                                   onClick={() => handlePick(gwId, f.homeTeamId, lockAt)}
                                 />
                                 <div className="flex flex-col items-center justify-center min-w-[80px] sm:min-w-[80px] lg:min-w-[96px] px-1">
@@ -1467,6 +1501,7 @@ export default function CompetitionHomePage() {
                                   isClickable={canPickThisGw && !awayUsed}
                                   align="left"
                                   pickStat={awayStat}
+                                  accentColor={comp.clubSecondaryColor}
                                   onClick={() => handlePick(gwId, f.awayTeamId, lockAt)}
                                 />
                               </div>
@@ -1782,10 +1817,10 @@ function InsightPanel({
 }
 
 function TeamButton({
-  name, shortName, isMyPick, isUsed, isClickable, align, pickStat, onClick,
+  name, shortName, isMyPick, isUsed, isClickable, align, pickStat, accentColor, onClick,
 }: {
   name: string; shortName: string; isMyPick: boolean; isUsed: boolean;
-  isClickable: boolean; align: 'left' | 'right'; pickStat?: PickStat; onClick: () => void;
+  isClickable: boolean; align: 'left' | 'right'; pickStat?: PickStat; accentColor?: string | null; onClick: () => void;
 }) {
   return (
     <button
@@ -1847,15 +1882,15 @@ function TeamButton({
         <div className="w-full mt-2 space-y-1 min-h-[28px]">
           <div className={clsx('w-full h-2 rounded-full overflow-hidden bg-surface-500', align === 'right' && 'scale-x-[-1]')}>
             <div
-              className={clsx('h-2 rounded-full transition-all duration-700', isMyPick ? 'bg-white/80' : 'bg-brand-500')}
-              style={{ width: `${Math.max(pickStat.percentage, 2)}%` }}
+              className={clsx('h-2 rounded-full transition-all duration-700', !accentColor && (isMyPick ? 'bg-white/80' : 'bg-brand-500'))}
+              style={{ width: `${Math.max(pickStat.percentage, 2)}%`, ...(accentColor && !isMyPick ? { backgroundColor: accentColor } : isMyPick ? { backgroundColor: 'rgba(255,255,255,0.8)' } : {}) }}
             />
           </div>
           <div className={clsx('flex w-full', align === 'right' ? 'justify-end' : 'justify-start')}>
-            <div className={clsx(
-              'inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap',
-              isMyPick ? 'bg-white/20 text-white' : 'bg-brand-500/20 text-brand-300'
-            )}>
+            <div
+              className={clsx('inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap', isMyPick ? 'bg-white/20 text-white' : !accentColor && 'bg-brand-500/20 text-brand-300')}
+              style={accentColor && !isMyPick ? { backgroundColor: `${accentColor}33`, color: accentColor } : undefined}
+            >
               {pickStat.percentage}%
               <span className={clsx('font-normal whitespace-nowrap', isMyPick ? 'text-white/60' : 'text-gray-400')}>
                 · {pickStat.pickCount} {pickStat.pickCount === 1 ? 'player' : 'players'}
