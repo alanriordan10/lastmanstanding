@@ -23,6 +23,7 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+    ignore-migration-patterns: "*:missing"
   mail:
     protocol: ${MAIL_PROTOCOL:smtp}
     host: ${MAIL_HOST:smtp.gmail.com}
