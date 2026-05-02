@@ -1359,10 +1359,18 @@ export default function CompetitionHomePage() {
                 const myPickForGw = pickByGwId.get(gwId);
 
                 return (
-                  <div id={`gw-card-${wn}`} key={wn} className={clsx('card overflow-hidden', {
-                    'border-brand-500/40': myPickForGw && !isCompleted,
-                    'border-gray-700/30 opacity-75': isCompleted,
-                  })}>
+                  <div
+                    id={`gw-card-${wn}`}
+                    key={wn}
+                    className={clsx('card overflow-hidden', {
+                      'border-brand-500/40': myPickForGw && !isCompleted,
+                      'border-gray-700/30 opacity-75': isCompleted,
+                    })}
+                    style={myPickForGw && !isCompleted && comp.clubPrimaryColor ? {
+                      borderColor: `${comp.clubPrimaryColor}66`,
+                      boxShadow: `0 0 0 1px ${comp.clubPrimaryColor}20`,
+                    } : undefined}
+                  >
                     {/* ── Gameweek header — clickable toggle ── */}
                     <button
                       onClick={() => toggleWeek(wn)}
@@ -1518,7 +1526,7 @@ export default function CompetitionHomePage() {
                             return (
                               <div
                                 key={f.id}
-                                className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-lg bg-surface-700/50 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3 lg:gap-4"
+                                className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-lg bg-surface-700/50 px-3 py-2 sm:gap-3 sm:px-4 sm:py-2.5 lg:gap-4"
                               >
                                 <TeamButton
                                   name={f.homeTeamName}
@@ -1892,7 +1900,7 @@ function TeamButton({
         name
       }
       className={clsx(
-        'flex h-full flex-col justify-center gap-0.5 rounded-lg px-1.5 sm:px-3 lg:px-4 py-0.5 sm:py-1 w-full min-w-0 transition-all min-h-[28px] sm:min-h-[36px] lg:min-h-[44px]',
+        'flex h-full flex-col justify-center gap-0.5 rounded-lg px-1.5 sm:px-3 lg:px-4 py-0.5 sm:py-0.5 w-full min-w-0 transition-all min-h-[28px] sm:min-h-[30px] lg:min-h-[32px]',
         align === 'right' ? 'items-end text-right' : 'items-start text-left',
         isMyPick && 'bg-brand-600 border-2 border-brand-400 text-white font-bold shadow-lg shadow-brand-900/50',
         isUsed && !isMyPick && 'bg-transparent text-gray-700 cursor-not-allowed',
@@ -1911,30 +1919,60 @@ function TeamButton({
         {isMyPick && <span className="text-xs font-bold text-white">✓</span>}
         {isUsed && !isMyPick && <span className="text-[10px] font-bold text-gray-500">used</span>}
       </div>
-      {/* Desktop: full grid with name + checkmark */}
-      {align === 'right' ? (
-        <div className="hidden sm:grid w-full items-center gap-2 grid-cols-[auto_1fr_auto] text-right">
-          <span className={clsx('text-xs font-bold justify-self-start', isMyPick ? 'text-white' : 'text-gray-400')}>
-            {isMyPick ? '✓' : isUsed && !isMyPick ? 'used' : ''}
-          </span>
-          <span className="truncate text-xs lg:text-sm font-normal opacity-90 justify-self-end">
-            {name}
-          </span>
-          <span className={clsx('font-bold sm:text-sm', isMyPick ? 'text-white' : isUsed ? 'line-through' : '')} style={{ width: '3ch' }}>
-            {shortName}
-          </span>
+      {/* Desktop */}
+      {pickStat ? (
+        align === 'right' ? (
+          <div className="hidden sm:grid w-full items-center gap-2 grid-cols-[auto_1fr_auto] text-right">
+            <span className={clsx('text-xs font-bold justify-self-start', isMyPick ? 'text-white' : 'text-gray-400')}>
+              {isMyPick ? '✓' : isUsed && !isMyPick ? 'used' : ''}
+            </span>
+            <span className="truncate text-xs lg:text-sm font-normal opacity-90 justify-self-end">
+              {name}
+            </span>
+            <span className={clsx('font-bold sm:text-sm', isMyPick ? 'text-white' : isUsed ? 'line-through' : '')} style={{ width: '3ch' }}>
+              {shortName}
+            </span>
+          </div>
+        ) : (
+          <div className="hidden sm:grid w-full items-center gap-2 grid-cols-[auto_1fr_auto] text-left">
+            <span className={clsx('font-bold sm:text-sm', isMyPick ? 'text-white' : isUsed ? 'line-through' : '')} style={{ width: '3ch' }}>
+              {shortName}
+            </span>
+            <span className="truncate text-xs lg:text-sm font-normal opacity-90">
+              {name}
+            </span>
+            <span className={clsx('text-xs font-bold justify-self-end', isMyPick ? 'text-white' : 'text-gray-400')}>
+              {isMyPick ? '✓' : isUsed && !isMyPick ? 'used' : ''}
+            </span>
+          </div>
+        )
+      ) : align === 'right' ? (
+        <div className="hidden sm:grid h-full w-full place-items-center">
+          <div className="grid w-full max-w-[18rem] grid-cols-[3.5ch_minmax(0,1fr)_3ch] items-center gap-2">
+            <span className="text-left text-xs font-bold text-gray-400">
+              {isMyPick ? '✓' : isUsed && !isMyPick ? 'used' : ''}
+            </span>
+            <span className="truncate text-center text-xs lg:text-sm font-normal opacity-90">
+              {name}
+            </span>
+            <span className={clsx('text-right font-bold sm:text-sm', isMyPick ? 'text-white' : isUsed ? 'line-through' : '')}>
+              {shortName}
+            </span>
+          </div>
         </div>
       ) : (
-        <div className="hidden sm:grid w-full items-center gap-2 grid-cols-[auto_1fr_auto] text-left">
-          <span className={clsx('font-bold sm:text-sm', isMyPick ? 'text-white' : isUsed ? 'line-through' : '')} style={{ width: '3ch' }}>
-            {shortName}
-          </span>
-          <span className="truncate text-xs lg:text-sm font-normal opacity-90">
-            {name}
-          </span>
-          <span className={clsx('text-xs font-bold justify-self-end', isMyPick ? 'text-white' : 'text-gray-400')}>
-            {isMyPick ? '✓' : isUsed && !isMyPick ? 'used' : ''}
-          </span>
+        <div className="hidden sm:grid h-full w-full place-items-center">
+          <div className="grid w-full max-w-[18rem] grid-cols-[3ch_minmax(0,1fr)_3.5ch] items-center gap-2">
+            <span className={clsx('text-left font-bold sm:text-sm', isMyPick ? 'text-white' : isUsed ? 'line-through' : '')}>
+              {shortName}
+            </span>
+            <span className="truncate text-center text-xs lg:text-sm font-normal opacity-90">
+              {name}
+            </span>
+            <span className="text-right text-xs font-bold text-gray-400">
+              {isMyPick ? '✓' : isUsed && !isMyPick ? 'used' : ''}
+            </span>
+          </div>
         </div>
       )}
       {/* Pick stat bar — shown after gameweek locks */}
