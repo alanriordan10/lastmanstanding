@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.net.http.HttpConnectTimeoutException;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
@@ -65,6 +66,7 @@ public class FootballDataProvider implements FixtureProvider {
 
     private final HttpClient http = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(30))
+            .version(HttpClient.Version.HTTP_1_1)
             .build();
     private final ObjectMapper mapper = new ObjectMapper()
             .configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
@@ -170,8 +172,11 @@ public class FootballDataProvider implements FixtureProvider {
                         t.crest()
                 );
             }).toList();
+        } catch (HttpConnectTimeoutException e) {
+            log.error("Failed to connect to football-data.org teams endpoint within timeout: {}", e.getMessage());
+            return List.of();
         } catch (Exception e) {
-            log.error("Failed to load teams from football-data.org: {}", e.getMessage());
+            log.error("Failed to load teams from football-data.org ({}): {}", e.getClass().getSimpleName(), e.getMessage());
             return List.of();
         }
     }
@@ -192,8 +197,11 @@ public class FootballDataProvider implements FixtureProvider {
                     .map(this::toProviderFixture)
                     .filter(Objects::nonNull)
                     .toList();
+        } catch (HttpConnectTimeoutException e) {
+            log.error("Failed to connect to football-data.org matches endpoint within timeout for {} to {}: {}", from, to, e.getMessage());
+            return List.of();
         } catch (Exception e) {
-            log.error("Failed to load matches from football-data.org: {}", e.getMessage());
+            log.error("Failed to load matches from football-data.org ({}): {}", e.getClass().getSimpleName(), e.getMessage());
             return List.of();
         }
     }
