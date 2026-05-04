@@ -1,6 +1,7 @@
 package com.lastmanstanding.config;
 
 import com.lastmanstanding.repository.UserRepository;
+import com.lastmanstanding.security.OAuth2AuthenticationSuccessHandler;
 import com.lastmanstanding.security.JwtAuthenticationFilter;
 import com.lastmanstanding.security.UserDetailsImpl;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,13 +34,16 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final UserRepository userRepository;
+    private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
     private final String frontendUrl;
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
                           UserRepository userRepository,
+                          OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler,
                           @Value("${app.frontend-url:http://localhost:5173}") String frontendUrl) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.userRepository = userRepository;
+        this.oAuth2AuthenticationSuccessHandler = oAuth2AuthenticationSuccessHandler;
         this.frontendUrl = frontendUrl;
     }
 
@@ -51,10 +55,11 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                        session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                        .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                         .requestMatchers("/competitions/my", "/competitions/my/**", "/competitions/*/me").authenticated()
                         .requestMatchers(HttpMethod.GET, "/competitions/code/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/competitions/upcoming").permitAll()
@@ -77,6 +82,8 @@ public class SecurityConfig {
                         .requestMatchers("/club-admin/**").hasAnyRole("ADMIN", "CLUB_ADMIN")
                         .requestMatchers("/payments/**").authenticated()
                         .anyRequest().authenticated())
+                .oauth2Login(oauth2 -> oauth2
+                        .successHandler(oAuth2AuthenticationSuccessHandler))
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class);

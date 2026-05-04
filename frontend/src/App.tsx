@@ -7,6 +7,7 @@ const LoginPage = lazy(() => import('./pages/LoginPage'));
 const SignupPage = lazy(() => import('./pages/SignupPage'));
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const RegisterClubPage = lazy(() => import('./pages/RegisterClubPage'));
+const OAuth2CallbackPage = lazy(() => import('./pages/OAuth2CallbackPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 const CompetitionsPage = lazy(() => import('./pages/CompetitionsPage'));
@@ -55,6 +56,7 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/register-club" element={<RegisterClubPage />} />
+        <Route path="/oauth2/callback" element={<OAuth2CallbackPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/invite/:code" element={<InviteRedirect />} />

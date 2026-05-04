@@ -35,6 +35,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (path.equals("/auth/me") || path.equals("/auth/email-preferences")) {
             return false;
         }
+        if (path.startsWith("/oauth2") || path.startsWith("/login/oauth2")) {
+            return true;
+        }
         return path.startsWith("/auth");
     }
 
@@ -62,24 +65,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         Long userId = jwtService.extractUserId(token);
 
-        // Only set authentication if none already exists in the context
-        if (SecurityContextHolder.getContext().getAuthentication() == null) {
-            User user = userRepository.findById(userId).orElse(null);
+        // If a valid Bearer JWT is present, prefer JWT auth for this request.
+        // This avoids OAuth2 session principal type mismatches on endpoints expecting UserDetailsImpl.
+        User user = userRepository.findById(userId).orElse(null);
+        if (user != null) {
+            UserDetailsImpl userDetails = new UserDetailsImpl(user);
 
-            if (user != null) {
-                UserDetailsImpl userDetails = new UserDetailsImpl(user);
+            UsernamePasswordAuthenticationToken authentication =
+                    new UsernamePasswordAuthenticationToken(
+                            userDetails,
+                            null,
+                            userDetails.getAuthorities());
 
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(
-                                userDetails,
-                                null,
-                                userDetails.getAuthorities());
+            authentication.setDetails(
+                    new WebAuthenticationDetailsSource().buildDetails(request));
 
-                authentication.setDetails(
-                        new WebAuthenticationDetailsSource().buildDetails(request));
-
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-            }
+            SecurityContextHolder.getContext().setAuthentication(authentication);
         }
 
         filterChain.doFilter(request, response);

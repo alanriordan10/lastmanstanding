@@ -3,6 +3,7 @@ import { Link, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
 import toast from 'react-hot-toast';
+import SocialAuthButtons from '../components/SocialAuthButtons';
 
 type UsernameCheckState = 'idle' | 'checking' | 'available' | 'taken' | 'error';
 type EmailCheckState = 'idle' | 'checking' | 'available' | 'taken' | 'error';
@@ -276,6 +277,9 @@ export default function SignupPage() {
             {loading ? 'Creating account…' : 'Create Account'}
           </button>
         </form>
+        <div className="card">
+          <SocialAuthButtons mode="signup" />
+        </div>
 
         <p className="text-center text-sm text-gray-400">
           Already have an account?{' '}

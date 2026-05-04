@@ -45,6 +45,17 @@ spring:
           writetimeout: 5000
       debug: ${MAIL_DEBUG:true}
     test-connection: ${MAIL_TEST_CONNECTION:false}
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:}
+            client-secret: ${GOOGLE_CLIENT_SECRET:}
+            scope:
+              - openid
+              - profile
+              - email
 
 jwt:
   secret: ${JWT_SECRET:super-secret-jwt-key-change-in-production-min-256-bits-long!!}
