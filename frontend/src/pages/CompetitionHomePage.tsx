@@ -384,6 +384,7 @@ export default function CompetitionHomePage() {
   const isWinner = participant?.status === 'WINNER';
   const paymentState = participant?.paymentState;
   const awaitingPayment = paymentState === 'AWAITING_PAYMENT';
+  const strictManualPayment = comp.paymentMode === 'MANUAL' && comp.manualPaymentPolicy !== 'LENIENT';
   const joinPath = comp.joinCode
     ? `/invite/${encodeURIComponent(comp.joinCode)}`
     : `/competitions?join=${encodeURIComponent(String(compId))}`;
@@ -748,6 +749,10 @@ export default function CompetitionHomePage() {
 
   const handlePick = (gwId: number, teamId: number, lockAt: string) => {
     if (!isParticipant || isEliminated || isWinner) return;
+    if (awaitingPayment && strictManualPayment) {
+      toast.error('Your entry is awaiting payment confirmation. Picks are disabled until marked as paid.');
+      return;
+    }
     if (isPast(parseDate(lockAt))) return;
     pickMutation.mutate({ gwId, teamId });
   };
@@ -1231,7 +1236,25 @@ export default function CompetitionHomePage() {
         ))}
       </section>
 
-      {openWeekForAction && !isEliminated && !isWinner && (
+      {isParticipant && awaitingPayment && strictManualPayment && (
+        <section className="rounded-[1.35rem] border border-amber-400/35 bg-amber-500/10 px-4 py-4 sm:px-5">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-300">Entry Pending Payment</div>
+              <h2 className="mt-1 text-lg font-semibold text-white">Picks are locked until payment is confirmed</h2>
+              <p className="mt-1 text-sm text-gray-200">
+                Your entry is registered, but the club admin still needs to confirm your payment before you can make selections.
+              </p>
+            </div>
+            <div className="inline-flex items-center gap-2 self-start rounded-full border border-amber-300/35 bg-black/10 px-3 py-1.5 text-xs font-medium text-amber-100">
+              <span className="h-2 w-2 rounded-full bg-amber-300" />
+              Awaiting confirmation
+            </div>
+          </div>
+        </section>
+      )}
+
+      {openWeekForAction && !isEliminated && !isWinner && !awaitingPayment && (
         <section className="card p-4 sm:p-5 lg:hidden">
           <div className="flex flex-col gap-3">
             <div>
@@ -1257,6 +1280,23 @@ export default function CompetitionHomePage() {
             >
               Jump to picks
             </button>
+          </div>
+        </section>
+      )}
+
+      {openWeekForAction && !isEliminated && !isWinner && awaitingPayment && strictManualPayment && (
+        <section className="card p-4 sm:p-5 lg:hidden border border-amber-400/35 bg-amber-500/10">
+          <div className="flex flex-col gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-300">Next pick</p>
+              <h2 className="mt-1 text-lg font-semibold text-white">Waiting for payment confirmation</h2>
+              <p className="mt-1 text-sm text-gray-200">
+                You can’t make a pick yet. Once the club admin confirms payment, this section will unlock automatically.
+              </p>
+            </div>
+            <div className="text-xs text-amber-100/90">
+              If you have already paid, ask the organiser to mark you as paid.
+            </div>
           </div>
         </section>
       )}
@@ -1602,7 +1642,7 @@ export default function CompetitionHomePage() {
                             const eliminatedBeforeThisGw = isEliminated &&
                               participant?.eliminatedWeek != null &&
                               wn > participant.eliminatedWeek;
-                            const canPickThisGw = isParticipant && !isEliminated && !isWinner && !isLocked && !eliminatedBeforeThisGw;
+                            const canPickThisGw = isParticipant && !isEliminated && !isWinner && !(awaitingPayment && strictManualPayment) && !isLocked && !eliminatedBeforeThisGw;
                             const homeIsMyPick = myPickForGw?.teamId === f.homeTeamId;
                             const awayIsMyPick = myPickForGw?.teamId === f.awayTeamId;
                             const homeUsed = usedTeamIds.has(f.homeTeamId) && !homeIsMyPick;

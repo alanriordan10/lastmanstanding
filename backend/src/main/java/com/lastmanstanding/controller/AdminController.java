@@ -232,7 +232,7 @@ public class AdminController {
         Competition c = competitionService.createCompetition(
                 request.name(), request.description(), request.entryFee(), request.prizePool(),
                 request.missedPickMode(), request.postponedConsumesTeam(), request.passFeeToParticipant(),
-                request.paymentMode(), request.visibility(), request.startDate(), userDetails.getId(), request.clubId());
+                request.paymentMode(), request.manualPaymentPolicy(), request.visibility(), request.startDate(), userDetails.getId(), request.clubId());
         logAudit(userDetails, "Competition", c.getId(), "name", null, c.getName(), "CREATE");
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(CompetitionResponse.from(c, 0, 0, null));
@@ -265,6 +265,7 @@ public class AdminController {
                         true,
                         false,
                         "FREE",
+                        "STRICT",
                         "PUBLIC",
                         startDate,
                         userDetails.getId(),
@@ -320,7 +321,7 @@ public class AdminController {
                 request.missedPickMode(),
                 request.postponedConsumesTeam() != null ? request.postponedConsumesTeam() : true,
                 request.passFeeToParticipant(),
-                request.paymentMode(), request.visibility(),
+                request.paymentMode(), request.manualPaymentPolicy(), request.visibility(),
                 request.startDate(), request.status(), request.clubId());
         logAudit(userDetails, "Competition", c.getId(), "request", null, request.toString(), "UPDATE");
         if (!Objects.equals(oldName, c.getName())) {

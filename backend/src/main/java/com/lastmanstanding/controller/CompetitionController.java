@@ -345,6 +345,17 @@ public class CompetitionController {
                                                  @PathVariable Long gwId,
                                                  @RequestBody PickRequest request,
                                                  @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        CompetitionParticipant participant = participantRepository.findByCompetitionIdAndUserId(id, userDetails.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Not joined in this competition"));
+        String paymentState = paymentStateForParticipant(participant);
+        if ("AWAITING_PAYMENT".equals(paymentState)
+                && participant.getCompetition().getPaymentMode() == PaymentMode.MANUAL
+                && participant.getCompetition().getManualPaymentPolicy() == ManualPaymentPolicy.STRICT) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Your entry is awaiting payment confirmation. Picks are disabled until payment is confirmed."
+            );
+        }
         Pick pick = pickService.makePick(id, gwId, request.teamId(), userDetails.getId());
         return ResponseEntity.ok(PickResponse.from(pick));
     }

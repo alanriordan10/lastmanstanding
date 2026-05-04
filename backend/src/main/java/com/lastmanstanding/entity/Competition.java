@@ -53,6 +53,10 @@ public class Competition {
     private PaymentMode paymentMode = PaymentMode.FREE;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "manual_payment_policy", nullable = false)
+    private ManualPaymentPolicy manualPaymentPolicy = ManualPaymentPolicy.STRICT;
+
+    @Enumerated(EnumType.STRING)
     @Column(name = "visibility", nullable = false)
     private CompetitionVisibility visibility = CompetitionVisibility.PUBLIC;
 
@@ -177,6 +181,14 @@ public class Competition {
 
     public void setPaymentMode(PaymentMode paymentMode) {
         this.paymentMode = paymentMode;
+    }
+
+    public ManualPaymentPolicy getManualPaymentPolicy() {
+        return manualPaymentPolicy;
+    }
+
+    public void setManualPaymentPolicy(ManualPaymentPolicy manualPaymentPolicy) {
+        this.manualPaymentPolicy = manualPaymentPolicy;
     }
 
     public LocalDate getStartDate() {

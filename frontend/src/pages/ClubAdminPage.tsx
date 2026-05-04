@@ -34,6 +34,7 @@ export default function ClubAdminPage() {
   const [postponedConsumesTeam, setPostponedConsumesTeam] = useState(true);
   const [passFeeToParticipant, setPassFeeToParticipant] = useState(false);
   const [paymentMode, setPaymentMode] = useState<'FREE' | 'MANUAL' | 'STRIPE'>('FREE');
+  const [manualPaymentPolicy, setManualPaymentPolicy] = useState<'STRICT' | 'LENIENT'>('STRICT');
   const [visibility, setVisibility] = useState<'PUBLIC' | 'PRIVATE'>('PRIVATE');
   const [prizePool, setPrizePool] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -76,6 +77,7 @@ export default function ClubAdminPage() {
     setPostponedConsumesTeam(true);
     setPassFeeToParticipant(false);
     setPaymentMode('FREE');
+    setManualPaymentPolicy('STRICT');
     setVisibility('PRIVATE');
     setPrizePool('');
     setStartDate('');
@@ -99,6 +101,7 @@ export default function ClubAdminPage() {
     setPostponedConsumesTeam(competition.postponedConsumesTeam);
     setPassFeeToParticipant(Boolean(competition.passFeeToParticipant));
     setPaymentMode((competition.paymentMode ?? 'FREE') as 'FREE' | 'MANUAL' | 'STRIPE');
+    setManualPaymentPolicy((competition.manualPaymentPolicy ?? 'STRICT') as 'STRICT' | 'LENIENT');
     setVisibility((competition.visibility ?? 'PRIVATE') as 'PUBLIC' | 'PRIVATE');
     setPrizePool(competition.prizePool != null ? String(competition.prizePool) : '');
     setStartDate(competition.startDate);
@@ -114,6 +117,7 @@ export default function ClubAdminPage() {
     postponedConsumesTeam,
     passFeeToParticipant,
     paymentMode,
+    manualPaymentPolicy,
     visibility,
     startDate,
     status,
@@ -129,6 +133,7 @@ export default function ClubAdminPage() {
       postponedConsumesTeam,
       passFeeToParticipant,
       paymentMode,
+      manualPaymentPolicy,
       visibility,
       startDate,
     }),
@@ -647,9 +652,40 @@ export default function ClubAdminPage() {
                 ))}
               </div>
               {paymentMode === 'MANUAL' && (
-                <p className="mt-2 text-xs text-yellow-400/80">
-                  💡 Players join for free — you confirm their payment manually in the Participants panel and then mark them as paid to activate their entry.
-                </p>
+                <div className="mt-2 space-y-2">
+                  <p className="text-xs text-yellow-400/80">
+                    💡 Players join for free — you confirm their payment manually in the Participants panel and then mark them as paid to activate their entry.
+                  </p>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Manual Payment Policy</label>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={() => setManualPaymentPolicy('STRICT')}
+                        className={`rounded-lg border px-3 py-2 text-left text-xs transition ${
+                          manualPaymentPolicy === 'STRICT'
+                            ? 'border-brand-500 bg-brand-600/20 text-white'
+                            : 'border-gray-600 bg-surface-700 text-gray-300 hover:border-gray-500'
+                        }`}
+                      >
+                        Strict
+                        <span className="block text-[11px] text-gray-400">Unpaid cannot pick and are removed at lock.</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setManualPaymentPolicy('LENIENT')}
+                        className={`rounded-lg border px-3 py-2 text-left text-xs transition ${
+                          manualPaymentPolicy === 'LENIENT'
+                            ? 'border-brand-500 bg-brand-600/20 text-white'
+                            : 'border-gray-600 bg-surface-700 text-gray-300 hover:border-gray-500'
+                        }`}
+                      >
+                        Lenient
+                        <span className="block text-[11px] text-gray-400">Allow picks while still awaiting payment.</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
 

@@ -29,6 +29,7 @@ export interface Competition {
   prizePool?: number;
   passFeeToParticipant?: boolean;
   paymentMode?: 'FREE' | 'MANUAL' | 'STRIPE';
+  manualPaymentPolicy?: 'STRICT' | 'LENIENT';
   visibility?: 'PUBLIC' | 'PRIVATE';
   joinCode?: string;
   status: string;
