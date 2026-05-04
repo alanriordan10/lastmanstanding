@@ -5,6 +5,7 @@ import com.lastmanstanding.provider.FixtureProvider;
 import com.lastmanstanding.provider.FixtureProvider.ProviderFixture;
 import com.lastmanstanding.provider.FixtureProvider.ProviderTeam;
 import com.lastmanstanding.repository.*;
+import org.springframework.beans.factory.annotation.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,10 @@ import java.util.stream.Collectors;
 public class FixtureSyncService {
 
     private static final Logger log = LoggerFactory.getLogger(FixtureSyncService.class);
+    // Keep scheduled incremental sync tight to avoid long-running transactions.
+    // Broad historical refresh remains covered by daily full sync.
+    private final int incrementalFromDays;
+    private final int incrementalToDays;
 
     private final FixtureProvider fixtureProvider;
     private final TeamRepository teamRepository;
@@ -38,7 +43,9 @@ public class FixtureSyncService {
                               GameweekRepository gameweekRepository,
                               CompetitionRepository competitionRepository,
                               FixtureMutationLockService fixtureMutationLockService,
-                              TransactionTemplate transactionTemplate) {
+                              TransactionTemplate transactionTemplate,
+                              @Value("${fixture.sync.from-days:2}") int incrementalFromDays,
+                              @Value("${fixture.sync.to-days:10}") int incrementalToDays) {
         this.fixtureProvider = fixtureProvider;
         this.teamRepository = teamRepository;
         this.fixtureRepository = fixtureRepository;
@@ -46,6 +53,8 @@ public class FixtureSyncService {
         this.competitionRepository = competitionRepository;
         this.fixtureMutationLockService = fixtureMutationLockService;
         this.transactionTemplate = transactionTemplate;
+        this.incrementalFromDays = Math.max(0, incrementalFromDays);
+        this.incrementalToDays = Math.max(1, incrementalToDays);
     }
 
     public void syncTeams() {
@@ -73,15 +82,19 @@ public class FixtureSyncService {
     }
 
     public void syncFixturesAndResults() {
-        List<ProviderFixture> fixtures = fixtureProvider.fetchFixtures(LocalDate.now().minusDays(30), LocalDate.now().plusDays(60));
-        List<ProviderFixture> results = fixtureProvider.fetchResults(LocalDate.now().minusDays(30), LocalDate.now().plusDays(60));
+        LocalDate from = LocalDate.now().minusDays(incrementalFromDays);
+        LocalDate to = LocalDate.now().plusDays(incrementalToDays);
+        List<ProviderFixture> fixtures = fixtureProvider.fetchFixtures(from, to);
+        List<ProviderFixture> results = fixtureProvider.fetchResults(from, to);
         transactionTemplate.executeWithoutResult(status ->
                 fixtureMutationLockService.runWithLock(() -> syncFixturesAndResultsInternal(fixtures, results)));
     }
 
     public boolean trySyncFixturesAndResults() {
-        List<ProviderFixture> fixtures = fixtureProvider.fetchFixtures(LocalDate.now().minusDays(30), LocalDate.now().plusDays(60));
-        List<ProviderFixture> results = fixtureProvider.fetchResults(LocalDate.now().minusDays(30), LocalDate.now().plusDays(60));
+        LocalDate from = LocalDate.now().minusDays(incrementalFromDays);
+        LocalDate to = LocalDate.now().plusDays(incrementalToDays);
+        List<ProviderFixture> fixtures = fixtureProvider.fetchFixtures(from, to);
+        List<ProviderFixture> results = fixtureProvider.fetchResults(from, to);
         return Boolean.TRUE.equals(transactionTemplate.execute(status ->
                 fixtureMutationLockService.tryRunWithLock(() -> syncFixturesAndResultsInternal(fixtures, results))));
     }

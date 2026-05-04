@@ -129,6 +129,16 @@ public class CompetitionService {
             String name, String description, BigDecimal entryFee, BigDecimal prizePool,
             MissedPickMode missedPickMode, boolean postponedConsumesTeam, boolean passFeeToParticipant,
             String paymentMode, String visibility, java.time.LocalDate startDate, Long adminUserId, Long clubId) {
+        return createCompetition(name, description, entryFee, prizePool, missedPickMode, postponedConsumesTeam,
+                passFeeToParticipant, paymentMode, visibility, startDate, adminUserId, clubId, true);
+    }
+
+    @Transactional
+    public Competition createCompetition(
+            String name, String description, BigDecimal entryFee, BigDecimal prizePool,
+            MissedPickMode missedPickMode, boolean postponedConsumesTeam, boolean passFeeToParticipant,
+            String paymentMode, String visibility, java.time.LocalDate startDate, Long adminUserId, Long clubId,
+            boolean autoSyncFixtures) {
         User admin = userRepository.findById(adminUserId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Admin user not found"));
         Competition comp = new Competition(name, description, entryFee,
@@ -157,6 +167,10 @@ public class CompetitionService {
             comp.setClub(club);
         }
         Competition saved = competitionRepository.save(comp);
+
+        if (!autoSyncFixtures) {
+            return saved;
+        }
 
         // Run fixture sync in background after commit so the competition is visible to the thread.
         Long savedId = saved.getId();

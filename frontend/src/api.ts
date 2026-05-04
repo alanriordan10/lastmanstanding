@@ -121,9 +121,18 @@ api.interceptors.response.use(
     const originalRequest = error.config;
     const status = error.response?.status;
     const isOnAuthPage = window.location.pathname === '/login' || window.location.pathname === '/signup';
+    const refreshToken = localStorage.getItem('refreshToken');
 
     // ── 401 Unauthorized: access token expired → refresh ────────────────────
     if (status === 401 && !originalRequest._retry) {
+      // No refresh token available: route straight to login.
+      if (!refreshToken) {
+        if (!isOnAuthPage) {
+          forceLogout('Please login to continue.');
+        }
+        return Promise.reject(error);
+      }
+
       originalRequest._retry = true;
 
       // If a refresh is already in flight, queue this request
@@ -159,8 +168,6 @@ api.interceptors.response.use(
     // denial (e.g. admin not a participant) — don't log the user out.
     if (status === 403 && !originalRequest._retry) {
       const accessToken = localStorage.getItem('accessToken');
-      const refreshToken = localStorage.getItem('refreshToken');
-
       if (!accessToken && refreshToken) {
         // Access token is missing but we have a refresh token → silent refresh
         originalRequest._retry = true;

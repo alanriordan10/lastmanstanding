@@ -305,6 +305,13 @@ function CompetitionsTab() {
   const [startDate, setStartDate] = useState('');
   const [clubId, setClubId] = useState<string>('');
   const [status, setStatus] = useState<'UPCOMING' | 'ACTIVE' | 'COMPLETED'>('UPCOMING');
+  const [bulkPrefix, setBulkPrefix] = useState('Load Test');
+  const [bulkCount, setBulkCount] = useState(100);
+  const [bulkStartDate, setBulkStartDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [bulkClubId, setBulkClubId] = useState<string>('');
+  const [bulkDeletePrefix, setBulkDeletePrefix] = useState('Load Test');
+  const [bulkDeleteUpcomingOnly, setBulkDeleteUpcomingOnly] = useState(true);
+  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
 
   const { data: clubs } = useQuery<Club[]>({
     queryKey: ['admin', 'clubs'],
@@ -424,6 +431,69 @@ function CompetitionsTab() {
     },
   });
 
+  const bulkCreateMutation = useMutation({
+    mutationFn: async () => {
+      return api.post('/admin/competitions/bulk-create', {
+        prefix: (bulkPrefix || 'Load Test').trim(),
+        count: Math.max(1, Math.min(500, bulkCount)),
+        startDate: bulkStartDate,
+        clubId: bulkClubId ? Number(bulkClubId) : null,
+      }, {
+        timeout: 120_000,
+      }).then((r) => r.data as { requested: number; created: number; failed: number; errors?: string[] });
+    },
+    onSuccess: (result) => {
+      const failedMessage = result.failed > 0 ? ` (${result.failed} failed)` : '';
+      toast.success(`Created ${result.created}/${result.requested} competitions${failedMessage}`);
+      if (result.failed > 0 && result.errors?.length) {
+        toast.error(`Bulk create had failures. First: ${result.errors[0]}`);
+      }
+      queryClient.invalidateQueries({ queryKey: ['admin', 'competitions'] });
+      queryClient.invalidateQueries({ queryKey: ['competitions'] });
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || 'Bulk create failed');
+    },
+  });
+
+  const bulkDeleteCandidates = (competitions ?? []).filter((c) => {
+    const matchesPrefix = c.name.toLowerCase().startsWith((bulkDeletePrefix || '').trim().toLowerCase());
+    if (!matchesPrefix) return false;
+    if (bulkDeleteUpcomingOnly) return c.status === 'UPCOMING';
+    return true;
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async () => {
+      return api.delete('/admin/competitions/bulk-delete', {
+        timeout: 120_000,
+        data: {
+          prefix: (bulkDeletePrefix || '').trim(),
+          upcomingOnly: bulkDeleteUpcomingOnly,
+        },
+      }).then((r) => r.data as { matched: number; deleted: number; failed: number; errors?: string[] });
+    },
+    onSuccess: (result) => {
+      if (result.failed === 0) {
+        toast.success(`Deleted ${result.deleted}/${result.matched} competitions`);
+      } else if (result.deleted > 0) {
+        const firstError = result.errors?.[0] ? ` First error: ${result.errors[0]}` : '';
+        toast(`Deleted ${result.deleted}/${result.matched} competitions. ${result.failed} failed.${firstError}`, {
+          icon: '⚠️',
+          duration: 6000,
+        });
+      } else {
+        const firstError = result.errors?.[0] ? ` First error: ${result.errors[0]}` : '';
+        toast.error(`Bulk delete failed for ${result.matched} competitions.${firstError}`);
+      }
+      queryClient.invalidateQueries({ queryKey: ['admin', 'competitions'] });
+      queryClient.invalidateQueries({ queryKey: ['competitions'] });
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || 'Bulk delete failed');
+    },
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -448,6 +518,140 @@ function CompetitionsTab() {
           {editingComp ? 'Cancel Edit' : showForm ? 'Cancel' : '+ New Competition'}
         </button>
       </div>
+
+      <div className="card space-y-4">
+        <div>
+          <h3 className="text-base font-semibold text-white">Bulk Create Competitions</h3>
+          <p className="mt-1 text-sm text-gray-400">Generate hundreds of upcoming competitions for load and layout testing.</p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-300">Name Prefix</label>
+            <input
+              value={bulkPrefix}
+              onChange={(e) => setBulkPrefix(e.target.value)}
+              className="input-field"
+              placeholder="Load Test"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-300">Count</label>
+            <input
+              type="number"
+              min={1}
+              max={500}
+              value={bulkCount}
+              onChange={(e) => setBulkCount(Number(e.target.value) || 1)}
+              className="input-field"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-300">Start Date</label>
+            <input
+              type="date"
+              value={bulkStartDate}
+              min={new Date().toISOString().split('T')[0]}
+              onChange={(e) => setBulkStartDate(e.target.value)}
+              className="input-field [color-scheme:dark]"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-300">Club (optional)</label>
+            <AdminSelect
+              value={bulkClubId}
+              onChange={(next) => setBulkClubId(next)}
+              options={[
+                { value: '', label: 'No Club' },
+                ...(clubs ?? []).map((club) => ({ value: String(club.id), label: club.name })),
+              ]}
+            />
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {[100, 250, 500].map((preset) => (
+            <button
+              key={preset}
+              type="button"
+              onClick={() => setBulkCount(preset)}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                bulkCount === preset ? 'bg-brand-600 text-white' : 'bg-surface-700 text-gray-300 hover:bg-surface-600'
+              }`}
+            >
+              {preset}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-gray-500">Creates competitions named like "{(bulkPrefix || 'Load Test').trim()} 001, 002, …"</p>
+          <button
+            type="button"
+            onClick={() => bulkCreateMutation.mutate()}
+            disabled={bulkCreateMutation.isPending || bulkCount < 1}
+            className="btn-primary w-full sm:w-auto disabled:opacity-60"
+          >
+            {bulkCreateMutation.isPending ? 'Creating…' : `Create ${Math.max(1, Math.min(500, bulkCount))} Competitions`}
+          </button>
+        </div>
+      </div>
+
+      <div className="card space-y-4 border-red-500/30">
+        <div>
+          <h3 className="text-base font-semibold text-white">Bulk Delete Competitions</h3>
+          <p className="mt-1 text-sm text-gray-400">Delete competitions by name prefix (useful for cleaning up load-test data).</p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-300">Name Prefix</label>
+            <input
+              value={bulkDeletePrefix}
+              onChange={(e) => setBulkDeletePrefix(e.target.value)}
+              className="input-field"
+              placeholder="Load Test"
+            />
+          </div>
+          <label className="flex items-center gap-3 self-end pb-2 text-sm text-gray-300">
+            <input
+              type="checkbox"
+              checked={bulkDeleteUpcomingOnly}
+              onChange={(e) => setBulkDeleteUpcomingOnly(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-600 bg-surface-700 text-brand-500"
+            />
+            Upcoming only
+          </label>
+        </div>
+        <div className="rounded-lg border border-red-500/20 bg-red-500/8 px-3 py-2 text-sm text-red-200">
+          {bulkDeleteCandidates.length} competition{bulkDeleteCandidates.length === 1 ? '' : 's'} match this delete rule.
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-gray-500">This permanently deletes matching competitions and related data.</p>
+          <button
+            type="button"
+            onClick={() => {
+              if (!bulkDeleteCandidates.length) return;
+              setBulkDeleteConfirmOpen(true);
+            }}
+            disabled={bulkDeleteMutation.isPending || bulkDeleteCandidates.length === 0}
+            className="w-full rounded-lg border border-red-500/40 bg-red-600/20 px-4 py-2.5 text-sm font-semibold text-red-100 transition hover:bg-red-600/30 disabled:opacity-50 sm:w-auto"
+          >
+            {bulkDeleteMutation.isPending ? 'Deleting…' : `Delete ${bulkDeleteCandidates.length} Competitions`}
+          </button>
+        </div>
+      </div>
+
+      <ConfirmDialog
+        isOpen={bulkDeleteConfirmOpen}
+        onClose={() => setBulkDeleteConfirmOpen(false)}
+        onConfirm={() => bulkDeleteMutation.mutate()}
+        title={`Delete ${bulkDeleteCandidates.length} competitions?`}
+        message={`This will permanently delete all competitions matching "${bulkDeletePrefix}"${bulkDeleteUpcomingOnly ? ' (upcoming only)' : ''}.`}
+        items={[
+          'This action cannot be undone',
+          'All related participant and pick data will be removed',
+        ]}
+        confirmText="Yes, Delete All"
+        variant="danger"
+        isPending={bulkDeleteMutation.isPending}
+      />
 
       {showForm && (
         <form

@@ -5,7 +5,9 @@ spring:
     password: ${DB_PASSWORD:lmspassword}
     driver-class-name: org.postgresql.Driver
     hikari:
-      leak-detection-threshold: ${DB_LEAK_DETECTION_MS:60000}
+      # 0 disables leak detection. The fixture sync transaction can legitimately
+      # run for >60s on larger datasets, which causes false positive leak warnings.
+      leak-detection-threshold: ${DB_LEAK_DETECTION_MS:0}
       data-source-properties:
         options: -c idle_in_transaction_session_timeout=${DB_IDLE_IN_TX_TIMEOUT_MS:60000} -c lock_timeout=${DB_LOCK_TIMEOUT_MS:15000}
   jackson:
@@ -65,6 +67,9 @@ jwt:
 fixture:
   provider: ${FIXTURE_PROVIDER:football-data}
   sync-cron: "0 */15 * * * *"
+  sync:
+    from-days: ${FIXTURE_SYNC_FROM_DAYS:2}
+    to-days: ${FIXTURE_SYNC_TO_DAYS:10}
 
 football-data:
   api-key: ${FOOTBALL_DATA_API_KEY:c565137f0689452ca211e2ae468c8693}

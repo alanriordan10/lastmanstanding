@@ -238,6 +238,65 @@ public class AdminController {
                 .body(CompetitionResponse.from(c, 0, 0, null));
     }
 
+    @PostMapping("/competitions/bulk-create")
+    public ResponseEntity<BulkCompetitionCreateResponse> bulkCreateCompetitions(
+            @RequestBody BulkCompetitionCreateRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        int count = Math.max(1, Math.min(request.count(), 500));
+        String prefix = request.prefix() == null || request.prefix().trim().isBlank()
+                ? "Load Test"
+                : request.prefix().trim();
+        LocalDate startDate = request.startDate() != null ? request.startDate() : LocalDate.now();
+
+        int created = 0;
+        List<String> errors = new ArrayList<>();
+        List<Long> createdIds = new ArrayList<>();
+
+        for (int i = 0; i < count; i++) {
+            String suffix = String.format("%03d", i + 1);
+            String name = prefix + " " + suffix;
+            try {
+                Competition c = competitionService.createCompetition(
+                        name,
+                        "Auto-generated competition " + (i + 1) + " of " + count + " for load testing.",
+                        java.math.BigDecimal.ZERO,
+                        null,
+                        MissedPickMode.ELIMINATE,
+                        true,
+                        false,
+                        "FREE",
+                        "PUBLIC",
+                        startDate,
+                        userDetails.getId(),
+                        request.clubId(),
+                        false
+                );
+                created += 1;
+                createdIds.add(c.getId());
+            } catch (Exception ex) {
+                errors.add(name + ": " + ex.getMessage());
+            }
+        }
+
+        logAudit(
+                userDetails,
+                "Competition",
+                0L,
+                "bulkCreate",
+                null,
+                "prefix=" + prefix + ", requested=" + count + ", created=" + created + ", failed=" + errors.size(),
+                "BULK_CREATE"
+        );
+
+        return ResponseEntity.ok(new BulkCompetitionCreateResponse(
+                count,
+                created,
+                errors.size(),
+                createdIds,
+                errors
+        ));
+    }
+
     @PutMapping("/competitions/{id}")
     public CompetitionResponse updateCompetition(@PathVariable Long id,
                              @Valid @RequestBody UpdateCompetitionRequest request,
@@ -343,6 +402,58 @@ public class AdminController {
         logAudit(userDetails, "Competition", comp.getId(), "name", comp.getName(), null, "DELETE");
         competitionService.deleteCompetition(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/competitions/bulk-delete")
+    public ResponseEntity<BulkCompetitionDeleteResponse> bulkDeleteCompetitions(
+            @RequestBody BulkCompetitionDeleteRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        String prefix = request.prefix() == null ? "" : request.prefix().trim().toLowerCase();
+        boolean upcomingOnly = request.upcomingOnly() == null || request.upcomingOnly();
+
+        List<Competition> candidates = competitionService.getAllCompetitions();
+        if (!prefix.isBlank()) {
+            candidates = candidates.stream()
+                    .filter(c -> c.getName() != null && c.getName().toLowerCase().startsWith(prefix))
+                    .toList();
+        }
+        if (upcomingOnly) {
+            candidates = candidates.stream()
+                    .filter(c -> c.getStatus() == CompetitionStatus.UPCOMING)
+                    .toList();
+        }
+
+        int deleted = 0;
+        List<Long> deletedIds = new ArrayList<>();
+        List<String> errors = new ArrayList<>();
+
+        for (Competition c : candidates) {
+            try {
+                competitionService.deleteCompetition(c.getId());
+                deleted += 1;
+                deletedIds.add(c.getId());
+            } catch (Exception ex) {
+                errors.add(c.getName() + " (" + c.getId() + "): " + ex.getMessage());
+            }
+        }
+
+        logAudit(
+                userDetails,
+                "Competition",
+                0L,
+                "bulkDelete",
+                null,
+                "prefix=" + prefix + ", upcomingOnly=" + upcomingOnly + ", matched=" + candidates.size() + ", deleted=" + deleted + ", failed=" + errors.size(),
+                "BULK_DELETE"
+        );
+
+        return ResponseEntity.ok(new BulkCompetitionDeleteResponse(
+                candidates.size(),
+                deleted,
+                errors.size(),
+                deletedIds,
+                errors
+        ));
     }
 
     @PostMapping("/competitions/{id}/sync-fixtures")
@@ -824,4 +935,8 @@ public class AdminController {
     public record TestGenerationRequest(Long competitionId, int userCount, List<Integer> gameweeksToSeedPicks) {}
     public record TestGenerationResponse(int usersCreated, int participantsAdded, int picksCreated, String message) {}
     public record TestCleanupResponse(int usersDeleted, String message) {}
+    public record BulkCompetitionCreateRequest(String prefix, int count, LocalDate startDate, Long clubId) {}
+    public record BulkCompetitionCreateResponse(int requested, int created, int failed, List<Long> createdIds, List<String> errors) {}
+    public record BulkCompetitionDeleteRequest(String prefix, Boolean upcomingOnly) {}
+    public record BulkCompetitionDeleteResponse(int matched, int deleted, int failed, List<Long> deletedIds, List<String> errors) {}
 }

@@ -1,8 +1,8 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, useQueries } from '@tanstack/react-query';
 import { useState, useRef, useEffect, useCallback, useMemo, type CSSProperties } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import api from '../api';
-import type { Competition, Club, MyCompetition } from '../types';
+import type { Competition, Club, MyCompetition, GameweekResponse, PickResponse } from '../types';
 import { useAuth } from '../context/AuthContext';
 import type { AxiosError } from 'axios';
 import toast from 'react-hot-toast';
@@ -75,7 +75,7 @@ function getCompetitionActionHint(comp: Competition, mine?: MyCompetition): stri
       : 'Action needed: complete payment to confirm your entry.';
   }
   if (comp.status === 'UPCOMING' && (mine.myStatus === 'ACTIVE' || mine.myStatus === 'WINNER')) {
-    return 'Action needed: make your pick before the gameweek locks.';
+    return 'Action needed: review your pick before the gameweek locks.';
   }
   return null;
 }
@@ -133,11 +133,17 @@ export default function CompetitionsPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [mineFilter, setMineFilter] = useState<'ALL' | 'ACTIVE' | 'ELIMINATED' | 'FINISHED'>('ALL');
   const [currentPage, setCurrentPage] = useState(1);
+  const [remainingPage, setRemainingPage] = useState(1);
   const [joinCodeInput, setJoinCodeInput] = useState(joinCodeParam);
   const PAGE_SIZE = 12;
+  const FEATURED_LIMIT = 6;
+  const REMAINING_PAGE_SIZE = 20;
 
   // Reset page when filters change
-  useEffect(() => { setCurrentPage(1); }, [search, statusFilter, feeFilter, startWindow, sortBy, selectedClub, viewMode]);
+  useEffect(() => {
+    setCurrentPage(1);
+    setRemainingPage(1);
+  }, [search, statusFilter, feeFilter, startWindow, sortBy, selectedClub, viewMode]);
 
   useEffect(() => {
     setJoinCodeInput(joinCodeParam);
@@ -317,16 +323,55 @@ export default function CompetitionsPage() {
   const page = Math.min(currentPage, totalPages);
   const paginatedAvailable = filteredAvailable.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const myCompetitionById = new Map(myComps.map((mc) => [mc.competition.id, mc]));
+  const upcomingJoinedCandidates = filteredAvailable.filter((c) => {
+    const mine = myCompetitionById.get(c.id);
+    return !!mine && c.status === 'UPCOMING' && (mine.myStatus === 'ACTIVE' || mine.myStatus === 'WINNER');
+  });
+  const upcomingPickChecks = useQueries({
+    queries: upcomingJoinedCandidates.map((comp) => ({
+      queryKey: ['competition', comp.id, 'needs-action-pick-check'],
+      queryFn: async () => {
+        const currentGw = await api.get<GameweekResponse>(`/competitions/${comp.id}/gameweeks/current`).then((r) => r.data);
+        if (!currentGw || currentGw.status !== 'UPCOMING') {
+          return { competitionId: comp.id, requiresPick: false };
+        }
+        try {
+          await api.get<PickResponse>(`/competitions/${comp.id}/gameweeks/${currentGw.id}/my-pick`);
+          return { competitionId: comp.id, requiresPick: false };
+        } catch {
+          return { competitionId: comp.id, requiresPick: true };
+        }
+      },
+      staleTime: 30_000,
+    })),
+  });
+  const requiresPickByCompetitionId = new Map<number, boolean>();
+  upcomingPickChecks.forEach((q) => {
+    if (q.data) {
+      requiresPickByCompetitionId.set(q.data.competitionId, q.data.requiresPick);
+    }
+  });
   const needsActionAvailable = filteredAvailable.filter((c) => {
     const mine = myCompetitionById.get(c.id);
     if (!mine) return false;
     if (mine.paymentState === 'AWAITING_PAYMENT') return true;
-    return c.status === 'UPCOMING' && (mine.myStatus === 'ACTIVE' || mine.myStatus === 'WINNER');
+    if (c.status === 'UPCOMING' && (mine.myStatus === 'ACTIVE' || mine.myStatus === 'WINNER')) {
+      return requiresPickByCompetitionId.get(c.id) === true;
+    }
+    return false;
   });
-  const needsActionIds = new Set(needsActionAvailable.map((c) => c.id));
+  const needsActionAvailableLimited = needsActionAvailable.slice(0, FEATURED_LIMIT);
+  const needsActionIds = new Set(needsActionAvailableLimited.map((c) => c.id));
   const liveAvailable = filteredAvailable.filter((c) => joinedSet.has(c.id) && c.status === 'ACTIVE' && !needsActionIds.has(c.id));
-  const featuredIds = new Set([...needsActionIds, ...liveAvailable.map((c) => c.id)]);
+  const liveAvailableLimited = liveAvailable.slice(0, FEATURED_LIMIT);
+  const featuredIds = new Set([...needsActionIds, ...liveAvailableLimited.map((c) => c.id)]);
   const remainingAvailable = filteredAvailable.filter((c) => !featuredIds.has(c.id));
+  const remainingTotalPages = Math.max(1, Math.ceil(remainingAvailable.length / REMAINING_PAGE_SIZE));
+  const remainingSafePage = Math.min(remainingPage, remainingTotalPages);
+  const paginatedRemainingAvailable = remainingAvailable.slice(
+    (remainingSafePage - 1) * REMAINING_PAGE_SIZE,
+    remainingSafePage * REMAINING_PAGE_SIZE,
+  );
 
   const sorted      = [...allComps].sort((a, b) => (joinedSet.has(a.id) ? 0 : 1) - (joinedSet.has(b.id) ? 0 : 1));
   const joinedComps = sorted.filter((c) => joinedSet.has(c.id));
@@ -693,10 +738,10 @@ export default function CompetitionsPage() {
               <CompListView comps={paginatedAvailable} joinedSet={joinedSet} onJoin={(c) => { const mc = competitions?.find(x => x.id === c.id); if (mc) handleJoin(mc); }} isPending={joinMutation.isPending} />
             ) : (
               <div className="space-y-5">
-                {needsActionAvailable.length > 0 && (
+                {needsActionAvailableLimited.length > 0 && (
                   <Section label={`Needs Action (${needsActionAvailable.length})`} icon="!" iconColor="bg-amber-500">
                     <CompGrid>
-                      {needsActionAvailable.map((c) => (
+                      {needsActionAvailableLimited.map((c) => (
                         (() => {
                           const mine = myCompetitionById.get(c.id);
                           const actionHint = getCompetitionActionHint(c, mine);
@@ -722,10 +767,10 @@ export default function CompetitionsPage() {
                   </Section>
                 )}
 
-                {liveAvailable.length > 0 && (
+                {liveAvailableLimited.length > 0 && (
                   <Section label={`Live (${liveAvailable.length})`} icon="●" iconColor="bg-green-600">
                     <CompGrid>
-                      {liveAvailable.map((c) => (
+                      {liveAvailableLimited.map((c) => (
                         <CompetitionCard
                           key={c.id}
                           comp={c}
@@ -746,7 +791,10 @@ export default function CompetitionsPage() {
 
                 <Section label={`All Competitions (${remainingAvailable.length})`}>
                   {remainingAvailable.length > 0 ? (
-                    <CompListView comps={remainingAvailable} joinedSet={joinedSet} onJoin={(c) => { const mc = competitions?.find(x => x.id === c.id); if (mc) handleJoin(mc); }} isPending={joinMutation.isPending} />
+                    <>
+                      <CompListView comps={paginatedRemainingAvailable} joinedSet={joinedSet} onJoin={(c) => { const mc = competitions?.find(x => x.id === c.id); if (mc) handleJoin(mc); }} isPending={joinMutation.isPending} />
+                      <Pagination page={remainingSafePage} totalPages={remainingTotalPages} total={remainingAvailable.length} pageSize={REMAINING_PAGE_SIZE} onPage={setRemainingPage} />
+                    </>
                   ) : (
                     <div className="card px-4 py-3 text-sm text-gray-400">No other competitions match the current filters.</div>
                   )}
