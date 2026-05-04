@@ -169,11 +169,37 @@ export default function CompetitionHomePage() {
     return completedByWeek.get(latestWeek) ?? null;
   }, [fixtures]);
 
+  const latestNarrativeGwId = useMemo(() => {
+    if (!fixtures || fixtures.length === 0) return null;
+    const candidateByWeek = new Map<number, number>();
+    fixtures.forEach((f) => {
+      if ((f.gameweekStatus === 'IN_PROGRESS' || f.gameweekStatus === 'COMPLETED')
+        && (f.status === 'FINISHED' || f.status === 'POSTPONED' || f.status === 'CANCELLED')) {
+        candidateByWeek.set(f.weekNumber, f.gameweekId);
+      }
+    });
+    if (candidateByWeek.size === 0) return null;
+    const latestWeek = Math.max(...candidateByWeek.keys());
+    return candidateByWeek.get(latestWeek) ?? null;
+  }, [fixtures]);
+
   const { data: latestCompletedSelections } = useQuery<GameweekSelectionsData>({
     queryKey: ['gameweekSelections', compId, latestCompletedGwId],
     queryFn: () => api.get(`/competitions/${compId}/gameweeks/${latestCompletedGwId}/selections`).then((r) => r.data),
     enabled: !!latestCompletedGwId,
     staleTime: 30_000,
+  });
+
+  const { data: latestNarrativeSelections } = useQuery<GameweekSelectionsData>({
+    queryKey: ['gameweekSelections', compId, latestNarrativeGwId],
+    queryFn: () => api.get(`/competitions/${compId}/gameweeks/${latestNarrativeGwId}/selections`).then((r) => r.data),
+    enabled: !!latestNarrativeGwId,
+    staleTime: 30_000,
+    refetchInterval: (query) => {
+      const data = query.state.data as GameweekSelectionsData | undefined;
+      const hasPending = data?.selections?.some((s) => s.outcome === 'PENDING');
+      return hasPending ? 60_000 : false;
+    },
   });
 
   // Collect gameweek IDs that are locked/in-progress/completed — for pick stats
@@ -433,10 +459,6 @@ export default function CompetitionHomePage() {
   });
   const totalTeamsCount = uniqueTeamIds.size;
   const remainingTeamsCount = totalTeamsCount > 0 ? Math.max(totalTeamsCount - usedTeamIds.size, 0) : null;
-  const eliminatedCount = Math.max((comp.participantCount ?? 0) - (comp.activeCount ?? 0), 0);
-  const survivalRate = comp.participantCount > 0
-    ? Math.max(Math.round(((comp.activeCount ?? 0) / comp.participantCount) * 100), (comp.activeCount ?? 0) > 0 ? 1 : 0)
-    : 0;
 
   const upcomingWeek = sortedWeeks
     .map((wn) => ({ weekNumber: wn, data: fixturesByWeek.get(wn)! }))
@@ -476,8 +498,18 @@ export default function CompetitionHomePage() {
     .map((weekNumber) => ({ weekNumber, data: fixturesByWeek.get(weekNumber)! }))
     .find(({ data }) => data.gwStatus === 'COMPLETED');
 
-  const latestCompletedStats = latestCompletedWeek
-    ? [...(pickStatsByGwId.get(latestCompletedWeek.data.gwId) ?? [])].sort((a, b) => b.pickCount - a.pickCount)
+  const latestNarrativeWeek = [...sortedWeeks]
+    .reverse()
+    .map((weekNumber) => ({ weekNumber, data: fixturesByWeek.get(weekNumber)! }))
+    .find(({ data }) =>
+      (data.gwStatus === 'IN_PROGRESS' || data.gwStatus === 'COMPLETED')
+      && data.fixtures.some((fixture) =>
+        fixture.status === 'FINISHED' || fixture.status === 'POSTPONED' || fixture.status === 'CANCELLED'
+      )
+    ) ?? latestCompletedWeek;
+
+  const latestNarrativeStats = latestNarrativeWeek
+    ? [...(pickStatsByGwId.get(latestNarrativeWeek.data.gwId) ?? [])].sort((a, b) => b.pickCount - a.pickCount)
     : [];
 
   const liveInsightWeek = inProgressWeek
@@ -490,68 +522,84 @@ export default function CompetitionHomePage() {
     ? [...(pickStatsByGwId.get(liveInsightWeek.data.gwId) ?? [])].sort((a, b) => b.pickCount - a.pickCount)
     : [];
 
-  const latestCompletedTeamResults = new Map<number, 'WIN' | 'LOSS' | 'DRAW' | 'POSTPONED'>();
-  if (latestCompletedWeek) {
-    latestCompletedWeek.data.fixtures.forEach((fixture) => {
+  const narrativeTeamResults = new Map<number, 'WIN' | 'LOSS' | 'DRAW' | 'POSTPONED'>();
+  if (latestNarrativeWeek) {
+    latestNarrativeWeek.data.fixtures.forEach((fixture) => {
       if (fixture.status === 'POSTPONED' || fixture.status === 'CANCELLED') {
-        latestCompletedTeamResults.set(fixture.homeTeamId, 'POSTPONED');
-        latestCompletedTeamResults.set(fixture.awayTeamId, 'POSTPONED');
+        narrativeTeamResults.set(fixture.homeTeamId, 'POSTPONED');
+        narrativeTeamResults.set(fixture.awayTeamId, 'POSTPONED');
         return;
       }
       if (fixture.status !== 'FINISHED' || fixture.scoreHome == null || fixture.scoreAway == null) {
         return;
       }
       if (fixture.scoreHome > fixture.scoreAway) {
-        latestCompletedTeamResults.set(fixture.homeTeamId, 'WIN');
-        latestCompletedTeamResults.set(fixture.awayTeamId, 'LOSS');
+        narrativeTeamResults.set(fixture.homeTeamId, 'WIN');
+        narrativeTeamResults.set(fixture.awayTeamId, 'LOSS');
       } else if (fixture.scoreHome < fixture.scoreAway) {
-        latestCompletedTeamResults.set(fixture.homeTeamId, 'LOSS');
-        latestCompletedTeamResults.set(fixture.awayTeamId, 'WIN');
+        narrativeTeamResults.set(fixture.homeTeamId, 'LOSS');
+        narrativeTeamResults.set(fixture.awayTeamId, 'WIN');
       } else {
-        latestCompletedTeamResults.set(fixture.homeTeamId, 'DRAW');
-        latestCompletedTeamResults.set(fixture.awayTeamId, 'DRAW');
+        narrativeTeamResults.set(fixture.homeTeamId, 'DRAW');
+        narrativeTeamResults.set(fixture.awayTeamId, 'DRAW');
       }
     });
   }
 
-  const mostBackedTeam = latestCompletedStats[0];
+  const mostBackedTeam = latestNarrativeStats[0];
   const crowdReadTeam = liveInsightStats[0] ?? mostBackedTeam;
-  const biggestCasualty = latestCompletedStats.find((stat) => latestCompletedTeamResults.get(stat.teamId) === 'LOSS');
-  const contrarianSurvivor = [...latestCompletedStats]
+  const biggestCasualty = latestNarrativeStats.find((stat) => narrativeTeamResults.get(stat.teamId) === 'LOSS');
+  const contrarianSurvivor = [...latestNarrativeStats]
     .reverse()
     .find((stat) => {
-      const result = latestCompletedTeamResults.get(stat.teamId);
+      const result = narrativeTeamResults.get(stat.teamId);
       return stat.pickCount > 0 && (result === 'WIN' || result === 'DRAW' || result === 'POSTPONED');
     });
-  const survivingPickedTeams = latestCompletedStats.filter((stat) => {
-    const result = latestCompletedTeamResults.get(stat.teamId);
+  const survivingPickedTeams = latestNarrativeStats.filter((stat) => {
+    const result = narrativeTeamResults.get(stat.teamId);
     return result === 'WIN' || result === 'DRAW' || result === 'POSTPONED';
   });
-  const doomedPickedTeams = latestCompletedStats.filter((stat) => latestCompletedTeamResults.get(stat.teamId) === 'LOSS');
-  const totalResolvedPicks = latestCompletedStats.reduce((sum, stat) => sum + stat.pickCount, 0);
+  const doomedPickedTeams = latestNarrativeStats.filter((stat) => narrativeTeamResults.get(stat.teamId) === 'LOSS');
+  const totalResolvedPicks = latestNarrativeStats.reduce((sum, stat) => sum + stat.pickCount, 0);
   const survivingResolvedPicks = survivingPickedTeams.reduce((sum, stat) => sum + stat.pickCount, 0);
   const computedWeeklySurvivalRate = totalResolvedPicks > 0
     ? Math.round((survivingResolvedPicks / totalResolvedPicks) * 100)
     : null;
-  const latestSelections = latestCompletedSelections?.selections ?? [];
+  const latestSelections = latestNarrativeSelections?.selections ?? latestCompletedSelections?.selections ?? [];
   const resolvedSelections = latestSelections.filter((sel) => sel.outcome !== 'PENDING');
   const gwPickedCount = resolvedSelections.length;
   const gwAdvancedCount = resolvedSelections.filter((sel) => sel.outcome === 'ADVANCE' || sel.outcome === 'POSTPONED_ADVANCE').length;
+  const gwEliminatedFromSelections = resolvedSelections.filter((sel) => sel.outcome === 'ELIMINATED').length;
   const gwSurvivalFromSelections = gwPickedCount > 0
     ? Math.round((gwAdvancedCount / gwPickedCount) * 100)
     : null;
-  const gwActiveAtStart = latestCompletedSelections?.activeAtStart ?? null;
-  const gwAdvancedThisWeek = latestCompletedSelections?.advancedThisWeek ?? null;
-  const gwEliminatedThisWeek = latestCompletedSelections?.eliminatedThisWeek ?? null;
+  const gwActiveAtStart = latestNarrativeSelections?.activeAtStart ?? latestCompletedSelections?.activeAtStart ?? null;
+  const gwAdvancedThisWeek = latestNarrativeSelections?.advancedThisWeek ?? latestCompletedSelections?.advancedThisWeek ?? null;
+  const gwEliminatedThisWeek = latestNarrativeSelections?.eliminatedThisWeek ?? latestCompletedSelections?.eliminatedThisWeek ?? null;
   const gwSurvivalFromBackend = (gwActiveAtStart != null && gwAdvancedThisWeek != null && gwActiveAtStart > 0)
     ? Math.round((gwAdvancedThisWeek / gwActiveAtStart) * 100)
     : null;
-  const weeklySurvivalRate = gwSurvivalFromBackend ?? gwSurvivalFromSelections ?? computedWeeklySurvivalRate;
-  const weeklyPickedCount = gwActiveAtStart ?? (gwPickedCount || totalResolvedPicks || 0);
-  const weeklyAdvancedCount = gwAdvancedThisWeek ?? (gwAdvancedCount || survivingResolvedPicks || 0);
-  const weeklyEliminatedCount = gwEliminatedThisWeek ?? (weeklyPickedCount > 0
-    ? Math.max(weeklyPickedCount - weeklyAdvancedCount, 0)
-    : 0);
+  const narrativeWeekLabel = latestNarrativeWeek ? `Gameweek ${latestNarrativeWeek.weekNumber}` : null;
+  const narrativeWeekInProgress = latestNarrativeWeek?.data.gwStatus === 'IN_PROGRESS';
+  const weeklySurvivalRate = narrativeWeekInProgress
+    ? (gwSurvivalFromSelections ?? computedWeeklySurvivalRate)
+    : (gwSurvivalFromBackend ?? gwSurvivalFromSelections ?? computedWeeklySurvivalRate);
+  const weeklyPickedCount = narrativeWeekInProgress
+    ? (gwPickedCount || totalResolvedPicks || 0)
+    : (gwActiveAtStart ?? (gwPickedCount || totalResolvedPicks || 0));
+  const weeklyAdvancedCount = narrativeWeekInProgress
+    ? (gwAdvancedCount || survivingResolvedPicks || 0)
+    : (gwAdvancedThisWeek ?? (gwAdvancedCount || survivingResolvedPicks || 0));
+  const weeklyEliminatedCount = narrativeWeekInProgress
+    ? (gwEliminatedFromSelections || (weeklyPickedCount > 0 ? Math.max(weeklyPickedCount - weeklyAdvancedCount, 0) : 0))
+    : (gwEliminatedThisWeek ?? (weeklyPickedCount > 0 ? Math.max(weeklyPickedCount - weeklyAdvancedCount, 0) : 0));
+  const baseEliminatedCount = Math.max((comp.participantCount ?? 0) - (comp.activeCount ?? 0), 0);
+  const liveWeekExtraEliminations = latestNarrativeWeek?.data.gwStatus === 'IN_PROGRESS' ? gwEliminatedFromSelections : 0;
+  const effectiveEliminatedCount = Math.min(baseEliminatedCount + liveWeekExtraEliminations, comp.participantCount ?? 0);
+  const effectiveActiveCount = Math.max((comp.participantCount ?? 0) - effectiveEliminatedCount, 0);
+  const survivalRate = comp.participantCount > 0
+    ? Math.max(Math.round((effectiveActiveCount / comp.participantCount) * 100), effectiveActiveCount > 0 ? 1 : 0)
+    : 0;
 
   const hasWinner = comp.status === 'COMPLETED'
     || (comp.activeCount === 1 && (comp.participantCount ?? 0) > 1);
@@ -566,44 +614,44 @@ export default function CompetitionHomePage() {
     storylineTitle = winnerLabel;
     const winnerName = comp.winnerUsername ?? (isWinner ? 'You' : 'One player');
     storylineBody = comp.activeCount === 1
-      ? `${winnerName} is the last survivor standing after ${latestCompletedWeek ? `Gameweek ${latestCompletedWeek.weekNumber}` : 'the final gameweek'}. Every round survived, every pick paid off.`
+      ? `${winnerName} is the last survivor standing after ${latestNarrativeWeek ? `Gameweek ${latestNarrativeWeek.weekNumber}` : 'the final gameweek'}. Every round survived, every pick paid off.`
       : `${winnerName} made it through every round to claim the title. This competition is over.`;
-  } else if (latestCompletedWeek && biggestCasualty) {
-    const wn = latestCompletedWeek.weekNumber;
+  } else if (latestNarrativeWeek && biggestCasualty) {
+    const wn = latestNarrativeWeek.weekNumber;
     const bigLoss = biggestCasualty.pickCount >= 3;
     const titleOptions = bigLoss
       ? [
-          `Gameweek ${wn} shook the field`,
-          `Gameweek ${wn} had a costly upset`,
-          `Gameweek ${wn} caught the crowd out`,
-          `Gameweek ${wn} made its mark`,
+          narrativeWeekInProgress ? `Gameweek ${wn} is shaking the field` : `Gameweek ${wn} shook the field`,
+          narrativeWeekInProgress ? `Gameweek ${wn} has a costly upset` : `Gameweek ${wn} had a costly upset`,
+          narrativeWeekInProgress ? `Gameweek ${wn} is catching the crowd out` : `Gameweek ${wn} caught the crowd out`,
+          narrativeWeekInProgress ? `Gameweek ${wn} is making its mark` : `Gameweek ${wn} made its mark`,
         ]
       : [
-          `Gameweek ${wn} had a casualty`,
-          `Gameweek ${wn} claimed a victim`,
-          `Gameweek ${wn} stung a few`,
-          `Gameweek ${wn} took its toll`,
+          narrativeWeekInProgress ? `Gameweek ${wn} has an early casualty` : `Gameweek ${wn} had a casualty`,
+          narrativeWeekInProgress ? `Gameweek ${wn} is claiming victims` : `Gameweek ${wn} claimed a victim`,
+          narrativeWeekInProgress ? `Gameweek ${wn} is stinging a few` : `Gameweek ${wn} stung a few`,
+          narrativeWeekInProgress ? `Gameweek ${wn} is taking its toll` : `Gameweek ${wn} took its toll`,
         ];
     storylineTitle = titleOptions[wn % titleOptions.length];
-    storylineBody = `${biggestCasualty.pickCount} player${biggestCasualty.pickCount === 1 ? '' : 's'} trusted ${biggestCasualty.teamShortName} and paid for it. ${comp.activeCount} survivor${comp.activeCount === 1 ? '' : 's'} remain.`;
-  } else if (latestCompletedWeek && weeklySurvivalRate != null && weeklySurvivalRate < 50) {
-    storylineTitle = `Gameweek ${latestCompletedWeek.weekNumber} was chaos`;
+    storylineBody = `${biggestCasualty.pickCount} player${biggestCasualty.pickCount === 1 ? '' : 's'} trusted ${biggestCasualty.teamShortName} and paid for it. ${effectiveActiveCount} survivor${effectiveActiveCount === 1 ? '' : 's'} remain.`;
+  } else if (latestNarrativeWeek && weeklySurvivalRate != null && weeklySurvivalRate < 50) {
+    storylineTitle = narrativeWeekInProgress && narrativeWeekLabel ? `${narrativeWeekLabel} is chaos` : `${narrativeWeekLabel} was chaos`;
     storylineBody = `${weeklyEliminatedCount} players went out in the latest week. Only ${weeklySurvivalRate}% survived the round.`;
-  } else if (latestCompletedWeek && weeklySurvivalRate != null && weeklySurvivalRate >= 50 && weeklySurvivalRate <= 70) {
-    storylineTitle = `Gameweek ${latestCompletedWeek.weekNumber} tightened the race`;
+  } else if (latestNarrativeWeek && weeklySurvivalRate != null && weeklySurvivalRate >= 50 && weeklySurvivalRate <= 70) {
+    storylineTitle = narrativeWeekInProgress && narrativeWeekLabel ? `${narrativeWeekLabel} is tightening the race` : `${narrativeWeekLabel} tightened the race`;
     storylineBody = `Survival dipped to ${weeklySurvivalRate}%. The middle of the pack is starting to thin out.`;
-  } else if (latestCompletedWeek && weeklySurvivalRate != null && weeklySurvivalRate >= 85) {
-    storylineTitle = `Gameweek ${latestCompletedWeek.weekNumber} was steady`;
+  } else if (latestNarrativeWeek && weeklySurvivalRate != null && weeklySurvivalRate >= 85) {
+    storylineTitle = narrativeWeekInProgress && narrativeWeekLabel ? `${narrativeWeekLabel} is steady so far` : `${narrativeWeekLabel} was steady`;
     storylineBody = `${weeklySurvivalRate}% made it through. The real shakeups are still ahead.`;
-  } else if (latestCompletedWeek && doomedPickedTeams.length === 0 && survivingPickedTeams.length > 0) {
-    storylineTitle = `Gameweek ${latestCompletedWeek.weekNumber} spared the field`;
-    storylineBody = `No picked teams lost in the latest week. The standings stayed tight with ${comp.activeCount} still alive.`;
-  } else if (latestCompletedWeek && contrarianSurvivor) {
-    storylineTitle = `Gameweek ${latestCompletedWeek.weekNumber} rewarded nerve`;
+  } else if (latestNarrativeWeek && doomedPickedTeams.length === 0 && survivingPickedTeams.length > 0) {
+    storylineTitle = narrativeWeekInProgress && narrativeWeekLabel ? `${narrativeWeekLabel} is sparing the field` : `${narrativeWeekLabel} spared the field`;
+    storylineBody = `No picked teams lost in the latest week. The standings stayed tight with ${effectiveActiveCount} still alive.`;
+  } else if (latestNarrativeWeek && contrarianSurvivor) {
+    storylineTitle = narrativeWeekInProgress && narrativeWeekLabel ? `${narrativeWeekLabel} is rewarding nerve` : `${narrativeWeekLabel} rewarded nerve`;
     storylineBody = `${contrarianSurvivor.pickCount} player${contrarianSurvivor.pickCount === 1 ? '' : 's'} backed ${contrarianSurvivor.teamShortName} and came through when the crowd did not.`;
-  } else if (latestCompletedWeek && mostBackedTeam) {
-    storylineTitle = `Gameweek ${latestCompletedWeek.weekNumber} followed the crowd`;
-    storylineBody = `${mostBackedTeam.pickCount} players backed ${mostBackedTeam.teamShortName}. The table is still tightening with ${comp.activeCount} left standing.`;
+  } else if (latestNarrativeWeek && mostBackedTeam) {
+    storylineTitle = narrativeWeekInProgress && narrativeWeekLabel ? `${narrativeWeekLabel} is following the crowd` : `${narrativeWeekLabel} followed the crowd`;
+    storylineBody = `${mostBackedTeam.pickCount} players backed ${mostBackedTeam.teamShortName}. The table is still tightening with ${effectiveActiveCount} left standing.`;
   } else if (isEliminated) {
     storylineTitle = `Your run ended in Gameweek ${participant?.eliminatedWeek}`;
     storylineBody = 'You are out of this competition now, but you can still follow every remaining fixture, upset, and survivor.';
@@ -624,15 +672,15 @@ export default function CompetitionHomePage() {
   const spotlightCards = [
     {
       eyebrow: 'Knockout pressure',
-      title: comp.activeCount === 1
+      title: effectiveActiveCount === 1
         ? '1 survivor remains'
-        : `${eliminatedCount} out, ${comp.activeCount} alive`,
-      detail: comp.activeCount === 1
+        : `${effectiveEliminatedCount} out, ${effectiveActiveCount} alive`,
+      detail: effectiveActiveCount === 1
         ? 'One player has made it through every round.'
         : comp.participantCount > 0
         ? `${survivalRate}% of the field is still standing.`
         : 'The field will tighten as results come in.',
-      accent: eliminatedCount > 0 ? 'text-yellow-300' : 'text-brand-200',
+      accent: effectiveEliminatedCount > 0 ? 'text-yellow-300' : 'text-brand-200',
     },
     {
       eyebrow: isEliminated ? 'Your run' : 'Your runway',
@@ -944,7 +992,7 @@ export default function CompetitionHomePage() {
             {comp.description && <p className="mt-2 max-w-xl text-sm leading-6 text-gray-300 sm:text-[15px] lg:text-base">{comp.description}</p>}
             <div className="mt-4 grid max-w-xl grid-cols-3 gap-2 sm:gap-3 lg:gap-4">
               <HeroStat label="Players" value={String(comp.participantCount ?? 0)} />
-              <HeroStat label="Active" value={String(comp.activeCount ?? 0)} />
+              <HeroStat label="Active" value={String(inProgressWeek ? effectiveActiveCount : (comp.activeCount ?? 0))} />
               <HeroStat label="Prize" value={comp.prizePool && comp.prizePool > 0 ? `€${comp.prizePool}` : comp.entryFee > 0 ? `€${comp.entryFee}` : 'Free'} />
             </div>
           </div>
@@ -1071,7 +1119,7 @@ export default function CompetitionHomePage() {
             )}
             <div className="mt-4 flex flex-wrap gap-2">
               <span className="rounded-full border border-white/10 bg-black/15 px-3 py-1.5 text-xs font-medium text-gray-200">
-                {eliminatedCount} eliminated
+                {effectiveEliminatedCount} eliminated
               </span>
               <span className="rounded-full border border-white/10 bg-black/15 px-3 py-1.5 text-xs font-medium text-gray-200">
                 {survivalRate}% survival rate
@@ -1740,7 +1788,7 @@ export default function CompetitionHomePage() {
                 <SummaryTile
                   label="Players"
                   value={String(comp.participantCount ?? 0)}
-                  detail={comp.status === 'ACTIVE' ? `${comp.activeCount ?? 0} still active` : comp.winnerUsername ? `Winner: ${comp.winnerUsername}` : 'Registration overview'}
+                  detail={comp.status === 'ACTIVE' ? `${inProgressWeek ? effectiveActiveCount : (comp.activeCount ?? 0)} still active` : comp.winnerUsername ? `Winner: ${comp.winnerUsername}` : 'Registration overview'}
                 />
                 <SummaryTile
                   label="Your Team Pool"
@@ -1813,7 +1861,7 @@ export default function CompetitionHomePage() {
                     <SummaryTile
                       label="Players"
                       value={String(comp.participantCount ?? 0)}
-                      detail={comp.status === 'ACTIVE' ? `${comp.activeCount ?? 0} still active` : comp.winnerUsername ? `Winner: ${comp.winnerUsername}` : 'Registration overview'}
+                      detail={comp.status === 'ACTIVE' ? `${inProgressWeek ? effectiveActiveCount : (comp.activeCount ?? 0)} still active` : comp.winnerUsername ? `Winner: ${comp.winnerUsername}` : 'Registration overview'}
                     />
                     <SummaryTile
                       label="Your Team Pool"

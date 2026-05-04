@@ -7,6 +7,7 @@ import com.lastmanstanding.security.UserDetailsImpl;
 import com.lastmanstanding.service.CompetitionService;
 import com.lastmanstanding.service.PickService;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -466,6 +467,7 @@ public class CompetitionController {
         List<Long> pickIds = allPicks.stream().map(Pick::getId).toList();
         Map<Long, PickResult> resultMap = pickResultRepository.findByPickIdIn(pickIds).stream()
                 .collect(Collectors.toMap(pr -> pr.getPick().getId(), pr -> pr));
+        Map<Long, Map<Long, String>> liveOutcomeByGameweekAndTeam = buildLiveOutcomeByGameweek(gameweeks);
 
         // userId -> weekNumber -> Pick
         Map<Long, Map<Integer, Pick>> picksByUserAndWeek = new java.util.HashMap<>();
@@ -487,9 +489,16 @@ public class CompetitionController {
                 Pick pick = userPicks.get(gw.getWeekNumber());
                 if (pick != null) {
                     PickResult pr = resultMap.get(pick.getId());
+                    String outcome = pr != null ? pr.getOutcome().name() : "PENDING";
+                    if ("PENDING".equals(outcome)) {
+                        Map<Long, String> liveOutcomeByTeam = liveOutcomeByGameweekAndTeam.get(gw.getId());
+                        if (liveOutcomeByTeam != null) {
+                            outcome = liveOutcomeByTeam.getOrDefault(pick.getTeam().getId(), "PENDING");
+                        }
+                    }
                     cells.put(gw.getWeekNumber(), new SurvivorPickCell(
                             pick.getTeam().getShortName(),
-                            pr != null ? pr.getOutcome().name() : "PENDING",
+                            outcome,
                             pick.getSource().name()
                     ));
                 }
@@ -504,6 +513,46 @@ public class CompetitionController {
         }).toList();
 
         return new SurvivorTableResponse(gwMetas, rows);
+    }
+
+    private Map<Long, Map<Long, String>> buildLiveOutcomeByGameweek(List<Gameweek> gameweeks) {
+        Map<Long, Map<Long, String>> outcomeByGameweek = new HashMap<>();
+
+        for (Gameweek gw : gameweeks) {
+            if (gw.getStatus() != GameweekStatus.IN_PROGRESS) {
+                continue;
+            }
+            List<Fixture> fixtures = fixtureRepository.findByGameweekId(gw.getId());
+            Map<Long, String> liveOutcomeByTeam = new HashMap<>();
+            for (Fixture f : fixtures) {
+                FixtureStatus status = f.getEffectiveStatus();
+                if (status == FixtureStatus.FINISHED) {
+                    Integer sh = f.getEffectiveScoreHome();
+                    Integer sa = f.getEffectiveScoreAway();
+                    if (sh == null || sa == null) continue;
+                    Long homeId = f.getEffectiveHomeTeam().getId();
+                    Long awayId = f.getEffectiveAwayTeam().getId();
+                    if (sh > sa) {
+                        liveOutcomeByTeam.put(homeId, "ADVANCE");
+                        liveOutcomeByTeam.put(awayId, "ELIMINATED");
+                    } else if (sa > sh) {
+                        liveOutcomeByTeam.put(awayId, "ADVANCE");
+                        liveOutcomeByTeam.put(homeId, "ELIMINATED");
+                    } else {
+                        liveOutcomeByTeam.put(homeId, "ELIMINATED");
+                        liveOutcomeByTeam.put(awayId, "ELIMINATED");
+                    }
+                } else if (status == FixtureStatus.POSTPONED || status == FixtureStatus.CANCELLED) {
+                    liveOutcomeByTeam.put(f.getEffectiveHomeTeam().getId(), "POSTPONED_ADVANCE");
+                    liveOutcomeByTeam.put(f.getEffectiveAwayTeam().getId(), "POSTPONED_ADVANCE");
+                }
+            }
+            if (!liveOutcomeByTeam.isEmpty()) {
+                outcomeByGameweek.put(gw.getId(), liveOutcomeByTeam);
+            }
+        }
+
+        return outcomeByGameweek;
     }
 
     // ── Pick Stats (post-lock: show % of players who picked each team) ──
