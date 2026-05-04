@@ -6,6 +6,8 @@ import com.lastmanstanding.repository.*;
 import com.lastmanstanding.security.UserDetailsImpl;
 import com.lastmanstanding.service.CompetitionService;
 import com.lastmanstanding.service.FixtureSyncService;
+import com.lastmanstanding.service.GameweekEmailService;
+import com.lastmanstanding.service.WebPushService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,7 +40,9 @@ public class ClubAdminController {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final PaymentRepository paymentRepository;
-        private final AuditLogRepository auditLogRepository;
+    private final AuditLogRepository auditLogRepository;
+    private final WebPushService webPushService;
+    private final GameweekEmailService gameweekEmailService;
 
     public ClubAdminController(ClubRepository clubRepository,
                                CompetitionRepository competitionRepository,
@@ -48,7 +52,9 @@ public class ClubAdminController {
                                UserRepository userRepository,
                                PasswordEncoder passwordEncoder,
                                PaymentRepository paymentRepository,
-                               AuditLogRepository auditLogRepository) {
+                               AuditLogRepository auditLogRepository,
+                               WebPushService webPushService,
+                               GameweekEmailService gameweekEmailService) {
         this.clubRepository = clubRepository;
         this.competitionRepository = competitionRepository;
         this.participantRepository = participantRepository;
@@ -58,6 +64,8 @@ public class ClubAdminController {
         this.passwordEncoder = passwordEncoder;
         this.paymentRepository = paymentRepository;
         this.auditLogRepository = auditLogRepository;
+        this.webPushService = webPushService;
+        this.gameweekEmailService = gameweekEmailService;
     }
 
     // ── My Club ──────────────────────────────────────────────────────────
@@ -381,6 +389,14 @@ public class ClubAdminController {
 
         log.info("Club admin {} confirmed manual payment from user {} for competition {}",
                 userDetails.getUsername(), user.getUsername(), comp.getName());
+
+        try {
+            webPushService.sendPaymentConfirmedNotification(comp, user);
+        } catch (Exception e) {
+            log.warn("Manual payment notification failed for user {} in competition {}: {}",
+                    userId, compId, e.getMessage());
+        }
+        gameweekEmailService.sendPaymentConfirmedEmail(user, comp);
 
         logAudit(userDetails, "Payment", payment.getId(), "status", null, "SUCCEEDED", "MARK_PAID");
 

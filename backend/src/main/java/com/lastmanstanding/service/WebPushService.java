@@ -166,6 +166,27 @@ public class WebPushService {
         }
     }
 
+    @Transactional
+    public void sendPaymentConfirmedNotification(Competition comp, User user) {
+        if (!isConfigured()) {
+            log.info("Web push not configured — skipping payment-confirmed notification for user {} competition {}",
+                    user.getId(), comp.getId());
+            return;
+        }
+
+        List<PushSubscription> subscriptions = pushSubscriptionRepository.findByUserId(user.getId());
+        if (subscriptions.isEmpty()) {
+            return;
+        }
+
+        sendToSubscriptions(subscriptions, Map.of(
+                "title", "Payment confirmed",
+                "body", "Your payment for " + comp.getName() + " has been confirmed. You can now make your pick.",
+                "url", frontendUrl + "/competitions/" + comp.getId(),
+                "tag", "payment-confirmed-" + comp.getId() + "-" + user.getId()
+        ));
+    }
+
     private void sendToSubscriptions(List<PushSubscription> subscriptions, Map<String, String> payload) {
         PushService pushService;
         try {

@@ -83,6 +83,41 @@ public class GameweekEmailService {
         }
     }
 
+    @Transactional(readOnly = true)
+    public void sendPaymentConfirmedEmail(User user, Competition comp) {
+        if (!mailEnabled) {
+            log.info("Mail disabled — skipping payment confirmation email for user {} competition {}", user.getId(), comp.getId());
+            return;
+        }
+        if (user.getEmail() == null || user.getEmail().isBlank()) {
+            return;
+        }
+
+        try {
+            String subject = "[Last Man Standing] Payment confirmed — " + comp.getName();
+            String body = """
+                    <html><body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+                      <h2 style="color:#1a1a2e;">Payment confirmed</h2>
+                      <p>Your payment for <strong>%s</strong> has been confirmed by the club admin.</p>
+                      <p>You can now make your pick.</p>
+                      <p><a href="%s/competitions/%d">Open competition</a></p>
+                    </body></html>
+                    """.formatted(comp.getName(), frontendUrl, comp.getId());
+
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setFrom(mailFrom);
+            helper.setTo(user.getEmail());
+            helper.setSubject(subject);
+            helper.setText(body, true);
+            mailSender.send(message);
+            log.info("Sent payment confirmation email to {} for competition {}", user.getEmail(), comp.getId());
+        } catch (Exception e) {
+            log.warn("Failed to send payment confirmation email to {} for competition {}: {}",
+                    user.getEmail(), comp.getId(), e.getMessage());
+        }
+    }
+
     private void sendResultEmailToUser(User user, Competition comp, Gameweek gw,
                                        CompetitionParticipant cp) throws Exception {
         // Find the user's pick and result for this gameweek

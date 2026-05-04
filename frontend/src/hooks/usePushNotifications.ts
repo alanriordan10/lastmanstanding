@@ -51,9 +51,9 @@ export function usePushNotifications() {
       const reg = await navigator.serviceWorker.ready;
       const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
       if (!vapidPublicKey) {
-        // No VAPID key configured — keep browser alerts enabled locally.
-        setIsSubscribed(true);
-        return true;
+        // No VAPID key configured — cannot create a real push subscription.
+        setIsSubscribed(false);
+        return false;
       }
 
       const existingSub = await reg.pushManager.getSubscription();
