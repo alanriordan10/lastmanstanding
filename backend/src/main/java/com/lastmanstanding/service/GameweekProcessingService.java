@@ -29,6 +29,7 @@ public class GameweekProcessingService {
     private final PickResultRepository pickResultRepository;
     private final CompetitionParticipantRepository participantRepository;
     private final TeamRepository teamRepository;
+    private final PaymentRepository paymentRepository;
     private final CompetitionRepository competitionRepository;
     private final FixtureSyncService fixtureSyncService;
     private final GameweekEmailService gameweekEmailService;
@@ -40,6 +41,7 @@ public class GameweekProcessingService {
                                      PickResultRepository pickResultRepository,
                                      CompetitionParticipantRepository participantRepository,
                                      TeamRepository teamRepository,
+                                     PaymentRepository paymentRepository,
                                      CompetitionRepository competitionRepository,
                                      FixtureSyncService fixtureSyncService,
                                      GameweekEmailService gameweekEmailService,
@@ -50,6 +52,7 @@ public class GameweekProcessingService {
         this.pickResultRepository = pickResultRepository;
         this.participantRepository = participantRepository;
         this.teamRepository = teamRepository;
+        this.paymentRepository = paymentRepository;
         this.competitionRepository = competitionRepository;
         this.fixtureSyncService = fixtureSyncService;
         this.gameweekEmailService = gameweekEmailService;
@@ -87,6 +90,26 @@ public class GameweekProcessingService {
         }
         List<CompetitionParticipant> activeParticipants =
                 participantRepository.findByCompetitionIdAndStatus(comp.getId(), ParticipantStatus.ACTIVE);
+        if (comp.getPaymentMode() == PaymentMode.MANUAL
+                && comp.getManualPaymentPolicy() == ManualPaymentPolicy.STRICT
+                && !activeParticipants.isEmpty()) {
+            Set<Long> paidUserIds = new HashSet<>(paymentRepository.findPaidUserIdsByCompetitionId(comp.getId()));
+            List<CompetitionParticipant> unpaid = activeParticipants.stream()
+                    .filter(cp -> !paidUserIds.contains(cp.getUser().getId()))
+                    .toList();
+            if (!unpaid.isEmpty()) {
+                for (CompetitionParticipant cp : unpaid) {
+                    cp.setStatus(ParticipantStatus.ELIMINATED);
+                    cp.setEliminatedWeek(gw.getWeekNumber());
+                }
+                participantRepository.saveAll(unpaid);
+                log.info("Eliminated {} unpaid manual-payment participants before locking GW{} in competition {}",
+                        unpaid.size(), gw.getWeekNumber(), comp.getId());
+            }
+            activeParticipants = activeParticipants.stream()
+                    .filter(cp -> paidUserIds.contains(cp.getUser().getId()))
+                    .toList();
+        }
 
         List<Fixture> fixtures = fixtureRepository.findByGameweekId(gw.getId());
         Set<Long> teamsWithFixture = new HashSet<>();

@@ -128,16 +128,16 @@ public class CompetitionService {
     public Competition createCompetition(
             String name, String description, BigDecimal entryFee, BigDecimal prizePool,
             MissedPickMode missedPickMode, boolean postponedConsumesTeam, boolean passFeeToParticipant,
-            String paymentMode, String visibility, java.time.LocalDate startDate, Long adminUserId, Long clubId) {
+            String paymentMode, String manualPaymentPolicy, String visibility, java.time.LocalDate startDate, Long adminUserId, Long clubId) {
         return createCompetition(name, description, entryFee, prizePool, missedPickMode, postponedConsumesTeam,
-                passFeeToParticipant, paymentMode, visibility, startDate, adminUserId, clubId, true);
+                passFeeToParticipant, paymentMode, manualPaymentPolicy, visibility, startDate, adminUserId, clubId, true);
     }
 
     @Transactional
     public Competition createCompetition(
             String name, String description, BigDecimal entryFee, BigDecimal prizePool,
             MissedPickMode missedPickMode, boolean postponedConsumesTeam, boolean passFeeToParticipant,
-            String paymentMode, String visibility, java.time.LocalDate startDate, Long adminUserId, Long clubId,
+            String paymentMode, String manualPaymentPolicy, String visibility, java.time.LocalDate startDate, Long adminUserId, Long clubId,
             boolean autoSyncFixtures) {
         User admin = userRepository.findById(adminUserId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Admin user not found"));
@@ -152,6 +152,10 @@ public class CompetitionService {
             comp.setPaymentMode(entryFee == null || entryFee.compareTo(BigDecimal.ZERO) == 0
                     ? PaymentMode.FREE
                     : PaymentMode.STRIPE);
+        }
+        if (manualPaymentPolicy != null) {
+            try { comp.setManualPaymentPolicy(ManualPaymentPolicy.valueOf(manualPaymentPolicy)); }
+            catch (IllegalArgumentException ignored) {}
         }
         CompetitionVisibility parsedVisibility = parseVisibility(visibility);
         comp.setVisibility(parsedVisibility);
@@ -203,7 +207,7 @@ public class CompetitionService {
     public Competition updateCompetition(Long id, String name, String description, BigDecimal entryFee,
                                          BigDecimal prizePool, MissedPickMode missedPickMode,
                                          boolean postponedConsumesTeam, Boolean passFeeToParticipant,
-                                         String paymentMode, String visibility, java.time.LocalDate startDate,
+                                         String paymentMode, String manualPaymentPolicy, String visibility, java.time.LocalDate startDate,
                                          CompetitionStatus status, Long clubId) {
         Competition comp = competitionRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Competition not found"));
@@ -216,6 +220,10 @@ public class CompetitionService {
         if (passFeeToParticipant != null) comp.setPassFeeToParticipant(passFeeToParticipant);
         if (paymentMode != null) {
             try { comp.setPaymentMode(PaymentMode.valueOf(paymentMode)); }
+            catch (IllegalArgumentException ignored) {}
+        }
+        if (manualPaymentPolicy != null) {
+            try { comp.setManualPaymentPolicy(ManualPaymentPolicy.valueOf(manualPaymentPolicy)); }
             catch (IllegalArgumentException ignored) {}
         }
         if (visibility != null) {
