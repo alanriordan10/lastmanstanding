@@ -67,6 +67,19 @@ function competitionPrimaryButtonStyle(color?: string | null): CSSProperties | u
   };
 }
 
+function getCompetitionActionHint(comp: Competition, mine?: MyCompetition): string | null {
+  if (!mine) return null;
+  if (mine.paymentState === 'AWAITING_PAYMENT') {
+    return comp.paymentMode === 'MANUAL'
+      ? 'Action needed: pay the organiser to activate your entry.'
+      : 'Action needed: complete payment to confirm your entry.';
+  }
+  if (comp.status === 'UPCOMING' && (mine.myStatus === 'ACTIVE' || mine.myStatus === 'WINNER')) {
+    return 'Action needed: make your pick before the gameweek locks.';
+  }
+  return null;
+}
+
 interface SurvivorTableProgressResponse {
   gameweeks: Array<{ weekNumber: number; status: string }>;
   rows: Array<{
@@ -303,6 +316,17 @@ export default function CompetitionsPage() {
   const totalPages = Math.max(1, Math.ceil(filteredAvailable.length / PAGE_SIZE));
   const page = Math.min(currentPage, totalPages);
   const paginatedAvailable = filteredAvailable.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const myCompetitionById = new Map(myComps.map((mc) => [mc.competition.id, mc]));
+  const needsActionAvailable = filteredAvailable.filter((c) => {
+    const mine = myCompetitionById.get(c.id);
+    if (!mine) return false;
+    if (mine.paymentState === 'AWAITING_PAYMENT') return true;
+    return c.status === 'UPCOMING' && (mine.myStatus === 'ACTIVE' || mine.myStatus === 'WINNER');
+  });
+  const needsActionIds = new Set(needsActionAvailable.map((c) => c.id));
+  const liveAvailable = filteredAvailable.filter((c) => joinedSet.has(c.id) && c.status === 'ACTIVE' && !needsActionIds.has(c.id));
+  const featuredIds = new Set([...needsActionIds, ...liveAvailable.map((c) => c.id)]);
+  const remainingAvailable = filteredAvailable.filter((c) => !featuredIds.has(c.id));
 
   const sorted      = [...allComps].sort((a, b) => (joinedSet.has(a.id) ? 0 : 1) - (joinedSet.has(b.id) ? 0 : 1));
   const joinedComps = sorted.filter((c) => joinedSet.has(c.id));
@@ -668,25 +692,70 @@ export default function CompetitionsPage() {
             {listView ? (
               <CompListView comps={paginatedAvailable} joinedSet={joinedSet} onJoin={(c) => { const mc = competitions?.find(x => x.id === c.id); if (mc) handleJoin(mc); }} isPending={joinMutation.isPending} />
             ) : (
-              <CompGrid>
-                {paginatedAvailable.map((c) => (
-                  <CompetitionCard
-                    key={c.id}
-                    comp={c}
-                    joined={joinedSet.has(c.id)}
-                    onJoin={() => handleJoin(c)}
-                    isPending={joinMutation.isPending}
-                    isHighlighted={c.id === highlightedCompetitionId}
-                    onClearHighlight={() => {
-                      const next = new URLSearchParams(searchParams);
-                      next.delete('join');
-                      setSearchParams(next, { replace: true });
-                    }}
-                  />
-                ))}
-              </CompGrid>
+              <div className="space-y-5">
+                {needsActionAvailable.length > 0 && (
+                  <Section label={`Needs Action (${needsActionAvailable.length})`} icon="!" iconColor="bg-amber-500">
+                    <CompGrid>
+                      {needsActionAvailable.map((c) => (
+                        (() => {
+                          const mine = myCompetitionById.get(c.id);
+                          const actionHint = getCompetitionActionHint(c, mine);
+                          return (
+                        <CompetitionCard
+                          key={c.id}
+                          comp={c}
+                          joined={joinedSet.has(c.id)}
+                          onJoin={() => handleJoin(c)}
+                          isPending={joinMutation.isPending}
+                          actionHint={actionHint}
+                          isHighlighted={c.id === highlightedCompetitionId}
+                          onClearHighlight={() => {
+                            const next = new URLSearchParams(searchParams);
+                            next.delete('join');
+                            setSearchParams(next, { replace: true });
+                          }}
+                        />
+                          );
+                        })()
+                      ))}
+                    </CompGrid>
+                  </Section>
+                )}
+
+                {liveAvailable.length > 0 && (
+                  <Section label={`Live (${liveAvailable.length})`} icon="●" iconColor="bg-green-600">
+                    <CompGrid>
+                      {liveAvailable.map((c) => (
+                        <CompetitionCard
+                          key={c.id}
+                          comp={c}
+                          joined={joinedSet.has(c.id)}
+                          onJoin={() => handleJoin(c)}
+                          isPending={joinMutation.isPending}
+                          isHighlighted={c.id === highlightedCompetitionId}
+                          onClearHighlight={() => {
+                            const next = new URLSearchParams(searchParams);
+                            next.delete('join');
+                            setSearchParams(next, { replace: true });
+                          }}
+                        />
+                      ))}
+                    </CompGrid>
+                  </Section>
+                )}
+
+                <Section label={`All Competitions (${remainingAvailable.length})`}>
+                  {remainingAvailable.length > 0 ? (
+                    <CompListView comps={remainingAvailable} joinedSet={joinedSet} onJoin={(c) => { const mc = competitions?.find(x => x.id === c.id); if (mc) handleJoin(mc); }} isPending={joinMutation.isPending} />
+                  ) : (
+                    <div className="card px-4 py-3 text-sm text-gray-400">No other competitions match the current filters.</div>
+                  )}
+                </Section>
+              </div>
             )}
-            <Pagination page={page} totalPages={totalPages} total={filteredAvailable.length} pageSize={PAGE_SIZE} onPage={setCurrentPage} />
+            {listView && (
+              <Pagination page={page} totalPages={totalPages} total={filteredAvailable.length} pageSize={PAGE_SIZE} onPage={setCurrentPage} />
+            )}
           </div>
         )
       )}
@@ -986,8 +1055,8 @@ function SurvivorBar({ active, total }: { active: number; total: number }) {
 
 /* ── Cards ───────────────────────────────────────────────────────────────── */
 
-function CompetitionCard({ comp, joined, onJoin, isPending, isHighlighted = false, onClearHighlight }: {
-  comp: Competition; joined: boolean; onJoin: () => void; isPending: boolean; isHighlighted?: boolean; onClearHighlight?: () => void;
+function CompetitionCard({ comp, joined, onJoin, isPending, actionHint, isHighlighted = false, onClearHighlight }: {
+  comp: Competition; joined: boolean; onJoin: () => void; isPending: boolean; actionHint?: string | null; isHighlighted?: boolean; onClearHighlight?: () => void;
 }) {
   const prizePool = comp.prizePool ?? 0;
   const clubAccent = comp.clubPrimaryColor ?? null;
@@ -1078,6 +1147,11 @@ function CompetitionCard({ comp, joined, onJoin, isPending, isHighlighted = fals
           Public - no invite code required.
         </div>
       )}
+      {actionHint ? (
+        <div className="mt-2 rounded-lg border border-amber-400/35 bg-amber-400/10 px-2.5 py-2 text-xs text-amber-100">
+          {actionHint}
+        </div>
+      ) : null}
       <div className="mt-1.5 min-h-[32px]">
         {comp.description ? (
           <p className="text-xs text-gray-400 line-clamp-2">{comp.description}</p>

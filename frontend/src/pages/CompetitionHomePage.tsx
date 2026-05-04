@@ -703,10 +703,16 @@ export default function CompetitionHomePage() {
   const spotlightCards = [
     {
       eyebrow: 'Knockout pressure',
-      title: effectiveActiveCount === 1
+      title: comp.status === 'UPCOMING'
+        ? `${comp.participantCount ?? 0} entered`
+        : effectiveActiveCount === 1
         ? '1 survivor remains'
         : `${effectiveEliminatedCount} out, ${effectiveActiveCount} alive`,
-      detail: effectiveActiveCount === 1
+      detail: comp.status === 'UPCOMING'
+        ? (comp.participantCount ?? 0) > 0
+          ? 'No eliminations yet. Knockout pressure begins when the first fixtures lock.'
+          : 'No entrants yet. Knockout pressure begins once players join.'
+        : effectiveActiveCount === 1
         ? 'One player has made it through every round.'
         : comp.participantCount > 0
         ? `${survivalRate}% of the field is still standing.`
@@ -1976,6 +1982,9 @@ function TeamButton({
   name: string; shortName: string; isMyPick: boolean; isUsed: boolean;
   isClickable: boolean; align: 'left' | 'right'; pickStat?: PickStat; accentColor?: string | null; onClick: () => void;
 }) {
+  const showStatusPill = isMyPick || (isUsed && !isMyPick);
+  const statusPillLabel = isMyPick ? 'Picked' : 'Used';
+
   return (
     <button
       onClick={onClick}
@@ -2002,15 +2011,23 @@ function TeamButton({
         <span className={clsx('font-bold text-xs', isMyPick ? 'text-white' : isUsed ? 'line-through' : '')}>
           {shortName}
         </span>
-        {isMyPick && <span className="text-xs font-bold text-white">✓</span>}
-        {isUsed && !isMyPick && <span className="text-[10px] font-bold text-gray-500">used</span>}
+        {showStatusPill && (
+          <span
+            className={clsx(
+              'inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em]',
+              isMyPick ? 'bg-white/18 text-white' : 'bg-gray-500/22 text-gray-400',
+            )}
+          >
+            {statusPillLabel}
+          </span>
+        )}
       </div>
       {/* Desktop */}
       {pickStat ? (
         align === 'right' ? (
           <div className="hidden sm:grid w-full items-center gap-2 grid-cols-[auto_1fr_auto] text-right">
             <span className={clsx('text-xs font-bold justify-self-start', isMyPick ? 'text-white' : 'text-gray-400')}>
-              {isMyPick ? '✓' : isUsed && !isMyPick ? 'used' : ''}
+              {showStatusPill ? statusPillLabel : ''}
             </span>
             <span className="truncate text-xs lg:text-sm font-normal opacity-90 justify-self-end">
               {name}
@@ -2029,7 +2046,7 @@ function TeamButton({
               {name}
             </span>
             <span className={clsx('text-xs font-bold justify-self-end', isMyPick ? 'text-white' : 'text-gray-400')}>
-              {isMyPick ? '✓' : isUsed && !isMyPick ? 'used' : ''}
+              {showStatusPill ? statusPillLabel : ''}
             </span>
           </div>
         )
@@ -2037,7 +2054,7 @@ function TeamButton({
         <div className="hidden sm:grid h-full w-full place-items-center">
           <div className="grid w-full max-w-[18rem] grid-cols-[3.5ch_minmax(0,1fr)_3ch] items-center gap-2">
             <span className="text-left text-xs font-bold text-gray-400">
-              {isMyPick ? '✓' : isUsed && !isMyPick ? 'used' : ''}
+              {showStatusPill ? statusPillLabel : ''}
             </span>
             <span className="truncate text-center text-xs lg:text-sm font-normal opacity-90">
               {name}
@@ -2057,7 +2074,7 @@ function TeamButton({
               {name}
             </span>
             <span className="text-right text-xs font-bold text-gray-400">
-              {isMyPick ? '✓' : isUsed && !isMyPick ? 'used' : ''}
+              {showStatusPill ? statusPillLabel : ''}
             </span>
           </div>
         </div>
