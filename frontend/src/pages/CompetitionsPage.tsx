@@ -67,6 +67,37 @@ function competitionPrimaryButtonStyle(color?: string | null): CSSProperties | u
   };
 }
 
+interface SurvivorTableProgressResponse {
+  gameweeks: Array<{ weekNumber: number; status: string }>;
+  rows: Array<{
+    userId: number;
+    status: 'ACTIVE' | 'ELIMINATED' | 'WINNER';
+    picks: Record<number, { outcome: string } | null>;
+  }>;
+}
+
+function deriveLiveActiveCount(data: SurvivorTableProgressResponse | undefined): number | null {
+  if (!data) return null;
+  const inProgressWeeks = new Set(
+    data.gameweeks.filter((gw) => gw.status === 'IN_PROGRESS').map((gw) => gw.weekNumber),
+  );
+  if (inProgressWeeks.size === 0) return null;
+
+  let active = 0;
+  for (const row of data.rows) {
+    if (row.status === 'WINNER') {
+      active += 1;
+      continue;
+    }
+    if (row.status !== 'ACTIVE') continue;
+    const eliminatedInLiveWeek = Object.entries(row.picks).some(([week, pick]) =>
+      inProgressWeeks.has(Number(week)) && pick?.outcome === 'ELIMINATED',
+    );
+    if (!eliminatedInLiveWeek) active += 1;
+  }
+  return active;
+}
+
 export default function CompetitionsPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -376,8 +407,8 @@ export default function CompetitionsPage() {
             </div>
 
             {viewMode === 'available' && (
-              <div className="flex items-center gap-2 sm:ml-auto">
-                <div className="flex items-center gap-2 rounded-xl border border-brand-500/20 bg-brand-500/[0.07] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:min-w-[17rem]">
+              <div className="flex w-full flex-col gap-2 sm:ml-auto sm:w-auto sm:flex-row sm:items-center">
+                <div className="flex w-full items-center gap-2 rounded-xl border border-brand-500/20 bg-brand-500/[0.07] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:min-w-[17rem]">
                   <input
                     type="text"
                     value={joinCodeInput}
@@ -402,7 +433,7 @@ export default function CompetitionsPage() {
                 <button
                   type="button"
                   onClick={() => setShowFilters((v) => !v)}
-                  className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition ${
+                  className={`inline-flex w-full items-center justify-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition sm:w-auto sm:justify-start ${
                     showFilters || activeFilterCount > 0
                       ? 'border-brand-500/40 bg-brand-500/10 text-brand-300'
                       : 'border-gray-600/50 bg-surface-700 text-gray-300 hover:bg-surface-600'
@@ -961,6 +992,19 @@ function CompetitionCard({ comp, joined, onJoin, isPending, isHighlighted = fals
   const prizePool = comp.prizePool ?? 0;
   const clubAccent = comp.clubPrimaryColor ?? null;
   const clubSupport = comp.clubSecondaryColor ?? comp.clubPrimaryColor ?? null;
+  const { data: liveProgress } = useQuery<SurvivorTableProgressResponse>({
+    queryKey: ['survivor-table-progress', comp.id],
+    queryFn: () => api.get(`/competitions/${comp.id}/survivor-table`).then((r) => r.data),
+    enabled: comp.status === 'ACTIVE',
+    staleTime: 30_000,
+    refetchInterval: (query) => {
+      const data = query.state.data as SurvivorTableProgressResponse | undefined;
+      const hasInProgress = data?.gameweeks?.some((gw) => gw.status === 'IN_PROGRESS');
+      return hasInProgress ? 60_000 : 300_000;
+    },
+  });
+  const liveActiveCount = deriveLiveActiveCount(liveProgress);
+  const effectiveActiveCount = liveActiveCount ?? comp.activeCount ?? comp.participantCount;
 
   return (
     <div
@@ -1076,7 +1120,7 @@ function CompetitionCard({ comp, joined, onJoin, isPending, isHighlighted = fals
             {comp.winnerUsername ? (
               <span className="block text-yellow-400 truncate">🏆 {comp.winnerUsername}</span>
             ) : comp.status === 'ACTIVE' ? (
-              <span className="block text-gray-500">{comp.activeCount ?? 0} active</span>
+              <span className="block text-gray-500">{effectiveActiveCount} active</span>
             ) : (
               <div aria-hidden="true" className="h-5" />
             )}
@@ -1093,7 +1137,7 @@ function CompetitionCard({ comp, joined, onJoin, isPending, isHighlighted = fals
       {/* Survivor bar for active competitions */}
       <div className="min-h-[30px]">
         {comp.status === 'ACTIVE' && comp.participantCount > 0 && (
-          <SurvivorBar active={comp.activeCount ?? comp.participantCount} total={comp.participantCount} />
+          <SurvivorBar active={effectiveActiveCount} total={comp.participantCount} />
         )}
       </div>
 
@@ -1128,6 +1172,19 @@ function MyCompetitionCard({ myComp }: { myComp: MyCompetition }) {
   const paymentState = myComp.paymentState;
   const eliminatedWeek = myComp.eliminatedWeek;
   const clubSupport = comp.clubSecondaryColor ?? comp.clubPrimaryColor ?? null;
+  const { data: liveProgress } = useQuery<SurvivorTableProgressResponse>({
+    queryKey: ['survivor-table-progress', comp.id],
+    queryFn: () => api.get(`/competitions/${comp.id}/survivor-table`).then((r) => r.data),
+    enabled: comp.status === 'ACTIVE',
+    staleTime: 30_000,
+    refetchInterval: (query) => {
+      const data = query.state.data as SurvivorTableProgressResponse | undefined;
+      const hasInProgress = data?.gameweeks?.some((gw) => gw.status === 'IN_PROGRESS');
+      return hasInProgress ? 60_000 : 300_000;
+    },
+  });
+  const liveActiveCount = deriveLiveActiveCount(liveProgress);
+  const effectiveActiveCount = liveActiveCount ?? comp.activeCount ?? comp.participantCount;
 
   return (
     <Link
@@ -1172,8 +1229,8 @@ function MyCompetitionCard({ myComp }: { myComp: MyCompetition }) {
         </div>
         <div className="min-h-[36px]">
           <span className="block text-gray-500">Surviving</span>
-          {comp.status === 'ACTIVE' && comp.activeCount != null ? (
-            <span className="text-green-400 font-medium">{comp.activeCount}</span>
+          {comp.status === 'ACTIVE' ? (
+            <span className="text-green-400 font-medium">{effectiveActiveCount}</span>
           ) : (
             <div aria-hidden="true" className="h-5" />
           )}
@@ -1216,7 +1273,7 @@ function MyCompetitionCard({ myComp }: { myComp: MyCompetition }) {
 
       <div className="min-h-[30px]">
         {comp.status === 'ACTIVE' && comp.participantCount > 0 && (
-          <SurvivorBar active={comp.activeCount ?? comp.participantCount} total={comp.participantCount} />
+          <SurvivorBar active={effectiveActiveCount} total={comp.participantCount} />
         )}
       </div>
 

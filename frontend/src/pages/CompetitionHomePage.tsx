@@ -452,6 +452,32 @@ export default function CompetitionHomePage() {
     fixturesByWeek.get(f.weekNumber)!.fixtures.push(f);
   });
   const sortedWeeks = [...fixturesByWeek.keys()].sort((a, b) => a - b);
+  const liveOutcomeByGwTeam = new Map<string, string>();
+  if (fixtures) {
+    for (const f of fixtures) {
+      const gwId = f.gameweekId;
+      if (f.status === 'POSTPONED' || f.status === 'CANCELLED') {
+        liveOutcomeByGwTeam.set(`${gwId}:${f.homeTeamId}`, 'POSTPONED_ADVANCE');
+        liveOutcomeByGwTeam.set(`${gwId}:${f.awayTeamId}`, 'POSTPONED_ADVANCE');
+        continue;
+      }
+      if (f.status !== 'FINISHED' || f.scoreHome == null || f.scoreAway == null) continue;
+      if (f.scoreHome > f.scoreAway) {
+        liveOutcomeByGwTeam.set(`${gwId}:${f.homeTeamId}`, 'ADVANCE');
+        liveOutcomeByGwTeam.set(`${gwId}:${f.awayTeamId}`, 'ELIMINATED');
+      } else if (f.scoreHome < f.scoreAway) {
+        liveOutcomeByGwTeam.set(`${gwId}:${f.homeTeamId}`, 'ELIMINATED');
+        liveOutcomeByGwTeam.set(`${gwId}:${f.awayTeamId}`, 'ADVANCE');
+      } else {
+        liveOutcomeByGwTeam.set(`${gwId}:${f.homeTeamId}`, 'ELIMINATED');
+        liveOutcomeByGwTeam.set(`${gwId}:${f.awayTeamId}`, 'ELIMINATED');
+      }
+    }
+  }
+  const effectivePickOutcome = (pick: { outcome: string; gameweekId: number; teamId: number }) => {
+    if (pick.outcome !== 'PENDING') return pick.outcome;
+    return liveOutcomeByGwTeam.get(`${pick.gameweekId}:${pick.teamId}`) ?? 'PENDING';
+  };
   const uniqueTeamIds = new Set<number>();
   fixtures?.forEach((f) => {
     uniqueTeamIds.add(f.homeTeamId);
@@ -600,6 +626,11 @@ export default function CompetitionHomePage() {
   const survivalRate = comp.participantCount > 0
     ? Math.max(Math.round((effectiveActiveCount / comp.participantCount) * 100), effectiveActiveCount > 0 ? 1 : 0)
     : 0;
+  const narrativeFixtureCount = latestNarrativeWeek?.data.fixtures.length ?? 0;
+  const narrativeResolvedFixtureCount = latestNarrativeWeek?.data.fixtures.filter((fixture) =>
+    fixture.status === 'FINISHED' || fixture.status === 'POSTPONED' || fixture.status === 'CANCELLED'
+  ).length ?? 0;
+  const narrativePendingFixtureCount = Math.max(narrativeFixtureCount - narrativeResolvedFixtureCount, 0);
 
   const hasWinner = comp.status === 'COMPLETED'
     || (comp.activeCount === 1 && (comp.participantCount ?? 0) > 1);
@@ -1130,6 +1161,9 @@ export default function CompetitionHomePage() {
                   {weeklyPickedCount > 0 && (
                     <span className="block text-gray-400">{weeklyAdvancedCount} adv · {weeklyEliminatedCount} out</span>
                   )}
+                  {narrativeWeekInProgress && narrativeFixtureCount > 0 && (
+                    <span className="block text-gray-500">{narrativeResolvedFixtureCount} fixtures resolved · {narrativePendingFixtureCount} to play</span>
+                  )}
                 </span>
               )}
               {mostBackedTeam && (
@@ -1655,7 +1689,9 @@ export default function CompetitionHomePage() {
                   <div className="divide-y divide-gray-700/50 sm:hidden">
                     {myStatus.picks
                       .sort((a, b) => a.weekNumber - b.weekNumber)
-                      .map((pick) => (
+                      .map((pick) => {
+                        const outcome = effectivePickOutcome(pick);
+                        return (
                         <div key={pick.pickId} className="py-3 space-y-2">
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
@@ -1663,7 +1699,7 @@ export default function CompetitionHomePage() {
                               <p className="mt-1 text-sm font-semibold text-gray-100">{pick.teamShortName}</p>
                               <p className="text-xs text-gray-400 truncate">{pick.teamName}</p>
                             </div>
-                            <OutcomeBadge outcome={pick.outcome} />
+                            <OutcomeBadge outcome={outcome} />
                           </div>
                           <div className="flex items-center justify-between text-xs">
                             <span className="text-gray-500">
@@ -1672,7 +1708,7 @@ export default function CompetitionHomePage() {
                             {pick.source === 'AUTO' ? <span className="badge-yellow text-[10px]">Auto</span> : <span className="badge-gray text-[10px]">Self</span>}
                           </div>
                         </div>
-                      ))}
+                      )})}
                   </div>
 
                   <div className="hidden sm:block overflow-x-auto">
@@ -1688,7 +1724,9 @@ export default function CompetitionHomePage() {
                       <tbody>
                         {myStatus.picks
                           .sort((a, b) => a.weekNumber - b.weekNumber)
-                          .map((pick) => (
+                          .map((pick) => {
+                          const outcome = effectivePickOutcome(pick);
+                          return (
                           <tr key={pick.pickId} className="border-b border-gray-700/50 hover:bg-surface-700/30">
                             <td className="py-3 px-4 font-medium">{pick.weekNumber}</td>
                             <td className="py-3 px-4">
@@ -1699,10 +1737,10 @@ export default function CompetitionHomePage() {
                               {pick.source === 'AUTO' ? <span className="badge-yellow">Auto</span> : <span className="badge-gray">Self</span>}
                             </td>
                             <td className="py-3 px-4">
-                              <OutcomeBadge outcome={pick.outcome} />
+                              <OutcomeBadge outcome={outcome} />
                             </td>
                           </tr>
-                        ))}
+                        )})}
                       </tbody>
                     </table>
                   </div>
@@ -1950,9 +1988,9 @@ function TeamButton({
       className={clsx(
         'flex h-full flex-col justify-center gap-0.5 rounded-lg px-1.5 sm:px-3 lg:px-4 py-0.5 sm:py-0.5 w-full min-w-0 transition-all min-h-[28px] sm:min-h-[30px] lg:min-h-[32px]',
         align === 'right' ? 'items-end text-right' : 'items-start text-left',
-        isMyPick && 'bg-brand-600 border-2 border-brand-400 text-white font-bold shadow-lg shadow-brand-900/50',
+        isMyPick && 'bg-brand-600/85 border-2 border-brand-300 text-white font-bold shadow-md shadow-brand-900/25',
         isUsed && !isMyPick && 'bg-transparent text-gray-700 cursor-not-allowed',
-        isClickable && !isMyPick && 'bg-surface-600/50 border border-gray-600 hover:border-brand-500 hover:bg-brand-500/10 text-gray-200 cursor-pointer font-medium',
+        isClickable && !isMyPick && 'bg-surface-600/50 border border-gray-600 hover:border-gray-500 hover:bg-white/[0.04] text-gray-200 cursor-pointer font-medium',
         !isClickable && !isUsed && !isMyPick && 'bg-transparent text-gray-400 cursor-default font-medium',
       )}
       aria-pressed={isMyPick}
@@ -1982,10 +2020,11 @@ function TeamButton({
             </span>
           </div>
         ) : (
-          <div className="hidden sm:grid w-full items-center gap-2 grid-cols-[auto_1fr_auto] text-left">
+          <div className="hidden sm:grid w-full items-center gap-2 grid-cols-[auto_auto_1fr_auto] text-left">
             <span className={clsx('font-bold sm:text-sm', isMyPick ? 'text-white' : isUsed ? 'line-through' : '')} style={{ width: '3ch' }}>
               {shortName}
             </span>
+            <span className="text-[10px] text-gray-500">·</span>
             <span className="truncate text-xs lg:text-sm font-normal opacity-90">
               {name}
             </span>
@@ -2025,17 +2064,14 @@ function TeamButton({
       )}
       {/* Pick stat bar — shown after gameweek locks */}
       {pickStat ? (
-        <div className="w-full mt-2 space-y-1 min-h-[28px]">
-          <div className={clsx('w-full h-2 rounded-full overflow-hidden bg-surface-500', align === 'right' && 'scale-x-[-1]')}>
-            <div
-              className={clsx('h-2 rounded-full transition-all duration-700', !accentColor && (isMyPick ? 'bg-white/80' : 'bg-brand-500'))}
-              style={{ width: `${Math.max(pickStat.percentage, 2)}%`, ...(accentColor && !isMyPick ? { backgroundColor: accentColor } : isMyPick ? { backgroundColor: 'rgba(255,255,255,0.8)' } : {}) }}
-            />
-          </div>
+        <div className="w-full mt-1.5 min-h-[20px]">
           <div className={clsx('flex w-full', align === 'right' ? 'justify-end' : 'justify-start')}>
             <div
-              className={clsx('inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap', isMyPick ? 'bg-white/20 text-white' : !accentColor && 'bg-brand-500/20 text-brand-300')}
-              style={accentColor && !isMyPick ? { backgroundColor: `${accentColor}33`, color: accentColor } : undefined}
+              className={clsx(
+                'inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap',
+                isMyPick ? 'bg-white/16 text-white/90' : 'bg-white/8 text-gray-300',
+              )}
+              style={accentColor && !isMyPick ? { border: `1px solid ${accentColor}44`, color: '#cbd5e1' } : undefined}
             >
               {pickStat.percentage}%
               <span className={clsx('font-normal whitespace-nowrap', isMyPick ? 'text-white/60' : 'text-gray-400')}>
@@ -2045,7 +2081,7 @@ function TeamButton({
           </div>
         </div>
       ) : (
-        <div className="w-full mt-2 min-h-[28px]" />
+        <div className="w-full mt-1.5 min-h-[20px]" />
       )}
     </button>
   );
