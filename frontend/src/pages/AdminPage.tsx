@@ -659,17 +659,34 @@ function CompetitionsTab() {
       />
 
       {showForm && (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (editingComp) {
-              updateMutation.mutate();
-              return;
-            }
-            createMutation.mutate();
-          }}
-          className="card space-y-4"
-        >
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/70 px-4 py-10 sm:py-12">
+          <div className="w-full max-w-4xl rounded-2xl border border-white/10 bg-surface-900 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+              <div>
+                <h2 className="font-semibold text-gray-200">{editingComp ? `Edit ${editingComp.name}` : 'New Competition'}</h2>
+                <p className="text-xs text-gray-500">
+                  {editingComp ? 'Update competition settings, fees, timing, and visibility.' : 'Set up a new competition and its entry settings.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={resetForm}
+                className="rounded-md border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-300 transition hover:bg-white/10"
+              >
+                Close
+              </button>
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (editingComp) {
+                  updateMutation.mutate();
+                  return;
+                }
+                createMutation.mutate();
+              }}
+              className="space-y-4 p-5"
+            >
           <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h3 className="text-lg font-semibold text-white">{editingComp ? `Edit ${editingComp.name}` : 'New Competition'}</h3>
@@ -922,7 +939,9 @@ function CompetitionsTab() {
               Cancel
             </button>
           </div>
-        </form>
+            </form>
+          </div>
+        </div>
       )}
 
       {competitions && competitions.length > 0 && (
@@ -1004,6 +1023,11 @@ function CompetitionRow({ comp, onEdit }: { comp: Competition; onEdit: (competit
               <div className="min-w-0">
                 <p className="font-medium text-white truncate">{comp.name}</p>
                 <p className="text-xs text-gray-400 mt-0.5">{comp.startDate}</p>
+                {comp.visibility === 'PRIVATE' && comp.joinCode && (
+                  <p className="mt-1 inline-flex items-center gap-1 rounded-md border border-brand-500/30 bg-brand-500/10 px-2 py-0.5 font-mono text-[11px] tracking-[0.12em] text-brand-200">
+                    {comp.joinCode}
+                  </p>
+                )}
               </div>
               <span className={statusBadge}>{comp.status}</span>
             </div>
@@ -1042,7 +1066,16 @@ function CompetitionRow({ comp, onEdit }: { comp: Competition; onEdit: (competit
 
       {/* ── Desktop table row (hidden below md) ── */}
       <tr className="hidden md:table-row border-b border-gray-700/50">
-        <td className="py-3 px-4 font-medium">{comp.name}</td>
+        <td className="py-3 px-4 font-medium">
+          <div className="min-w-0">
+            <div className="truncate">{comp.name}</div>
+            {comp.visibility === 'PRIVATE' && comp.joinCode && (
+              <div className="mt-1 inline-flex items-center gap-1 rounded-md border border-brand-500/30 bg-brand-500/10 px-2 py-0.5 font-mono text-[11px] tracking-[0.12em] text-brand-200">
+                {comp.joinCode}
+              </div>
+            )}
+          </div>
+        </td>
         <td className="py-3 px-4"><span className={statusBadge}>{comp.status}</span></td>
         <td className="py-3 px-4 text-gray-400 whitespace-nowrap">{comp.startDate}</td>
         <td className="py-3 px-4">

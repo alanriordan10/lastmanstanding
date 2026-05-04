@@ -735,7 +735,7 @@ export default function CompetitionsPage() {
               </div>
             )}
             {listView ? (
-              <CompListView comps={paginatedAvailable} joinedSet={joinedSet} onJoin={(c) => { const mc = competitions?.find(x => x.id === c.id); if (mc) handleJoin(mc); }} isPending={joinMutation.isPending} />
+              <CompListView comps={paginatedAvailable} joinedSet={joinedSet} onJoin={(c) => handleJoin(c)} isPending={joinMutation.isPending} />
             ) : (
               <div className="space-y-5">
                 {needsActionAvailableLimited.length > 0 && (
@@ -792,7 +792,7 @@ export default function CompetitionsPage() {
                 <Section label={`All Competitions (${remainingAvailable.length})`}>
                   {remainingAvailable.length > 0 ? (
                     <>
-                      <CompListView comps={paginatedRemainingAvailable} joinedSet={joinedSet} onJoin={(c) => { const mc = competitions?.find(x => x.id === c.id); if (mc) handleJoin(mc); }} isPending={joinMutation.isPending} />
+                      <CompListView comps={paginatedRemainingAvailable} joinedSet={joinedSet} onJoin={(c) => handleJoin(c)} isPending={joinMutation.isPending} />
                       <Pagination page={remainingSafePage} totalPages={remainingTotalPages} total={remainingAvailable.length} pageSize={REMAINING_PAGE_SIZE} onPage={setRemainingPage} />
                     </>
                   ) : (
