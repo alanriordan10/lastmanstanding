@@ -252,7 +252,7 @@ export default function CompetitionsPage() {
 
   // All useMemo hooks must be called before any early return
   const filteredAvailable = useMemo(() => {
-    let list = allComps;
+    let list = allComps.filter((c) => !joinedSet.has(c.id) && c.status === 'UPCOMING');
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(c => c.name.toLowerCase().includes(q) || c.clubName?.toLowerCase().includes(q) || c.description?.toLowerCase().includes(q));
@@ -292,7 +292,7 @@ export default function CompetitionsPage() {
       });
     }
     return list;
-  }, [allComps, search, statusFilter, feeFilter, startWindow, sortBy, highlightedCompetitionId]);
+  }, [allComps, joinedSet, search, statusFilter, feeFilter, startWindow, sortBy, highlightedCompetitionId]);
 
   const filteredMine = useMemo(() => {
     let list = myComps;
@@ -434,7 +434,7 @@ export default function CompetitionsPage() {
               onClick={() => setViewMode('available')}
               label="Available"
               hint="Open to join"
-              count={competitions?.length}
+              count={filteredAvailable.length}
               isLoading={isLoading}
             />
             <ModeTab
