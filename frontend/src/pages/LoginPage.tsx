@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import SocialAuthButtons from '../components/SocialAuthButtons';
 
 export default function LoginPage() {
   const { login, user } = useAuth();
@@ -108,6 +109,9 @@ export default function LoginPage() {
             {loading ? 'Signing in…' : 'Sign In'}
           </button>
         </form>
+        <div className="card">
+          <SocialAuthButtons mode="login" />
+        </div>
 
         <p className="text-center text-sm text-gray-400">
           Don't have an account?{' '}
