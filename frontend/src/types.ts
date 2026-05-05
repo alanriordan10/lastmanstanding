@@ -21,6 +21,13 @@ export interface Club {
   logoUrl: string | null;
 }
 
+export interface StripeConnectStatus {
+  stripeAccountId: string | null;
+  onboardingComplete: boolean;
+  chargesEnabled: boolean;
+  payoutsEnabled: boolean;
+}
+
 export interface Competition {
   id: number;
   name: string;

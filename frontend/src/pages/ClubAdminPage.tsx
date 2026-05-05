@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api';
-import type { Competition, Club, Participant } from '../types';
+import type { Competition, Club, Participant, StripeConnectStatus } from '../types';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -63,6 +63,13 @@ export default function ClubAdminPage() {
   const { data: competitions, isLoading } = useQuery<Competition[]>({
     queryKey: ['club-admin', 'competitions'],
     queryFn: () => api.get('/club-admin/competitions').then((r) => Array.isArray(r.data) ? r.data : []),
+    enabled: !!myClub,
+    staleTime: 0,
+  });
+
+  const { data: stripeStatus, isLoading: stripeLoading, refetch: refetchStripeStatus } = useQuery<StripeConnectStatus>({
+    queryKey: ['club-admin', 'stripe-connect-status'],
+    queryFn: () => api.get('/club-admin/my-club/stripe/connect/status').then((r) => r.data),
     enabled: !!myClub,
     staleTime: 0,
   });
@@ -224,6 +231,39 @@ export default function ClubAdminPage() {
     },
     onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to save branding'),
   });
+
+  const startStripeConnectMutation = useMutation({
+    mutationFn: () => api.post('/club-admin/my-club/stripe/connect/start'),
+    onSuccess: (response) => {
+      const onboardingUrl = response.data?.onboardingUrl as string | undefined;
+      if (!onboardingUrl) {
+        toast.error('Stripe onboarding URL was not returned');
+        return;
+      }
+      window.location.href = onboardingUrl;
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to start Stripe onboarding'),
+  });
+
+  const stripeDashboardLinkMutation = useMutation({
+    mutationFn: () => api.post('/club-admin/my-club/stripe/connect/dashboard-link'),
+    onSuccess: (response) => {
+      const url = response.data?.url as string | undefined;
+      if (!url) {
+        toast.error('Stripe dashboard URL was not returned');
+        return;
+      }
+      window.open(url, '_blank', 'noopener,noreferrer');
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Could not open Stripe dashboard'),
+  });
+
+  const stripeReady = Boolean(
+    stripeStatus?.stripeAccountId &&
+    stripeStatus?.onboardingComplete &&
+    stripeStatus?.chargesEnabled &&
+    stripeStatus?.payoutsEnabled,
+  );
 
   // Debounced user search for assign admin
   useEffect(() => {
@@ -399,6 +439,66 @@ export default function ClubAdminPage() {
             )}
           </div>
         )}
+      </div>
+
+      {/* Stripe Connect card */}
+      <div className="card space-y-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-[0.16em] text-gray-200">Stripe Connect</h2>
+            <p className="mt-1 text-xs text-gray-400">
+              Connect your club to receive Stripe competition payouts.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => refetchStripeStatus()}
+              className="text-xs px-3 py-1.5 rounded-xl border border-white/10 bg-white/[0.04] text-gray-300 transition hover:border-white/15 hover:bg-white/[0.08]"
+              disabled={stripeLoading}
+            >
+              {stripeLoading ? 'Refreshing…' : 'Refresh status'}
+            </button>
+            <button
+              type="button"
+              onClick={() => startStripeConnectMutation.mutate()}
+              disabled={startStripeConnectMutation.isPending}
+              className="text-xs px-3 py-1.5 rounded-xl border border-brand-500/40 bg-brand-500/10 text-brand-300 transition hover:bg-brand-500/20"
+            >
+              {startStripeConnectMutation.isPending
+                ? 'Starting…'
+                : stripeReady
+                  ? 'Reconnect Stripe'
+                  : stripeStatus?.stripeAccountId
+                    ? 'Continue onboarding'
+                    : 'Connect Stripe'}
+            </button>
+            <button
+              type="button"
+              onClick={() => stripeDashboardLinkMutation.mutate()}
+              disabled={!stripeStatus?.stripeAccountId || stripeDashboardLinkMutation.isPending}
+              className="text-xs px-3 py-1.5 rounded-xl border border-white/10 bg-white/[0.04] text-gray-300 transition hover:border-white/15 hover:bg-white/[0.08] disabled:opacity-50"
+            >
+              {stripeDashboardLinkMutation.isPending ? 'Opening…' : 'Manage payouts'}
+            </button>
+          </div>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-gray-300">
+            Account: <span className="font-mono text-gray-200">{stripeStatus?.stripeAccountId ?? 'Not connected'}</span>
+          </div>
+          <div className={`rounded-lg border px-3 py-2 text-xs ${stripeReady ? 'border-green-400/30 bg-green-500/10 text-green-200' : 'border-amber-400/30 bg-amber-500/10 text-amber-200'}`}>
+            {stripeReady ? 'Ready for Stripe competitions' : 'Not ready yet: complete onboarding + enable charges/payouts'}
+          </div>
+          <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-gray-300">
+            Onboarding: <span className={stripeStatus?.onboardingComplete ? 'text-green-300' : 'text-amber-300'}>{stripeStatus?.onboardingComplete ? 'Complete' : 'Incomplete'}</span>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-gray-300">
+            Charges/Payouts: <span className={(stripeStatus?.chargesEnabled && stripeStatus?.payoutsEnabled) ? 'text-green-300' : 'text-amber-300'}>
+              {stripeStatus?.chargesEnabled ? 'charges:on' : 'charges:off'} / {stripeStatus?.payoutsEnabled ? 'payouts:on' : 'payouts:off'}
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Club Branding card */}
@@ -637,6 +737,10 @@ export default function ClubAdminPage() {
                 ] as const).map(opt => (
                   <button key={opt.value} type="button"
                     onClick={() => {
+                      if (opt.value === 'STRIPE' && !stripeReady) {
+                        toast.error('Complete Stripe Connect setup for this club before enabling Stripe payments.');
+                        return;
+                      }
                       setPaymentMode(opt.value);
                       if (opt.value === 'FREE') { setEntryFee('0'); setPassFeeToParticipant(false); }
                     }}
@@ -648,6 +752,9 @@ export default function ClubAdminPage() {
                     <span className="text-xl">{opt.icon}</span>
                     <span className="font-semibold">{opt.label}</span>
                     <span className="text-center leading-tight">{opt.desc}</span>
+                    {opt.value === 'STRIPE' && !stripeReady && (
+                      <span className="text-[11px] text-amber-300">Connect Stripe first</span>
+                    )}
                   </button>
                 ))}
               </div>
