@@ -37,6 +37,18 @@ public class Club {
     @Column(name = "logo_url", columnDefinition = "TEXT")
     private String logoUrl;
 
+    @Column(name = "stripe_account_id", unique = true)
+    private String stripeAccountId;
+
+    @Column(name = "stripe_onboarding_complete", nullable = false)
+    private boolean stripeOnboardingComplete = false;
+
+    @Column(name = "stripe_charges_enabled", nullable = false)
+    private boolean stripeChargesEnabled = false;
+
+    @Column(name = "stripe_payouts_enabled", nullable = false)
+    private boolean stripePayoutsEnabled = false;
+
     public Club() {}
 
     public Club(String name, String description, User createdBy) {
@@ -75,4 +87,16 @@ public class Club {
 
     public String getLogoUrl() { return logoUrl; }
     public void setLogoUrl(String logoUrl) { this.logoUrl = logoUrl; }
+
+    public String getStripeAccountId() { return stripeAccountId; }
+    public void setStripeAccountId(String stripeAccountId) { this.stripeAccountId = stripeAccountId; }
+
+    public boolean isStripeOnboardingComplete() { return stripeOnboardingComplete; }
+    public void setStripeOnboardingComplete(boolean stripeOnboardingComplete) { this.stripeOnboardingComplete = stripeOnboardingComplete; }
+
+    public boolean isStripeChargesEnabled() { return stripeChargesEnabled; }
+    public void setStripeChargesEnabled(boolean stripeChargesEnabled) { this.stripeChargesEnabled = stripeChargesEnabled; }
+
+    public boolean isStripePayoutsEnabled() { return stripePayoutsEnabled; }
+    public void setStripePayoutsEnabled(boolean stripePayoutsEnabled) { this.stripePayoutsEnabled = stripePayoutsEnabled; }
 }
