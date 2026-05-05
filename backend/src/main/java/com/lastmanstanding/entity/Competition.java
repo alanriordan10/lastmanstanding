@@ -77,6 +77,9 @@ public class Competition {
     @JoinColumn(name = "club_id")
     private Club club;
 
+    @Column(name = "stripe_destination_account_id")
+    private String stripeDestinationAccountId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -229,6 +232,14 @@ public class Competition {
 
     public void setClub(Club club) {
         this.club = club;
+    }
+
+    public String getStripeDestinationAccountId() {
+        return stripeDestinationAccountId;
+    }
+
+    public void setStripeDestinationAccountId(String stripeDestinationAccountId) {
+        this.stripeDestinationAccountId = stripeDestinationAccountId;
     }
 
     public BigDecimal getPrizePool() {

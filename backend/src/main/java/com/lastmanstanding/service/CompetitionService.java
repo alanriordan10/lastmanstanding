@@ -169,6 +169,12 @@ public class CompetitionService {
             Club club = clubRepository.findById(clubId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Club not found"));
             comp.setClub(club);
+            if (comp.getPaymentMode() == PaymentMode.STRIPE) {
+                validateStripeClubReady(club);
+                comp.setStripeDestinationAccountId(club.getStripeAccountId());
+            }
+        } else if (comp.getPaymentMode() == PaymentMode.STRIPE) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Stripe competitions must belong to a club");
         }
         Competition saved = competitionRepository.save(comp);
 
@@ -241,14 +247,37 @@ public class CompetitionService {
         if (status != null) comp.setStatus(status);
         if (clubId != null) {
             if (clubId <= 0) {
+                if (comp.getPaymentMode() == PaymentMode.STRIPE) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Stripe competitions must belong to a club");
+                }
                 comp.setClub(null);
+                comp.setStripeDestinationAccountId(null);
             } else {
                 Club club = clubRepository.findById(clubId)
                         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Club not found"));
                 comp.setClub(club);
+                if (comp.getPaymentMode() == PaymentMode.STRIPE) {
+                    validateStripeClubReady(club);
+                    comp.setStripeDestinationAccountId(club.getStripeAccountId());
+                }
             }
         }
+        if (comp.getPaymentMode() == PaymentMode.STRIPE && comp.getClub() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Stripe competitions must belong to a club");
+        }
+        if (comp.getPaymentMode() != PaymentMode.STRIPE) {
+            comp.setStripeDestinationAccountId(null);
+        }
         return competitionRepository.save(comp);
+    }
+
+    private void validateStripeClubReady(Club club) {
+        if (club.getStripeAccountId() == null || club.getStripeAccountId().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Club has not connected Stripe");
+        }
+        if (!club.isStripeChargesEnabled() || !club.isStripePayoutsEnabled()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Club Stripe account is not fully enabled");
+        }
     }
 
     private CompetitionVisibility parseVisibility(String visibility) {

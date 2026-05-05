@@ -42,6 +42,14 @@ public class PaymentController {
         return ResponseEntity.ok().build();
     }
 
+    @PostMapping("/webhook")
+    public ResponseEntity<Void> webhook(
+            @RequestHeader("Stripe-Signature") String stripeSignature,
+            @RequestBody String payload) {
+        paymentService.handleWebhook(payload, stripeSignature);
+        return ResponseEntity.ok().build();
+    }
+
     public record ConfigResponse(String publishableKey) {}
     public record ConfirmRequest(String paymentIntentId) {}
 }

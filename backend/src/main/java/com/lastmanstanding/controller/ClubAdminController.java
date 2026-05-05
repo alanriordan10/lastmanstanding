@@ -7,6 +7,7 @@ import com.lastmanstanding.security.UserDetailsImpl;
 import com.lastmanstanding.service.CompetitionService;
 import com.lastmanstanding.service.FixtureSyncService;
 import com.lastmanstanding.service.GameweekEmailService;
+import com.lastmanstanding.service.PaymentService;
 import com.lastmanstanding.service.WebPushService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -40,6 +41,7 @@ public class ClubAdminController {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final PaymentRepository paymentRepository;
+    private final PaymentService paymentService;
     private final AuditLogRepository auditLogRepository;
     private final WebPushService webPushService;
     private final GameweekEmailService gameweekEmailService;
@@ -52,6 +54,7 @@ public class ClubAdminController {
                                UserRepository userRepository,
                                PasswordEncoder passwordEncoder,
                                PaymentRepository paymentRepository,
+                               PaymentService paymentService,
                                AuditLogRepository auditLogRepository,
                                WebPushService webPushService,
                                GameweekEmailService gameweekEmailService) {
@@ -63,6 +66,7 @@ public class ClubAdminController {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.paymentRepository = paymentRepository;
+        this.paymentService = paymentService;
         this.auditLogRepository = auditLogRepository;
         this.webPushService = webPushService;
         this.gameweekEmailService = gameweekEmailService;
@@ -151,6 +155,27 @@ public class ClubAdminController {
         logAudit(userDetails, "Club", club.getId(), "branding", null, "updated", "UPDATE_BRANDING");
 
         return ResponseEntity.ok(ClubResponse.from(club));
+    }
+
+    @PostMapping("/my-club/stripe/connect/start")
+    public ResponseEntity<PaymentService.ConnectOnboardingResponse> startStripeConnect(
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        Club club = resolveClub(userDetails);
+        return ResponseEntity.ok(paymentService.startConnectOnboarding(club.getId()));
+    }
+
+    @GetMapping("/my-club/stripe/connect/status")
+    public ResponseEntity<PaymentService.ConnectStatusResponse> stripeConnectStatus(
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        Club club = resolveClub(userDetails);
+        return ResponseEntity.ok(paymentService.getConnectStatus(club.getId()));
+    }
+
+    @PostMapping("/my-club/stripe/connect/dashboard-link")
+    public ResponseEntity<PaymentService.DashboardLinkResponse> stripeDashboardLink(
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        Club club = resolveClub(userDetails);
+        return ResponseEntity.ok(paymentService.createDashboardLink(club.getId()));
     }
 
     // ── Competitions ─────────────────────────────────────────────────────
