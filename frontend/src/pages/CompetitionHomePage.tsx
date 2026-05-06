@@ -965,6 +965,19 @@ export default function CompetitionHomePage() {
     }
   };
 
+  const mobileNextAction = (() => {
+    if (!isParticipant && comp.status === 'UPCOMING') {
+      return { kind: 'join' as const, label: 'Go to join flow', meta: comp.entryFee > 0 ? `Entry €${comp.entryFee}` : 'Free entry' };
+    }
+    if (awaitingPayment && comp.paymentMode === 'MANUAL') {
+      return { kind: 'pending' as const, label: 'Awaiting organiser confirmation', meta: 'You are registered but not yet marked paid' };
+    }
+    if (openWeekForAction && !isEliminated && !isWinner && !awaitingPayment) {
+      return { kind: 'pick' as const, label: `Open Gameweek ${openWeekForAction.weekNumber}`, meta: 'Review or make your pick' };
+    }
+    return null;
+  })();
+
   const insightPanels = [
     {
       eyebrow: 'Crowd read',
@@ -998,7 +1011,7 @@ export default function CompetitionHomePage() {
 
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-24 lg:pb-0">
       {/* ── Header ── */}
       <section
         className="relative overflow-hidden rounded-[1.9rem] border border-white/8 px-5 py-5 shadow-[0_30px_75px_rgba(2,6,23,0.48)] sm:px-6 sm:py-6 lg:px-8 lg:py-7"
@@ -1966,6 +1979,30 @@ export default function CompetitionHomePage() {
             </div>
         </aside>
       </div>
+
+      {mobileNextAction && (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-slate-950/95 px-3 py-2 backdrop-blur lg:hidden">
+          <div className="mx-auto flex max-w-4xl items-center gap-2">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[11px] uppercase tracking-[0.14em] text-gray-400">Next action</p>
+              <p className="truncate text-xs text-gray-200">{mobileNextAction.meta}</p>
+            </div>
+            {mobileNextAction.kind === 'join' ? (
+              <Link to={joinPath} className="btn-primary shrink-0 px-3 py-2 text-xs">
+                {mobileNextAction.label}
+              </Link>
+            ) : mobileNextAction.kind === 'pick' ? (
+              <button type="button" onClick={handleScrollToOpenWeek} className="btn-primary shrink-0 px-3 py-2 text-xs">
+                {mobileNextAction.label}
+              </button>
+            ) : (
+              <span className="shrink-0 rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-300">
+                {mobileNextAction.label}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

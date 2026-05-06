@@ -22,6 +22,9 @@ public interface CompetitionParticipantRepository extends JpaRepository<Competit
 
     boolean existsByCompetitionIdAndUserId(Long competitionId, Long userId);
 
+    @Query("SELECT cp.user.id FROM CompetitionParticipant cp WHERE cp.competition.id = :competitionId AND cp.user.id IN :userIds")
+    List<Long> findParticipantUserIdsByCompetitionIdAndUserIdIn(@Param("competitionId") Long competitionId, @Param("userIds") List<Long> userIds);
+
     long countByCompetitionIdAndStatus(Long competitionId, ParticipantStatus status);
 
     List<CompetitionParticipant> findByUserId(Long userId);

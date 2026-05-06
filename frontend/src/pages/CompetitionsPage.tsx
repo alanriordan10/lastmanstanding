@@ -131,10 +131,18 @@ export default function CompetitionsPage() {
   const [sortBy, setSortBy] = useState<'date' | 'players' | 'name'>('date');
   const [listView, setListView] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [mineFilter, setMineFilter] = useState<'ALL' | 'ACTIVE' | 'ELIMINATED' | 'FINISHED'>('ALL');
+  const [mineFilter, setMineFilter] = useState<'ALL' | 'NEEDS_ACTION' | 'PICK_DUE' | 'AWAITING_PAYMENT' | 'ACTIVE' | 'ELIMINATED' | 'FINISHED'>('ALL');
+  const [compactMineView, setCompactMineView] = useState(false);
+  const [mineSections, setMineSections] = useState({
+    needsAction: false,
+    active: false,
+    eliminated: true,
+    finished: true,
+  });
   const [currentPage, setCurrentPage] = useState(1);
   const [remainingPage, setRemainingPage] = useState(1);
   const [joinCodeInput, setJoinCodeInput] = useState(joinCodeParam);
+  const [recentJoinSuccess, setRecentJoinSuccess] = useState<{ name: string; payment: 'PAID' | 'MANUAL' | 'FREE' } | null>(null);
   const PAGE_SIZE = 12;
   const FEATURED_LIMIT = 6;
   const REMAINING_PAGE_SIZE = 20;
@@ -216,11 +224,13 @@ export default function CompetitionsPage() {
     onSuccess: (_, id) => {
       const comp = competitions?.find(c => c.id === id);
       if (comp?.paymentMode === 'MANUAL') {
+        setRecentJoinSuccess({ name: comp.name, payment: 'MANUAL' });
         toast(
           `You've registered for ${comp.name}! Please pay €${comp.entryFee} to the organiser. Your entry will be activated once payment is confirmed.`,
           { icon: '💸', duration: 8000 }
         );
       } else {
+        setRecentJoinSuccess({ name: comp?.name ?? 'competition', payment: 'FREE' });
         toast.success('Joined competition!');
       }
       queryClient.invalidateQueries({ queryKey: ['competitions'] });
@@ -246,6 +256,12 @@ export default function CompetitionsPage() {
     return [joinCodeCompetition, ...base];
   }, [competitions, joinCodeCompetition]);
   const myComps        = myCompetitionsData ?? [];
+  useEffect(() => {
+    if (myComps.length > 8) {
+      setCompactMineView(true);
+    }
+  }, [myComps.length]);
+  const paymentActionCount = myComps.filter((mc) => mc.paymentState === 'AWAITING_PAYMENT').length;
   const finishedComps  = myComps.filter((mc) => mc.competition.status === 'COMPLETED');
   const activeComps    = myComps.filter((mc) => mc.competition.status !== 'COMPLETED' && (mc.myStatus === 'ACTIVE' || mc.myStatus === 'WINNER'));
   const eliminatedComps = myComps.filter((mc) => mc.competition.status !== 'COMPLETED' && mc.myStatus === 'ELIMINATED');
@@ -294,21 +310,26 @@ export default function CompetitionsPage() {
     return list;
   }, [allComps, joinedSet, search, statusFilter, feeFilter, startWindow, sortBy, highlightedCompetitionId]);
 
-  const filteredMine = useMemo(() => {
-    let list = myComps;
-
-    if (mineFilter !== 'ALL') {
-      list = list.filter((mc) => {
-        if (mineFilter === 'FINISHED') return mc.competition.status === 'COMPLETED';
-        if (mineFilter === 'ELIMINATED') return mc.competition.status !== 'COMPLETED' && mc.myStatus === 'ELIMINATED';
-        return mc.competition.status !== 'COMPLETED' && (mc.myStatus === 'ACTIVE' || mc.myStatus === 'WINNER');
-      });
-    }
-
-    if (!search.trim()) return list;
+  const searchedMine = useMemo(() => {
+    if (!search.trim()) return myComps;
     const q = search.toLowerCase();
-    return list.filter((mc) => mc.competition.name.toLowerCase().includes(q) || mc.competition.clubName?.toLowerCase().includes(q));
-  }, [myComps, mineFilter, search]);
+    return myComps.filter((mc) => mc.competition.name.toLowerCase().includes(q) || mc.competition.clubName?.toLowerCase().includes(q));
+  }, [myComps, search]);
+
+  const filteredMine = useMemo(() => {
+    if (mineFilter === 'ALL') return searchedMine;
+    return searchedMine.filter((mc) => {
+      const hint = getCompetitionActionHint(mc.competition, mc) ?? '';
+      const pickDue = hint.toLowerCase().includes('review your pick');
+      const awaiting = mc.paymentState === 'AWAITING_PAYMENT';
+      if (mineFilter === 'NEEDS_ACTION') return pickDue || awaiting;
+      if (mineFilter === 'PICK_DUE') return pickDue;
+      if (mineFilter === 'AWAITING_PAYMENT') return awaiting;
+      if (mineFilter === 'FINISHED') return mc.competition.status === 'COMPLETED';
+      if (mineFilter === 'ELIMINATED') return mc.competition.status !== 'COMPLETED' && mc.myStatus === 'ELIMINATED';
+      return mc.competition.status !== 'COMPLETED' && (mc.myStatus === 'ACTIVE' || mc.myStatus === 'WINNER');
+    });
+  }, [searchedMine, mineFilter]);
 
   const filteredPast = useMemo(() => {
     let list = pastCompetitions ?? [];
@@ -318,6 +339,43 @@ export default function CompetitionsPage() {
     }
     return list;
   }, [pastCompetitions, search]);
+
+  const isMineNeedsAction = useCallback((mc: MyCompetition) => {
+    const hint = getCompetitionActionHint(mc.competition, mc) ?? '';
+    return mc.paymentState === 'AWAITING_PAYMENT' || hint.toLowerCase().includes('review your pick');
+  }, []);
+  const mineNeedsActionCount = useMemo(
+    () => searchedMine.filter((mc) => isMineNeedsAction(mc)),
+    [searchedMine, isMineNeedsAction]
+  );
+  const mineActiveCount = useMemo(
+    () => searchedMine.filter((mc) => mc.competition.status !== 'COMPLETED' && (mc.myStatus === 'ACTIVE' || mc.myStatus === 'WINNER') && !isMineNeedsAction(mc)),
+    [searchedMine, isMineNeedsAction]
+  );
+  const mineEliminatedCount = useMemo(
+    () => searchedMine.filter((mc) => mc.competition.status !== 'COMPLETED' && mc.myStatus === 'ELIMINATED'),
+    [searchedMine]
+  );
+  const mineFinishedCount = useMemo(
+    () => searchedMine.filter((mc) => mc.competition.status === 'COMPLETED'),
+    [searchedMine]
+  );
+  const mineNeedsAction = useMemo(
+    () => filteredMine.filter((mc) => isMineNeedsAction(mc)),
+    [filteredMine, isMineNeedsAction]
+  );
+  const mineActive = useMemo(
+    () => filteredMine.filter((mc) => mc.competition.status !== 'COMPLETED' && (mc.myStatus === 'ACTIVE' || mc.myStatus === 'WINNER') && !isMineNeedsAction(mc)),
+    [filteredMine, isMineNeedsAction]
+  );
+  const mineEliminated = useMemo(
+    () => filteredMine.filter((mc) => mc.competition.status !== 'COMPLETED' && mc.myStatus === 'ELIMINATED'),
+    [filteredMine]
+  );
+  const mineFinished = useMemo(
+    () => filteredMine.filter((mc) => mc.competition.status === 'COMPLETED'),
+    [filteredMine]
+  );
 
   const totalPages = Math.max(1, Math.ceil(filteredAvailable.length / PAGE_SIZE));
   const page = Math.min(currentPage, totalPages);
@@ -669,16 +727,55 @@ export default function CompetitionsPage() {
               {viewMode === 'available' && selectedClub && <span className="rounded-full bg-surface-700 px-2 py-1 text-gray-300">Club: {selectedClub.name}</span>}
             </div>
           )}
+
+          {recentJoinSuccess && (
+            <div className="rounded-xl border border-green-500/30 bg-green-500/10 px-3 py-2 text-xs text-green-200">
+              Entry confirmed for <strong>{recentJoinSuccess.name}</strong>.
+              {recentJoinSuccess.payment === 'MANUAL' && ' Awaiting organiser payment confirmation.'}
+              {recentJoinSuccess.payment === 'PAID' && ' Payment complete and entry confirmed.'}
+              {' '}
+              <button onClick={() => setRecentJoinSuccess(null)} className="underline">Dismiss</button>
+            </div>
+          )}
+
+          {paymentActionCount > 0 && viewMode === 'available' && (
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+              Action needed: {paymentActionCount} competition{paymentActionCount > 1 ? 's' : ''} awaiting payment confirmation.
+              {' '}
+              <button onClick={() => setViewMode('mine')} className="underline">Open My Competitions</button>
+            </div>
+          )}
         </div>
       </div>
 
       {/* ── My Competitions — summary strip ── */}
       {viewMode === 'mine' && myComps.length > 0 && (
         <div className="space-y-3">
-          <div className="grid grid-cols-3 gap-3">
-            <FilterStatTile label="Active"     value={activeComps.length}      color="text-green-400" isActive={mineFilter === 'ACTIVE'} onClick={() => setMineFilter((current) => current === 'ACTIVE' ? 'ALL' : 'ACTIVE')} />
-            <FilterStatTile label="Eliminated" value={eliminatedComps.length}  color="text-red-400"   isActive={mineFilter === 'ELIMINATED'} onClick={() => setMineFilter((current) => current === 'ELIMINATED' ? 'ALL' : 'ELIMINATED')} />
-            <FilterStatTile label="Finished"   value={finishedComps.length}    color="text-gray-400"  isActive={mineFilter === 'FINISHED'} onClick={() => setMineFilter((current) => current === 'FINISHED' ? 'ALL' : 'FINISHED')} />
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <FilterStatTile label="Needs action" value={mineNeedsActionCount.length} color="text-amber-300" isActive={mineFilter === 'NEEDS_ACTION'} onClick={() => setMineFilter((current) => current === 'NEEDS_ACTION' ? 'ALL' : 'NEEDS_ACTION')} />
+            <FilterStatTile label="Active" value={mineActiveCount.length} color="text-green-400" isActive={mineFilter === 'ACTIVE'} onClick={() => setMineFilter((current) => current === 'ACTIVE' ? 'ALL' : 'ACTIVE')} />
+            <FilterStatTile label="Eliminated" value={mineEliminatedCount.length} color="text-red-400" isActive={mineFilter === 'ELIMINATED'} onClick={() => setMineFilter((current) => current === 'ELIMINATED' ? 'ALL' : 'ELIMINATED')} />
+            <FilterStatTile label="Finished" value={mineFinishedCount.length} color="text-gray-400" isActive={mineFilter === 'FINISHED'} onClick={() => setMineFilter((current) => current === 'FINISHED' ? 'ALL' : 'FINISHED')} />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {(['ALL', 'PICK_DUE', 'AWAITING_PAYMENT'] as const).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setMineFilter((current) => current === f ? 'ALL' : f)}
+                className={`rounded-full px-3 py-1 text-xs border ${mineFilter === f ? 'border-brand-500/50 bg-brand-500/10 text-brand-200' : 'border-white/10 bg-white/[0.03] text-gray-300'}`}
+              >
+                {f === 'ALL' ? 'All' : f === 'PICK_DUE' ? 'Pick due' : 'Awaiting payment'}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setCompactMineView((v) => !v)}
+              className="ml-auto rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-gray-300"
+            >
+              {compactMineView ? 'Card view' : 'Compact view'}
+            </button>
           </div>
 
           {(mineFilter !== 'ALL' || search) && (
@@ -822,19 +919,32 @@ export default function CompetitionsPage() {
           <EmptyState icon="🔍" title="No competitions match your search" action={<button onClick={() => setSearch('')} className="text-brand-400 hover:text-brand-300 underline text-sm">Clear search</button>} />
         ) : (
           <div className="space-y-8">
-            {filteredMine.filter((mc) => mc.competition.status !== 'COMPLETED' && (mc.myStatus === 'ACTIVE' || mc.myStatus === 'WINNER')).length > 0 && (
-              <Section label={`Active (${filteredMine.filter((mc) => mc.competition.status !== 'COMPLETED' && (mc.myStatus === 'ACTIVE' || mc.myStatus === 'WINNER')).length})`} icon="✓" iconColor="bg-green-600">
-                <CompGrid>{filteredMine.filter((mc) => mc.competition.status !== 'COMPLETED' && (mc.myStatus === 'ACTIVE' || mc.myStatus === 'WINNER')).map((mc) => <MyCompetitionCard key={mc.competition.id} myComp={mc} />)}</CompGrid>
+            {mineNeedsAction.length > 0 && (
+              <Section label={`Needs Action (${mineNeedsAction.length})`} icon="!" iconColor="bg-amber-500" collapsible collapsed={mineSections.needsAction} onToggle={() => setMineSections((s) => ({ ...s, needsAction: !s.needsAction }))}>
+                {compactMineView
+                  ? <div className="space-y-2">{mineNeedsAction.map((mc) => <MyCompetitionRow key={mc.competition.id} myComp={mc} />)}</div>
+                  : <CompGrid>{mineNeedsAction.map((mc) => <MyCompetitionCard key={mc.competition.id} myComp={mc} />)}</CompGrid>}
               </Section>
             )}
-            {filteredMine.filter((mc) => mc.competition.status !== 'COMPLETED' && mc.myStatus === 'ELIMINATED').length > 0 && (
-              <Section label={`Eliminated (${filteredMine.filter((mc) => mc.competition.status !== 'COMPLETED' && mc.myStatus === 'ELIMINATED').length})`} icon="✕" iconColor="bg-gray-600">
-                <CompGrid>{filteredMine.filter((mc) => mc.competition.status !== 'COMPLETED' && mc.myStatus === 'ELIMINATED').map((mc) => <MyCompetitionCard key={mc.competition.id} myComp={mc} />)}</CompGrid>
+            {mineActive.length > 0 && (
+              <Section label={`Active (${mineActive.length})`} icon="✓" iconColor="bg-green-600" collapsible collapsed={mineSections.active} onToggle={() => setMineSections((s) => ({ ...s, active: !s.active }))}>
+                {compactMineView
+                  ? <div className="space-y-2">{mineActive.map((mc) => <MyCompetitionRow key={mc.competition.id} myComp={mc} />)}</div>
+                  : <CompGrid>{mineActive.map((mc) => <MyCompetitionCard key={mc.competition.id} myComp={mc} />)}</CompGrid>}
               </Section>
             )}
-            {filteredMine.filter((mc) => mc.competition.status === 'COMPLETED').length > 0 && (
-              <Section label={`Finished (${filteredMine.filter((mc) => mc.competition.status === 'COMPLETED').length})`} icon="🏁" iconColor="bg-gray-700">
-                <CompGrid>{filteredMine.filter((mc) => mc.competition.status === 'COMPLETED').map((mc) => <MyCompetitionCard key={mc.competition.id} myComp={mc} />)}</CompGrid>
+            {mineEliminated.length > 0 && (
+              <Section label={`Eliminated (${mineEliminated.length})`} icon="✕" iconColor="bg-gray-600" collapsible collapsed={mineSections.eliminated} onToggle={() => setMineSections((s) => ({ ...s, eliminated: !s.eliminated }))}>
+                {compactMineView
+                  ? <div className="space-y-2">{mineEliminated.map((mc) => <MyCompetitionRow key={mc.competition.id} myComp={mc} />)}</div>
+                  : <CompGrid>{mineEliminated.map((mc) => <MyCompetitionCard key={mc.competition.id} myComp={mc} />)}</CompGrid>}
+              </Section>
+            )}
+            {mineFinished.length > 0 && (
+              <Section label={`Finished (${mineFinished.length})`} icon="🏁" iconColor="bg-gray-700" collapsible collapsed={mineSections.finished} onToggle={() => setMineSections((s) => ({ ...s, finished: !s.finished }))}>
+                {compactMineView
+                  ? <div className="space-y-2">{mineFinished.map((mc) => <MyCompetitionRow key={mc.competition.id} myComp={mc} />)}</div>
+                  : <CompGrid>{mineFinished.map((mc) => <MyCompetitionCard key={mc.competition.id} myComp={mc} />)}</CompGrid>}
               </Section>
             )}
           </div>
@@ -860,8 +970,9 @@ export default function CompetitionsPage() {
         <PaymentModal
           competition={payingComp}
           onSuccess={() => {
+            setRecentJoinSuccess({ name: payingComp.name, payment: 'PAID' });
             setPayingComp(null);
-            toast.success(`Joined ${payingComp.name}!`);
+            toast.success(`Payment complete. Joined ${payingComp.name}!`);
             queryClient.invalidateQueries({ queryKey: ['competitions'] });
           }}
           onClose={() => setPayingComp(null)}
@@ -1051,16 +1162,46 @@ function FilterStatTile({
   );
 }
 
-function Section({ label, icon, iconColor, children }: { label?: string; icon?: string; iconColor?: string; children: React.ReactNode }) {
+function Section({
+  label,
+  icon,
+  iconColor,
+  children,
+  collapsible = false,
+  collapsed = false,
+  onToggle,
+}: {
+  label?: string;
+  icon?: string;
+  iconColor?: string;
+  children: React.ReactNode;
+  collapsible?: boolean;
+  collapsed?: boolean;
+  onToggle?: () => void;
+}) {
   return (
     <section className="space-y-3 sm:space-y-4">
       {label && (
-        <h2 className="text-sm sm:text-base font-semibold text-gray-300 flex items-center gap-2">
-          {icon && <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full ${iconColor} text-xs text-white`}>{icon}</span>}
-          {label}
-        </h2>
+        collapsible ? (
+          <button
+            type="button"
+            onClick={onToggle}
+            className="flex w-full items-center justify-between gap-2 text-left text-sm font-semibold text-gray-300 sm:text-base"
+          >
+            <span className="flex items-center gap-2">
+              {icon && <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full ${iconColor} text-xs text-white`}>{icon}</span>}
+              {label}
+            </span>
+            <span className="text-gray-400">{collapsed ? 'Show' : 'Hide'}</span>
+          </button>
+        ) : (
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-gray-300 sm:text-base">
+            {icon && <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full ${iconColor} text-xs text-white`}>{icon}</span>}
+            {label}
+          </h2>
+        )
       )}
-      {children}
+      {!collapsed && children}
     </section>
   );
 }
@@ -1294,6 +1435,7 @@ function MyCompetitionCard({ myComp }: { myComp: MyCompetition }) {
   const paymentState = myComp.paymentState;
   const eliminatedWeek = myComp.eliminatedWeek;
   const clubSupport = comp.clubSecondaryColor ?? comp.clubPrimaryColor ?? null;
+  const actionHint = getCompetitionActionHint(comp, myComp);
   const { data: liveProgress } = useQuery<SurvivorTableProgressResponse>({
     queryKey: ['survivor-table-progress', comp.id],
     queryFn: () => api.get(`/competitions/${comp.id}/survivor-table`).then((r) => r.data),
@@ -1307,6 +1449,14 @@ function MyCompetitionCard({ myComp }: { myComp: MyCompetition }) {
   });
   const liveActiveCount = deriveLiveActiveCount(liveProgress);
   const effectiveActiveCount = liveActiveCount ?? comp.activeCount ?? comp.participantCount;
+  const urgencyDueSoon = useMemo(() => {
+    if (myStatus !== 'ACTIVE' || comp.status !== 'UPCOMING') return false;
+    const source = comp.firstGameweekDate ?? comp.startDate;
+    if (!source) return false;
+    const dt = parseDate(source);
+    const ms = dt.getTime() - Date.now();
+    return ms > 0 && ms <= 24 * 60 * 60 * 1000;
+  }, [myStatus, comp.status, comp.firstGameweekDate, comp.startDate]);
 
   return (
     <Link
@@ -1322,6 +1472,7 @@ function MyCompetitionCard({ myComp }: { myComp: MyCompetition }) {
         {myStatus === 'ELIMINATED' && <span className="badge-red">Eliminated</span>}
         {paymentState === 'AWAITING_PAYMENT' && <span className="badge-yellow">Awaiting payment</span>}
         {paymentState === 'PAID' && comp.paymentMode && comp.paymentMode !== 'FREE' && <span className="badge-green">Paid</span>}
+        {urgencyDueSoon && <span className="badge-yellow">Due soon</span>}
       </div>
 
       <h3 className="text-base sm:text-lg font-bold leading-snug line-clamp-2">{comp.name}</h3>
@@ -1336,6 +1487,12 @@ function MyCompetitionCard({ myComp }: { myComp: MyCompetition }) {
           </span>
         )}
       </div>
+      {actionHint && (
+        <div className="mt-2 rounded-lg border border-amber-400/40 bg-amber-500/12 px-3 py-2">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-300">Action required</div>
+          <div className="mt-0.5 text-xs text-amber-100">{actionHint}</div>
+        </div>
+      )}
       <div className="mt-1.5 min-h-[32px]">
         {comp.description ? (
           <p className="text-xs text-gray-400 line-clamp-2">{comp.description}</p>
@@ -1404,6 +1561,43 @@ function MyCompetitionCard({ myComp }: { myComp: MyCompetition }) {
           View Competition →
         </div>
       </div>
+    </Link>
+  );
+}
+
+function MyCompetitionRow({ myComp }: { myComp: MyCompetition }) {
+  const comp = myComp.competition;
+  const isFinished = comp.status === 'COMPLETED';
+  const isAwaitingPayment = myComp.paymentState === 'AWAITING_PAYMENT';
+  const actionHint = getCompetitionActionHint(comp, myComp);
+  const isDueSoon = (() => {
+    if (myComp.myStatus !== 'ACTIVE' || comp.status !== 'UPCOMING') return false;
+    const source = comp.firstGameweekDate ?? comp.startDate;
+    if (!source) return false;
+    const ms = parseDate(source).getTime() - Date.now();
+    return ms > 0 && ms <= 24 * 60 * 60 * 1000;
+  })();
+
+  return (
+    <Link
+      to={`/competitions/${comp.id}`}
+      className="card flex items-center gap-3 px-3 py-2.5 transition-colors hover:border-gray-600 hover:bg-surface-700/30"
+      style={competitionCardStyle(comp)}
+    >
+      <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${isFinished ? 'bg-gray-500' : myComp.myStatus === 'ELIMINATED' ? 'bg-red-500' : myComp.myStatus === 'WINNER' ? 'bg-yellow-400' : 'bg-green-500'}`} />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <p className="truncate text-sm font-semibold text-white">{comp.name}</p>
+          {comp.clubName && <span className="hidden rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-gray-300 sm:inline-flex">{comp.clubName}</span>}
+        </div>
+        <p className="mt-0.5 text-xs text-gray-400">
+          {isFinished ? 'Finished' : myComp.myStatus === 'ELIMINATED' ? 'Eliminated' : myComp.myStatus === 'WINNER' ? 'Winner' : 'Active'}
+          {isAwaitingPayment ? ' · Awaiting payment' : ''}
+          {isDueSoon ? ' · Pick due soon' : ''}
+        </p>
+        {actionHint && <p className="mt-1 text-xs font-medium text-amber-300">Action required: {actionHint}</p>}
+      </div>
+      <span className="shrink-0 text-xs text-gray-400">Open</span>
     </Link>
   );
 }

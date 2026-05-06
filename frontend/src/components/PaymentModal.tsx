@@ -8,6 +8,7 @@ import {
 } from '@stripe/react-stripe-js';
 import api from '../api';
 import type { Competition } from '../types';
+import toast from 'react-hot-toast';
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -60,6 +61,7 @@ function CheckoutForm({
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const chargeAmount = feeBreakdown ? (feeBreakdown.amountCents / 100).toFixed(2) : competition.entryFee.toFixed(2);
 
@@ -101,6 +103,8 @@ function CheckoutForm({
         await api.post(`/payments/competitions/${competition.id}/confirm`, {
           paymentIntentId: paymentIntent.id,
         });
+        setSuccessMessage(`Payment successful. Receipt ${paymentIntent.id}. Finalising your entry...`);
+        toast.success('Payment complete. You are now entered.');
         onSuccess();
       } catch (err: any) {
         setErrorMessage(err.response?.data?.message ?? 'Payment succeeded but failed to join. Please contact support.');
@@ -184,6 +188,11 @@ function CheckoutForm({
       {errorMessage && (
         <div className="rounded-lg bg-red-500/10 border border-red-500/30 px-4 py-3 text-sm text-red-400">
           {errorMessage}
+        </div>
+      )}
+      {successMessage && (
+        <div className="rounded-lg bg-green-500/10 border border-green-500/30 px-4 py-3 text-sm text-green-300">
+          {successMessage}
         </div>
       )}
 
