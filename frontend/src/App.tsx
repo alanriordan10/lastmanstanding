@@ -18,6 +18,7 @@ const AdminPage = lazy(() => import('./pages/AdminPage'));
 const ClubAdminPage = lazy(() => import('./pages/ClubAdminPage'));
 const SurvivorTablePage = lazy(() => import('./pages/SurvivorTablePage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const ContactPage = lazy(() => import('./pages/ContactPage'));
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -76,6 +77,7 @@ export default function App() {
                   <Route path="/admin" element={<AdminPage />} />
                   <Route path="/club-admin" element={<ClubAdminPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/contact" element={<ContactPage />} />
                   <Route path="*" element={<Navigate to="/competitions" />} />
                 </Routes>
               </Layout>

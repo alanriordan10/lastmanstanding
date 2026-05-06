@@ -21,9 +21,11 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 /**
  * Endpoints for CLUB_ADMIN users — scoped to their own club only.
  * Super ADMINs can also call these endpoints.
@@ -81,6 +83,7 @@ public class ClubAdminController {
     }
 
     public record AssignAdminRequest(Long userId) {}
+    public record MarkPaidBatchRequest(List<Long> userIds) {}
 
     @PutMapping("/my-club/assign-admin")
     @Transactional
@@ -426,6 +429,86 @@ public class ClubAdminController {
         logAudit(userDetails, "Payment", payment.getId(), "status", null, "SUCCEEDED", "MARK_PAID");
 
         return ResponseEntity.ok().build();
+    }
+
+    /** Record manual payment confirmations in bulk for participants already registered in the competition */
+    @PostMapping("/competitions/{compId}/mark-paid-batch")
+    @Transactional
+    public ResponseEntity<Map<String, Integer>> markManualPaymentBatch(
+            @PathVariable Long compId,
+            @RequestBody MarkPaidBatchRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+
+        Club club = resolveClub(userDetails);
+        assertOwnsCompetition(compId, club);
+
+        Competition comp = competitionRepository.findById(compId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Competition not found"));
+
+        if (comp.getPaymentMode() != PaymentMode.MANUAL) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "This competition does not use manual payment");
+        }
+
+        List<Long> requestedIds = request != null && request.userIds() != null ? request.userIds() : List.of();
+        if (requestedIds.isEmpty()) {
+            return ResponseEntity.ok(Map.of("requested", 0, "created", 0, "alreadyPaid", 0, "invalid", 0));
+        }
+
+        Set<Long> deduped = new HashSet<>(requestedIds);
+        List<Long> targetIds = deduped.stream().limit(200).toList();
+
+        Set<Long> participantIds = new HashSet<>(
+                participantRepository.findParticipantUserIdsByCompetitionIdAndUserIdIn(compId, targetIds));
+        Set<Long> alreadyPaidIds = new HashSet<>(
+                paymentRepository.findPaidUserIdsByCompetitionIdAndUserIdIn(compId, targetIds));
+
+        List<User> users = userRepository.findAllById(targetIds);
+        Map<Long, User> userById = users.stream().collect(java.util.stream.Collectors.toMap(User::getId, u -> u));
+        List<Payment> toCreate = new java.util.ArrayList<>();
+        int invalid = 0;
+        int alreadyPaid = 0;
+        int created = 0;
+
+        for (Long userId : targetIds) {
+            if (!participantIds.contains(userId)) {
+                invalid++;
+                continue;
+            }
+            if (alreadyPaidIds.contains(userId)) {
+                alreadyPaid++;
+                continue;
+            }
+            User user = userById.get(userId);
+            if (user == null) {
+                invalid++;
+                continue;
+            }
+            Payment payment = new Payment(
+                    user, comp, null,
+                    comp.getEntryFee() != null
+                            ? comp.getEntryFee().multiply(java.math.BigDecimal.valueOf(100)).intValue()
+                            : 0,
+                    "eur");
+            payment.setStatus(Payment.PaymentStatus.SUCCEEDED);
+            toCreate.add(payment);
+            created++;
+        }
+
+        if (!toCreate.isEmpty()) {
+            paymentRepository.saveAll(toCreate);
+        }
+
+        logAudit(userDetails, "Payment", compId, "bulkMarkPaid", null,
+                "requested=" + targetIds.size() + ", created=" + created + ", alreadyPaid=" + alreadyPaid + ", invalid=" + invalid,
+                "BULK_MARK_PAID");
+
+        return ResponseEntity.ok(Map.of(
+                "requested", targetIds.size(),
+                "created", created,
+                "alreadyPaid", alreadyPaid,
+                "invalid", invalid
+        ));
     }
 
     /** Revert/undo a manual payment confirmation */

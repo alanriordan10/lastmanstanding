@@ -264,6 +264,14 @@ export default function ClubAdminPage() {
     stripeStatus?.chargesEnabled &&
     stripeStatus?.payoutsEnabled,
   );
+  const hasCompetitions = (competitions?.length ?? 0) > 0;
+  const hasStripeCompetition = (competitions ?? []).some((c) => c.paymentMode === 'STRIPE');
+  const onboardingSteps = [
+    { label: 'Club created', done: true },
+    { label: 'Stripe connected', done: stripeReady },
+    { label: 'Create competition', done: hasCompetitions },
+    { label: 'First Stripe competition', done: !hasCompetitions ? false : hasStripeCompetition || stripeReady },
+  ];
 
   // Debounced user search for assign admin
   useEffect(() => {
@@ -383,6 +391,29 @@ export default function ClubAdminPage() {
           </button>
         </div>
       </section>
+
+      <div className="card space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.16em] text-gray-200">Setup Checklist</h2>
+          <span className="text-xs text-gray-400">
+            {onboardingSteps.filter((s) => s.done).length}/{onboardingSteps.length} complete
+          </span>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {onboardingSteps.map((step) => (
+            <div
+              key={step.label}
+              className={`rounded-lg border px-3 py-2 text-xs ${
+                step.done
+                  ? 'border-green-400/25 bg-green-500/10 text-green-200'
+                  : 'border-amber-400/25 bg-amber-500/10 text-amber-200'
+              }`}
+            >
+              <span className="mr-1.5">{step.done ? '✓' : '•'}</span>{step.label}
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Club settings card */}
       <div className="card space-y-3">
@@ -758,6 +789,13 @@ export default function ClubAdminPage() {
                   </button>
                 ))}
               </div>
+              {paymentMode === 'STRIPE' && (
+                <div className={`mt-2 rounded-lg border px-3 py-2 text-xs ${stripeReady ? 'border-green-400/25 bg-green-500/10 text-green-200' : 'border-amber-400/25 bg-amber-500/10 text-amber-200'}`}>
+                  {stripeReady
+                    ? 'Stripe is ready. Participant payments will route to your connected club account.'
+                    : 'Stripe is not ready yet. Complete onboarding and enable charges/payouts in Stripe Connect.'}
+                </div>
+              )}
               {paymentMode === 'MANUAL' && (
                 <div className="mt-2 space-y-2">
                   <p className="text-xs text-yellow-400/80">
@@ -809,6 +847,11 @@ export default function ClubAdminPage() {
                       }`}>€{preset}</button>
                   ))}
                 </div>
+                {paymentMode === 'STRIPE' && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Fee preview: participant pays approximately <strong>€{(parseFloat(entryFee) || 0).toFixed(2)}</strong>, before Stripe processing/network fee differences.
+                  </p>
+                )}
               </div>
             )}
             <div>
@@ -1134,12 +1177,17 @@ function AdminHeroStat({ label, value, accent }: { label: ReactNode; value: stri
 
 function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: number; paymentMode?: string }) {
   const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<'PARTICIPANTS' | 'PAYMENTS'>('PARTICIPANTS');
   const [showAddPanel, setShowAddPanel] = useState(false);
   const [winnerDialogUser, setWinnerDialogUser] = useState<Participant | null>(null);
   const [removeDialogUser, setRemoveDialogUser] = useState<Participant | null>(null);
   const [unmarkDialogUser, setUnmarkDialogUser] = useState<Participant | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'ELIMINATED' | 'WINNER'>('ALL');
+  const [viewMode, setViewMode] = useState<'ALL' | 'AWAITING' | 'PAID'>('ALL');
+  const [awaitingCollapsed, setAwaitingCollapsed] = useState(true);
+  const [paidCollapsed, setPaidCollapsed] = useState(true);
+  const [bulkConfirming, setBulkConfirming] = useState(false);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 20;
   const isManual = paymentMode === 'MANUAL';
@@ -1251,8 +1299,16 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
   const filtered = (participants ?? []).filter(p => {
     const matchesSearch = !search.trim() ||
       p.username.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = statusFilter === 'ALL' || p.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesStatus = activeTab === 'PAYMENTS'
+      ? true
+      : statusFilter === 'ALL' || p.status === statusFilter;
+    const matchesView =
+      !isManual || viewMode === 'ALL'
+        ? true
+        : viewMode === 'PAID'
+          ? paidSet.has(p.userId)
+          : !paidSet.has(p.userId);
+    return matchesSearch && matchesStatus && matchesView;
   });
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -1265,23 +1321,94 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
     ELIMINATED: participants?.filter(p => p.status === 'ELIMINATED').length ?? 0,
     WINNER: participants?.filter(p => p.status === 'WINNER').length ?? 0,
   };
+  const awaitingParticipants = (participants ?? []).filter((p) => !paidSet.has(p.userId));
+  const paidParticipants = (participants ?? []).filter((p) => paidSet.has(p.userId));
+
+  const exportPaymentsCsv = () => {
+    const rows = (participants ?? []).map((p) => ({
+      username: p.username,
+      status: p.status,
+      payment_status: isManual ? (paidSet.has(p.userId) ? 'PAID' : 'AWAITING_PAYMENT') : (p.paymentState ?? 'NOT_REQUIRED'),
+      joined_at: p.joinedAt,
+    }));
+    const header = 'username,status,payment_status,joined_at';
+    const lines = rows.map((r) => [r.username, r.status, r.payment_status, r.joined_at]
+      .map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','));
+    const csv = [header, ...lines].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `competition-${competitionId}-payments.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success('Payments export generated');
+  };
+
+  const confirmAllAwaiting = async () => {
+    if (!awaitingParticipants.length) return;
+    setBulkConfirming(true);
+    try {
+      const targets = awaitingParticipants.slice(0, 200).map((p) => p.userId);
+      const response = await api.post(
+        `/club-admin/competitions/${competitionId}/mark-paid-batch`,
+        { userIds: targets },
+        { timeout: 30_000 },
+      );
+      const created = Number(response.data?.created ?? 0);
+      const alreadyPaid = Number(response.data?.alreadyPaid ?? 0);
+      const invalid = Number(response.data?.invalid ?? 0);
+      toast.success(
+        `Bulk update complete: ${created} created` +
+        (alreadyPaid ? `, ${alreadyPaid} already paid` : '') +
+        (invalid ? `, ${invalid} skipped` : '')
+      );
+      queryClient.invalidateQueries({ queryKey: ['club-admin', 'paid-users', String(competitionId)] });
+      queryClient.invalidateQueries({ queryKey: ['club-admin', 'participants', competitionId] });
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Bulk confirmation failed');
+    } finally {
+      setBulkConfirming(false);
+    }
+  };
 
   return (
     <div className="mt-3 pt-3 border-t border-gray-700/50 space-y-3">
+      <div className="inline-flex rounded-lg bg-surface-700 p-0.5">
+        <button
+          type="button"
+          onClick={() => setActiveTab('PARTICIPANTS')}
+          className={`px-3 py-1 text-xs rounded-md ${activeTab === 'PARTICIPANTS' ? 'bg-brand-600 text-white' : 'text-gray-300 hover:text-white'}`}
+        >
+          Participants
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('PAYMENTS')}
+          className={`px-3 py-1 text-xs rounded-md ${activeTab === 'PAYMENTS' ? 'bg-brand-600 text-white' : 'text-gray-300 hover:text-white'}`}
+        >
+          Payments
+        </button>
+      </div>
+
       {/* Header row */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-          Participants ({participants?.length ?? 0})
+          {activeTab === 'PAYMENTS' ? 'Payments' : 'Participants'} ({participants?.length ?? 0})
           {isManual && unpaidCount > 0 && (
             <span className="ml-2 text-yellow-400 normal-case font-normal">· {unpaidCount} awaiting payment</span>
           )}
         </h4>
-        <button
-          onClick={() => setShowAddPanel((v) => !v)}
-          className="w-full sm:w-auto text-xs px-2.5 py-1 rounded-lg bg-brand-600/20 hover:bg-brand-600/40 text-brand-400 transition font-medium"
-        >
-          {showAddPanel ? '✕ Cancel' : '+ Add'}
-        </button>
+        {activeTab === 'PARTICIPANTS' && (
+          <button
+            onClick={() => setShowAddPanel((v) => !v)}
+            className="w-full sm:w-auto text-xs px-2.5 py-1 rounded-lg bg-brand-600/20 hover:bg-brand-600/40 text-brand-400 transition font-medium"
+          >
+            {showAddPanel ? '✕ Cancel' : '+ Add'}
+          </button>
+        )}
       </div>
 
       {isManual && (
@@ -1290,7 +1417,133 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
         </div>
       )}
 
-      {showAddPanel && (
+      <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-xs text-gray-300">
+            <span className="font-semibold">Payments ops:</span>{' '}
+            {isManual
+              ? `${paidSet.size} paid · ${(participants?.length ?? 0) - paidSet.size} awaiting`
+              : 'Use payment status badges to track confirmation.'}
+          </div>
+          <div className="flex gap-2">
+            {isManual && (
+              <div className="inline-flex rounded-lg bg-surface-700 p-0.5">
+                {(['ALL', 'AWAITING', 'PAID'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => { setViewMode(mode); setPage(1); }}
+                    className={`px-2 py-1 text-xs rounded-md ${viewMode === mode ? 'bg-brand-600 text-white' : 'text-gray-300 hover:text-white'}`}
+                  >
+                    {mode}
+                  </button>
+                ))}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={exportPaymentsCsv}
+              className="text-xs px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.04] text-gray-300 hover:bg-white/[0.08]"
+            >
+              Export CSV
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {activeTab === 'PAYMENTS' && isManual && (
+        <div className="grid gap-3 lg:grid-cols-2">
+          <div className="rounded-lg border border-amber-400/25 bg-amber-500/10 p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <h5 className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-200">Awaiting Payment</h5>
+              <div className="flex items-center gap-2">
+                {awaitingParticipants.length > 0 && !awaitingCollapsed && (
+                  <button
+                    type="button"
+                    onClick={confirmAllAwaiting}
+                    disabled={bulkConfirming}
+                    className="text-[11px] px-2 py-0.5 rounded border border-green-300/40 text-green-200 hover:bg-green-400/10 disabled:opacity-50"
+                  >
+                    {bulkConfirming ? 'Confirming…' : 'Confirm all'}
+                  </button>
+                )}
+                <span className="text-xs text-amber-300">{awaitingParticipants.length}</span>
+                <button
+                  type="button"
+                  onClick={() => setAwaitingCollapsed((v) => !v)}
+                  className="text-[11px] px-2 py-0.5 rounded border border-amber-300/30 text-amber-200 hover:bg-amber-400/10"
+                >
+                  {awaitingCollapsed ? 'Expand' : 'Collapse'}
+                </button>
+              </div>
+            </div>
+            {awaitingCollapsed ? (
+              <p className="text-xs text-amber-100/70">Collapsed</p>
+            ) : awaitingParticipants.length === 0 ? (
+              <p className="text-xs text-amber-100/80">No one waiting for payment.</p>
+            ) : (
+              <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                {awaitingParticipants.slice(0, 50).map((p) => (
+                  <div key={`await-${p.id}`} className="flex items-center justify-between rounded-md border border-amber-300/20 bg-black/20 px-2 py-1.5">
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-amber-100 truncate">{p.username}</p>
+                      <p className="text-[11px] text-amber-200/80">{p.status}</p>
+                    </div>
+                    <button
+                      onClick={() => markPaidMutation.mutate(p.userId)}
+                      disabled={markPaidMutation.isPending}
+                      className="text-[11px] px-2 py-1 rounded bg-green-600/20 hover:bg-green-600/40 text-green-300"
+                    >
+                      Confirm
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-lg border border-green-400/25 bg-green-500/10 p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <h5 className="text-xs font-semibold uppercase tracking-[0.14em] text-green-200">Paid</h5>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-green-300">{paidParticipants.length}</span>
+                <button
+                  type="button"
+                  onClick={() => setPaidCollapsed((v) => !v)}
+                  className="text-[11px] px-2 py-0.5 rounded border border-green-300/30 text-green-200 hover:bg-green-400/10"
+                >
+                  {paidCollapsed ? 'Expand' : 'Collapse'}
+                </button>
+              </div>
+            </div>
+            {paidCollapsed ? (
+              <p className="text-xs text-green-100/70">Collapsed</p>
+            ) : paidParticipants.length === 0 ? (
+              <p className="text-xs text-green-100/80">No confirmed payments yet.</p>
+            ) : (
+              <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                {paidParticipants.slice(0, 50).map((p) => (
+                  <div key={`paid-${p.id}`} className="flex items-center justify-between rounded-md border border-green-300/20 bg-black/20 px-2 py-1.5">
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-green-100 truncate">{p.username}</p>
+                      <p className="text-[11px] text-green-200/80">{p.status}</p>
+                    </div>
+                    <button
+                      onClick={() => setUnmarkDialogUser(p)}
+                      disabled={unmarkPaidMutation.isPending}
+                      className="text-[11px] px-2 py-1 rounded bg-red-600/20 hover:bg-red-600/40 text-red-300"
+                    >
+                      Revert
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'PARTICIPANTS' && showAddPanel && (
         <AddParticipantPanel
           competitionId={competitionId}
           apiBase="/club-admin"
@@ -1322,23 +1575,25 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
             )}
           </div>
           {/* Status filter pills */}
-          <div className="-mx-1 overflow-x-auto pb-1 sm:mx-0 sm:overflow-visible">
-            <div className="inline-flex min-w-max rounded-lg bg-surface-700 p-0.5 shrink-0">
-            {(['ALL', 'ACTIVE', 'ELIMINATED', 'WINNER'] as const).map(s => (
-              statusCounts[s] > 0 || s === 'ALL' ? (
-                <button key={s} onClick={() => { setStatusFilter(s); setPage(1); }}
-                  className={`px-2 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${statusFilter === s ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'}`}>
-                  {s === 'ALL' ? `All (${statusCounts.ALL})` : `${s.charAt(0) + s.slice(1).toLowerCase()} (${statusCounts[s]})`}
-                </button>
-              ) : null
-            ))}
+          {activeTab === 'PARTICIPANTS' && (
+            <div className="-mx-1 overflow-x-auto pb-1 sm:mx-0 sm:overflow-visible">
+              <div className="inline-flex min-w-max rounded-lg bg-surface-700 p-0.5 shrink-0">
+              {(['ALL', 'ACTIVE', 'ELIMINATED', 'WINNER'] as const).map(s => (
+                statusCounts[s] > 0 || s === 'ALL' ? (
+                  <button key={s} onClick={() => { setStatusFilter(s); setPage(1); }}
+                    className={`px-2 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${statusFilter === s ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'}`}>
+                    {s === 'ALL' ? `All (${statusCounts.ALL})` : `${s.charAt(0) + s.slice(1).toLowerCase()} (${statusCounts[s]})`}
+                  </button>
+                ) : null
+              ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
       {/* Results info */}
-      {(search || statusFilter !== 'ALL') && (
+      {(search || (activeTab === 'PARTICIPANTS' && statusFilter !== 'ALL')) && (
         <p className="text-xs text-gray-500">
           {filtered.length} result{filtered.length !== 1 ? 's' : ''}
           {search ? ` for "${search}"` : ''}
@@ -1405,7 +1660,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                       ↩️ Revert
                     </button>
                   )}
-                  {p.status === 'ACTIVE' && activeCount > 1 && (
+                  {activeTab === 'PARTICIPANTS' && p.status === 'ACTIVE' && activeCount > 1 && (
                     <button
                       onClick={() => setWinnerDialogUser(p)}
                       disabled={declareWinnerMutation.isPending}
@@ -1414,13 +1669,15 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                       🏆 Winner
                     </button>
                   )}
-                  <button
-                    onClick={() => setRemoveDialogUser(p)}
-                    disabled={removeMutation.isPending}
-                    className="text-xs px-2.5 py-1.5 rounded bg-red-600/20 hover:bg-red-600/40 text-red-400 transition"
-                  >
-                    Remove
-                  </button>
+                  {activeTab === 'PARTICIPANTS' && (
+                    <button
+                      onClick={() => setRemoveDialogUser(p)}
+                      disabled={removeMutation.isPending}
+                      className="text-xs px-2.5 py-1.5 rounded bg-red-600/20 hover:bg-red-600/40 text-red-400 transition"
+                    >
+                      Remove
+                    </button>
+                  )}
                 </div>
               </div>
               </div>
