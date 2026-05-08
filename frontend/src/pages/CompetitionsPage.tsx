@@ -67,14 +67,22 @@ function competitionPrimaryButtonStyle(color?: string | null): CSSProperties | u
   };
 }
 
-function getCompetitionActionHint(comp: Competition, mine?: MyCompetition): string | null {
+function isPickLockSoon(comp: Competition, withinHours = 24): boolean {
+  const source = comp.firstGameweekDate ?? comp.startDate;
+  if (!source) return false;
+  const lockAt = parseDate(source).getTime();
+  const msUntilLock = lockAt - Date.now();
+  return msUntilLock > 0 && msUntilLock <= withinHours * 60 * 60 * 1000;
+}
+
+function getCompetitionActionHint(comp: Competition, mine?: MyCompetition, requiresPick = false): string | null {
   if (!mine) return null;
   if (mine.paymentState === 'AWAITING_PAYMENT') {
     return comp.paymentMode === 'MANUAL'
       ? 'Action needed: pay the organiser to activate your entry.'
       : 'Action needed: complete payment to confirm your entry.';
   }
-  if (comp.status === 'UPCOMING' && (mine.myStatus === 'ACTIVE' || mine.myStatus === 'WINNER')) {
+  if (comp.status === 'UPCOMING' && (mine.myStatus === 'ACTIVE' || mine.myStatus === 'WINNER') && isPickLockSoon(comp) && requiresPick) {
     return 'Action needed: review your pick before the gameweek locks.';
   }
   return null;
@@ -121,7 +129,11 @@ export default function CompetitionsPage() {
 
   const [selectedClub, setSelectedClub] = useState<Club | null>(null);
   const [payingComp, setPayingComp] = useState<Competition | null>(null);
-  const [viewMode, setViewMode] = useState<'available' | 'mine' | 'past'>('available');
+  const [viewMode, setViewMode] = useState<'available' | 'mine' | 'past'>(() => {
+    if (typeof window === 'undefined') return 'available';
+    const saved = window.localStorage.getItem('lms.competitions.viewMode');
+    return saved === 'mine' || saved === 'past' || saved === 'available' ? saved : 'available';
+  });
 
   // Filter / sort / view state
   const [search, setSearch] = useState('');
@@ -131,8 +143,20 @@ export default function CompetitionsPage() {
   const [sortBy, setSortBy] = useState<'date' | 'players' | 'name'>('date');
   const [listView, setListView] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [mineFilter, setMineFilter] = useState<'ALL' | 'NEEDS_ACTION' | 'PICK_DUE' | 'AWAITING_PAYMENT' | 'ACTIVE' | 'ELIMINATED' | 'FINISHED'>('ALL');
-  const [compactMineView, setCompactMineView] = useState(false);
+  const [mineFilter, setMineFilter] = useState<'ALL' | 'NEEDS_ACTION' | 'PICK_DUE' | 'AWAITING_PAYMENT' | 'ACTIVE' | 'ELIMINATED' | 'FINISHED'>(() => {
+    if (typeof window === 'undefined') return 'ALL';
+    const saved = window.localStorage.getItem('lms.competitions.mineFilter');
+    return saved === 'ALL' || saved === 'NEEDS_ACTION' || saved === 'PICK_DUE' || saved === 'AWAITING_PAYMENT' || saved === 'ACTIVE' || saved === 'ELIMINATED' || saved === 'FINISHED'
+      ? saved
+      : 'ALL';
+  });
+  const [compactMineView, setCompactMineView] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const saved = window.localStorage.getItem('lms.competitions.compactMineView');
+    return saved == null ? true : saved === 'true';
+  });
+  const [expandedMineRows, setExpandedMineRows] = useState<Set<number>>(new Set());
+  const [showMineAdvancedFilters, setShowMineAdvancedFilters] = useState(false);
   const [mineSections, setMineSections] = useState({
     needsAction: false,
     active: false,
@@ -156,6 +180,15 @@ export default function CompetitionsPage() {
   useEffect(() => {
     setJoinCodeInput(joinCodeParam);
   }, [joinCodeParam]);
+  useEffect(() => {
+    window.localStorage.setItem('lms.competitions.viewMode', viewMode);
+  }, [viewMode]);
+  useEffect(() => {
+    window.localStorage.setItem('lms.competitions.mineFilter', mineFilter);
+  }, [mineFilter]);
+  useEffect(() => {
+    window.localStorage.setItem('lms.competitions.compactMineView', String(compactMineView));
+  }, [compactMineView]);
 
   const { data: clubs } = useQuery<Club[]>({
     queryKey: ['clubs'],
@@ -316,11 +349,41 @@ export default function CompetitionsPage() {
     return myComps.filter((mc) => mc.competition.name.toLowerCase().includes(q) || mc.competition.clubName?.toLowerCase().includes(q));
   }, [myComps, search]);
 
+  const upcomingMineCandidates = myComps.filter(
+    (mc) => mc.competition.status === 'UPCOMING' && (mc.myStatus === 'ACTIVE' || mc.myStatus === 'WINNER')
+  );
+  const upcomingMinePickChecks = useQueries({
+    queries: upcomingMineCandidates.map((mc) => ({
+      queryKey: ['competition', mc.competition.id, 'mine-needs-action-pick-check'],
+      queryFn: async () => {
+        const currentGw = await api.get<GameweekResponse>(`/competitions/${mc.competition.id}/gameweeks/current`).then((r) => r.data);
+        if (!currentGw || currentGw.status !== 'UPCOMING') {
+          return { competitionId: mc.competition.id, requiresPick: false };
+        }
+        try {
+          await api.get<PickResponse>(`/competitions/${mc.competition.id}/gameweeks/${currentGw.id}/my-pick`);
+          return { competitionId: mc.competition.id, requiresPick: false };
+        } catch {
+          return { competitionId: mc.competition.id, requiresPick: true };
+        }
+      },
+      staleTime: 30_000,
+    })),
+  });
+  const requiresPickByCompetitionId = new Map<number, boolean>();
+  upcomingMinePickChecks.forEach((q) => {
+    if (q.data) requiresPickByCompetitionId.set(q.data.competitionId, q.data.requiresPick);
+  });
+  const hasPickDueAction = (mc: MyCompetition) =>
+    mc.competition.status === 'UPCOMING' &&
+    (mc.myStatus === 'ACTIVE' || mc.myStatus === 'WINNER') &&
+    isPickLockSoon(mc.competition) &&
+    requiresPickByCompetitionId.get(mc.competition.id) === true;
+
   const filteredMine = useMemo(() => {
     if (mineFilter === 'ALL') return searchedMine;
     return searchedMine.filter((mc) => {
-      const hint = getCompetitionActionHint(mc.competition, mc) ?? '';
-      const pickDue = hint.toLowerCase().includes('review your pick');
+      const pickDue = hasPickDueAction(mc);
       const awaiting = mc.paymentState === 'AWAITING_PAYMENT';
       if (mineFilter === 'NEEDS_ACTION') return pickDue || awaiting;
       if (mineFilter === 'PICK_DUE') return pickDue;
@@ -329,7 +392,7 @@ export default function CompetitionsPage() {
       if (mineFilter === 'ELIMINATED') return mc.competition.status !== 'COMPLETED' && mc.myStatus === 'ELIMINATED';
       return mc.competition.status !== 'COMPLETED' && (mc.myStatus === 'ACTIVE' || mc.myStatus === 'WINNER');
     });
-  }, [searchedMine, mineFilter]);
+  }, [searchedMine, mineFilter, requiresPickByCompetitionId]);
 
   const filteredPast = useMemo(() => {
     let list = pastCompetitions ?? [];
@@ -341,9 +404,8 @@ export default function CompetitionsPage() {
   }, [pastCompetitions, search]);
 
   const isMineNeedsAction = useCallback((mc: MyCompetition) => {
-    const hint = getCompetitionActionHint(mc.competition, mc) ?? '';
-    return mc.paymentState === 'AWAITING_PAYMENT' || hint.toLowerCase().includes('review your pick');
-  }, []);
+    return mc.paymentState === 'AWAITING_PAYMENT' || hasPickDueAction(mc);
+  }, [requiresPickByCompetitionId]);
   const mineNeedsActionCount = useMemo(
     () => searchedMine.filter((mc) => isMineNeedsAction(mc)),
     [searchedMine, isMineNeedsAction]
@@ -381,41 +443,11 @@ export default function CompetitionsPage() {
   const page = Math.min(currentPage, totalPages);
   const paginatedAvailable = filteredAvailable.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const myCompetitionById = new Map(myComps.map((mc) => [mc.competition.id, mc]));
-  const upcomingJoinedCandidates = filteredAvailable.filter((c) => {
-    const mine = myCompetitionById.get(c.id);
-    return !!mine && c.status === 'UPCOMING' && (mine.myStatus === 'ACTIVE' || mine.myStatus === 'WINNER');
-  });
-  const upcomingPickChecks = useQueries({
-    queries: upcomingJoinedCandidates.map((comp) => ({
-      queryKey: ['competition', comp.id, 'needs-action-pick-check'],
-      queryFn: async () => {
-        const currentGw = await api.get<GameweekResponse>(`/competitions/${comp.id}/gameweeks/current`).then((r) => r.data);
-        if (!currentGw || currentGw.status !== 'UPCOMING') {
-          return { competitionId: comp.id, requiresPick: false };
-        }
-        try {
-          await api.get<PickResponse>(`/competitions/${comp.id}/gameweeks/${currentGw.id}/my-pick`);
-          return { competitionId: comp.id, requiresPick: false };
-        } catch {
-          return { competitionId: comp.id, requiresPick: true };
-        }
-      },
-      staleTime: 30_000,
-    })),
-  });
-  const requiresPickByCompetitionId = new Map<number, boolean>();
-  upcomingPickChecks.forEach((q) => {
-    if (q.data) {
-      requiresPickByCompetitionId.set(q.data.competitionId, q.data.requiresPick);
-    }
-  });
   const needsActionAvailable = filteredAvailable.filter((c) => {
     const mine = myCompetitionById.get(c.id);
     if (!mine) return false;
     if (mine.paymentState === 'AWAITING_PAYMENT') return true;
-    if (c.status === 'UPCOMING' && (mine.myStatus === 'ACTIVE' || mine.myStatus === 'WINNER')) {
-      return requiresPickByCompetitionId.get(c.id) === true;
-    }
+    if (c.status === 'UPCOMING' && (mine.myStatus === 'ACTIVE' || mine.myStatus === 'WINNER')) return hasPickDueAction(mine);
     return false;
   });
   const needsActionAvailableLimited = needsActionAvailable.slice(0, FEATURED_LIMIT);
@@ -771,10 +803,44 @@ export default function CompetitionsPage() {
             ))}
             <button
               type="button"
+              onClick={() => setShowMineAdvancedFilters((v) => !v)}
+              className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-gray-300 sm:hidden"
+            >
+              {showMineAdvancedFilters ? 'Less filters' : 'More filters'}
+            </button>
+          </div>
+
+          <div className={`${showMineAdvancedFilters ? 'flex' : 'hidden'} flex-wrap items-center gap-2 sm:flex`}>
+            <button
+              type="button"
               onClick={() => setCompactMineView((v) => !v)}
-              className="ml-auto rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-gray-300"
+              className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-gray-300 sm:ml-auto"
             >
               {compactMineView ? 'Card view' : 'Compact view'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMineSections({ needsAction: false, active: false, eliminated: false, finished: false })}
+              className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-gray-300"
+            >
+              Expand all
+            </button>
+            <button
+              type="button"
+              onClick={() => setMineSections({ needsAction: true, active: true, eliminated: true, finished: true })}
+              className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-gray-300"
+            >
+              Collapse all
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMineFilter('ALL');
+                setSearch('');
+              }}
+              className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-gray-300"
+            >
+              Reset
             </button>
           </div>
 
@@ -922,29 +988,29 @@ export default function CompetitionsPage() {
             {mineNeedsAction.length > 0 && (
               <Section label={`Needs Action (${mineNeedsAction.length})`} icon="!" iconColor="bg-amber-500" collapsible collapsed={mineSections.needsAction} onToggle={() => setMineSections((s) => ({ ...s, needsAction: !s.needsAction }))}>
                 {compactMineView
-                  ? <div className="space-y-2">{mineNeedsAction.map((mc) => <MyCompetitionRow key={mc.competition.id} myComp={mc} />)}</div>
-                  : <CompGrid>{mineNeedsAction.map((mc) => <MyCompetitionCard key={mc.competition.id} myComp={mc} />)}</CompGrid>}
+                  ? <div className="space-y-2">{mineNeedsAction.map((mc) => <MyCompetitionRow key={mc.competition.id} myComp={mc} expanded={expandedMineRows.has(mc.competition.id)} onToggleExpand={() => setExpandedMineRows((prev) => { const next = new Set(prev); if (next.has(mc.competition.id)) next.delete(mc.competition.id); else next.add(mc.competition.id); return next; })} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
+                  : <CompGrid>{mineNeedsAction.map((mc) => <MyCompetitionCard key={mc.competition.id} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</CompGrid>}
               </Section>
             )}
             {mineActive.length > 0 && (
               <Section label={`Active (${mineActive.length})`} icon="✓" iconColor="bg-green-600" collapsible collapsed={mineSections.active} onToggle={() => setMineSections((s) => ({ ...s, active: !s.active }))}>
                 {compactMineView
-                  ? <div className="space-y-2">{mineActive.map((mc) => <MyCompetitionRow key={mc.competition.id} myComp={mc} />)}</div>
-                  : <CompGrid>{mineActive.map((mc) => <MyCompetitionCard key={mc.competition.id} myComp={mc} />)}</CompGrid>}
+                  ? <div className="space-y-2">{mineActive.map((mc) => <MyCompetitionRow key={mc.competition.id} myComp={mc} expanded={expandedMineRows.has(mc.competition.id)} onToggleExpand={() => setExpandedMineRows((prev) => { const next = new Set(prev); if (next.has(mc.competition.id)) next.delete(mc.competition.id); else next.add(mc.competition.id); return next; })} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
+                  : <CompGrid>{mineActive.map((mc) => <MyCompetitionCard key={mc.competition.id} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</CompGrid>}
               </Section>
             )}
             {mineEliminated.length > 0 && (
               <Section label={`Eliminated (${mineEliminated.length})`} icon="✕" iconColor="bg-gray-600" collapsible collapsed={mineSections.eliminated} onToggle={() => setMineSections((s) => ({ ...s, eliminated: !s.eliminated }))}>
                 {compactMineView
-                  ? <div className="space-y-2">{mineEliminated.map((mc) => <MyCompetitionRow key={mc.competition.id} myComp={mc} />)}</div>
-                  : <CompGrid>{mineEliminated.map((mc) => <MyCompetitionCard key={mc.competition.id} myComp={mc} />)}</CompGrid>}
+                  ? <div className="space-y-2">{mineEliminated.map((mc) => <MyCompetitionRow key={mc.competition.id} myComp={mc} expanded={expandedMineRows.has(mc.competition.id)} onToggleExpand={() => setExpandedMineRows((prev) => { const next = new Set(prev); if (next.has(mc.competition.id)) next.delete(mc.competition.id); else next.add(mc.competition.id); return next; })} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
+                  : <CompGrid>{mineEliminated.map((mc) => <MyCompetitionCard key={mc.competition.id} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</CompGrid>}
               </Section>
             )}
             {mineFinished.length > 0 && (
               <Section label={`Finished (${mineFinished.length})`} icon="🏁" iconColor="bg-gray-700" collapsible collapsed={mineSections.finished} onToggle={() => setMineSections((s) => ({ ...s, finished: !s.finished }))}>
                 {compactMineView
-                  ? <div className="space-y-2">{mineFinished.map((mc) => <MyCompetitionRow key={mc.competition.id} myComp={mc} />)}</div>
-                  : <CompGrid>{mineFinished.map((mc) => <MyCompetitionCard key={mc.competition.id} myComp={mc} />)}</CompGrid>}
+                  ? <div className="space-y-2">{mineFinished.map((mc) => <MyCompetitionRow key={mc.competition.id} myComp={mc} expanded={expandedMineRows.has(mc.competition.id)} onToggleExpand={() => setExpandedMineRows((prev) => { const next = new Set(prev); if (next.has(mc.competition.id)) next.delete(mc.competition.id); else next.add(mc.competition.id); return next; })} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
+                  : <CompGrid>{mineFinished.map((mc) => <MyCompetitionCard key={mc.competition.id} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</CompGrid>}
               </Section>
             )}
           </div>
@@ -1429,13 +1495,12 @@ function CompetitionCard({ comp, joined, onJoin, isPending, actionHint, isHighli
   );
 }
 
-function MyCompetitionCard({ myComp }: { myComp: MyCompetition }) {
+function MyCompetitionCard({ myComp, actionHint }: { myComp: MyCompetition; actionHint?: string | null }) {
   const comp = myComp.competition;
   const myStatus = myComp.myStatus;
   const paymentState = myComp.paymentState;
   const eliminatedWeek = myComp.eliminatedWeek;
   const clubSupport = comp.clubSecondaryColor ?? comp.clubPrimaryColor ?? null;
-  const actionHint = getCompetitionActionHint(comp, myComp);
   const { data: liveProgress } = useQuery<SurvivorTableProgressResponse>({
     queryKey: ['survivor-table-progress', comp.id],
     queryFn: () => api.get(`/competitions/${comp.id}/survivor-table`).then((r) => r.data),
@@ -1565,11 +1630,20 @@ function MyCompetitionCard({ myComp }: { myComp: MyCompetition }) {
   );
 }
 
-function MyCompetitionRow({ myComp }: { myComp: MyCompetition }) {
+function MyCompetitionRow({
+  myComp,
+  actionHint,
+  expanded,
+  onToggleExpand,
+}: {
+  myComp: MyCompetition;
+  actionHint?: string | null;
+  expanded: boolean;
+  onToggleExpand: () => void;
+}) {
   const comp = myComp.competition;
   const isFinished = comp.status === 'COMPLETED';
   const isAwaitingPayment = myComp.paymentState === 'AWAITING_PAYMENT';
-  const actionHint = getCompetitionActionHint(comp, myComp);
   const isDueSoon = (() => {
     if (myComp.myStatus !== 'ACTIVE' || comp.status !== 'UPCOMING') return false;
     const source = comp.firstGameweekDate ?? comp.startDate;
@@ -1579,11 +1653,8 @@ function MyCompetitionRow({ myComp }: { myComp: MyCompetition }) {
   })();
 
   return (
-    <Link
-      to={`/competitions/${comp.id}`}
-      className="card flex items-center gap-3 px-3 py-2.5 transition-colors hover:border-gray-600 hover:bg-surface-700/30"
-      style={competitionCardStyle(comp)}
-    >
+    <div className="card px-3 py-2.5" style={competitionCardStyle(comp)}>
+      <div className="flex items-center gap-3">
       <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${isFinished ? 'bg-gray-500' : myComp.myStatus === 'ELIMINATED' ? 'bg-red-500' : myComp.myStatus === 'WINNER' ? 'bg-yellow-400' : 'bg-green-500'}`} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
@@ -1597,8 +1668,20 @@ function MyCompetitionRow({ myComp }: { myComp: MyCompetition }) {
         </p>
         {actionHint && <p className="mt-1 text-xs font-medium text-amber-300">Action required: {actionHint}</p>}
       </div>
-      <span className="shrink-0 text-xs text-gray-400">Open</span>
-    </Link>
+      <button type="button" onClick={onToggleExpand} className="shrink-0 rounded-md border border-white/10 px-2 py-1 text-xs text-gray-300 hover:bg-white/10">
+        {expanded ? 'Less' : 'Details'}
+      </button>
+      <Link to={`/competitions/${comp.id}`} className="shrink-0 text-xs text-gray-300 underline-offset-2 hover:text-white hover:underline">Open</Link>
+      </div>
+      {expanded && (
+        <div className="mt-2 grid grid-cols-2 gap-2 border-t border-white/10 pt-2 text-xs text-gray-300">
+          <span>Players: {comp.participantCount}</span>
+          <span>Status: {isFinished ? 'Finished' : myComp.myStatus}</span>
+          <span>Payment: {myComp.paymentState}</span>
+          <span>Entry: {comp.entryFee > 0 ? `€${comp.entryFee}` : 'Free'}</span>
+        </div>
+      )}
+    </div>
   );
 }
 

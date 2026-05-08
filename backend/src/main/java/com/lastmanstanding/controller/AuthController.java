@@ -29,6 +29,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -217,6 +218,9 @@ public class AuthController {
 
     public record EmailPreferencesRequest(boolean emailResultsOptIn) {}
     public record EmailPreferencesResponse(boolean emailResultsOptIn) {}
+    public record DeleteAccountRequest(String deleteToken, String confirmText) {}
+    public record DeleteTokenRequest(String password) {}
+    public record DeleteTokenResponse(String deleteToken, long expiresInSeconds) {}
 
     @PutMapping("/email-preferences")
     public ResponseEntity<EmailPreferencesResponse> updateEmailPreferences(
@@ -235,6 +239,63 @@ public class AuthController {
         User user = userRepository.findById(principal.getId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
         return ResponseEntity.ok(new EmailPreferencesResponse(user.isEmailResultsOptIn()));
+    }
+
+    @PostMapping("/delete-token")
+    public ResponseEntity<DeleteTokenResponse> issueDeleteToken(
+            @AuthenticationPrincipal UserDetailsImpl principal,
+            @RequestBody DeleteTokenRequest request) {
+        if (principal == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
+        User user = userRepository.findById(principal.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+        if (user.getPasswordHash() != null && !user.getPasswordHash().isBlank()) {
+            if (request == null || request.password() == null || request.password().isBlank()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password is required");
+            }
+            if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Incorrect password");
+            }
+        }
+        long expiresInSeconds = 300; // 5 minutes
+        String token = jwtService.generateDeleteToken(user, expiresInSeconds * 1000);
+        return ResponseEntity.ok(new DeleteTokenResponse(token, expiresInSeconds));
+    }
+
+    @DeleteMapping("/me")
+    @Transactional
+    public ResponseEntity<Void> deleteMyAccount(
+            @AuthenticationPrincipal UserDetailsImpl principal,
+            @RequestBody(required = false) DeleteAccountRequest request) {
+        if (principal == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
+        }
+        User user = userRepository.findById(principal.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+
+        if (request == null || request.confirmText() == null || !"DELETE ACCOUNT".equals(request.confirmText().trim().toUpperCase())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Type DELETE ACCOUNT to confirm account deletion");
+        }
+        if (request.deleteToken() == null || request.deleteToken().isBlank() ||
+                !jwtService.isDeleteTokenValidForUser(request.deleteToken(), user.getId())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Delete verification expired. Re-enter your password.");
+        }
+        if (clubRepository.existsByClubAdminId(user.getId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Transfer your club admin role before deleting your account");
+        }
+
+        // Soft-delete for data integrity and audit history preservation.
+        String marker = "deleted-" + user.getId() + "-" + System.currentTimeMillis();
+        user.setDisabled(true);
+        user.setEmail(marker + "@deleted.local");
+        user.setUsername(marker);
+        user.setPasswordHash(null);
+        user.setOauthProvider(null);
+        user.setOauthProviderId(null);
+        user.setAvatarUrl(null);
+        user.setEmailResultsOptIn(false);
+        userRepository.save(user);
+        passwordResetTokenRepository.deleteByUserId(user.getId());
+        return ResponseEntity.noContent().build();
     }
 
     // ── Forgot password ──────────────────────────────────────────────────

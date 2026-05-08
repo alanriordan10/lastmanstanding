@@ -3,11 +3,19 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api';
 import toast from 'react-hot-toast';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import { useNavigate } from 'react-router-dom';
 
 export default function ProfilePage() {
-  const { user, loginWithData } = useAuth();
+  const { user, loginWithData, logout } = useAuth();
+  const navigate = useNavigate();
   const [optIn, setOptIn] = useState(user?.emailResultsOptIn ?? false);
   const [saving, setSaving] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleteToken, setDeleteToken] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [deleteSectionOpen, setDeleteSectionOpen] = useState(false);
   const { isSupported, permission, isSubscribed, subscribe, unsubscribe, notify } = usePushNotifications();
 
   const handleToggle = async () => {
@@ -22,6 +30,53 @@ export default function ProfilePage() {
       toast.error('Failed to update preference. Please try again.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText.trim().toUpperCase() !== 'DELETE ACCOUNT') {
+      toast.error('Please type DELETE ACCOUNT to confirm.');
+      return;
+    }
+    if (!deleteToken) {
+      toast.error('Please verify your password first.');
+      return;
+    }
+    setShowDeleteConfirmModal(true);
+  };
+
+  const handleVerifyDeletePassword = async () => {
+    if (!deletePassword.trim()) {
+      toast.error('Enter your password to continue.');
+      return;
+    }
+    try {
+      const { data } = await api.post('/auth/delete-token', { password: deletePassword });
+      setDeleteToken(data.deleteToken);
+      toast.success('Password verified. You can now confirm account deletion.');
+    } catch (err: any) {
+      setDeleteToken(null);
+      toast.error(err?.response?.data?.message || 'Password verification failed.');
+    }
+  };
+
+  const confirmDeleteAccount = async () => {
+    setDeleting(true);
+    try {
+      await api.delete('/auth/me', {
+        data: {
+          deleteToken,
+          confirmText: deleteConfirmText,
+        },
+      });
+      logout();
+      toast.success('Account deleted.');
+      navigate('/login');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Could not delete account.');
+    } finally {
+      setShowDeleteConfirmModal(false);
+      setDeleting(false);
     }
   };
 
@@ -186,6 +241,107 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* ── Danger zone ────────────────────────────────────── */}
+      <div className="overflow-hidden rounded-2xl border border-red-500/30 bg-red-500/[0.06] shadow-[0_20px_50px_rgba(2,6,23,0.34)]">
+        <button
+          type="button"
+          onClick={() => setDeleteSectionOpen((v) => !v)}
+          className="flex w-full items-center justify-between border-b border-red-500/20 px-6 py-4 text-left"
+          aria-expanded={deleteSectionOpen}
+          aria-controls="delete-account-panel"
+        >
+          <div>
+            <h2 className="text-base font-semibold text-red-200">Delete Account</h2>
+            <p className="mt-0.5 text-xs text-red-200/70">
+              Permanently close your account and remove login access.
+            </p>
+          </div>
+          <span className="text-xs font-medium text-red-200">{deleteSectionOpen ? 'Hide' : 'Show'}</span>
+        </button>
+        {deleteSectionOpen && (
+        <div id="delete-account-panel" className="space-y-4 px-6 py-5">
+          <ul className="space-y-1 text-xs text-red-100/85">
+            <li>You will lose login access immediately.</li>
+            <li>Your profile details will be anonymised.</li>
+            <li>Historical competition records remain for integrity.</li>
+          </ul>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-red-100">Password</label>
+            <div className="flex gap-2">
+              <input
+                type="password"
+                value={deletePassword}
+                onChange={(e) => {
+                  setDeletePassword(e.target.value);
+                  setDeleteToken(null);
+                }}
+                placeholder="Enter your password"
+                className="w-full rounded-lg border border-white/15 bg-surface-800 px-3 py-2 text-sm text-white placeholder:text-gray-500 focus:border-red-400/50 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={handleVerifyDeletePassword}
+                className="shrink-0 rounded-lg border border-white/15 bg-surface-700 px-3 py-2 text-xs text-gray-200 hover:bg-surface-600"
+              >
+                Verify
+              </button>
+            </div>
+            <p className={`mt-1 text-xs ${deleteToken ? 'text-green-400' : 'text-gray-500'}`}>
+              {deleteToken ? 'Password verified for 5 minutes.' : 'Verify password before final delete.'}
+            </p>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-red-100">Type DELETE ACCOUNT to confirm</label>
+            <input
+              type="text"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="DELETE ACCOUNT"
+              className="w-full rounded-lg border border-white/15 bg-surface-800 px-3 py-2 text-sm uppercase tracking-[0.06em] text-white placeholder:text-gray-500 focus:border-red-400/50 focus:outline-none"
+            />
+          </div>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-red-300">This action cannot be undone.</p>
+          <button
+            type="button"
+            onClick={handleDeleteAccount}
+            disabled={deleting}
+            className="inline-flex rounded-lg border border-red-400/40 bg-red-500/15 px-4 py-2 text-sm font-medium text-red-100 transition hover:bg-red-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {deleting ? 'Deleting account…' : 'Delete Account Permanently'}
+          </button>
+        </div>
+        )}
+      </div>
+
+      {showDeleteConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-red-500/30 bg-surface-900 p-5 shadow-2xl">
+            <h3 className="text-lg font-semibold text-white">Confirm account deletion</h3>
+            <p className="mt-2 text-sm text-gray-300">
+              This permanently closes your account and immediately signs you out.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirmModal(false)}
+                disabled={deleting}
+                className="rounded-lg border border-white/15 px-3 py-2 text-sm text-gray-300 hover:bg-white/10"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteAccount}
+                disabled={deleting}
+                className="rounded-lg border border-red-400/40 bg-red-500/20 px-3 py-2 text-sm font-medium text-red-100 hover:bg-red-500/30 disabled:opacity-50"
+              >
+                {deleting ? 'Deleting…' : 'Yes, delete account'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -1187,6 +1187,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
   const [viewMode, setViewMode] = useState<'ALL' | 'AWAITING' | 'PAID'>('ALL');
   const [awaitingCollapsed, setAwaitingCollapsed] = useState(true);
   const [paidCollapsed, setPaidCollapsed] = useState(true);
+  const [mobileOpsOpen, setMobileOpsOpen] = useState(false);
   const [bulkConfirming, setBulkConfirming] = useState(false);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 20;
@@ -1398,7 +1399,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
         <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
           {activeTab === 'PAYMENTS' ? 'Payments' : 'Participants'} ({participants?.length ?? 0})
           {isManual && unpaidCount > 0 && (
-            <span className="ml-2 text-yellow-400 normal-case font-normal">· {unpaidCount} awaiting payment</span>
+            <span className="ml-2 text-amber-300/80 normal-case font-normal">· {unpaidCount} awaiting payment</span>
           )}
         </h4>
         {activeTab === 'PARTICIPANTS' && (
@@ -1412,13 +1413,13 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
       </div>
 
       {isManual && (
-        <div className="rounded-lg bg-yellow-500/10 border border-yellow-500/20 px-3 py-2 text-xs text-yellow-300">
+        <div className="rounded-lg border px-3 py-2 text-xs sm:bg-yellow-500/10 sm:border-yellow-500/20 sm:text-yellow-300 bg-white/[0.02] border-white/10 text-gray-300">
           💸 <strong>Manual payment competition</strong> — click <strong>Confirm Payment</strong> once you've received each player's money.
         </div>
       )}
 
       <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="hidden sm:flex sm:flex-row sm:items-center sm:justify-between sm:gap-2">
           <div className="text-xs text-gray-300">
             <span className="font-semibold">Payments ops:</span>{' '}
             {isManual
@@ -1448,6 +1449,41 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
               Export CSV
             </button>
           </div>
+        </div>
+        <div className="sm:hidden space-y-2">
+          <button
+            type="button"
+            onClick={() => setMobileOpsOpen((v) => !v)}
+            className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-left text-xs text-gray-200"
+          >
+            Payments ops: {paidSet.size} paid · {(participants?.length ?? 0) - paidSet.size} awaiting
+            <span className="float-right text-gray-400">{mobileOpsOpen ? 'Hide' : 'Show'}</span>
+          </button>
+          {mobileOpsOpen && (
+            <div className="space-y-2">
+              {isManual && (
+                <div className="inline-flex rounded-lg bg-surface-700 p-0.5">
+                  {(['ALL', 'AWAITING', 'PAID'] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => { setViewMode(mode); setPage(1); }}
+                      className={`px-2 py-1 text-xs rounded-md ${viewMode === mode ? 'bg-brand-600 text-white' : 'text-gray-300 hover:text-white'}`}
+                    >
+                      {mode}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={exportPaymentsCsv}
+                className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.04] text-gray-300 hover:bg-white/[0.08]"
+              >
+                Export CSV
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1616,25 +1652,28 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                     <div className="flex items-center gap-2 flex-wrap min-w-0">
                       <span className="text-gray-200 font-medium">{p.username}</span>
                       <span className={
-                        p.status === 'ACTIVE' ? 'badge-green' :
-                        p.status === 'ELIMINATED' ? 'badge-red' : 'badge-yellow'
+                        p.status === 'ACTIVE'
+                          ? 'badge-green sm:opacity-100 opacity-75'
+                          : p.status === 'ELIMINATED'
+                            ? 'badge-red sm:opacity-100 opacity-75'
+                            : 'badge-yellow sm:opacity-100 opacity-75'
                       }>{p.status}</span>
                       {p.eliminatedWeek && (
-                        <span className="text-xs text-gray-500">GW{p.eliminatedWeek}</span>
+                        <span className="hidden sm:inline text-xs text-gray-500">GW{p.eliminatedWeek}</span>
                       )}
                     </div>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
                       {isManual && (
                         paidSet.has(p.userId)
-                          ? <span className="text-green-400">Payment confirmed</span>
-                          : <span className="text-yellow-400">Awaiting payment</span>
+                          ? <span className="text-green-400 sm:text-green-400 text-gray-400">Payment confirmed</span>
+                          : <span className="text-yellow-400 sm:text-yellow-400 text-gray-400">Awaiting payment</span>
                       )}
                       {p.status === 'ACTIVE' && activeCount > 1 && (
-                        <span className="text-yellow-500/80">Still eligible to win</span>
+                        <span className="hidden sm:inline text-yellow-500/80">Still eligible to win</span>
                       )}
                     </div>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2 sm:ml-2 sm:shrink-0">
+                  <div className="hidden sm:flex sm:flex-wrap sm:items-center sm:gap-2 sm:ml-2 sm:shrink-0">
                   {isManual && (
                     paidSet.has(p.userId) ? (
                       <span className="text-xs text-green-400 font-medium flex items-center gap-1">
@@ -1679,6 +1718,52 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                     </button>
                   )}
                 </div>
+                  <div className="sm:hidden">
+                    <details className="rounded-lg border border-white/10 bg-white/[0.03]">
+                      <summary className="cursor-pointer list-none px-3 py-2 text-xs text-gray-300">
+                        Actions
+                      </summary>
+                      <div className="border-t border-white/10 px-2 py-2 flex flex-wrap gap-2">
+                        {isManual && (
+                          paidSet.has(p.userId) ? (
+                            <button
+                              onClick={() => setUnmarkDialogUser(p)}
+                              disabled={unmarkPaidMutation.isPending}
+                              className="text-xs px-2.5 py-1.5 rounded bg-red-600/20 hover:bg-red-600/40 text-red-400 transition"
+                            >
+                              Revert payment
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => markPaidMutation.mutate(p.userId)}
+                              disabled={markPaidMutation.isPending}
+                              className="text-xs px-2.5 py-1.5 rounded bg-green-600/20 hover:bg-green-600/40 text-green-400 transition font-medium"
+                            >
+                              Confirm payment
+                            </button>
+                          )
+                        )}
+                        {activeTab === 'PARTICIPANTS' && p.status === 'ACTIVE' && activeCount > 1 && (
+                          <button
+                            onClick={() => setWinnerDialogUser(p)}
+                            disabled={declareWinnerMutation.isPending}
+                            className="text-xs px-2.5 py-1.5 rounded bg-yellow-600/20 hover:bg-yellow-600/40 text-yellow-400 transition"
+                          >
+                            Declare winner
+                          </button>
+                        )}
+                        {activeTab === 'PARTICIPANTS' && (
+                          <button
+                            onClick={() => setRemoveDialogUser(p)}
+                            disabled={removeMutation.isPending}
+                            className="text-xs px-2.5 py-1.5 rounded bg-red-600/20 hover:bg-red-600/40 text-red-400 transition"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    </details>
+                  </div>
               </div>
               </div>
             ))}

@@ -1,10 +1,11 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useInactivityLogout } from '../hooks/useInactivityLogout';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout, isAdmin, isClubAdmin } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
     logout();
@@ -16,12 +17,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const navItemClass =
     'inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-white/8 bg-white/[0.03] px-2.5 text-[11px] font-medium text-gray-300 transition-all hover:border-white/15 hover:bg-white/[0.08] hover:text-white sm:h-8 sm:w-auto sm:px-3 sm:text-sm';
   const navTextClass = 'inline';
+  const navClass = (active: boolean) =>
+    `${navItemClass} ${active ? 'border-brand-400/40 bg-brand-500/12 text-brand-100' : ''}`;
 
   return (
     <div className="min-h-screen bg-surface-900">
       {/* ── Navbar ─────────────────────────────────────────────── */}
       <nav className="sticky top-0 z-50 border-b border-white/8 bg-[linear-gradient(180deg,rgba(8,15,30,0.92),rgba(8,15,30,0.78))] backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center gap-3 px-3 py-3 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col items-stretch gap-2 px-3 py-3 sm:flex-row sm:items-center sm:gap-3 sm:px-6 lg:px-8">
           {/* Logo */}
           <Link to="/competitions" className="flex items-center gap-2 shrink-0">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-brand-300/25 bg-gradient-to-br from-brand-500 to-cyan-400 text-[11px] font-black text-slate-950 shadow-[0_10px_28px_rgba(56,189,248,0.18)]">
@@ -34,9 +37,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </Link>
 
           {/* Nav links + user */}
-          <div className="ml-auto flex items-center justify-end gap-1 sm:gap-x-4">
+          <div className="flex w-full items-center justify-start gap-1 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:ml-auto sm:w-auto sm:justify-end sm:gap-x-4 sm:overflow-visible sm:pb-0">
             {isAdmin && (
-              <Link to="/admin" className={navItemClass} aria-label="Admin Panel">
+              <Link to="/admin" className={`${navClass(location.pathname.startsWith('/admin'))} hidden sm:inline-flex`} aria-label="Admin Panel">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 shrink-0">
                   <path d="M12 2 3 7v6c0 5 3.8 8.7 9 9 5.2-.3 9-4 9-9V7l-9-5Zm0 2.2 7 3.9V13c0 3.7-2.7 6.6-7 7-4.3-.4-7-3.3-7-7V8.1l7-3.9Z" />
                 </svg>
@@ -45,7 +48,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               </Link>
             )}
             {isClubAdmin && (
-              <Link to="/club-admin" className={`${navItemClass} sm:whitespace-nowrap`} aria-label="Club Admin">
+              <Link to="/club-admin" className={`${navClass(location.pathname.startsWith('/club-admin'))} sm:whitespace-nowrap`} aria-label="Club Admin">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 shrink-0">
                   <path d="M4 20h16v-2H4v2Zm2-3h3v-6H6v6Zm4 0h4V7h-4v10Zm5 0h3v-9h-3v9ZM4 10l8-6 8 6v2H4v-2Z" />
                 </svg>
@@ -55,7 +58,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             )}
             <Link
               to="/competitions"
-              className={navItemClass}
+              className={navClass(location.pathname.startsWith('/competitions'))}
               aria-label="Competitions"
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 shrink-0">
@@ -64,7 +67,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <span className="hidden sm:inline">Competitions</span>
               <span className="sm:hidden">Comps</span>
             </Link>
-            <Link to="/contact" className={navItemClass} aria-label="Contact support">
+            <Link to="/contact" className={navClass(location.pathname.startsWith('/contact'))} aria-label="Contact support">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 shrink-0">
                 <path d="M2 5a3 3 0 0 1 3-3h14a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H8l-5 4v-4a3 3 0 0 1-1-2V5Zm3-1a1 1 0 0 0-1 1v11h2v2.17L7.59 17H19a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1H5Z" />
               </svg>
@@ -74,7 +77,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
 
             <div className="flex items-center gap-1 sm:gap-3 sm:border-l sm:border-white/8 sm:pl-4">
-              <Link to="/profile" className={navItemClass} aria-label="Profile">
+              <Link to="/profile" className={navClass(location.pathname.startsWith('/profile'))} aria-label="Profile">
                 {/* simple user icon */}
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 shrink-0 text-gray-300 sm:h-5 sm:w-5">
                   <path d="M12 12c2.761 0 5-2.239 5-5s-2.239-5-5-5-5 2.239-5 5 2.239 5 5 5zm0 2c-4.418 0-8 3.582-8 8h2c0-3.309 2.691-6 6-6s6 2.691 6 6h2c0-4.418-3.582-8-8-8z" />
