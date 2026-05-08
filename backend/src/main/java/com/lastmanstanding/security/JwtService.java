@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
+import java.util.Map;
 
 @Service
 public class JwtService {
@@ -39,6 +40,28 @@ public class JwtService {
      */
     public String generateRefreshToken(User user) {
         return buildToken(user, refreshTokenExpiration, false);
+    }
+
+    public String generateDeleteToken(User user, long expirationMs) {
+        Date now = new Date();
+        Date expiry = new Date(now.getTime() + expirationMs);
+        return Jwts.builder()
+                .subject(String.valueOf(user.getId()))
+                .claims(Map.of("purpose", "ACCOUNT_DELETE"))
+                .issuedAt(now)
+                .expiration(expiry)
+                .signWith(signingKey)
+                .compact();
+    }
+
+    public boolean isDeleteTokenValidForUser(String token, Long userId) {
+        try {
+            Claims claims = parseToken(token);
+            String purpose = claims.get("purpose", String.class);
+            return "ACCOUNT_DELETE".equals(purpose) && String.valueOf(userId).equals(claims.getSubject());
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
     }
 
     /**

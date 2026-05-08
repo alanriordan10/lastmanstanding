@@ -965,15 +965,57 @@ export default function CompetitionHomePage() {
     }
   };
 
-  const mobileNextAction = (() => {
+  const stateBanner = (() => {
     if (!isParticipant && comp.status === 'UPCOMING') {
-      return { kind: 'join' as const, label: 'Go to join flow', meta: comp.entryFee > 0 ? `Entry €${comp.entryFee}` : 'Free entry' };
+      return {
+        tone: 'brand' as const,
+        eyebrow: 'Next Step',
+        title: 'Join this competition',
+        detail: comp.entryFee > 0 ? `Entry is €${comp.entryFee}. Join now to secure your spot before lock.` : 'Free entry. Join now to secure your spot before lock.',
+        ctaLabel: 'Join competition',
+        ctaKind: 'link' as const,
+      };
     }
-    if (awaitingPayment && comp.paymentMode === 'MANUAL') {
-      return { kind: 'pending' as const, label: 'Awaiting organiser confirmation', meta: 'You are registered but not yet marked paid' };
+    if (awaitingPayment && strictManualPayment) {
+      return {
+        tone: 'warn' as const,
+        eyebrow: 'Action Needed',
+        title: 'Awaiting payment confirmation',
+        detail: 'Your entry is registered, but picks stay locked until the organiser marks payment as received.',
+        ctaLabel: '',
+        ctaKind: 'none' as const,
+      };
     }
-    if (openWeekForAction && !isEliminated && !isWinner && !awaitingPayment) {
-      return { kind: 'pick' as const, label: `Open Gameweek ${openWeekForAction.weekNumber}`, meta: 'Review or make your pick' };
+    if (openWeekForAction && !isEliminated && !isWinner) {
+      const actionWeekNumber = openWeekForAction.weekNumber;
+      return {
+        tone: 'brand' as const,
+        eyebrow: 'Next Step',
+        title: `Gameweek ${actionWeekNumber} is open`,
+        detail: openWeekWithoutPick ? 'You still need to choose a team before lock.' : 'Your pick is in. You can still update it before lock.',
+        ctaLabel: 'Jump to picks',
+        ctaKind: 'pick' as const,
+      };
+    }
+    if (isWinner) {
+      return {
+        tone: 'success' as const,
+        eyebrow: 'Status',
+        title: 'You won this competition',
+        detail: 'Your run is complete and confirmed. Review results and sharing options below.',
+        ctaLabel: '',
+        ctaKind: 'none' as const,
+      };
+    }
+    if (isEliminated) {
+      return {
+        tone: 'muted' as const,
+        eyebrow: 'Status',
+        title: 'Your run has ended',
+        detail: 'You are eliminated in this competition. You can still follow weekly results and leaderboard movement.',
+        ctaLabel: '',
+        ctaKind: 'none' as const,
+      };
     }
     return null;
   })();
@@ -1011,7 +1053,7 @@ export default function CompetitionHomePage() {
 
 
   return (
-    <div className="space-y-8 pb-24 lg:pb-0">
+    <div className="space-y-8">
       {/* ── Header ── */}
       <section
         className="relative overflow-hidden rounded-[1.9rem] border border-white/8 px-5 py-5 shadow-[0_30px_75px_rgba(2,6,23,0.48)] sm:px-6 sm:py-6 lg:px-8 lg:py-7"
@@ -1249,67 +1291,25 @@ export default function CompetitionHomePage() {
         ))}
       </section>
 
-      {isParticipant && awaitingPayment && strictManualPayment && (
-        <section className="rounded-[1.35rem] border border-amber-400/35 bg-amber-500/10 px-4 py-4 sm:px-5">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      {stateBanner && (
+        <section className={clsx(
+          'rounded-[1.35rem] border px-4 py-4 sm:px-5',
+          stateBanner.tone === 'warn' && 'border-amber-400/35 bg-amber-500/10',
+          stateBanner.tone === 'success' && 'border-green-400/35 bg-green-500/10',
+          stateBanner.tone === 'muted' && 'border-white/10 bg-white/[0.03]',
+          stateBanner.tone === 'brand' && 'border-brand-400/35 bg-brand-500/10'
+        )}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-300">Entry Pending Payment</div>
-              <h2 className="mt-1 text-lg font-semibold text-white">Picks are locked until payment is confirmed</h2>
-              <p className="mt-1 text-sm text-gray-200">
-                Your entry is registered, but the club admin still needs to confirm your payment before you can make selections.
-              </p>
+              <div className={clsx('text-[11px] font-semibold uppercase tracking-[0.18em]', stateBanner.tone === 'warn' ? 'text-amber-300' : 'text-brand-200')}>{stateBanner.eyebrow}</div>
+              <h2 className="mt-1 text-lg font-semibold text-white">{stateBanner.title}</h2>
+              <p className="mt-1 text-sm text-gray-200">{stateBanner.detail}</p>
             </div>
-            <div className="inline-flex items-center gap-2 self-start rounded-full border border-amber-300/35 bg-black/10 px-3 py-1.5 text-xs font-medium text-amber-100">
-              <span className="h-2 w-2 rounded-full bg-amber-300" />
-              Awaiting confirmation
-            </div>
-          </div>
-        </section>
-      )}
-
-      {openWeekForAction && !isEliminated && !isWinner && !awaitingPayment && (
-        <section className="card p-4 sm:p-5 lg:hidden">
-          <div className="flex flex-col gap-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">Next pick</p>
-              <h2 className="mt-1 text-lg font-semibold text-white">Gameweek {openWeekForAction.weekNumber}</h2>
-              <p className="mt-1 text-sm text-gray-300">
-                {openWeekWithoutPick
-                  ? 'You still need to choose a team before the lock.'
-                  : openWeekWithPick
-                  ? 'Your pick is in. You can change it until lock.'
-                  : 'Fixtures are open. Jump down to make a pick.'}
-              </p>
-            </div>
-            {openWeekForAction.data?.lockAt && (
-              <p className="text-xs text-gray-400">
-                Locks {formatDistanceToNow(parseDate(openWeekForAction.data.lockAt), { addSuffix: true })}
-              </p>
-            )}
-            <button
-              type="button"
-              onClick={handleScrollToOpenWeek}
-              className="btn-primary w-full"
-            >
-              Jump to picks
-            </button>
-          </div>
-        </section>
-      )}
-
-      {openWeekForAction && !isEliminated && !isWinner && awaitingPayment && strictManualPayment && (
-        <section className="card p-4 sm:p-5 lg:hidden border border-amber-400/35 bg-amber-500/10">
-          <div className="flex flex-col gap-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-300">Next pick</p>
-              <h2 className="mt-1 text-lg font-semibold text-white">Waiting for payment confirmation</h2>
-              <p className="mt-1 text-sm text-gray-200">
-                You can’t make a pick yet. Once the club admin confirms payment, this section will unlock automatically.
-              </p>
-            </div>
-            <div className="text-xs text-amber-100/90">
-              If you have already paid, ask the organiser to mark you as paid.
-            </div>
+            {stateBanner.ctaKind === 'link' ? (
+              <Link to={joinPath} className="btn-primary w-full sm:w-auto">{stateBanner.ctaLabel}</Link>
+            ) : stateBanner.ctaKind === 'pick' ? (
+              <button type="button" onClick={handleScrollToOpenWeek} className="btn-primary w-full sm:w-auto">{stateBanner.ctaLabel}</button>
+            ) : null}
           </div>
         </section>
       )}
@@ -1980,29 +1980,6 @@ export default function CompetitionHomePage() {
         </aside>
       </div>
 
-      {mobileNextAction && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-slate-950/95 px-3 py-2 backdrop-blur lg:hidden">
-          <div className="mx-auto flex max-w-4xl items-center gap-2">
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[11px] uppercase tracking-[0.14em] text-gray-400">Next action</p>
-              <p className="truncate text-xs text-gray-200">{mobileNextAction.meta}</p>
-            </div>
-            {mobileNextAction.kind === 'join' ? (
-              <Link to={joinPath} className="btn-primary shrink-0 px-3 py-2 text-xs">
-                {mobileNextAction.label}
-              </Link>
-            ) : mobileNextAction.kind === 'pick' ? (
-              <button type="button" onClick={handleScrollToOpenWeek} className="btn-primary shrink-0 px-3 py-2 text-xs">
-                {mobileNextAction.label}
-              </button>
-            ) : (
-              <span className="shrink-0 rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-300">
-                {mobileNextAction.label}
-              </span>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
