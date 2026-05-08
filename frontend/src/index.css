@@ -88,15 +88,15 @@
     color: #e5e7eb;
   }
   .badge {
-    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] ring-2 ring-inset shadow-sm;
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] ring-1 ring-inset shadow-none;
   }
-  .badge-green { @apply badge bg-green-400/25 text-green-200 ring-green-400/55 shadow-[0_0_20px_rgba(34,197,94,0.32)]; }
-  .badge-red { @apply badge bg-red-400/25 text-red-200 ring-red-400/55 shadow-[0_0_20px_rgba(248,113,113,0.32)]; }
-  .badge-yellow { @apply badge bg-yellow-300/25 text-yellow-100 ring-yellow-300/55 shadow-[0_0_20px_rgba(253,224,71,0.28)]; }
-  .badge-blue { @apply badge bg-sky-400/25 text-sky-200 ring-sky-400/55 shadow-[0_0_20px_rgba(56,189,248,0.32)]; }
-  .badge-gray { @apply badge bg-slate-400/25 text-slate-200 ring-slate-400/45 shadow-[0_0_18px_rgba(148,163,184,0.22)]; }
-  .badge-purple { @apply badge bg-purple-400/25 text-purple-200 ring-purple-400/55 shadow-[0_0_20px_rgba(168,85,247,0.32)]; }
-  .badge-brand { @apply badge bg-brand-500/25 text-brand-200 ring-brand-400/55 shadow-[0_0_20px_rgba(56,189,248,0.3)]; }
+  .badge-green { @apply badge bg-green-400/15 text-green-200 ring-green-400/35; }
+  .badge-red { @apply badge bg-red-400/15 text-red-200 ring-red-400/35; }
+  .badge-yellow { @apply badge bg-yellow-300/15 text-yellow-100 ring-yellow-300/35; }
+  .badge-blue { @apply badge bg-sky-400/15 text-sky-200 ring-sky-400/35; }
+  .badge-gray { @apply badge bg-slate-400/15 text-slate-200 ring-slate-400/25; }
+  .badge-purple { @apply badge bg-purple-400/15 text-purple-200 ring-purple-400/35; }
+  .badge-brand { @apply badge bg-brand-500/15 text-brand-200 ring-brand-400/35; }
   .badge-soft { @apply normal-case tracking-normal text-[10px] font-semibold; }
   .badge-muted { @apply ring-1 ring-inset shadow-none; }
 }
@@ -145,4 +145,20 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   color: #ffffff;
   border-radius: 2px;
   outline: none;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }

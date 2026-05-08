@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:guide-screenshots": "node ../scripts/validate-guide-screenshots.mjs"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^6.0.0",
