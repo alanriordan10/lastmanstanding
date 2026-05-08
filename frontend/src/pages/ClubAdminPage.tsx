@@ -1182,16 +1182,30 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
   const [winnerDialogUser, setWinnerDialogUser] = useState<Participant | null>(null);
   const [removeDialogUser, setRemoveDialogUser] = useState<Participant | null>(null);
   const [unmarkDialogUser, setUnmarkDialogUser] = useState<Participant | null>(null);
+  const [mobileActionUserId, setMobileActionUserId] = useState<number | null>(null);
   const [search, setSearch] = useState('');
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'ELIMINATED' | 'WINNER'>('ALL');
   const [viewMode, setViewMode] = useState<'ALL' | 'AWAITING' | 'PAID'>('ALL');
   const [awaitingCollapsed, setAwaitingCollapsed] = useState(true);
   const [paidCollapsed, setPaidCollapsed] = useState(true);
   const [mobileOpsOpen, setMobileOpsOpen] = useState(false);
+  const [manualHintDismissed, setManualHintDismissed] = useState(false);
   const [bulkConfirming, setBulkConfirming] = useState(false);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 20;
   const isManual = paymentMode === 'MANUAL';
+  const manualHintKey = `club-admin-manual-hint-dismissed-${competitionId}`;
+
+  useEffect(() => {
+    try {
+      setManualHintDismissed(localStorage.getItem(manualHintKey) === '1');
+    } catch {
+      setManualHintDismissed(false);
+    }
+  }, [manualHintKey]);
 
   const { data: participants, isLoading } = useQuery<Participant[]>({
     queryKey: ['club-admin', 'participants', competitionId],
@@ -1376,19 +1390,19 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
   };
 
   return (
-    <div className="mt-3 pt-3 border-t border-gray-700/50 space-y-3">
-      <div className="inline-flex rounded-lg bg-surface-700 p-0.5">
+    <div className="mt-3 pt-3 border-t border-gray-700/40 space-y-4">
+      <div className="inline-flex rounded-lg bg-surface-800 p-0.5 border border-white/10">
         <button
           type="button"
           onClick={() => setActiveTab('PARTICIPANTS')}
-          className={`px-3 py-1 text-xs rounded-md ${activeTab === 'PARTICIPANTS' ? 'bg-brand-600 text-white' : 'text-gray-300 hover:text-white'}`}
+          className={`px-3 h-9 text-xs rounded-md ${activeTab === 'PARTICIPANTS' ? 'bg-brand-600 text-white' : 'text-gray-300 hover:text-white'}`}
         >
           Participants
         </button>
         <button
           type="button"
           onClick={() => setActiveTab('PAYMENTS')}
-          className={`px-3 py-1 text-xs rounded-md ${activeTab === 'PAYMENTS' ? 'bg-brand-600 text-white' : 'text-gray-300 hover:text-white'}`}
+          className={`px-3 h-9 text-xs rounded-md ${activeTab === 'PAYMENTS' ? 'bg-brand-600 text-white' : 'text-gray-300 hover:text-white'}`}
         >
           Payments
         </button>
@@ -1405,20 +1419,74 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
         {activeTab === 'PARTICIPANTS' && (
           <button
             onClick={() => setShowAddPanel((v) => !v)}
-            className="w-full sm:w-auto text-xs px-2.5 py-1 rounded-lg bg-brand-600/20 hover:bg-brand-600/40 text-brand-400 transition font-medium"
+            className="w-full sm:w-auto text-xs px-3 h-9 rounded-md bg-brand-600/15 hover:bg-brand-600/25 text-brand-300 transition font-medium"
           >
             {showAddPanel ? '✕ Cancel' : '+ Add'}
           </button>
         )}
       </div>
 
-      {isManual && (
-        <div className="rounded-lg border px-3 py-2 text-xs sm:bg-yellow-500/10 sm:border-yellow-500/20 sm:text-yellow-300 bg-white/[0.02] border-white/10 text-gray-300">
-          💸 <strong>Manual payment competition</strong> — click <strong>Confirm Payment</strong> once you've received each player's money.
+      {isManual && !manualHintDismissed && (
+        <div className="rounded-lg border px-3 py-2 text-xs sm:bg-amber-500/8 sm:border-amber-400/20 sm:text-amber-200 bg-white/[0.02] border-white/10 text-gray-300">
+          <div className="flex items-start justify-between gap-2">
+            <span>💸 <strong>Manual payment competition</strong> — click <strong>Confirm Payment</strong> once you've received each player's money.</span>
+            <button
+              type="button"
+              onClick={() => {
+                setManualHintDismissed(true);
+                try { localStorage.setItem(manualHintKey, '1'); } catch {}
+              }}
+              className="sm:hidden shrink-0 text-[11px] rounded border border-white/15 px-1.5 py-0.5 text-gray-400"
+            >
+              Dismiss
+            </button>
+          </div>
         </div>
       )}
 
-      <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+      {(participants?.length ?? 0) > 0 && activeTab === 'PARTICIPANTS' && (
+        <div className="sm:hidden sticky top-2 z-20 rounded-lg border border-white/10 bg-surface-800/95 backdrop-blur px-2 py-2 space-y-2">
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => setMobileSearchOpen((v) => !v)}
+              className="text-xs h-9 rounded-md border border-white/10 bg-white/[0.03] px-2 text-gray-300"
+            >
+              Search
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileFilterOpen(true)}
+              className="text-xs h-9 rounded-md border border-white/10 bg-white/[0.03] px-2 text-gray-300"
+            >
+              Filter
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileMoreOpen(true)}
+              className="text-xs h-9 rounded-md border border-white/10 bg-white/[0.03] px-2 text-gray-300"
+            >
+              More
+            </button>
+          </div>
+          {mobileSearchOpen && (
+            <div className="relative">
+              <input
+                type="text"
+                value={search}
+                onChange={e => { setSearch(e.target.value); setPage(1); }}
+                placeholder="Search by name…"
+                className="w-full pl-3 pr-8 h-9 text-xs rounded-lg bg-surface-800 border border-gray-600/50 text-gray-200 placeholder-gray-500 focus:outline-none focus:border-brand-500"
+              />
+              {search && (
+                <button onClick={() => { setSearch(''); setPage(1); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400">×</button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
         <div className="hidden sm:flex sm:flex-row sm:items-center sm:justify-between sm:gap-2">
           <div className="text-xs text-gray-300">
             <span className="font-semibold">Payments ops:</span>{' '}
@@ -1444,7 +1512,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
             <button
               type="button"
               onClick={exportPaymentsCsv}
-              className="text-xs px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.04] text-gray-300 hover:bg-white/[0.08]"
+              className="text-xs px-3 h-9 rounded-md border border-white/10 bg-white/[0.03] text-gray-300 hover:bg-white/[0.06]"
             >
               Export CSV
             </button>
@@ -1454,7 +1522,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
           <button
             type="button"
             onClick={() => setMobileOpsOpen((v) => !v)}
-            className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-left text-xs text-gray-200"
+            className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 h-9 text-left text-xs text-gray-200"
           >
             Payments ops: {paidSet.size} paid · {(participants?.length ?? 0) - paidSet.size} awaiting
             <span className="float-right text-gray-400">{mobileOpsOpen ? 'Hide' : 'Show'}</span>
@@ -1478,7 +1546,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
               <button
                 type="button"
                 onClick={exportPaymentsCsv}
-                className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.04] text-gray-300 hover:bg-white/[0.08]"
+                className="w-full text-xs px-3 h-9 rounded-md border border-white/10 bg-white/[0.03] text-gray-300 hover:bg-white/[0.06]"
               >
                 Export CSV
               </button>
@@ -1489,7 +1557,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
 
       {activeTab === 'PAYMENTS' && isManual && (
         <div className="grid gap-3 lg:grid-cols-2">
-          <div className="rounded-lg border border-amber-400/25 bg-amber-500/10 p-3 space-y-2">
+          <div className="rounded-lg border border-amber-400/20 bg-amber-500/6 p-3 space-y-2">
             <div className="flex items-center justify-between">
               <h5 className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-200">Awaiting Payment</h5>
               <div className="flex items-center gap-2">
@@ -1538,7 +1606,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
             )}
           </div>
 
-          <div className="rounded-lg border border-green-400/25 bg-green-500/10 p-3 space-y-2">
+          <div className="rounded-lg border border-green-400/20 bg-green-500/6 p-3 space-y-2">
             <div className="flex items-center justify-between">
               <h5 className="text-xs font-semibold uppercase tracking-[0.14em] text-green-200">Paid</h5>
               <div className="flex items-center gap-2">
@@ -1593,7 +1661,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
       )}
 
       {(participants?.length ?? 0) > 0 && (
-        <div className="flex flex-col sm:flex-row gap-2">
+        <div className="hidden sm:flex sm:flex-row gap-2">
           {/* Search */}
           <div className="relative flex-1">
             <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1604,7 +1672,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
               value={search}
               onChange={e => { setSearch(e.target.value); setPage(1); }}
               placeholder="Search by name…"
-              className="w-full pl-8 pr-8 py-1.5 text-xs rounded-lg bg-surface-700 border border-gray-600/50 text-gray-200 placeholder-gray-500 focus:outline-none focus:border-brand-500"
+              className="w-full pl-8 pr-8 h-9 text-xs rounded-lg bg-surface-800 border border-gray-600/50 text-gray-200 placeholder-gray-500 focus:outline-none focus:border-brand-500"
             />
             {search && (
               <button onClick={() => { setSearch(''); setPage(1); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white">×</button>
@@ -1613,7 +1681,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
           {/* Status filter pills */}
           {activeTab === 'PARTICIPANTS' && (
             <div className="-mx-1 overflow-x-auto pb-1 sm:mx-0 sm:overflow-visible">
-              <div className="inline-flex min-w-max rounded-lg bg-surface-700 p-0.5 shrink-0">
+              <div className="inline-flex min-w-max rounded-lg bg-surface-800 p-0.5 shrink-0 border border-white/10">
               {(['ALL', 'ACTIVE', 'ELIMINATED', 'WINNER'] as const).map(s => (
                 statusCounts[s] > 0 || s === 'ALL' ? (
                   <button key={s} onClick={() => { setStatusFilter(s); setPage(1); }}
@@ -1648,15 +1716,15 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
             {paginated.map((p) => (
               <div key={p.id} className="py-3 text-sm">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0 space-y-2">
+                  <div className="min-w-0 space-y-1.5">
                     <div className="flex items-center gap-2 flex-wrap min-w-0">
                       <span className="text-gray-200 font-medium">{p.username}</span>
                       <span className={
                         p.status === 'ACTIVE'
-                          ? 'badge-green sm:opacity-100 opacity-75'
+                          ? 'badge-green sm:opacity-100 opacity-80'
                           : p.status === 'ELIMINATED'
-                            ? 'badge-red sm:opacity-100 opacity-75'
-                            : 'badge-yellow sm:opacity-100 opacity-75'
+                            ? 'badge-red sm:opacity-100 opacity-80'
+                            : 'badge-yellow sm:opacity-100 opacity-80'
                       }>{p.status}</span>
                       {p.eliminatedWeek && (
                         <span className="hidden sm:inline text-xs text-gray-500">GW{p.eliminatedWeek}</span>
@@ -1684,7 +1752,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                       <button
                         onClick={() => markPaidMutation.mutate(p.userId)}
                         disabled={markPaidMutation.isPending}
-                        className="text-xs px-2.5 py-1.5 rounded bg-green-600/20 hover:bg-green-600/40 text-green-400 transition font-medium"
+                        className="text-xs px-3 h-9 rounded-md bg-green-600/15 hover:bg-green-600/25 text-green-300 transition font-medium"
                       >
                         💸 Confirm
                       </button>
@@ -1694,7 +1762,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                     <button
                       onClick={() => setUnmarkDialogUser(p)}
                       disabled={unmarkPaidMutation.isPending}
-                      className="text-xs px-2.5 py-1.5 rounded bg-red-600/20 hover:bg-red-600/40 text-red-400 transition"
+                      className="text-xs px-3 h-9 rounded-md bg-red-600/15 hover:bg-red-600/25 text-red-300 transition"
                     >
                       ↩️ Revert
                     </button>
@@ -1718,51 +1786,57 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                     </button>
                   )}
                 </div>
-                  <div className="sm:hidden">
-                    <details className="rounded-lg border border-white/10 bg-white/[0.03]">
-                      <summary className="cursor-pointer list-none px-3 py-2 text-xs text-gray-300">
-                        Actions
-                      </summary>
-                      <div className="border-t border-white/10 px-2 py-2 flex flex-wrap gap-2">
+                  <div className="sm:hidden relative">
+                    <button
+                      type="button"
+                      onClick={() => setMobileActionUserId((id) => (id === p.id ? null : p.id))}
+                      className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-gray-300"
+                    >
+                      Actions
+                    </button>
+                    {mobileActionUserId === p.id && (
+                      <div className="absolute left-0 top-full mt-1.5 z-30 w-full min-w-[14rem] rounded-xl border border-white/10 bg-surface-900 p-2 shadow-2xl space-y-2">
                         {isManual && (
                           paidSet.has(p.userId) ? (
                             <button
-                              onClick={() => setUnmarkDialogUser(p)}
+                              type="button"
+                              onClick={() => { setUnmarkDialogUser(p); setMobileActionUserId(null); }}
                               disabled={unmarkPaidMutation.isPending}
-                              className="text-xs px-2.5 py-1.5 rounded bg-red-600/20 hover:bg-red-600/40 text-red-400 transition"
+                              className="w-full rounded-md bg-red-600/20 px-2 py-2 text-xs text-red-300"
                             >
                               Revert payment
                             </button>
                           ) : (
                             <button
-                              onClick={() => markPaidMutation.mutate(p.userId)}
+                              type="button"
+                              onClick={() => { markPaidMutation.mutate(p.userId); setMobileActionUserId(null); }}
                               disabled={markPaidMutation.isPending}
-                              className="text-xs px-2.5 py-1.5 rounded bg-green-600/20 hover:bg-green-600/40 text-green-400 transition font-medium"
+                              className="w-full rounded-md bg-green-600/20 px-2 py-2 text-xs text-green-300"
                             >
                               Confirm payment
                             </button>
                           )
                         )}
-                        {activeTab === 'PARTICIPANTS' && p.status === 'ACTIVE' && activeCount > 1 && (
+                        {p.status === 'ACTIVE' && activeCount > 1 && (
                           <button
-                            onClick={() => setWinnerDialogUser(p)}
+                            type="button"
+                            onClick={() => { setWinnerDialogUser(p); setMobileActionUserId(null); }}
                             disabled={declareWinnerMutation.isPending}
-                            className="text-xs px-2.5 py-1.5 rounded bg-yellow-600/20 hover:bg-yellow-600/40 text-yellow-400 transition"
+                            className="w-full rounded-md bg-yellow-600/20 px-2 py-2 text-xs text-yellow-300"
                           >
                             Declare winner
                           </button>
                         )}
-                        {activeTab === 'PARTICIPANTS' && (
-                          <button
-                            onClick={() => setRemoveDialogUser(p)}
-                            disabled={removeMutation.isPending}
-                            className="text-xs px-2.5 py-1.5 rounded bg-red-600/20 hover:bg-red-600/40 text-red-400 transition"
-                          >
-                            Remove
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => { setRemoveDialogUser(p); setMobileActionUserId(null); }}
+                          disabled={removeMutation.isPending}
+                          className="w-full rounded-md bg-red-600/20 px-2 py-2 text-xs text-red-300"
+                        >
+                          Remove participant
+                        </button>
                       </div>
-                    </details>
+                    )}
                   </div>
               </div>
               </div>
@@ -1843,6 +1917,75 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
         message="This will remove the participant and delete all their picks and results for this competition."
         confirmText="Yes, Remove"
       />
+
+      {mobileFilterOpen && (
+        <div
+          className="sm:hidden fixed inset-0 z-50 flex items-end bg-black/60 px-4 py-6 animate-[fadeIn_160ms_ease-out]"
+          onClick={() => setMobileFilterOpen(false)}
+        >
+          <div
+            className="mx-auto mt-auto max-w-sm rounded-xl border border-white/10 bg-surface-900 p-4 animate-[slideUp_200ms_cubic-bezier(0.22,1,0.36,1)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-white/20" />
+            <h5 className="text-sm font-semibold text-white mb-3">Filter participants</h5>
+            <div className="grid grid-cols-2 gap-2">
+              {(['ALL', 'ACTIVE', 'ELIMINATED', 'WINNER'] as const).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => { setStatusFilter(s); setPage(1); setMobileFilterOpen(false); }}
+                  className={`text-xs rounded-md px-2 py-2 ${statusFilter === s ? 'bg-brand-600 text-white' : 'bg-white/[0.04] text-gray-300 border border-white/10'}`}
+                >
+                  {s === 'ALL' ? `All (${statusCounts.ALL})` : `${s.charAt(0) + s.slice(1).toLowerCase()} (${statusCounts[s]})`}
+                </button>
+              ))}
+            </div>
+            <button type="button" onClick={() => setMobileFilterOpen(false)} className="mt-3 w-full rounded-md border border-white/10 px-2 py-2 text-xs text-gray-300">Close</button>
+          </div>
+        </div>
+      )}
+
+      {mobileMoreOpen && (
+        <div
+          className="sm:hidden fixed inset-0 z-50 flex items-end bg-black/60 px-4 py-6 animate-[fadeIn_160ms_ease-out]"
+          onClick={() => setMobileMoreOpen(false)}
+        >
+          <div
+            className="mx-auto mt-auto max-w-sm rounded-xl border border-white/10 bg-surface-900 p-4 space-y-3 animate-[slideUp_200ms_cubic-bezier(0.22,1,0.36,1)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-1 h-1.5 w-10 rounded-full bg-white/20" />
+            <h5 className="text-sm font-semibold text-white">More options</h5>
+            {activeTab === 'PARTICIPANTS' && (
+              <button
+                type="button"
+                onClick={() => { setShowAddPanel((v) => !v); setMobileMoreOpen(false); }}
+                className="w-full rounded-md border border-white/10 bg-white/[0.04] px-2 py-2 text-xs text-gray-200"
+              >
+                {showAddPanel ? 'Close add panel' : 'Add participant'}
+              </button>
+            )}
+            {isManual && (
+              <div className="inline-flex rounded-lg bg-surface-700 p-0.5">
+                {(['ALL', 'AWAITING', 'PAID'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => { setViewMode(mode); setPage(1); }}
+                    className={`px-2 py-1 text-xs rounded-md ${viewMode === mode ? 'bg-brand-600 text-white' : 'text-gray-300 hover:text-white'}`}
+                  >
+                    {mode}
+                  </button>
+                ))}
+              </div>
+            )}
+            <button type="button" onClick={exportPaymentsCsv} className="w-full rounded-md border border-white/10 px-2 py-2 text-xs text-gray-300">Export CSV</button>
+            <button type="button" onClick={() => setMobileMoreOpen(false)} className="w-full rounded-md border border-white/10 px-2 py-2 text-xs text-gray-300">Close</button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
