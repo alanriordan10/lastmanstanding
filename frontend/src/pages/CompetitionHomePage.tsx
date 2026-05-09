@@ -905,6 +905,7 @@ export default function CompetitionHomePage() {
     : openWeekWithPick
     ? `Next lock: ${formatDistanceToNow(parseDate(openWeekWithPick.data.lockAt), { addSuffix: true })}`
     : actionMeta;
+  const secondaryMeta = actionMeta && actionMeta !== sidebarMeta ? actionMeta : null;
 
   const reminderPanel = showReminderSetup ? (
     <section className="card p-4 sm:p-5">
@@ -1104,7 +1105,7 @@ export default function CompetitionHomePage() {
             <div className="mt-3 flex flex-wrap gap-2 text-xs">
               <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-gray-200">{sidebarStatusLabel}</span>
               {sidebarMeta && <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-gray-300">{sidebarMeta}</span>}
-              {actionMeta && <span className="rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1.5 text-brand-100">{actionMeta}</span>}
+              {secondaryMeta && <span className="rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1.5 text-brand-100">{secondaryMeta}</span>}
             </div>
           </div>
           <div className="flex gap-2 flex-wrap items-start lg:flex-col lg:items-end">
