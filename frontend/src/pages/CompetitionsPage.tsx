@@ -99,24 +99,7 @@ interface SurvivorTableProgressResponse {
 
 function deriveLiveActiveCount(data: SurvivorTableProgressResponse | undefined): number | null {
   if (!data) return null;
-  const inProgressWeeks = new Set(
-    data.gameweeks.filter((gw) => gw.status === 'IN_PROGRESS').map((gw) => gw.weekNumber),
-  );
-  if (inProgressWeeks.size === 0) return null;
-
-  let active = 0;
-  for (const row of data.rows) {
-    if (row.status === 'WINNER') {
-      active += 1;
-      continue;
-    }
-    if (row.status !== 'ACTIVE') continue;
-    const eliminatedInLiveWeek = Object.entries(row.picks).some(([week, pick]) =>
-      inProgressWeeks.has(Number(week)) && pick?.outcome === 'ELIMINATED',
-    );
-    if (!eliminatedInLiveWeek) active += 1;
-  }
-  return active;
+  return data.rows.filter((row) => row.status === 'ACTIVE' || row.status === 'WINNER').length;
 }
 
 export default function CompetitionsPage() {
@@ -288,7 +271,18 @@ export default function CompetitionsPage() {
     }
     return [joinCodeCompetition, ...base];
   }, [competitions, joinCodeCompetition]);
-  const myComps        = myCompetitionsData ?? [];
+  const myComps = useMemo(() => {
+    const source = myCompetitionsData ?? [];
+    const deduped = new Map<number, MyCompetition>();
+    for (const mc of source) {
+      const id = mc?.competition?.id;
+      if (typeof id !== 'number') continue;
+      if (!deduped.has(id)) {
+        deduped.set(id, mc);
+      }
+    }
+    return Array.from(deduped.values());
+  }, [myCompetitionsData]);
   useEffect(() => {
     if (myComps.length > 8) {
       setCompactMineView(true);
@@ -385,9 +379,11 @@ export default function CompetitionsPage() {
     return searchedMine.filter((mc) => {
       const pickDue = hasPickDueAction(mc);
       const awaiting = mc.paymentState === 'AWAITING_PAYMENT';
-      if (mineFilter === 'NEEDS_ACTION') return pickDue || awaiting;
-      if (mineFilter === 'PICK_DUE') return pickDue;
-      if (mineFilter === 'AWAITING_PAYMENT') return awaiting;
+      const isCompleted = mc.competition.status === 'COMPLETED';
+      const isEliminated = mc.myStatus === 'ELIMINATED';
+      if (mineFilter === 'NEEDS_ACTION') return !isCompleted && !isEliminated && (pickDue || awaiting);
+      if (mineFilter === 'PICK_DUE') return !isCompleted && !isEliminated && pickDue;
+      if (mineFilter === 'AWAITING_PAYMENT') return !isCompleted && !isEliminated && awaiting;
       if (mineFilter === 'FINISHED') return mc.competition.status === 'COMPLETED';
       if (mineFilter === 'ELIMINATED') return mc.competition.status !== 'COMPLETED' && mc.myStatus === 'ELIMINATED';
       return mc.competition.status !== 'COMPLETED' && (mc.myStatus === 'ACTIVE' || mc.myStatus === 'WINNER');
@@ -404,6 +400,11 @@ export default function CompetitionsPage() {
   }, [pastCompetitions, search]);
 
   const isMineNeedsAction = useCallback((mc: MyCompetition) => {
+    // Keep section buckets mutually exclusive: eliminated/finished competitions
+    // should not also appear in Needs Action.
+    if (mc.competition.status === 'COMPLETED' || mc.myStatus === 'ELIMINATED') {
+      return false;
+    }
     return mc.paymentState === 'AWAITING_PAYMENT' || hasPickDueAction(mc);
   }, [requiresPickByCompetitionId]);
   const mineNeedsActionCount = useMemo(

@@ -25,6 +25,7 @@ export default function SurvivorTablePage() {
   const compId = Number(id);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'ELIMINATED' | 'WINNER'>('ALL');
+  const [eliminatedWeekFilter, setEliminatedWeekFilter] = useState<'ALL' | number>('ALL');
   const [page, setPage] = useState(1);
 
   const { data: comp } = useQuery<Competition>({
@@ -46,56 +47,35 @@ export default function SurvivorTablePage() {
 
   const gameweeks = tableData?.gameweeks ?? [];
   const rows = tableData?.rows ?? [];
-  const inProgressWeeks = useMemo(
-    () => new Set(gameweeks.filter((gw) => gw.status === 'IN_PROGRESS').map((gw) => gw.weekNumber)),
-    [gameweeks],
+  const eliminatedWeeks = useMemo(
+    () => Array.from(new Set(rows.map((r) => r.eliminatedWeek).filter((w): w is number => w != null))).sort((a, b) => a - b),
+    [rows],
   );
-
-  const effectiveStatusByUserId = useMemo(() => {
-    const map = new Map<number, SurvivorRow['status']>();
-    for (const row of rows) {
-      let effective: SurvivorRow['status'] = row.status;
-      if (row.status === 'ACTIVE') {
-        for (const [weekStr, pick] of Object.entries(row.picks)) {
-          const week = Number(weekStr);
-          if (!Number.isNaN(week) && inProgressWeeks.has(week) && pick?.outcome === 'ELIMINATED') {
-            effective = 'ELIMINATED';
-            break;
-          }
-        }
-      }
-      map.set(row.userId, effective);
-    }
-    return map;
-  }, [rows, inProgressWeeks]);
 
   const filtered = useMemo(() => rows.filter((r) => {
     const matchSearch = !search || r.username.toLowerCase().includes(search.toLowerCase());
-    const effectiveStatus = effectiveStatusByUserId.get(r.userId) ?? r.status;
-    const matchStatus = statusFilter === 'ALL' || effectiveStatus === statusFilter;
-    return matchSearch && matchStatus;
-  }), [rows, search, statusFilter, effectiveStatusByUserId]);
+    const matchStatus = statusFilter === 'ALL' || r.status === statusFilter;
+    const matchEliminatedWeek = eliminatedWeekFilter === 'ALL' || r.eliminatedWeek === eliminatedWeekFilter;
+    return matchSearch && matchStatus && matchEliminatedWeek;
+  }), [rows, search, statusFilter, eliminatedWeekFilter]);
 
   const counts = {
     ALL: rows.length,
-    ACTIVE: rows.filter((r) => (effectiveStatusByUserId.get(r.userId) ?? r.status) === 'ACTIVE').length,
-    ELIMINATED: rows.filter((r) => (effectiveStatusByUserId.get(r.userId) ?? r.status) === 'ELIMINATED').length,
-    WINNER: rows.filter((r) => (effectiveStatusByUserId.get(r.userId) ?? r.status) === 'WINNER').length,
+    ACTIVE: rows.filter((r) => r.status === 'ACTIVE').length,
+    ELIMINATED: rows.filter((r) => r.status === 'ELIMINATED').length,
+    WINNER: rows.filter((r) => r.status === 'WINNER').length,
   };
 
   const sorted = useMemo(() => [...filtered].sort((a, b) => {
     const rank = (r: SurvivorRow) => {
-      const status = effectiveStatusByUserId.get(r.userId) ?? r.status;
-      return status === 'WINNER' ? 0 : status === 'ACTIVE' ? 1 : 2;
+      return r.status === 'WINNER' ? 0 : r.status === 'ACTIVE' ? 1 : 2;
     };
     if (rank(a) !== rank(b)) return rank(a) - rank(b);
-    const statusA = effectiveStatusByUserId.get(a.userId) ?? a.status;
-    const statusB = effectiveStatusByUserId.get(b.userId) ?? b.status;
-    if (statusA === 'ELIMINATED' && statusB === 'ELIMINATED') {
+    if (a.status === 'ELIMINATED' && b.status === 'ELIMINATED') {
       return (b.eliminatedWeek ?? 0) - (a.eliminatedWeek ?? 0);
     }
     return a.username.localeCompare(b.username);
-  }), [filtered, effectiveStatusByUserId]);
+  }), [filtered]);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -105,6 +85,7 @@ export default function SurvivorTablePage() {
 
   const handleSearch = (v: string) => { setSearch(v); setPage(1); };
   const handleStatusFilter = (s: typeof statusFilter) => { setStatusFilter(s); setPage(1); };
+  const handleEliminatedWeekFilter = (week: 'ALL' | number) => { setEliminatedWeekFilter(week); setPage(1); };
 
   return (
     <div className="space-y-6">
@@ -165,6 +146,21 @@ export default function SurvivorTablePage() {
             </button>
           ))}
         </div>
+        <div className="w-full sm:w-auto sm:min-w-[180px]">
+          <select
+            value={eliminatedWeekFilter === 'ALL' ? 'ALL' : String(eliminatedWeekFilter)}
+            onChange={(e) => {
+              const val = e.target.value;
+              handleEliminatedWeekFilter(val === 'ALL' ? 'ALL' : Number(val));
+            }}
+            className="input-field w-full text-sm"
+          >
+            <option value="ALL">Eliminated: All weeks</option>
+            {eliminatedWeeks.map((week) => (
+              <option key={week} value={String(week)}>Eliminated: GW{week}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {isLoading ? (
@@ -185,9 +181,9 @@ export default function SurvivorTablePage() {
                 : `${sorted.length} of ${rows.length} participants`}
               {totalPages > 1 && ` — page ${currentPage} of ${totalPages}`}
             </span>
-            {(search || statusFilter !== 'ALL') && (
+            {(search || statusFilter !== 'ALL' || eliminatedWeekFilter !== 'ALL') && (
               <button
-                onClick={() => { handleSearch(''); handleStatusFilter('ALL'); }}
+                onClick={() => { handleSearch(''); handleStatusFilter('ALL'); handleEliminatedWeekFilter('ALL'); }}
                 className="text-brand-400 hover:text-brand-300 underline"
                 style={clubAccent ? { color: clubAccent } : undefined}
               >
@@ -232,21 +228,20 @@ export default function SurvivorTablePage() {
                     </td>
                   </tr>
                 ) : paginated.map((row) => {
-                    const effectiveStatus = effectiveStatusByUserId.get(row.userId) ?? row.status;
                     return (
                   <tr
                     key={row.userId}
                     className={`transition-colors ${
-                      effectiveStatus === 'WINNER' ? 'bg-yellow-600/10 hover:bg-yellow-600/15' :
-                      effectiveStatus === 'ACTIVE' ? 'hover:bg-surface-700/40' :
+                      row.status === 'WINNER' ? 'bg-yellow-600/10 hover:bg-yellow-600/15' :
+                      row.status === 'ACTIVE' ? 'hover:bg-surface-700/40' :
                       'opacity-60 hover:opacity-80 hover:bg-surface-700/30'
                     }`}
                   >
                     <td className="py-3 px-4 sticky left-0 bg-surface-900/95 z-10">
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-gray-200 truncate max-w-[110px]">{row.username}</span>
-                        {effectiveStatus === 'WINNER' && <span className="text-sm shrink-0">🏆</span>}
-                        {effectiveStatus === 'ELIMINATED' && (
+                        {row.status === 'WINNER' && <span className="text-sm shrink-0">🏆</span>}
+                        {row.status === 'ELIMINATED' && (
                           <span className="text-[10px] text-red-400 shrink-0">GW{row.eliminatedWeek}</span>
                         )}
                       </div>
