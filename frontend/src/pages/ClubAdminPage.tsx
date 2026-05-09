@@ -46,6 +46,7 @@ export default function ClubAdminPage() {
   const [checklistOpen, setChecklistOpen] = useState(true);
   const [stripeOpen, setStripeOpen] = useState(false);
   const adminDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const checklistUserToggledRef = useRef(false);
   const formRef = useRef<HTMLFormElement | null>(null);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -282,6 +283,7 @@ export default function ClubAdminPage() {
       : 'Not connected';
 
   useEffect(() => {
+    if (checklistUserToggledRef.current) return;
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
     if (isMobile) {
       setChecklistOpen(false);
@@ -290,9 +292,7 @@ export default function ClubAdminPage() {
     }
     setChecklistOpen(checklistDoneCount < onboardingSteps.length);
     setStripeOpen(false);
-    // Initialize once; users can toggle afterwards.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [checklistDoneCount, onboardingSteps.length]);
 
   // Debounced user search for assign admin
   useEffect(() => {
@@ -416,7 +416,10 @@ export default function ClubAdminPage() {
       <div className="card space-y-3">
         <button
           type="button"
-          onClick={() => setChecklistOpen((v) => !v)}
+          onClick={() => {
+            checklistUserToggledRef.current = true;
+            setChecklistOpen((v) => !v);
+          }}
           className="flex w-full items-center justify-between rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2.5 text-left"
           aria-expanded={checklistOpen}
         >

@@ -6,6 +6,7 @@ import com.lastmanstanding.repository.*;
 import com.lastmanstanding.security.UserDetailsImpl;
 import com.lastmanstanding.service.CompetitionService;
 import com.lastmanstanding.service.PickService;
+import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -103,6 +104,7 @@ public class CompetitionController {
             @AuthenticationPrincipal UserDetailsImpl userDetails,
             @RequestParam(required = false) Long clubId) {
 
+        LocalDate cutoffDate = LocalDate.now().minusMonths(3);
         List<Competition> past;
         if (userDetails.getUser().getRole().name().equals("CLUB_ADMIN")) {
             List<Club> clubs = clubRepository.findByClubAdminId(userDetails.getId());
@@ -116,6 +118,14 @@ public class CompetitionController {
         } else {
             return List.of();
         }
+        past = past.stream()
+                .filter(c -> {
+                    if (c.getStartDate() != null) {
+                        return !c.getStartDate().isBefore(cutoffDate);
+                    }
+                    return c.getCreatedAt() != null && !c.getCreatedAt().toLocalDate().isBefore(cutoffDate);
+                })
+                .toList();
         if (past.isEmpty()) return List.of();
 
         Map<Long, long[]> counts = batchParticipantCounts();
