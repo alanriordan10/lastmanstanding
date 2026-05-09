@@ -10,6 +10,7 @@ import clsx from 'clsx';
 import { useCountdown } from '../hooks/useCountdown';
 import { useAuth } from '../context/AuthContext';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import { MetricCard, StatusPill } from '../components/ui-primitives';
 
 interface PickStat {
   teamId: number;
@@ -1087,18 +1088,23 @@ export default function CompetitionHomePage() {
               <span>←</span> Competition lobby
             </Link>
             <div className="flex flex-wrap items-center gap-2">
-              <span className={comp.status === 'ACTIVE' ? 'badge-green' : comp.status === 'UPCOMING' ? 'badge-blue' : 'badge-gray'}>
+              <StatusPill tone={comp.status === 'ACTIVE' ? 'success' : comp.status === 'UPCOMING' ? 'info' : 'neutral'}>
                 {comp.status}
-              </span>
-              {isEliminated && <span className="badge-red">ELIMINATED</span>}
-              {isWinner && <span className="badge-green">🏆 WINNER</span>}
+              </StatusPill>
+              {isEliminated && <StatusPill tone="danger">Eliminated</StatusPill>}
+              {isWinner && <StatusPill tone="warn">🏆 Winner</StatusPill>}
             </div>
             <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-5xl">{comp.name}</h1>
             {comp.description && <p className="mt-2 max-w-xl text-sm leading-6 text-gray-300 sm:text-[15px] lg:text-base">{comp.description}</p>}
             <div className="mt-4 grid max-w-xl grid-cols-3 gap-2 sm:gap-3 lg:gap-4">
-              <HeroStat label="Players" value={String(comp.participantCount ?? 0)} />
-              <HeroStat label="Active" value={String(inProgressWeek ? effectiveActiveCount : (comp.activeCount ?? 0))} />
-              <HeroStat label="Prize" value={comp.prizePool && comp.prizePool > 0 ? `€${comp.prizePool}` : comp.entryFee > 0 ? `€${comp.entryFee}` : 'Free'} />
+              <MetricCard label="Players" value={String(comp.participantCount ?? 0)} />
+              <MetricCard label="Active" value={String(inProgressWeek ? effectiveActiveCount : (comp.activeCount ?? 0))} />
+              <MetricCard label="Prize" value={comp.prizePool && comp.prizePool > 0 ? `€${comp.prizePool}` : comp.entryFee > 0 ? `€${comp.entryFee}` : 'Free'} />
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2 text-xs">
+              <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-gray-200">{sidebarStatusLabel}</span>
+              {sidebarMeta && <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-gray-300">{sidebarMeta}</span>}
+              {actionMeta && <span className="rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1.5 text-brand-100">{actionMeta}</span>}
             </div>
           </div>
           <div className="flex gap-2 flex-wrap items-start lg:flex-col lg:items-end">
@@ -1115,7 +1121,7 @@ export default function CompetitionHomePage() {
           <div className="relative" data-share-menu>
             <button
               onClick={() => setShareOpen((v) => !v)}
-              className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 text-gray-300 transition border border-gray-600/50"
+              className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white transition border border-white/20"
               style={comp.clubPrimaryColor ? {
                 borderColor: `${comp.clubPrimaryColor}44`,
                 backgroundColor: `${comp.clubPrimaryColor}14`,
@@ -1192,7 +1198,7 @@ export default function CompetitionHomePage() {
           {/* Survivor Table */}
           <Link
             to={`/competitions/${compId}/survivor-table`}
-            className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 text-gray-300 transition border border-gray-600/50"
+            className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white transition border border-white/20"
             style={comp.clubSecondaryColor ? {
               borderColor: `${comp.clubSecondaryColor}44`,
               backgroundColor: `${comp.clubSecondaryColor}12`,
@@ -2062,7 +2068,7 @@ function TeamButton({
         'flex h-full flex-col justify-center gap-0.5 rounded-lg px-1.5 sm:px-3 lg:px-4 py-0.5 sm:py-0.5 w-full min-w-0 transition-all min-h-[28px] sm:min-h-[30px] lg:min-h-[32px]',
         align === 'right' ? 'items-end text-right' : 'items-start text-left',
         isMyPick && 'bg-brand-600/85 border-2 border-brand-300 text-white font-bold shadow-md shadow-brand-900/25',
-        isUsed && !isMyPick && 'bg-transparent text-gray-400 cursor-not-allowed',
+        isUsed && !isMyPick && 'bg-transparent text-amber-300 cursor-not-allowed',
         isClickable && !isMyPick && 'bg-surface-600/50 border border-gray-600 hover:border-gray-500 hover:bg-white/[0.04] text-gray-200 cursor-pointer font-medium',
         !isClickable && !isUsed && !isMyPick && 'bg-transparent text-gray-400 cursor-default font-medium',
       )}
@@ -2079,7 +2085,7 @@ function TeamButton({
           <span
             className={clsx(
               'inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em]',
-              isMyPick ? 'bg-white/18 text-white' : 'bg-gray-500/22 text-gray-400',
+              isMyPick ? 'bg-white/18 text-white' : 'bg-amber-500/20 text-amber-200',
             )}
           >
             {statusPillLabel}
@@ -2090,7 +2096,7 @@ function TeamButton({
       {pickStat ? (
         align === 'right' ? (
           <div className="hidden sm:flex w-full items-center gap-2 text-right">
-            <span className={clsx('w-[3.9rem] shrink-0 text-xs font-bold text-left', isMyPick ? 'text-white' : 'text-gray-400')}>
+            <span className={clsx('w-[3.9rem] shrink-0 text-xs font-bold text-left', isMyPick ? 'text-white' : isUsed ? 'text-amber-200' : 'text-gray-400')}>
               {showStatusPill ? statusPillLabel : ''}
             </span>
             <span className="min-w-0 flex-1 truncate text-xs lg:text-sm font-normal opacity-90 text-right">
@@ -2109,7 +2115,7 @@ function TeamButton({
             <span className="min-w-0 flex-1 truncate text-xs lg:text-sm font-normal opacity-90">
               {name}
             </span>
-            <span className={clsx('w-[3.9rem] shrink-0 text-xs font-bold text-right', isMyPick ? 'text-white' : 'text-gray-400')}>
+            <span className={clsx('w-[3.9rem] shrink-0 text-xs font-bold text-right', isMyPick ? 'text-white' : isUsed ? 'text-amber-200' : 'text-gray-400')}>
               {showStatusPill ? statusPillLabel : ''}
             </span>
           </div>
@@ -2229,15 +2235,6 @@ function ActionPanel({
       )}
       {cta && <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">{cta}</div>}
     </section>
-  );
-}
-
-function HeroStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-white/8 bg-white/[0.045] px-3 py-2.5 backdrop-blur-sm">
-      <div className="text-lg font-black text-white">{value}</div>
-      <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">{label}</div>
-    </div>
   );
 }
 
