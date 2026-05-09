@@ -121,12 +121,7 @@ public class GameweekProcessingService {
                     .filter(cp -> !paidUserIds.contains(cp.getUser().getId()))
                     .toList();
             if (!unpaid.isEmpty()) {
-                for (CompetitionParticipant cp : unpaid) {
-                    cp.setStatus(ParticipantStatus.ELIMINATED);
-                    cp.setEliminatedWeek(gw.getWeekNumber());
-                }
-                participantRepository.saveAll(unpaid);
-                log.info("Eliminated {} unpaid manual-payment participants before locking GW{} in competition {}",
+                log.info("Excluded {} unpaid manual-payment participants from GW{} lock processing in competition {}",
                         unpaid.size(), gw.getWeekNumber(), comp.getId());
             }
             activeParticipants = activeParticipants.stream()

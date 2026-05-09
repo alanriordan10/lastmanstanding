@@ -338,6 +338,12 @@ export default function CompetitionHomePage() {
   // Hook must be called unconditionally — before any early returns
   const countdown = useCountdown(nextLockDateForHook);
 
+  useEffect(() => {
+    if (comp?.status !== 'UPCOMING' && shareOpen) {
+      setShareOpen(false);
+    }
+  }, [comp?.status, shareOpen]);
+
   if (compLoading || statusLoading) {
     return (
       <div className="space-y-8 animate-pulse">
@@ -382,6 +388,7 @@ export default function CompetitionHomePage() {
   const isParticipant = !!participant;
   const isEliminated = participant?.status === 'ELIMINATED';
   const isWinner = participant?.status === 'WINNER';
+  const canInvite = comp.status === 'UPCOMING';
   const paymentState = participant?.paymentState;
   const awaitingPayment = paymentState === 'AWAITING_PAYMENT';
   const strictManualPayment = comp.paymentMode === 'MANUAL' && comp.manualPaymentPolicy !== 'LENIENT';
@@ -534,6 +541,7 @@ export default function CompetitionHomePage() {
         fixture.status === 'FINISHED' || fixture.status === 'POSTPONED' || fixture.status === 'CANCELLED'
       )
     ) ?? latestCompletedWeek;
+  const pulseLatestWeek = inProgressWeek ?? latestCompletedWeek;
 
   const latestNarrativeStats = latestNarrativeWeek
     ? [...(pickStatsByGwId.get(latestNarrativeWeek.data.gwId) ?? [])].sort((a, b) => b.pickCount - a.pickCount)
@@ -580,11 +588,11 @@ export default function CompetitionHomePage() {
     .reverse()
     .find((stat) => {
       const result = narrativeTeamResults.get(stat.teamId);
-      return stat.pickCount > 0 && (result === 'WIN' || result === 'DRAW' || result === 'POSTPONED');
+      return stat.pickCount > 0 && (result === 'WIN' || result === 'POSTPONED');
     });
   const survivingPickedTeams = latestNarrativeStats.filter((stat) => {
     const result = narrativeTeamResults.get(stat.teamId);
-    return result === 'WIN' || result === 'DRAW' || result === 'POSTPONED';
+    return result === 'WIN' || result === 'POSTPONED';
   });
   const doomedPickedTeams = latestNarrativeStats.filter((stat) => narrativeTeamResults.get(stat.teamId) === 'LOSS');
   const totalResolvedPicks = latestNarrativeStats.reduce((sum, stat) => sum + stat.pickCount, 0);
@@ -1103,6 +1111,7 @@ export default function CompetitionHomePage() {
             />
           )}
           {/* Share / Invite */}
+          {canInvite && (
           <div className="relative" data-share-menu>
             <button
               onClick={() => setShareOpen((v) => !v)}
@@ -1179,6 +1188,7 @@ export default function CompetitionHomePage() {
               </div>
             )}
           </div>
+          )}
           {/* Survivor Table */}
           <Link
             to={`/competitions/${compId}/survivor-table`}
@@ -1203,8 +1213,8 @@ export default function CompetitionHomePage() {
                 <img src={comp.clubLogoUrl} alt="" className="h-6 w-6 rounded-md object-cover border border-white/20" />
               )}
               <span>{comp.clubName ? comp.clubName : 'Competition'} Pulse</span>
-              {latestCompletedWeek && <span className="text-gray-500">•</span>}
-              {latestCompletedWeek && <span className="text-yellow-200/90">Latest: GW{latestCompletedWeek.weekNumber}</span>}
+              {pulseLatestWeek && <span className="text-gray-500">•</span>}
+              {pulseLatestWeek && <span className="text-yellow-200/90">Latest: GW{pulseLatestWeek.weekNumber}</span>}
             </div>
             <h2 className="mt-3 text-2xl font-black tracking-tight text-white sm:text-3xl">{storylineTitle}</h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-300 sm:text-[15px]">{storylineBody}</p>
@@ -2052,7 +2062,7 @@ function TeamButton({
         'flex h-full flex-col justify-center gap-0.5 rounded-lg px-1.5 sm:px-3 lg:px-4 py-0.5 sm:py-0.5 w-full min-w-0 transition-all min-h-[28px] sm:min-h-[30px] lg:min-h-[32px]',
         align === 'right' ? 'items-end text-right' : 'items-start text-left',
         isMyPick && 'bg-brand-600/85 border-2 border-brand-300 text-white font-bold shadow-md shadow-brand-900/25',
-        isUsed && !isMyPick && 'bg-transparent text-gray-700 cursor-not-allowed',
+        isUsed && !isMyPick && 'bg-transparent text-gray-400 cursor-not-allowed',
         isClickable && !isMyPick && 'bg-surface-600/50 border border-gray-600 hover:border-gray-500 hover:bg-white/[0.04] text-gray-200 cursor-pointer font-medium',
         !isClickable && !isUsed && !isMyPick && 'bg-transparent text-gray-400 cursor-default font-medium',
       )}
@@ -2079,27 +2089,27 @@ function TeamButton({
       {/* Desktop */}
       {pickStat ? (
         align === 'right' ? (
-          <div className="hidden sm:grid w-full items-center gap-2 grid-cols-[auto_1fr_auto] text-right">
-            <span className={clsx('text-xs font-bold justify-self-start', isMyPick ? 'text-white' : 'text-gray-400')}>
+          <div className="hidden sm:flex w-full items-center gap-2 text-right">
+            <span className={clsx('w-[3.9rem] shrink-0 text-xs font-bold text-left', isMyPick ? 'text-white' : 'text-gray-400')}>
               {showStatusPill ? statusPillLabel : ''}
             </span>
-            <span className="truncate text-xs lg:text-sm font-normal opacity-90 justify-self-end">
+            <span className="min-w-0 flex-1 truncate text-xs lg:text-sm font-normal opacity-90 text-right">
               {name}
             </span>
-            <span className={clsx('font-bold sm:text-sm', isMyPick ? 'text-white' : isUsed ? 'line-through' : '')} style={{ width: '3ch' }}>
+            <span className={clsx('w-[3ch] shrink-0 font-bold sm:text-sm', isMyPick ? 'text-white' : '')}>
               {shortName}
             </span>
           </div>
         ) : (
-          <div className="hidden sm:grid w-full items-center gap-2 grid-cols-[auto_auto_1fr_auto] text-left">
-            <span className={clsx('font-bold sm:text-sm', isMyPick ? 'text-white' : isUsed ? 'line-through' : '')} style={{ width: '3ch' }}>
+          <div className="hidden sm:flex w-full items-center gap-2 text-left">
+            <span className={clsx('w-[3ch] shrink-0 font-bold sm:text-sm', isMyPick ? 'text-white' : '')}>
               {shortName}
             </span>
-            <span className="text-[10px] text-gray-500">·</span>
-            <span className="truncate text-xs lg:text-sm font-normal opacity-90">
+            <span className="shrink-0 text-[10px] text-gray-500">·</span>
+            <span className="min-w-0 flex-1 truncate text-xs lg:text-sm font-normal opacity-90">
               {name}
             </span>
-            <span className={clsx('text-xs font-bold justify-self-end', isMyPick ? 'text-white' : 'text-gray-400')}>
+            <span className={clsx('w-[3.9rem] shrink-0 text-xs font-bold text-right', isMyPick ? 'text-white' : 'text-gray-400')}>
               {showStatusPill ? statusPillLabel : ''}
             </span>
           </div>
@@ -2113,7 +2123,7 @@ function TeamButton({
             <span className="truncate text-center text-xs lg:text-sm font-normal opacity-90">
               {name}
             </span>
-            <span className={clsx('text-right font-bold sm:text-sm', isMyPick ? 'text-white' : isUsed ? 'line-through' : '')}>
+            <span className={clsx('text-right font-bold sm:text-sm', isMyPick ? 'text-white' : '')}>
               {shortName}
             </span>
           </div>
@@ -2121,7 +2131,7 @@ function TeamButton({
       ) : (
         <div className="hidden sm:grid h-full w-full place-items-center">
           <div className="grid w-full max-w-[18rem] grid-cols-[3ch_minmax(0,1fr)_3.5ch] items-center gap-2">
-            <span className={clsx('text-left font-bold sm:text-sm', isMyPick ? 'text-white' : isUsed ? 'line-through' : '')}>
+            <span className={clsx('text-left font-bold sm:text-sm', isMyPick ? 'text-white' : '')}>
               {shortName}
             </span>
             <span className="truncate text-center text-xs lg:text-sm font-normal opacity-90">

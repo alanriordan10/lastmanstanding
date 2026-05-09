@@ -330,13 +330,20 @@ public class FixtureSyncService {
             Gameweek gw = gwByCompWeekNum.get(compWeekNumber);
             if (gw == null) {
                 LocalDateTime earliest = weekEarliestKickoff.get(pf.weekNumber());
-                LocalDateTime lockAt   = earliest.minusHours(1);
+                LocalDateTime lockAt   = earliest;
                 LocalDateTime weekStart = earliest.toLocalDate().atStartOfDay();
                 gw = new Gameweek(comp, compWeekNumber, lockAt, weekStart,
                         weekStart.plusDays(3), GameweekStatus.UPCOMING);
                 // Save immediately so FK is available for fixtures
                 gw = gameweekRepository.save(gw);
                 gwByCompWeekNum.put(compWeekNumber, gw);
+            } else if (gw.getStatus() == GameweekStatus.UPCOMING) {
+                LocalDateTime earliest = weekEarliestKickoff.get(pf.weekNumber());
+                if (earliest != null && !earliest.equals(gw.getLockAt())) {
+                    gw.setLockAt(earliest);
+                    gw = gameweekRepository.save(gw);
+                    gwByCompWeekNum.put(compWeekNumber, gw);
+                }
             }
 
             Fixture existing = existingFixtureByExtId.get(pf.externalFixtureId());
