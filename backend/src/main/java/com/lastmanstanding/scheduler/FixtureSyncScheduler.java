@@ -8,6 +8,7 @@ import com.lastmanstanding.provider.FootballDataProvider;
 import com.lastmanstanding.repository.CompetitionRepository;
 import com.lastmanstanding.repository.GameweekRepository;
 import com.lastmanstanding.service.FixtureSyncService;
+import com.lastmanstanding.service.FixtureOddsSyncService;
 import com.lastmanstanding.service.GameweekProcessingService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,17 +26,20 @@ public class FixtureSyncScheduler {
 
     private final FixtureSyncService fixtureSyncService;
     private final GameweekProcessingService gameweekProcessingService;
+    private final FixtureOddsSyncService fixtureOddsSyncService;
     private final CompetitionRepository competitionRepository;
     private final GameweekRepository gameweekRepository;
     private final Optional<FootballDataProvider> footballDataProvider;
 
     public FixtureSyncScheduler(FixtureSyncService fixtureSyncService,
                                 GameweekProcessingService gameweekProcessingService,
+                                FixtureOddsSyncService fixtureOddsSyncService,
                                 CompetitionRepository competitionRepository,
                                 GameweekRepository gameweekRepository,
                                 Optional<FootballDataProvider> footballDataProvider) {
         this.fixtureSyncService = fixtureSyncService;
         this.gameweekProcessingService = gameweekProcessingService;
+        this.fixtureOddsSyncService = fixtureOddsSyncService;
         this.competitionRepository = competitionRepository;
         this.gameweekRepository = gameweekRepository;
         this.footballDataProvider = footballDataProvider;
@@ -72,6 +76,19 @@ public class FixtureSyncScheduler {
             }
         } catch (Exception e) {
             log.error("Live fixture sync failed: {}", e.getMessage());
+        }
+    }
+
+    /** Odds sync cadence is configurable to balance freshness and API quota usage. */
+    @Scheduled(cron = "${odds.sync-cron:0 */20 * * * *}")
+    public void syncOdds() {
+        try {
+            int updated = fixtureOddsSyncService.syncOdds();
+            if (updated > 0) {
+                log.info("Synced odds for {} fixture(s)", updated);
+            }
+        } catch (Exception e) {
+            log.error("Odds sync failed: {}", e.getMessage());
         }
     }
 

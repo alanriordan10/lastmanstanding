@@ -229,6 +229,13 @@ public final class CompetitionDtos {
             String status,
             Integer scoreHome,
             Integer scoreAway,
+            BigDecimal oddsHomeWin,
+            BigDecimal oddsDraw,
+            BigDecimal oddsAwayWin,
+            BigDecimal oddsImpliedHome,
+            BigDecimal oddsImpliedDraw,
+            BigDecimal oddsImpliedAway,
+            LocalDateTime oddsUpdatedAt,
             boolean hasOverride,
             LocalDateTime gameweekLockAt,
             String gameweekStatus
@@ -245,6 +252,9 @@ public final class CompetitionDtos {
                     away.getId(), away.getName(), away.getShortName(),
                     f.getEffectiveKickoffAt(), f.getEffectiveStatus().name(),
                     f.getEffectiveScoreHome(), f.getEffectiveScoreAway(),
+                    f.getOddsHomeWin(), f.getOddsDraw(), f.getOddsAwayWin(),
+                    f.getOddsImpliedHome(), f.getOddsImpliedDraw(), f.getOddsImpliedAway(),
+                    f.getOddsUpdatedAt(),
                     hasOverride,
                     f.getGameweek().getLockAt(),
                     f.getGameweek().getStatus().name()
