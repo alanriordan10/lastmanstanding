@@ -113,8 +113,8 @@ export default function SignupPage() {
           <div className="inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-200">
             Player signup
           </div>
-          <div className="mt-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-brand-300/25 bg-gradient-to-br from-brand-500 to-cyan-400 text-xl font-black text-slate-950 shadow-[0_10px_28px_rgba(56,189,248,0.18)]">
-            LMS
+          <div className="mt-6 flex h-20 w-20 items-center justify-center overflow-hidden rounded-3xl bg-transparent p-0 shadow-[0_10px_24px_rgba(2,6,23,0.35)]">
+            <img src="/app-logo.png" alt="Last Man Standing logo" className="h-full w-full rounded-2xl object-cover" />
           </div>
           <h1 className="mt-6 text-4xl font-black tracking-tight text-white">Create Account</h1>
           <p className="mt-3 max-w-md text-sm leading-6 text-gray-300 sm:text-[15px]">

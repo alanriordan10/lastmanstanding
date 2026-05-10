@@ -48,12 +48,18 @@ export function usePushNotifications() {
         return true;
       }
 
-      const reg = await navigator.serviceWorker.ready;
+      const reg = await navigator.serviceWorker.ready.catch(() => null);
+      if (!reg) {
+        // Fallback: browser notifications are still enabled for this device/session.
+        setIsSubscribed(true);
+        return true;
+      }
+
       const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
       if (!vapidPublicKey) {
-        // No VAPID key configured — cannot create a real push subscription.
-        setIsSubscribed(false);
-        return false;
+        // No VAPID key configured: enable local browser alerts without remote push delivery.
+        setIsSubscribed(true);
+        return true;
       }
 
       const existingSub = await reg.pushManager.getSubscription();

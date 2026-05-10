@@ -36,6 +36,12 @@ function riskLabelText(risk: TeamRisk): string {
   return 'High risk';
 }
 
+function riskLabelTextMobile(risk: TeamRisk): string {
+  if (risk.label === 'Safe') return 'Low';
+  if (risk.label === 'Balanced') return 'Medium';
+  return 'High';
+}
+
 function parseDate(value: string | number[]): Date {
   if (Array.isArray(value)) {
     const [y, mo, d, h = 0, mi = 0, s = 0] = value as number[];
@@ -98,6 +104,11 @@ function impliedFromDecimalOdds(home?: number | null, draw?: number | null, away
 }
 
 function calculateTeamRisk(fixture: Fixture, side: 'home' | 'away', pickStat?: PickStat): TeamRisk | null {
+  // Show risk only in planning context (before lock).
+  if (fixture.gameweekStatus !== 'UPCOMING') {
+    return null;
+  }
+
   const implied = side === 'home' ? fixture.oddsImpliedHome : fixture.oddsImpliedAway;
   const impliedFromOdds = impliedFromDecimalOdds(fixture.oddsHomeWin, fixture.oddsDraw, fixture.oddsAwayWin);
   const pRaw = implied ?? (side === 'home' ? impliedFromOdds?.home ?? NaN : impliedFromOdds?.away ?? NaN);
@@ -512,9 +523,6 @@ export default function CompetitionHomePage() {
     });
   });
 
-  // All teams used across the whole competition (cannot pick again)
-  const usedTeamIds = new Set(myStatus?.usedTeamIds ?? []);
-
   // Group fixtures by gameweek — store real lockAt and status from backend
   const fixturesByWeek = new Map<number, { gwId: number; lockAt: string; gwStatus: string; fixtures: Fixture[] }>();
   fixtures?.forEach((f) => {
@@ -527,6 +535,25 @@ export default function CompetitionHomePage() {
       });
     }
     fixturesByWeek.get(f.weekNumber)!.fixtures.push(f);
+  });
+  const fixtureMetaByGwId = new Map<number, { gwStatus: string; lockAt: string }>();
+  fixturesByWeek.forEach((gw) => {
+    fixtureMetaByGwId.set(gw.gwId, { gwStatus: gw.gwStatus, lockAt: gw.lockAt });
+  });
+
+  // Split team usage into consumed vs reserved:
+  // consumed = already in locked/in-progress/completed rounds
+  // reserved = selected in future upcoming rounds
+  const consumedTeamIds = new Set<number>();
+  const reservedTeamIds = new Set<number>();
+  myStatus?.picks.forEach((p) => {
+    const gwMeta = fixtureMetaByGwId.get(p.gameweekId);
+    const isUpcoming = gwMeta?.gwStatus === 'UPCOMING';
+    if (isUpcoming && !p.locked) {
+      reservedTeamIds.add(p.teamId);
+    } else {
+      consumedTeamIds.add(p.teamId);
+    }
   });
   const sortedWeeks = [...fixturesByWeek.keys()].sort((a, b) => a - b);
   const liveOutcomeByGwTeam = new Map<string, string>();
@@ -561,7 +588,7 @@ export default function CompetitionHomePage() {
     uniqueTeamIds.add(f.awayTeamId);
   });
   const totalTeamsCount = uniqueTeamIds.size;
-  const remainingTeamsCount = totalTeamsCount > 0 ? Math.max(totalTeamsCount - usedTeamIds.size, 0) : null;
+  const remainingTeamsCount = totalTeamsCount > 0 ? Math.max(totalTeamsCount - consumedTeamIds.size, 0) : null;
 
   const upcomingWeek = sortedWeeks
     .map((wn) => ({ weekNumber: wn, data: fixturesByWeek.get(wn)! }))
@@ -850,7 +877,7 @@ export default function CompetitionHomePage() {
       detail: isEliminated
         ? 'There is no next pick for this entry, but you can still track the remaining survivors.'
         : isParticipant
-        ? `${usedTeamIds.size} team${usedTeamIds.size === 1 ? '' : 's'} already burned from your pool.`
+        ? `${consumedTeamIds.size} team${consumedTeamIds.size === 1 ? '' : 's'} already burned from your pool${reservedTeamIds.size > 0 ? `, ${reservedTeamIds.size} reserved` : ''}.`
         : comp.status === 'UPCOMING'
         ? 'Join early so your first pick is not rushed.'
         : 'Entries are closed, but the drama is still live.',
@@ -1932,8 +1959,11 @@ export default function CompetitionHomePage() {
                             const canPickThisGw = isParticipant && !isEliminated && !isWinner && !(awaitingPayment && strictManualPayment) && !isLocked && !eliminatedBeforeThisGw;
                             const homeIsMyPick = myPickForGw?.teamId === f.homeTeamId;
                             const awayIsMyPick = myPickForGw?.teamId === f.awayTeamId;
-                            const homeUsed = usedTeamIds.has(f.homeTeamId) && !homeIsMyPick;
-                            const awayUsed = usedTeamIds.has(f.awayTeamId) && !awayIsMyPick;
+                            const homeUsed = consumedTeamIds.has(f.homeTeamId) && !homeIsMyPick;
+                            const awayUsed = consumedTeamIds.has(f.awayTeamId) && !awayIsMyPick;
+                            const showReservedForThisGw = gwStatus === 'UPCOMING';
+                            const homeReserved = showReservedForThisGw && reservedTeamIds.has(f.homeTeamId) && !homeIsMyPick && !homeUsed;
+                            const awayReserved = showReservedForThisGw && reservedTeamIds.has(f.awayTeamId) && !awayIsMyPick && !awayUsed;
                             const gwStats = pickStatsByGwId.get(gwId);
                             const homeStat = gwStats?.find(s => s.teamId === f.homeTeamId);
                             const awayStat = gwStats?.find(s => s.teamId === f.awayTeamId);
@@ -1950,7 +1980,8 @@ export default function CompetitionHomePage() {
                                   shortName={f.homeTeamShortName}
                                   isMyPick={homeIsMyPick}
                                   isUsed={homeUsed}
-                                  isClickable={canPickThisGw && !homeUsed}
+                                  isReserved={homeReserved}
+                                  isClickable={canPickThisGw && !homeUsed && !homeReserved}
                                   align="right"
                                   pickStat={homeStat}
                                   risk={homeRisk}
@@ -1983,7 +2014,8 @@ export default function CompetitionHomePage() {
                                   shortName={f.awayTeamShortName}
                                   isMyPick={awayIsMyPick}
                                   isUsed={awayUsed}
-                                  isClickable={canPickThisGw && !awayUsed}
+                                  isReserved={awayReserved}
+                                  isClickable={canPickThisGw && !awayUsed && !awayReserved}
                                   align="left"
                                   pickStat={awayStat}
                                   risk={awayRisk}
@@ -2167,7 +2199,7 @@ export default function CompetitionHomePage() {
                 />
                 <SummaryTile
                   label="Your Team Pool"
-                  value={isParticipant ? `${usedTeamIds.size} used` : 'Join to track'}
+                  value={isParticipant ? `${consumedTeamIds.size} used${reservedTeamIds.size > 0 ? ` · ${reservedTeamIds.size} reserved` : ''}` : 'Join to track'}
                   detail={isParticipant && remainingTeamsCount !== null ? `${remainingTeamsCount} teams still available` : 'Usage updates after each pick'}
                 />
                 {isParticipant && (
@@ -2240,7 +2272,7 @@ export default function CompetitionHomePage() {
                     />
                     <SummaryTile
                       label="Your Team Pool"
-                      value={isParticipant ? `${usedTeamIds.size} used` : 'Join to track'}
+                      value={isParticipant ? `${consumedTeamIds.size} used${reservedTeamIds.size > 0 ? ` · ${reservedTeamIds.size} reserved` : ''}` : 'Join to track'}
                       detail={isParticipant && remainingTeamsCount !== null ? `${remainingTeamsCount} teams still available` : 'Usage updates after each pick'}
                     />
                     {isParticipant && (
@@ -2309,13 +2341,14 @@ function InsightPanel({
 }
 
 function TeamButton({
-  name, shortName, isMyPick, isUsed, isClickable, align, pickStat, risk, accentColor, onClick,
+  name, shortName, isMyPick, isUsed, isReserved, isClickable, align, pickStat, risk, accentColor, onClick,
 }: {
   name: string; shortName: string; isMyPick: boolean; isUsed: boolean;
+  isReserved?: boolean;
   isClickable: boolean; align: 'left' | 'right'; pickStat?: PickStat; risk?: TeamRisk | null; accentColor?: string | null; onClick: () => void;
 }) {
-  const showStatusPill = isMyPick || (isUsed && !isMyPick);
-  const statusPillLabel = isMyPick ? 'Picked' : 'Used';
+  const showStatusPill = isMyPick || (isUsed && !isMyPick) || (!!isReserved && !isMyPick && !isUsed);
+  const statusPillLabel = isMyPick ? 'Picked' : isUsed ? 'Used' : isReserved ? 'Resvd' : '';
 
   return (
     <button
@@ -2323,6 +2356,7 @@ function TeamButton({
       disabled={!isClickable && !isMyPick}
       title={
         isUsed ? `${name} — already used this competition` :
+        isReserved ? `${name} — reserved by a future pick` :
         isMyPick ? `${name} — your pick${isClickable ? ' (click to change)' : ''}` :
         name
       }
@@ -2331,6 +2365,7 @@ function TeamButton({
         align === 'right' ? 'items-end text-right' : 'items-start text-left',
         isMyPick && 'bg-brand-600/85 border-2 border-brand-300 text-white font-bold shadow-md shadow-brand-900/25',
         isUsed && !isMyPick && 'bg-transparent text-amber-300 cursor-not-allowed',
+        isReserved && !isUsed && !isMyPick && 'bg-transparent text-cyan-300',
         isClickable && !isMyPick && 'bg-surface-600/50 border border-gray-600 hover:border-gray-500 hover:bg-white/[0.04] text-gray-200 cursor-pointer font-medium',
         !isClickable && !isUsed && !isMyPick && 'bg-transparent text-gray-400 cursor-default font-medium',
       )}
@@ -2348,6 +2383,7 @@ function TeamButton({
             className={clsx(
               'inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em]',
               isMyPick ? 'bg-white/18 text-white' : 'bg-amber-500/20 text-amber-200',
+              isReserved && !isUsed && !isMyPick && 'bg-cyan-500/20 text-cyan-200',
             )}
           >
             {statusPillLabel}
@@ -2358,7 +2394,7 @@ function TeamButton({
       {pickStat ? (
         align === 'right' ? (
           <div className="hidden sm:flex w-full items-center gap-2 text-right">
-            <span className={clsx('w-[3.9rem] shrink-0 text-xs font-bold text-left', isMyPick ? 'text-white' : isUsed ? 'text-amber-200' : 'text-gray-400')}>
+            <span className={clsx('w-[3.9rem] shrink-0 text-xs font-bold text-left', isMyPick ? 'text-white' : isUsed ? 'text-amber-200' : isReserved ? 'text-cyan-200' : 'text-gray-400')}>
               {showStatusPill ? statusPillLabel : ''}
             </span>
             <span className="min-w-0 flex-1 truncate text-xs lg:text-sm font-normal opacity-90 text-right">
@@ -2377,7 +2413,7 @@ function TeamButton({
             <span className="min-w-0 flex-1 truncate text-xs lg:text-sm font-normal opacity-90">
               {name}
             </span>
-            <span className={clsx('w-[3.9rem] shrink-0 text-xs font-bold text-right', isMyPick ? 'text-white' : isUsed ? 'text-amber-200' : 'text-gray-400')}>
+            <span className={clsx('w-[3.9rem] shrink-0 text-xs font-bold text-right', isMyPick ? 'text-white' : isUsed ? 'text-amber-200' : isReserved ? 'text-cyan-200' : 'text-gray-400')}>
               {showStatusPill ? statusPillLabel : ''}
             </span>
           </div>
@@ -2418,7 +2454,7 @@ function TeamButton({
             {risk && (
               <div
                 className={clsx(
-                  'inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap',
+                  'inline-flex max-w-full items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap overflow-hidden',
                   risk.label === 'Safe' && 'bg-green-500/20 text-green-200',
                   risk.label === 'Balanced' && 'bg-yellow-500/20 text-yellow-200',
                   risk.label === 'Differential' && 'bg-cyan-500/20 text-cyan-200',
@@ -2431,21 +2467,29 @@ function TeamButton({
                     : 'Risk based on current market odds and crowd data'
                 }
               >
-                {riskLabelText(risk)}
-                {risk.source === 'fallback' && <span className="font-normal opacity-70">· no odds yet</span>}
-                {risk.source !== 'fallback' && risk.lowConfidence && <span className="font-normal opacity-70">· estimate</span>}
+                <span className="sm:hidden truncate">{riskLabelTextMobile(risk)}</span>
+                <span className="hidden sm:inline truncate">{riskLabelText(risk)}</span>
+                {risk.source === 'fallback' && (
+                  <>
+                    <span className="sm:hidden font-normal opacity-70 truncate">· no odds</span>
+                    <span className="hidden sm:inline font-normal opacity-70 truncate">· no odds yet</span>
+                  </>
+                )}
+                {risk.source !== 'fallback' && risk.lowConfidence && (
+                  <span className="font-normal opacity-70 truncate">· estimate</span>
+                )}
               </div>
             )}
             {pickStat && (
               <div
                 className={clsx(
-                  'inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap',
+                  'inline-flex max-w-full items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap overflow-hidden',
                   isMyPick ? 'bg-white/16 text-white/90' : 'bg-white/8 text-gray-300',
                 )}
                 style={accentColor && !isMyPick ? { border: `1px solid ${accentColor}44`, color: '#cbd5e1' } : undefined}
               >
-                {pickStat.percentage}%
-                <span className={clsx('font-normal whitespace-nowrap', isMyPick ? 'text-white/60' : 'text-gray-400')}>
+                <span className="truncate">{pickStat.percentage}%</span>
+                <span className={clsx('font-normal whitespace-nowrap truncate', isMyPick ? 'text-white/60' : 'text-gray-400')}>
                   · {pickStat.pickCount} {pickStat.pickCount === 1 ? 'player' : 'players'}
                 </span>
               </div>
