@@ -89,11 +89,11 @@ public class PickService {
         Optional<Pick> existingPick = pickRepository.findByCompetitionIdAndUserIdAndGameweekId(
                 competitionId, userId, gameweekId);
 
-        List<Long> usedTeamIds = pickRepository.findUsedTeamIds(competitionId, userId);
+        List<Long> consumedTeamIds = pickRepository.findConsumedTeamIds(competitionId, userId);
         if (existingPick.isPresent()) {
-            usedTeamIds.remove(existingPick.get().getTeam().getId());
+            consumedTeamIds.remove(existingPick.get().getTeam().getId());
         }
-        if (usedTeamIds.contains(teamId)) {
+        if (consumedTeamIds.contains(teamId)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Team already used in this competition");
         }
 

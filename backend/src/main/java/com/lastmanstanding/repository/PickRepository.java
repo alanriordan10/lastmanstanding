@@ -27,6 +27,13 @@ public interface PickRepository extends JpaRepository<Pick, Long> {
     @Query("SELECT p.team.id FROM Pick p WHERE p.competition.id = :competitionId AND p.user.id = :userId")
     List<Long> findUsedTeamIds(@Param("competitionId") Long competitionId, @Param("userId") Long userId);
 
+    @Query("SELECT p.team.id FROM Pick p WHERE p.competition.id = :competitionId AND p.user.id = :userId " +
+            "AND p.gameweek.status IN (" +
+            "com.lastmanstanding.entity.GameweekStatus.LOCKED, " +
+            "com.lastmanstanding.entity.GameweekStatus.IN_PROGRESS, " +
+            "com.lastmanstanding.entity.GameweekStatus.COMPLETED)")
+    List<Long> findConsumedTeamIds(@Param("competitionId") Long competitionId, @Param("userId") Long userId);
+
     /** Returns [userId, teamId] pairs for a list of users in one query — avoids N+1 in auto-assign */
     @Query("SELECT p.user.id, p.team.id FROM Pick p WHERE p.competition.id = :competitionId AND p.user.id IN :userIds")
     List<Object[]> findUsedTeamIdsByUserIds(@Param("competitionId") Long competitionId, @Param("userIds") List<Long> userIds);
