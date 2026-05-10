@@ -644,11 +644,26 @@ export default function CompetitionHomePage() {
 
   const hasWinner = comp.status === 'COMPLETED'
     || (comp.activeCount === 1 && (comp.participantCount ?? 0) > 1);
+  const copyVariantSeed = Number(comp.id ?? 0) + (pulseLatestWeek?.weekNumber ?? latestNarrativeWeek?.weekNumber ?? 0);
+  const pickCopyVariant = (options: string[], offset: number) => options[(Math.abs(copyVariantSeed + offset) % options.length)];
 
-  let storylineTitle = 'Competition pressure is building';
+  let storylineTitle = pickCopyVariant([
+    'Competition pressure is building',
+    'The margins are tightening',
+    'Every round is starting to matter more',
+    'The field is entering pressure time',
+  ], 101);
   let storylineBody = comp.status === 'UPCOMING'
-    ? 'Registration is open and the first real pressure point is the next lock.'
-    : 'The next pick window is where this competition starts to separate cautious players from survivors.';
+    ? pickCopyVariant([
+        'Registration is open and the first real pressure point is the next lock.',
+        'Entries are still open, but urgency begins at the next lock deadline.',
+        'The competition is open; the first true decision point is the upcoming lock.',
+      ], 102)
+    : pickCopyVariant([
+        'The next pick window is where this competition starts to separate cautious players from survivors.',
+        'The next lock is where this field starts splitting into survivors and exits.',
+        'From the next pick onward, small calls start creating real separation.',
+      ], 103);
 
   if (hasWinner) {
     const winnerLabel = isWinner ? 'You won this competition' : 'We have a winner';
@@ -674,25 +689,53 @@ export default function CompetitionHomePage() {
           narrativeWeekInProgress ? `Gameweek ${wn} is taking its toll` : `Gameweek ${wn} took its toll`,
         ];
     storylineTitle = titleOptions[wn % titleOptions.length];
-    storylineBody = `${biggestCasualty.pickCount} player${biggestCasualty.pickCount === 1 ? '' : 's'} trusted ${biggestCasualty.teamShortName} and paid for it. ${effectiveActiveCount} survivor${effectiveActiveCount === 1 ? '' : 's'} remain.`;
+    storylineBody = pickCopyVariant([
+      `${biggestCasualty.pickCount} player${biggestCasualty.pickCount === 1 ? '' : 's'} trusted ${biggestCasualty.teamShortName} and paid for it. ${effectiveActiveCount} survivor${effectiveActiveCount === 1 ? '' : 's'} remain.`,
+      `${biggestCasualty.teamShortName} caught ${biggestCasualty.pickCount} entries out, leaving ${effectiveActiveCount} survivor${effectiveActiveCount === 1 ? '' : 's'} in contention.`,
+      `${biggestCasualty.pickCount} picks on ${biggestCasualty.teamShortName} turned into exits. The field is now down to ${effectiveActiveCount}.`,
+    ], 104);
   } else if (latestNarrativeWeek && weeklySurvivalRate != null && weeklySurvivalRate < 50) {
     storylineTitle = narrativeWeekInProgress && narrativeWeekLabel ? `${narrativeWeekLabel} is chaos` : `${narrativeWeekLabel} was chaos`;
-    storylineBody = `${weeklyEliminatedCount} players went out in the latest week. Only ${weeklySurvivalRate}% survived the round.`;
+    storylineBody = pickCopyVariant([
+      `${weeklyEliminatedCount} players went out in the latest week. Only ${weeklySurvivalRate}% survived the round.`,
+      `Eliminations hit hard this round: ${weeklyEliminatedCount} exits and a ${weeklySurvivalRate}% survival rate.`,
+      `The round was severe, with ${weeklyEliminatedCount} knocked out and just ${weeklySurvivalRate}% getting through.`,
+    ], 105);
   } else if (latestNarrativeWeek && weeklySurvivalRate != null && weeklySurvivalRate >= 50 && weeklySurvivalRate <= 70) {
     storylineTitle = narrativeWeekInProgress && narrativeWeekLabel ? `${narrativeWeekLabel} is tightening the race` : `${narrativeWeekLabel} tightened the race`;
-    storylineBody = `Survival dipped to ${weeklySurvivalRate}%. The middle of the pack is starting to thin out.`;
+    storylineBody = pickCopyVariant([
+      `Survival dipped to ${weeklySurvivalRate}%. The middle of the pack is starting to thin out.`,
+      `${weeklySurvivalRate}% survived the round, and the mid-pack is beginning to break up.`,
+      `A ${weeklySurvivalRate}% survival week has started to separate the pack.`,
+    ], 106);
   } else if (latestNarrativeWeek && weeklySurvivalRate != null && weeklySurvivalRate >= 85) {
     storylineTitle = narrativeWeekInProgress && narrativeWeekLabel ? `${narrativeWeekLabel} is steady so far` : `${narrativeWeekLabel} was steady`;
-    storylineBody = `${weeklySurvivalRate}% made it through. The real shakeups are still ahead.`;
+    storylineBody = pickCopyVariant([
+      `${weeklySurvivalRate}% made it through. The real shakeups are still ahead.`,
+      `${weeklySurvivalRate}% advanced, so the major swings are likely still to come.`,
+      `Most of the field survived (${weeklySurvivalRate}%), with bigger pressure points still ahead.`,
+    ], 107);
   } else if (latestNarrativeWeek && doomedPickedTeams.length === 0 && survivingPickedTeams.length > 0) {
     storylineTitle = narrativeWeekInProgress && narrativeWeekLabel ? `${narrativeWeekLabel} is sparing the field` : `${narrativeWeekLabel} spared the field`;
-    storylineBody = `No picked teams lost in the latest week. The standings stayed tight with ${effectiveActiveCount} still alive.`;
+    storylineBody = pickCopyVariant([
+      `No picked teams lost in the latest week. The standings stayed tight with ${effectiveActiveCount} still alive.`,
+      `The latest week produced no picked-team losses, so ${effectiveActiveCount} players remain in a tight race.`,
+      `No selected teams fell this round, keeping ${effectiveActiveCount} entries alive and tightly grouped.`,
+    ], 108);
   } else if (latestNarrativeWeek && contrarianSurvivor) {
     storylineTitle = narrativeWeekInProgress && narrativeWeekLabel ? `${narrativeWeekLabel} is rewarding nerve` : `${narrativeWeekLabel} rewarded nerve`;
-    storylineBody = `${contrarianSurvivor.pickCount} player${contrarianSurvivor.pickCount === 1 ? '' : 's'} backed ${contrarianSurvivor.teamShortName} and came through when the crowd did not.`;
+    storylineBody = pickCopyVariant([
+      `${contrarianSurvivor.pickCount} player${contrarianSurvivor.pickCount === 1 ? '' : 's'} backed ${contrarianSurvivor.teamShortName} and came through when the crowd did not.`,
+      `${contrarianSurvivor.teamShortName} rewarded a small group of ${contrarianSurvivor.pickCount} who went against the main trend.`,
+      `A minority call on ${contrarianSurvivor.teamShortName} kept ${contrarianSurvivor.pickCount} player${contrarianSurvivor.pickCount === 1 ? '' : 's'} alive while others slipped.`,
+    ], 109);
   } else if (latestNarrativeWeek && mostBackedTeam) {
     storylineTitle = narrativeWeekInProgress && narrativeWeekLabel ? `${narrativeWeekLabel} is following the crowd` : `${narrativeWeekLabel} followed the crowd`;
-    storylineBody = `${mostBackedTeam.pickCount} players backed ${mostBackedTeam.teamShortName}. The table is still tightening with ${effectiveActiveCount} left standing.`;
+    storylineBody = pickCopyVariant([
+      `${mostBackedTeam.pickCount} players backed ${mostBackedTeam.teamShortName}. The table is still tightening with ${effectiveActiveCount} left standing.`,
+      `${mostBackedTeam.teamShortName} drew ${mostBackedTeam.pickCount} picks, and the field remains compact at ${effectiveActiveCount} survivors.`,
+      `The crowd leaned on ${mostBackedTeam.teamShortName} (${mostBackedTeam.pickCount} picks), with ${effectiveActiveCount} still in the race.`,
+    ], 110);
   } else if (isEliminated) {
     storylineTitle = `Your run ended in Gameweek ${participant?.eliminatedWeek}`;
     storylineBody = 'You are out of this competition now, but you can still follow every remaining fixture, upset, and survivor.';
@@ -767,14 +810,22 @@ export default function CompetitionHomePage() {
   };
 
   let actionTone: 'brand' | 'warning' | 'danger' | 'success' = 'brand';
-  let actionTitle = 'Competition overview';
-  let actionBody = 'Review the rules, then expand the next gameweek when you are ready.';
+  let actionTitle = pickCopyVariant(['Competition overview', 'Competition status', 'Current competition snapshot'], 201);
+  let actionBody = pickCopyVariant([
+    'Review the rules, then expand the next gameweek when you are ready.',
+    'Check your status, then open the next relevant gameweek below.',
+    'Use this panel to confirm status and move to your next decision point.',
+  ], 202);
   let actionMeta: string | null = null;
 
   if (!isParticipant) {
     if (comp.status === 'UPCOMING') {
       actionTone = 'warning';
-      actionTitle = comp.paymentMode === 'MANUAL' ? 'Register and pay the organiser' : comp.entryFee > 0 ? 'Join before the next lock' : 'Join this competition';
+      actionTitle = comp.paymentMode === 'MANUAL'
+        ? pickCopyVariant(['Register and pay the organiser', 'Join now and pay the organiser', 'Register, then settle payment with organiser'], 203)
+        : comp.entryFee > 0
+        ? pickCopyVariant(['Join before the next lock', 'Secure your place before lock', 'Enter before the next deadline'], 204)
+        : pickCopyVariant(['Join this competition', 'Register for this competition', 'Enter this competition now'], 205);
       actionBody = comp.paymentMode === 'MANUAL'
         ? `Registration is open. Entry is €${comp.entryFee} and the organiser confirms payment manually.`
         : comp.entryFee > 0
@@ -785,12 +836,16 @@ export default function CompetitionHomePage() {
         : null;
     } else {
       actionTone = 'warning';
-      actionTitle = 'Viewing only';
-      actionBody = 'This competition has already started. You can follow fixtures, selections, and results, but new entries are closed.';
+      actionTitle = pickCopyVariant(['Viewing only', 'Read-only view', 'Tracking mode'], 206);
+      actionBody = pickCopyVariant([
+        'This competition has already started. You can follow fixtures, selections, and results, but new entries are closed.',
+        'Entries are closed, but you can still follow picks, fixtures, and outcomes in full.',
+        'The competition is underway, so this view is for tracking only, not joining.',
+      ], 207);
     }
   } else if (awaitingPayment) {
     actionTone = 'warning';
-    actionTitle = 'Awaiting payment confirmation';
+    actionTitle = pickCopyVariant(['Awaiting payment confirmation', 'Payment still pending confirmation', 'Waiting on payment approval'], 208);
     actionBody = comp.paymentMode === 'MANUAL'
       ? 'You are registered, but your entry is still waiting for the organiser to confirm payment before everything is fully settled.'
       : 'Your entry is not fully settled yet. Please check your payment status.';
@@ -799,39 +854,71 @@ export default function CompetitionHomePage() {
       : null;
   } else if (isWinner) {
     actionTone = 'success';
-    actionTitle = 'You won this competition';
-    actionBody = 'You can still review every gameweek, inspect the survivor table, and share the result with other players.';
+    actionTitle = pickCopyVariant(['You won this competition', 'Competition won', 'You are the final survivor'], 209);
+    actionBody = pickCopyVariant([
+      'You can still review every gameweek, inspect the survivor table, and share the result with other players.',
+      'Your run is complete; you can revisit each round and share the final outcome.',
+      'The title is secured. Review the full path and final standings anytime.',
+    ], 210);
     actionMeta = latestResolvedPick ? `Winning path included ${latestResolvedPick.teamShortName} in GW${latestResolvedPick.weekNumber}.` : null;
   } else if (isEliminated) {
     actionTone = 'danger';
     actionTitle = `Eliminated in Gameweek ${participant?.eliminatedWeek}`;
-    actionBody = 'You can no longer make picks, but fixtures, selections, and results stay available so you can follow the rest of the competition.';
+    actionBody = pickCopyVariant([
+      'You can no longer make picks, but fixtures, selections, and results stay available so you can follow the rest of the competition.',
+      'Your entry is out, but you can still track every fixture, pick trend, and remaining survivor.',
+      'Picking is finished for this entry; monitoring the competition remains fully available.',
+    ], 211);
     actionMeta = latestResolvedPick ? `Latest resolved pick: ${latestResolvedPick.teamShortName} in GW${latestResolvedPick.weekNumber}.` : null;
   } else if (inProgressWeek) {
     const livePick = pickByGwId.get(inProgressWeek.data.gwId);
     actionTone = 'brand';
     actionTitle = `Gameweek ${inProgressWeek.weekNumber} is underway`;
     actionBody = livePick
-      ? `${livePick.teamShortName} is locked in for the live round. Follow the current fixtures before the next pick window opens.`
-      : 'This gameweek is already in progress, so there is no next pick to make right now.';
+      ? pickCopyVariant([
+          `${livePick.teamShortName} is locked in for the live round. Follow the current fixtures before the next pick window opens.`,
+          `${livePick.teamShortName} is your active pick for this round. Watch results now, then prepare for the next window.`,
+          `${livePick.teamShortName} is already committed. This phase is about survival until the next lock opens.`,
+        ], 212)
+      : pickCopyVariant([
+          'This gameweek is already in progress, so there is no next pick to make right now.',
+          'The round is live now, so your next pick window opens only after completion.',
+          'No immediate pick action is available while this gameweek is in play.',
+        ], 213);
     actionMeta = 'The next pick window will open after the current round is completed.';
   } else if (openWeekWithoutPick) {
     actionTone = countdown.totalSeconds < 7200 ? 'warning' : 'brand';
     actionTitle = `Pick needed for Gameweek ${openWeekWithoutPick.weekNumber}`;
-    actionBody = 'You have not selected a team for the next open gameweek yet. Expand that gameweek below and choose before it locks.';
+    actionBody = pickCopyVariant([
+      'You have not selected a team for the next open gameweek yet. Expand that gameweek below and choose before it locks.',
+      'A pick is still required for the next lock. Open that gameweek and submit before deadline.',
+      'Your next selection is outstanding. Choose a team now to avoid a lock miss.',
+    ], 214);
     actionMeta = `Locks ${formatDistanceToNow(parseDate(openWeekWithoutPick.data.lockAt), { addSuffix: true })}`;
   } else if (openWeekWithPick) {
     const openPick = pickByGwId.get(openWeekWithPick.data.gwId);
     actionTone = 'success';
     actionTitle = `Your pick is in for Gameweek ${openWeekWithPick.weekNumber}`;
     actionBody = openPick
-      ? `${openPick.teamShortName} is currently selected. You can still change it until the lock time if you want.`
-      : 'Your next pick is already saved.';
+      ? pickCopyVariant([
+          `${openPick.teamShortName} is currently selected. You can still change it until the lock time if you want.`,
+          `${openPick.teamShortName} is locked as your current choice for now, and can still be changed before deadline.`,
+          `${openPick.teamShortName} is your saved pick. You still have edit flexibility until lock.`,
+        ], 215)
+      : pickCopyVariant([
+          'Your next pick is already saved.',
+          'A valid pick is already on file for the next lock.',
+          'Your upcoming selection is already submitted.',
+        ], 216);
     actionMeta = `Locks ${formatDistanceToNow(parseDate(openWeekWithPick.data.lockAt), { addSuffix: true })}`;
   } else if (upcomingWeek) {
     actionTone = 'brand';
-    actionTitle = 'Waiting for the next gameweek';
-    actionBody = 'The current open gameweek is already handled. Check back when the next fixtures unlock or when results are processed.';
+    actionTitle = pickCopyVariant(['Waiting for the next gameweek', 'Stand by for next gameweek', 'Next round pending'], 217);
+    actionBody = pickCopyVariant([
+      'The current open gameweek is already handled. Check back when the next fixtures unlock or when results are processed.',
+      'Current actions are complete. Return when the next fixture set opens or once outcomes post.',
+      'No new move is needed now; the next decision point arrives with the upcoming unlock.',
+    ], 218);
     actionMeta = `Next scheduled lock is for Gameweek ${upcomingWeek.weekNumber}.`;
   }
 
@@ -980,8 +1067,18 @@ export default function CompetitionHomePage() {
       return {
         tone: 'brand' as const,
         eyebrow: 'Next Step',
-        title: 'Join this competition',
-        detail: comp.entryFee > 0 ? `Entry is €${comp.entryFee}. Join now to secure your spot before lock.` : 'Free entry. Join now to secure your spot before lock.',
+        title: pickCopyVariant(['Join this competition', 'Enter this competition', 'Register for this competition'], 219),
+        detail: comp.entryFee > 0
+          ? pickCopyVariant([
+              `Entry is €${comp.entryFee}. Join now to secure your spot before lock.`,
+              `Entry costs €${comp.entryFee}. Register now so you are ready before the next lock.`,
+              `€${comp.entryFee} entry. Join early to avoid missing the first decision window.`,
+            ], 220)
+          : pickCopyVariant([
+              'Free entry. Join now to secure your spot before lock.',
+              'No entry fee. Register now so your place is set before lock.',
+              'Free to join. Enter now so you are ready when picks open.',
+            ], 221),
         ctaLabel: 'Join competition',
         ctaKind: 'link' as const,
       };
@@ -990,8 +1087,12 @@ export default function CompetitionHomePage() {
       return {
         tone: 'warn' as const,
         eyebrow: 'Action Needed',
-        title: 'Awaiting payment confirmation',
-        detail: 'Your entry is registered, but picks stay locked until the organiser marks payment as received.',
+        title: pickCopyVariant(['Awaiting payment confirmation', 'Payment confirmation pending', 'Waiting for organiser payment approval'], 222),
+        detail: pickCopyVariant([
+          'Your entry is registered, but picks stay locked until the organiser marks payment as received.',
+          'Registration is recorded, but pick access remains locked until payment is confirmed.',
+          'You are entered, but selections unlock only after organiser payment confirmation.',
+        ], 223),
         ctaLabel: '',
         ctaKind: 'none' as const,
       };
@@ -1001,8 +1102,22 @@ export default function CompetitionHomePage() {
       return {
         tone: 'brand' as const,
         eyebrow: 'Next Step',
-        title: `Gameweek ${actionWeekNumber} is open`,
-        detail: openWeekWithoutPick ? 'You still need to choose a team before lock.' : 'Your pick is in. You can still update it before lock.',
+        title: pickCopyVariant([
+          `Gameweek ${actionWeekNumber} is open`,
+          `Gameweek ${actionWeekNumber} is ready`,
+          `Gameweek ${actionWeekNumber} decision window is live`,
+        ], 224),
+        detail: openWeekWithoutPick
+          ? pickCopyVariant([
+              'You still need to choose a team before lock.',
+              'A team selection is still required before this round locks.',
+              'Pick is outstanding. Choose your team before deadline.',
+            ], 225)
+          : pickCopyVariant([
+              'Your pick is in. You can still update it before lock.',
+              'Selection saved. You may still change it before lock time.',
+              'Pick submitted. Edits are still allowed until deadline.',
+            ], 226),
         ctaLabel: 'Jump to picks',
         ctaKind: 'pick' as const,
       };
@@ -1033,30 +1148,104 @@ export default function CompetitionHomePage() {
   const insightPanels = [
     {
       eyebrow: 'Crowd read',
-      title: crowdReadTeam ? `${crowdReadTeam.teamShortName} carried the weight` : 'Waiting for the first crowd signal',
+      title: crowdReadTeam
+        ? pickCopyVariant([
+            `${crowdReadTeam.teamShortName} carried the weight`,
+            `${crowdReadTeam.teamShortName} drew the crowd`,
+            `${crowdReadTeam.teamShortName} became the safe lane`,
+            `${crowdReadTeam.teamShortName} pulled most of the picks`,
+            `${crowdReadTeam.teamShortName} was the crowd play`,
+          ], 1)
+        : pickCopyVariant([
+            'Waiting for the first crowd signal',
+            'Crowd pattern will appear after lock',
+            'No crowd trend yet',
+            'Waiting for picks to settle',
+            'The crowd has not converged yet',
+          ], 2),
       detail: crowdReadTeam
         ? liveInsightWeek && liveInsightWeek.data.gwStatus !== 'COMPLETED'
-          ? `${crowdReadTeam.pickCount} players are currently riding with ${crowdReadTeam.teamName} in Gameweek ${liveInsightWeek.weekNumber}, accounting for ${crowdReadTeam.percentage}% of tracked picks.`
-          : `${crowdReadTeam.pickCount} players backed ${crowdReadTeam.teamName} in the latest resolved week, accounting for ${crowdReadTeam.percentage}% of tracked picks.`
-        : 'Once a gameweek locks, this area highlights where the crowd moved together.',
+          ? pickCopyVariant([
+              `${crowdReadTeam.pickCount} players are currently riding with ${crowdReadTeam.teamName} in Gameweek ${liveInsightWeek.weekNumber}, accounting for ${crowdReadTeam.percentage}% of tracked picks.`,
+              `${crowdReadTeam.teamName} leads the live board in Gameweek ${liveInsightWeek.weekNumber}: ${crowdReadTeam.pickCount} picks (${crowdReadTeam.percentage}%).`,
+              `${crowdReadTeam.pickCount} active entries have lined up behind ${crowdReadTeam.teamName} this week, representing ${crowdReadTeam.percentage}% of tracked picks.`,
+            ], 3)
+          : pickCopyVariant([
+              `${crowdReadTeam.pickCount} players backed ${crowdReadTeam.teamName} in the latest resolved week, accounting for ${crowdReadTeam.percentage}% of tracked picks.`,
+              `In the latest completed week, ${crowdReadTeam.teamName} drew ${crowdReadTeam.pickCount} picks (${crowdReadTeam.percentage}% of tracked entries).`,
+              `${crowdReadTeam.teamName} was the dominant pick last resolved round with ${crowdReadTeam.pickCount} selections (${crowdReadTeam.percentage}%).`,
+            ], 4)
+        : pickCopyVariant([
+            'Once a gameweek locks, this area highlights where the crowd moved together.',
+            'After lock, this tracks which team absorbed the largest share of picks.',
+            'As soon as picks finalize, this card will show the crowd\'s main position.',
+          ], 5),
       tone: 'brand' as const,
     },
     {
       eyebrow: 'Knockout blow',
-      title: biggestCasualty ? `${biggestCasualty.teamShortName} was the trapdoor` : 'No major casualty yet',
+      title: biggestCasualty
+        ? pickCopyVariant([
+            `${biggestCasualty.teamShortName} was the trapdoor`,
+            `${biggestCasualty.teamShortName} triggered the biggest hit`,
+            `${biggestCasualty.teamShortName} turned costly`,
+            `${biggestCasualty.teamShortName} caused the key wipeout`,
+            `${biggestCasualty.teamShortName} punished the field`,
+          ], 6)
+        : pickCopyVariant([
+            'No major casualty yet',
+            'No clear knockout swing yet',
+            'No mass exit team yet',
+            'No major trapdoor so far',
+            'No big wipeout yet',
+          ], 7),
       detail: biggestCasualty
-        ? `${biggestCasualty.pickCount} entries went out backing ${biggestCasualty.teamName}. This is the kind of swing that changes a competition fast.`
+        ? pickCopyVariant([
+            `${biggestCasualty.pickCount} entries went out backing ${biggestCasualty.teamName}. This is the kind of swing that changes a competition fast.`,
+            `${biggestCasualty.teamName} eliminated ${biggestCasualty.pickCount} entries in one hit, creating the sharpest shift of the round.`,
+            `${biggestCasualty.pickCount} players were knocked out on ${biggestCasualty.teamName}, a swing large enough to reshape the leaderboard quickly.`,
+          ], 8)
         : latestCompletedWeek
-        ? 'The latest resolved week did not produce a clear mass-casualty team.'
-        : 'Once results land, this surfaces the team that took the most players down.',
+        ? pickCopyVariant([
+            'The latest resolved week did not produce a clear mass-casualty team.',
+            'No single team drove a major elimination wave in the latest completed week.',
+            'The latest resolved round spread losses without one obvious knockout team.',
+          ], 9)
+        : pickCopyVariant([
+            'Once results land, this surfaces the team that took the most players down.',
+            'When fixtures resolve, this card highlights the team behind the largest exits.',
+            'As results come in, this will track the round\'s biggest elimination source.',
+          ], 10),
       tone: 'danger' as const,
     },
     {
       eyebrow: 'Contrarian edge',
-      title: contrarianSurvivor ? `${contrarianSurvivor.teamShortName} rewarded nerve` : 'No contrarian hero yet',
+      title: contrarianSurvivor
+        ? pickCopyVariant([
+            `${contrarianSurvivor.teamShortName} rewarded nerve`,
+            `${contrarianSurvivor.teamShortName} paid off for the brave`,
+            `${contrarianSurvivor.teamShortName} delivered a contrarian win`,
+            `${contrarianSurvivor.teamShortName} proved the sharp play`,
+            `${contrarianSurvivor.teamShortName} gave outsiders an edge`,
+          ], 11)
+        : pickCopyVariant([
+            'No contrarian hero yet',
+            'No low-owned breakout yet',
+            'No outsider pick has separated yet',
+            'No clear contrarian edge yet',
+            'Waiting for a bold low-owned win',
+          ], 12),
       detail: contrarianSurvivor
-        ? `Only ${contrarianSurvivor.pickCount} player${contrarianSurvivor.pickCount === 1 ? '' : 's'} trusted ${contrarianSurvivor.teamName}, and they stayed alive.`
-        : 'When a low-owned team gets players through, it shows up here as the smartest unpopular move.',
+        ? pickCopyVariant([
+            `Only ${contrarianSurvivor.pickCount} player${contrarianSurvivor.pickCount === 1 ? '' : 's'} trusted ${contrarianSurvivor.teamName}, and they stayed alive.`,
+            `${contrarianSurvivor.teamName} was backed by just ${contrarianSurvivor.pickCount} player${contrarianSurvivor.pickCount === 1 ? '' : 's'}, and that minority call survived.`,
+            `A small group of ${contrarianSurvivor.pickCount} player${contrarianSurvivor.pickCount === 1 ? '' : 's'} went with ${contrarianSurvivor.teamName} and gained ground by staying in.`,
+          ], 13)
+        : pickCopyVariant([
+            'When a low-owned team gets players through, it shows up here as the smartest unpopular move.',
+            'This card lights up when a minority pick survives and creates separation.',
+            'If a low-owned choice breaks right, this is where that edge appears.',
+          ], 14),
       tone: 'success' as const,
     },
   ];
@@ -1532,7 +1721,7 @@ export default function CompetitionHomePage() {
                     {/* ── Gameweek header — clickable toggle ── */}
                     <button
                       onClick={() => toggleWeek(wn)}
-                      className="w-full flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 text-left group"
+                      className="w-full flex items-start justify-between gap-2 text-left group"
                       aria-expanded={!isCollapsed}
                       aria-controls={`gw-${wn}-fixtures`}
                     >
