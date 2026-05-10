@@ -36,6 +36,12 @@ function riskLabelText(risk: TeamRisk): string {
   return 'High risk';
 }
 
+function riskLabelTextMobile(risk: TeamRisk): string {
+  if (risk.label === 'Safe') return 'Low';
+  if (risk.label === 'Balanced') return 'Medium';
+  return 'High';
+}
+
 function parseDate(value: string | number[]): Date {
   if (Array.isArray(value)) {
     const [y, mo, d, h = 0, mi = 0, s = 0] = value as number[];
@@ -98,6 +104,11 @@ function impliedFromDecimalOdds(home?: number | null, draw?: number | null, away
 }
 
 function calculateTeamRisk(fixture: Fixture, side: 'home' | 'away', pickStat?: PickStat): TeamRisk | null {
+  // Show risk only in planning context (before lock).
+  if (fixture.gameweekStatus !== 'UPCOMING') {
+    return null;
+  }
+
   const implied = side === 'home' ? fixture.oddsImpliedHome : fixture.oddsImpliedAway;
   const impliedFromOdds = impliedFromDecimalOdds(fixture.oddsHomeWin, fixture.oddsDraw, fixture.oddsAwayWin);
   const pRaw = implied ?? (side === 'home' ? impliedFromOdds?.home ?? NaN : impliedFromOdds?.away ?? NaN);
@@ -2418,7 +2429,7 @@ function TeamButton({
             {risk && (
               <div
                 className={clsx(
-                  'inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap',
+                  'inline-flex max-w-full items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap overflow-hidden',
                   risk.label === 'Safe' && 'bg-green-500/20 text-green-200',
                   risk.label === 'Balanced' && 'bg-yellow-500/20 text-yellow-200',
                   risk.label === 'Differential' && 'bg-cyan-500/20 text-cyan-200',
@@ -2431,21 +2442,29 @@ function TeamButton({
                     : 'Risk based on current market odds and crowd data'
                 }
               >
-                {riskLabelText(risk)}
-                {risk.source === 'fallback' && <span className="font-normal opacity-70">· no odds yet</span>}
-                {risk.source !== 'fallback' && risk.lowConfidence && <span className="font-normal opacity-70">· estimate</span>}
+                <span className="sm:hidden truncate">{riskLabelTextMobile(risk)}</span>
+                <span className="hidden sm:inline truncate">{riskLabelText(risk)}</span>
+                {risk.source === 'fallback' && (
+                  <>
+                    <span className="sm:hidden font-normal opacity-70 truncate">· no odds</span>
+                    <span className="hidden sm:inline font-normal opacity-70 truncate">· no odds yet</span>
+                  </>
+                )}
+                {risk.source !== 'fallback' && risk.lowConfidence && (
+                  <span className="font-normal opacity-70 truncate">· estimate</span>
+                )}
               </div>
             )}
             {pickStat && (
               <div
                 className={clsx(
-                  'inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap',
+                  'inline-flex max-w-full items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap overflow-hidden',
                   isMyPick ? 'bg-white/16 text-white/90' : 'bg-white/8 text-gray-300',
                 )}
                 style={accentColor && !isMyPick ? { border: `1px solid ${accentColor}44`, color: '#cbd5e1' } : undefined}
               >
-                {pickStat.percentage}%
-                <span className={clsx('font-normal whitespace-nowrap', isMyPick ? 'text-white/60' : 'text-gray-400')}>
+                <span className="truncate">{pickStat.percentage}%</span>
+                <span className={clsx('font-normal whitespace-nowrap truncate', isMyPick ? 'text-white/60' : 'text-gray-400')}>
                   · {pickStat.pickCount} {pickStat.pickCount === 1 ? 'player' : 'players'}
                 </span>
               </div>
