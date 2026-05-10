@@ -3,6 +3,7 @@ package com.lastmanstanding.repository;
 import com.lastmanstanding.entity.Fixture;
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDateTime;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -30,4 +31,16 @@ public interface FixtureRepository extends JpaRepository<Fixture, Long> {
 
     @Query(value = "SELECT id FROM fixtures WHERE gameweek_id = :gameweekId ORDER BY id LIMIT :limit", nativeQuery = true)
     List<Long> findIdsByGameweekIdLimit(@Param("gameweekId") Long gameweekId, @Param("limit") int limit);
+
+    @Query("SELECT f FROM Fixture f " +
+            "JOIN FETCH f.importedHomeTeam " +
+            "JOIN FETCH f.importedAwayTeam " +
+            "JOIN FETCH f.gameweek gw " +
+            "WHERE f.importedKickoffAt >= :from " +
+            "AND f.importedKickoffAt <= :to " +
+            "AND gw.status IN (" +
+            "com.lastmanstanding.entity.GameweekStatus.UPCOMING, " +
+            "com.lastmanstanding.entity.GameweekStatus.LOCKED, " +
+            "com.lastmanstanding.entity.GameweekStatus.IN_PROGRESS)")
+    List<Fixture> findOddsSyncCandidates(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
 }

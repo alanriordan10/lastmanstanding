@@ -81,6 +81,20 @@ football-data:
   results-cache-ttl: 3600       # 1 hour    – recent results (after GW ends)
   live-cache-ttl: 300           # 5 minutes – in-play scores
 
+odds:
+  enabled: ${ODDS_ENABLED:false}
+  api-key: ${ODDS_API_KEY:}
+  base-url: ${ODDS_BASE_URL:https://api.the-odds-api.com/v4}
+  sport: ${ODDS_SPORT:soccer_epl}
+  regions: ${ODDS_REGIONS:uk}
+  markets: ${ODDS_MARKETS:h2h}
+  odds-format: ${ODDS_FORMAT:decimal}
+  date-format: ${ODDS_DATE_FORMAT:iso}
+  sync-cron: "${ODDS_SYNC_CRON:0 */20 * * * *}"
+  sync:
+    from-days: ${ODDS_SYNC_FROM_DAYS:0}
+    to-days: ${ODDS_SYNC_TO_DAYS:14}
+
 stripe:
   secret-key: ${STRIPE_SECRET_KEY:sk_test_your_stripe_secret_key_here}
   publishable-key: ${STRIPE_PUBLISHABLE_KEY:pk_test_your_stripe_publishable_key_here}

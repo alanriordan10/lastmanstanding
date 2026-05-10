@@ -13,6 +13,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -80,6 +81,30 @@ public class Fixture {
 
     @Column(name = "last_synced_at")
     private LocalDateTime lastSyncedAt;
+
+    @Column(name = "odds_home_win", precision = 8, scale = 4)
+    private BigDecimal oddsHomeWin;
+
+    @Column(name = "odds_draw", precision = 8, scale = 4)
+    private BigDecimal oddsDraw;
+
+    @Column(name = "odds_away_win", precision = 8, scale = 4)
+    private BigDecimal oddsAwayWin;
+
+    @Column(name = "odds_implied_home", precision = 8, scale = 6)
+    private BigDecimal oddsImpliedHome;
+
+    @Column(name = "odds_implied_draw", precision = 8, scale = 6)
+    private BigDecimal oddsImpliedDraw;
+
+    @Column(name = "odds_implied_away", precision = 8, scale = 6)
+    private BigDecimal oddsImpliedAway;
+
+    @Column(name = "odds_source", length = 64)
+    private String oddsSource;
+
+    @Column(name = "odds_updated_at")
+    private LocalDateTime oddsUpdatedAt;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -283,5 +308,69 @@ public class Fixture {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public BigDecimal getOddsHomeWin() {
+        return oddsHomeWin;
+    }
+
+    public void setOddsHomeWin(BigDecimal oddsHomeWin) {
+        this.oddsHomeWin = oddsHomeWin;
+    }
+
+    public BigDecimal getOddsDraw() {
+        return oddsDraw;
+    }
+
+    public void setOddsDraw(BigDecimal oddsDraw) {
+        this.oddsDraw = oddsDraw;
+    }
+
+    public BigDecimal getOddsAwayWin() {
+        return oddsAwayWin;
+    }
+
+    public void setOddsAwayWin(BigDecimal oddsAwayWin) {
+        this.oddsAwayWin = oddsAwayWin;
+    }
+
+    public BigDecimal getOddsImpliedHome() {
+        return oddsImpliedHome;
+    }
+
+    public void setOddsImpliedHome(BigDecimal oddsImpliedHome) {
+        this.oddsImpliedHome = oddsImpliedHome;
+    }
+
+    public BigDecimal getOddsImpliedDraw() {
+        return oddsImpliedDraw;
+    }
+
+    public void setOddsImpliedDraw(BigDecimal oddsImpliedDraw) {
+        this.oddsImpliedDraw = oddsImpliedDraw;
+    }
+
+    public BigDecimal getOddsImpliedAway() {
+        return oddsImpliedAway;
+    }
+
+    public void setOddsImpliedAway(BigDecimal oddsImpliedAway) {
+        this.oddsImpliedAway = oddsImpliedAway;
+    }
+
+    public String getOddsSource() {
+        return oddsSource;
+    }
+
+    public void setOddsSource(String oddsSource) {
+        this.oddsSource = oddsSource;
+    }
+
+    public LocalDateTime getOddsUpdatedAt() {
+        return oddsUpdatedAt;
+    }
+
+    public void setOddsUpdatedAt(LocalDateTime oddsUpdatedAt) {
+        this.oddsUpdatedAt = oddsUpdatedAt;
     }
 }

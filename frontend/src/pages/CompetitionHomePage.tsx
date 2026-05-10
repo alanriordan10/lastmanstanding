@@ -21,6 +21,21 @@ interface PickStat {
   percentage: number;
 }
 
+type RiskLabel = 'Safe' | 'Balanced' | 'Differential';
+
+interface TeamRisk {
+  label: RiskLabel;
+  score: number;
+  lowConfidence: boolean;
+  source: 'odds' | 'crowd' | 'fallback';
+}
+
+function riskLabelText(risk: TeamRisk): string {
+  if (risk.label === 'Safe') return 'Low risk';
+  if (risk.label === 'Balanced') return 'Medium risk';
+  return 'High risk';
+}
+
 function parseDate(value: string | number[]): Date {
   if (Array.isArray(value)) {
     const [y, mo, d, h = 0, mi = 0, s = 0] = value as number[];
@@ -62,6 +77,59 @@ function hasPendingResultProcessing(fixtures: Fixture[] | undefined): boolean {
   }
 
   return false;
+}
+
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+function impliedFromDecimalOdds(home?: number | null, draw?: number | null, away?: number | null) {
+  if (!home || !draw || !away || home <= 1 || draw <= 1 || away <= 1) return null;
+  const h = 1 / home;
+  const d = 1 / draw;
+  const a = 1 / away;
+  const total = h + d + a;
+  if (total <= 0) return null;
+  return {
+    home: h / total,
+    draw: d / total,
+    away: a / total,
+  };
+}
+
+function calculateTeamRisk(fixture: Fixture, side: 'home' | 'away', pickStat?: PickStat): TeamRisk | null {
+  const implied = side === 'home' ? fixture.oddsImpliedHome : fixture.oddsImpliedAway;
+  const impliedFromOdds = impliedFromDecimalOdds(fixture.oddsHomeWin, fixture.oddsDraw, fixture.oddsAwayWin);
+  const pRaw = implied ?? (side === 'home' ? impliedFromOdds?.home ?? NaN : impliedFromOdds?.away ?? NaN);
+  const hasOdds = Number.isFinite(pRaw);
+  const p = clamp01(hasOdds ? pRaw : NaN);
+
+  if (!Number.isFinite(p) && !pickStat) {
+    return {
+      label: 'Balanced',
+      score: 50,
+      lowConfidence: true,
+      source: 'fallback',
+    };
+  }
+
+  const oddsRisk = Number.isFinite(p) ? (1 - p) * 100 : null;
+  const crowdRisk = pickStat ? (100 - pickStat.percentage) : null;
+  const combinedRisk = oddsRisk == null
+    ? crowdRisk
+    : crowdRisk == null
+      ? oddsRisk
+      : (oddsRisk * 0.75) + (crowdRisk * 0.25);
+  if (combinedRisk == null) return null;
+
+  const rounded = Math.round(combinedRisk);
+  const label: RiskLabel = rounded <= 33 ? 'Safe' : rounded <= 66 ? 'Balanced' : 'Differential';
+  return {
+    label,
+    score: rounded,
+    lowConfidence: !hasOdds,
+    source: hasOdds ? 'odds' : 'crowd',
+  };
 }
 
 /** Fetches pick stats for a list of locked gameweek IDs, returning a Map<gwId, stats[]> */
@@ -1869,6 +1937,8 @@ export default function CompetitionHomePage() {
                             const gwStats = pickStatsByGwId.get(gwId);
                             const homeStat = gwStats?.find(s => s.teamId === f.homeTeamId);
                             const awayStat = gwStats?.find(s => s.teamId === f.awayTeamId);
+                            const homeRisk = calculateTeamRisk(f, 'home', homeStat);
+                            const awayRisk = calculateTeamRisk(f, 'away', awayStat);
 
                             return (
                               <div
@@ -1883,6 +1953,7 @@ export default function CompetitionHomePage() {
                                   isClickable={canPickThisGw && !homeUsed}
                                   align="right"
                                   pickStat={homeStat}
+                                  risk={homeRisk}
                                   accentColor={comp.clubSecondaryColor}
                                   onClick={() => handlePick(gwId, f.homeTeamId, lockAt)}
                                 />
@@ -1915,6 +1986,7 @@ export default function CompetitionHomePage() {
                                   isClickable={canPickThisGw && !awayUsed}
                                   align="left"
                                   pickStat={awayStat}
+                                  risk={awayRisk}
                                   accentColor={comp.clubSecondaryColor}
                                   onClick={() => handlePick(gwId, f.awayTeamId, lockAt)}
                                 />
@@ -2237,10 +2309,10 @@ function InsightPanel({
 }
 
 function TeamButton({
-  name, shortName, isMyPick, isUsed, isClickable, align, pickStat, accentColor, onClick,
+  name, shortName, isMyPick, isUsed, isClickable, align, pickStat, risk, accentColor, onClick,
 }: {
   name: string; shortName: string; isMyPick: boolean; isUsed: boolean;
-  isClickable: boolean; align: 'left' | 'right'; pickStat?: PickStat; accentColor?: string | null; onClick: () => void;
+  isClickable: boolean; align: 'left' | 'right'; pickStat?: PickStat; risk?: TeamRisk | null; accentColor?: string | null; onClick: () => void;
 }) {
   const showStatusPill = isMyPick || (isUsed && !isMyPick);
   const statusPillLabel = isMyPick ? 'Picked' : 'Used';
@@ -2340,21 +2412,44 @@ function TeamButton({
         </div>
       )}
       {/* Pick stat bar — shown after gameweek locks */}
-      {pickStat ? (
+      {pickStat || risk ? (
         <div className="w-full mt-1.5 min-h-[20px]">
-          <div className={clsx('flex w-full', align === 'right' ? 'justify-end' : 'justify-start')}>
-            <div
-              className={clsx(
-                'inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap',
-                isMyPick ? 'bg-white/16 text-white/90' : 'bg-white/8 text-gray-300',
-              )}
-              style={accentColor && !isMyPick ? { border: `1px solid ${accentColor}44`, color: '#cbd5e1' } : undefined}
-            >
-              {pickStat.percentage}%
-              <span className={clsx('font-normal whitespace-nowrap', isMyPick ? 'text-white/60' : 'text-gray-400')}>
-                · {pickStat.pickCount} {pickStat.pickCount === 1 ? 'player' : 'players'}
-              </span>
-            </div>
+          <div className={clsx('flex w-full gap-1.5 flex-wrap', align === 'right' ? 'justify-end' : 'justify-start')}>
+            {risk && (
+              <div
+                className={clsx(
+                  'inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap',
+                  risk.label === 'Safe' && 'bg-green-500/20 text-green-200',
+                  risk.label === 'Balanced' && 'bg-yellow-500/20 text-yellow-200',
+                  risk.label === 'Differential' && 'bg-cyan-500/20 text-cyan-200',
+                )}
+                title={
+                  risk.source === 'fallback'
+                    ? 'Risk estimate based on limited data (no live odds yet)'
+                    : risk.lowConfidence
+                    ? 'Risk estimate based on partial odds data'
+                    : 'Risk based on current market odds and crowd data'
+                }
+              >
+                {riskLabelText(risk)}
+                {risk.source === 'fallback' && <span className="font-normal opacity-70">· no odds yet</span>}
+                {risk.source !== 'fallback' && risk.lowConfidence && <span className="font-normal opacity-70">· estimate</span>}
+              </div>
+            )}
+            {pickStat && (
+              <div
+                className={clsx(
+                  'inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap',
+                  isMyPick ? 'bg-white/16 text-white/90' : 'bg-white/8 text-gray-300',
+                )}
+                style={accentColor && !isMyPick ? { border: `1px solid ${accentColor}44`, color: '#cbd5e1' } : undefined}
+              >
+                {pickStat.percentage}%
+                <span className={clsx('font-normal whitespace-nowrap', isMyPick ? 'text-white/60' : 'text-gray-400')}>
+                  · {pickStat.pickCount} {pickStat.pickCount === 1 ? 'player' : 'players'}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       ) : (

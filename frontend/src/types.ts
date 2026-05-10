@@ -116,6 +116,13 @@ export interface Fixture {
   status: 'SCHEDULED' | 'IN_PLAY' | 'FINISHED' | 'POSTPONED' | 'CANCELLED';
   scoreHome: number | null;
   scoreAway: number | null;
+  oddsHomeWin?: number | null;
+  oddsDraw?: number | null;
+  oddsAwayWin?: number | null;
+  oddsImpliedHome?: number | null;
+  oddsImpliedDraw?: number | null;
+  oddsImpliedAway?: number | null;
+  oddsUpdatedAt?: string | null;
   hasOverride: boolean;
   gameweekLockAt: string;
   gameweekStatus: 'UPCOMING' | 'LOCKED' | 'IN_PROGRESS' | 'COMPLETED';
