@@ -100,6 +100,25 @@ interface SurvivorTableProgressResponse {
 
 function deriveLiveActiveCount(data: SurvivorTableProgressResponse | undefined): number | null {
   if (!data) return null;
+  const relevantWeeks = new Set(
+    data.gameweeks
+      .filter((gw) => gw.status === 'IN_PROGRESS' || gw.status === 'COMPLETED')
+      .map((gw) => gw.weekNumber)
+  );
+
+  // Prefer outcome-driven liveness so list cards stay in sync with live competition processing.
+  if (relevantWeeks.size > 0) {
+    const eliminatedFromOutcomes = data.rows.reduce((count, row) => {
+      const eliminated = Object.entries(row.picks ?? {}).some(([week, pick]) => {
+        const weekNumber = Number(week);
+        if (!relevantWeeks.has(weekNumber) || !pick?.outcome) return false;
+        return String(pick.outcome).toUpperCase().includes('ELIMINATED');
+      });
+      return count + (eliminated ? 1 : 0);
+    }, 0);
+    return Math.max(data.rows.length - eliminatedFromOutcomes, 0);
+  }
+
   return data.rows.filter((row) => row.status === 'ACTIVE' || row.status === 'WINNER').length;
 }
 
@@ -516,7 +535,7 @@ export default function CompetitionsPage() {
   return (
     <div className="space-y-5 sm:space-y-6">
       {/* ── Page header ── */}
-      <div className="relative overflow-hidden rounded-[1.75rem] border border-white/8 bg-[radial-gradient(circle_at_10%_0%,rgba(251,191,36,0.18),transparent_28rem),radial-gradient(circle_at_85%_15%,rgba(56,189,248,0.18),transparent_24rem),linear-gradient(135deg,rgba(15,23,42,0.92),rgba(8,15,30,0.9))] px-4 py-5 shadow-[0_28px_70px_rgba(2,6,23,0.42)] sm:px-6 sm:py-6">
+      <div className="relative overflow-visible rounded-[1.75rem] border border-white/8 bg-[radial-gradient(circle_at_10%_0%,rgba(251,191,36,0.18),transparent_28rem),radial-gradient(circle_at_85%_15%,rgba(56,189,248,0.18),transparent_24rem),linear-gradient(135deg,rgba(15,23,42,0.92),rgba(8,15,30,0.9))] px-4 py-5 shadow-[0_28px_70px_rgba(2,6,23,0.42)] sm:px-6 sm:py-6">
         <div className="absolute right-0 top-0 h-24 w-24 translate-x-8 -translate-y-8 rounded-full bg-amber-300/15 blur-2xl" />
         <div className="absolute inset-0 opacity-[0.08] pointer-events-none" style={{
           backgroundImage: 'radial-gradient(rgba(255,255,255,0.5) 0.5px, transparent 0.5px)',
@@ -807,7 +826,7 @@ export default function CompetitionsPage() {
 
       {/* ── My Competitions — summary strip ── */}
       {viewMode === 'mine' && myComps.length > 0 && (
-        <div className="space-y-3">
+          <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
             <FilterStatTile label="Needs action" value={mineNeedsActionCount.length} color="text-amber-300" isActive={mineFilter === 'NEEDS_ACTION'} onClick={() => setMineFilter((current) => current === 'NEEDS_ACTION' ? 'ALL' : 'NEEDS_ACTION')} />
             <FilterStatTile label="Upcoming" value={mineUpcomingCount.length} color="text-blue-300" isActive={mineFilter === 'UPCOMING'} onClick={() => setMineFilter((current) => current === 'UPCOMING' ? 'ALL' : 'UPCOMING')} />
@@ -1469,17 +1488,17 @@ function CompetitionCard({ comp, joined, onJoin, isPending, actionHint, isHighli
           <span className="text-gray-200">{comp.missedPickMode === 'AUTO_ASSIGN' ? 'Auto-Assign' : 'Eliminate'}</span>
         </div>
         <div className="min-h-[36px]">
-          <span className="block text-gray-500">Players</span>
+          <span className="block text-gray-500">Survivors</span>
           <div className="min-h-[28px]">
-            <span className="block text-gray-200">
-              {comp.participantCount ?? 0}
-            </span>
             {comp.winnerUsername ? (
               <span className="block text-yellow-400 truncate">🏆 {comp.winnerUsername}</span>
             ) : comp.status === 'ACTIVE' ? (
-              <span className="block text-gray-500">{effectiveActiveCount} active</span>
+              <>
+                <span className="block text-lg font-black leading-tight text-green-300">{effectiveActiveCount}</span>
+                <span className="block text-[11px] text-gray-500">of {comp.participantCount ?? 0} started</span>
+              </>
             ) : (
-              <div aria-hidden="true" className="h-5" />
+              <span className="block text-gray-200 font-medium">{comp.participantCount ?? 0} players</span>
             )}
           </div>
         </div>
@@ -1670,8 +1689,28 @@ function MyCompetitionRow({
   onToggleExpand: () => void;
 }) {
   const comp = myComp.competition;
+  const { data: liveProgress } = useQuery<SurvivorTableProgressResponse>({
+    queryKey: ['survivor-table-progress', comp.id],
+    queryFn: () => api.get(`/competitions/${comp.id}/survivor-table`).then((r) => r.data),
+    enabled: comp.status === 'ACTIVE',
+    staleTime: 30_000,
+    refetchInterval: (query) => {
+      const data = query.state.data as SurvivorTableProgressResponse | undefined;
+      const hasInProgress = data?.gameweeks?.some((gw) => gw.status === 'IN_PROGRESS');
+      return hasInProgress ? 60_000 : 300_000;
+    },
+  });
+  const liveActiveCount = deriveLiveActiveCount(liveProgress);
+  const effectiveActiveCount = liveActiveCount ?? comp.activeCount ?? comp.participantCount ?? 0;
   const isFinished = comp.status === 'COMPLETED';
   const isAwaitingPayment = myComp.paymentState === 'AWAITING_PAYMENT';
+  const startLabel = comp.firstGameweekDate
+    ? format(parseDate(comp.firstGameweekDate), 'MMM d')
+    : comp.startDate
+    ? format(parseDate(comp.startDate), 'MMM d')
+    : 'TBD';
+  const startFieldLabel = comp.status === 'UPCOMING' ? 'Starts' : comp.status === 'COMPLETED' ? 'Ended' : 'Started';
+  const survivingLabel = comp.status === 'ACTIVE' ? String(effectiveActiveCount) : '—';
   const isDueSoon = (() => {
     if (myComp.myStatus !== 'ACTIVE' || comp.status !== 'UPCOMING') return false;
     const source = comp.firstGameweekDate ?? comp.startDate;
@@ -1679,9 +1718,21 @@ function MyCompetitionRow({
     const ms = parseDate(source).getTime() - Date.now();
     return ms > 0 && ms <= 24 * 60 * 60 * 1000;
   })();
+  const quickAction = isAwaitingPayment
+    ? { icon: '💳', label: 'Pay', tone: 'text-amber-300 border-amber-400/35 bg-amber-500/10' }
+    : isDueSoon
+    ? { icon: '⚠', label: 'Pick', tone: 'text-amber-300 border-amber-400/35 bg-amber-500/10' }
+    : myComp.myStatus === 'ELIMINATED'
+    ? { icon: '✕', label: 'Out', tone: 'text-red-300 border-red-500/30 bg-red-500/10' }
+    : myComp.myStatus === 'WINNER'
+    ? { icon: '🏆', label: 'Won', tone: 'text-yellow-300 border-yellow-400/35 bg-yellow-500/10' }
+    : { icon: '✓', label: 'OK', tone: 'text-green-300 border-green-500/30 bg-green-500/10' };
 
   return (
-    <div className="card px-3.5 py-3" style={competitionCardStyle(comp)}>
+    <div
+      className={`card px-3.5 py-3 ${isDueSoon ? 'border-amber-400/45 bg-[linear-gradient(135deg,rgba(245,158,11,0.12),rgba(245,158,11,0.02))]' : ''}`}
+      style={competitionCardStyle(comp)}
+    >
       <div className="flex items-center gap-3">
       <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${isFinished ? 'bg-gray-500' : myComp.myStatus === 'ELIMINATED' ? 'bg-red-500' : myComp.myStatus === 'WINNER' ? 'bg-yellow-400' : 'bg-green-500'}`} />
       <div className="min-w-0 flex-1">
@@ -1689,13 +1740,29 @@ function MyCompetitionRow({
           <p className="truncate text-[15px] font-semibold text-white">{comp.name}</p>
           {comp.clubName && <span className="hidden rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-gray-300 sm:inline-flex">{comp.clubName}</span>}
         </div>
-        <p className="mt-1 text-xs text-gray-400">
-          {isFinished ? 'Finished' : myComp.myStatus === 'ELIMINATED' ? 'Eliminated' : myComp.myStatus === 'WINNER' ? 'Winner' : 'Active'}
-          {isAwaitingPayment ? ' · Awaiting payment' : ''}
-          {isDueSoon ? ' · Pick due soon' : ''}
-        </p>
+        <div className="mt-1 flex items-center gap-2">
+          <p className="text-xs text-gray-400">
+            {isFinished ? 'Finished' : myComp.myStatus === 'ELIMINATED' ? 'Eliminated' : myComp.myStatus === 'WINNER' ? 'Winner' : 'Active'}
+            {isAwaitingPayment ? ' · Awaiting payment' : ''}
+            {isDueSoon ? ' · Pick due soon' : ''}
+          </p>
+          <span className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.1em] sm:hidden ${quickAction.tone}`}>
+            <span>{quickAction.icon}</span>
+            <span>{quickAction.label}</span>
+          </span>
+        </div>
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] text-gray-300">
+          <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">👥 {comp.participantCount ?? 0}</span>
+          <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">🛡 {survivingLabel}</span>
+          <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">€ {comp.entryFee > 0 ? `${comp.entryFee}` : 'Free'}</span>
+          <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">📅 {startFieldLabel}: {startLabel}</span>
+        </div>
         {actionHint && <p className="mt-1 text-xs font-medium text-amber-300">Action required: {actionHint}</p>}
       </div>
+      <span className={`hidden sm:inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${quickAction.tone}`}>
+        <span>{quickAction.icon}</span>
+        <span>{quickAction.label}</span>
+      </span>
       <button type="button" onClick={onToggleExpand} className="shrink-0 rounded-md border border-white/10 px-2 py-1 text-xs text-gray-300 hover:bg-white/10">
         {expanded ? 'Less' : 'Details'}
       </button>

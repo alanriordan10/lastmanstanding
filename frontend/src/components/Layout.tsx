@@ -28,7 +28,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           {/* Logo */}
           <Link to="/competitions" className="flex items-center gap-2 shrink-0">
             <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl border border-brand-300/25 bg-white shadow-[0_10px_28px_rgba(56,189,248,0.18)]">
-              <img src="/app-logo.png" alt="Last Man Standing logo" className="h-full w-full object-cover" />
+              <img src="/app-logo.png?v=20260511" alt="Last Man Standing logo" className="h-full w-full object-cover" />
             </div>
             <div className="hidden sm:block">
               <span className="block text-lg font-black tracking-tight text-white">Last Man Standing</span>

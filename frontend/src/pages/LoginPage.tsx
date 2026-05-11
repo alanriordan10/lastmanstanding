@@ -44,7 +44,7 @@ export default function LoginPage() {
             Member access
           </div>
           <div className="mt-6 flex h-20 w-20 items-center justify-center overflow-hidden rounded-3xl bg-transparent p-0 shadow-[0_10px_24px_rgba(2,6,23,0.35)]">
-            <img src="/app-logo.png" alt="Last Man Standing logo" className="h-full w-full rounded-2xl object-cover" />
+            <img src="/app-logo.png?v=20260511" alt="Last Man Standing logo" className="h-full w-full rounded-2xl object-cover" />
           </div>
           <h1 className="mt-6 text-4xl font-black tracking-tight text-slate-100 sm:text-[44px]">Welcome Back</h1>
           <p className="mt-3 max-w-lg text-sm leading-6 text-slate-300 sm:text-[16px]">

@@ -136,7 +136,9 @@ export default function RegisterClubPage() {
       {/* Top bar */}
       <nav className="border-b border-white/8 bg-[linear-gradient(180deg,rgba(8,15,30,0.92),rgba(8,15,30,0.78))] backdrop-blur-xl px-6 py-4 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-brand-300/25 bg-gradient-to-br from-brand-500 to-cyan-400 text-[11px] font-black text-slate-950 shadow-[0_10px_28px_rgba(56,189,248,0.18)]">LMS</div>
+          <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl border border-brand-300/25 bg-white shadow-[0_10px_28px_rgba(56,189,248,0.18)]">
+            <img src="/app-logo.png?v=20260511" alt="Last Man Standing logo" className="h-full w-full object-cover" />
+          </div>
           <div className="hidden sm:block">
             <span className="block text-lg font-black tracking-tight">Last Man Standing</span>
             <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-200/75">Club onboarding</span>

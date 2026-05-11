@@ -272,6 +272,22 @@ public class FixtureSyncService {
 
         if (eligible.isEmpty()) return 0;
 
+        // Preload any existing fixtures (across competitions) for the same external IDs,
+        // so new fixtures can inherit already-synced odds immediately.
+        List<String> eligibleExternalIds = eligible.stream()
+                .map(ProviderFixture::externalFixtureId)
+                .distinct()
+                .toList();
+        Map<String, Fixture> oddsSourceByExtId = fixtureRepository.findByExternalFixtureIdIn(eligibleExternalIds).stream()
+                .filter(f -> f.getOddsImpliedHome() != null || f.getOddsHomeWin() != null)
+                .collect(Collectors.toMap(Fixture::getExternalFixtureId, f -> f, (a, b) -> {
+                    LocalDateTime aUpdated = a.getOddsUpdatedAt();
+                    LocalDateTime bUpdated = b.getOddsUpdatedAt();
+                    if (aUpdated == null) return b;
+                    if (bUpdated == null) return a;
+                    return bUpdated.isAfter(aUpdated) ? b : a;
+                }));
+
         // Determine valid weeks (≥3 playable fixtures)
         final int MIN_PLAYABLE = 3;
         Set<Integer> validWeeks = allFixtures.stream()
@@ -354,12 +370,36 @@ public class FixtureSyncService {
                 existing.setImportedStatus(status);
                 existing.setImportedScoreHome(pf.scoreHome());
                 existing.setImportedScoreAway(pf.scoreAway());
+                if (existing.getOddsImpliedHome() == null && existing.getOddsHomeWin() == null) {
+                    Fixture oddsTemplate = oddsSourceByExtId.get(pf.externalFixtureId());
+                    if (oddsTemplate != null) {
+                        existing.setOddsHomeWin(oddsTemplate.getOddsHomeWin());
+                        existing.setOddsDraw(oddsTemplate.getOddsDraw());
+                        existing.setOddsAwayWin(oddsTemplate.getOddsAwayWin());
+                        existing.setOddsImpliedHome(oddsTemplate.getOddsImpliedHome());
+                        existing.setOddsImpliedDraw(oddsTemplate.getOddsImpliedDraw());
+                        existing.setOddsImpliedAway(oddsTemplate.getOddsImpliedAway());
+                        existing.setOddsSource(oddsTemplate.getOddsSource());
+                        existing.setOddsUpdatedAt(oddsTemplate.getOddsUpdatedAt());
+                    }
+                }
                 existing.setLastSyncedAt(LocalDateTime.now());
                 fixturesToSave.add(existing);
             } else {
                 Fixture f = new Fixture(gw, pf.externalFixtureId(), homeTeam, awayTeam, pf.kickoffAt(), status);
                 f.setImportedScoreHome(pf.scoreHome());
                 f.setImportedScoreAway(pf.scoreAway());
+                Fixture oddsTemplate = oddsSourceByExtId.get(pf.externalFixtureId());
+                if (oddsTemplate != null) {
+                    f.setOddsHomeWin(oddsTemplate.getOddsHomeWin());
+                    f.setOddsDraw(oddsTemplate.getOddsDraw());
+                    f.setOddsAwayWin(oddsTemplate.getOddsAwayWin());
+                    f.setOddsImpliedHome(oddsTemplate.getOddsImpliedHome());
+                    f.setOddsImpliedDraw(oddsTemplate.getOddsImpliedDraw());
+                    f.setOddsImpliedAway(oddsTemplate.getOddsImpliedAway());
+                    f.setOddsSource(oddsTemplate.getOddsSource());
+                    f.setOddsUpdatedAt(oddsTemplate.getOddsUpdatedAt());
+                }
                 f.setLastSyncedAt(LocalDateTime.now());
                 fixturesToSave.add(f);
                 existingFixtureByExtId.put(pf.externalFixtureId(), f); // prevent duplicate insert

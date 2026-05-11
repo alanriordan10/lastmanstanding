@@ -20,6 +20,7 @@ public interface FixtureRepository extends JpaRepository<Fixture, Long> {
     Optional<Fixture> findByExternalFixtureId(String externalFixtureId);
 
     Optional<Fixture> findByExternalFixtureIdAndGameweekId(String externalFixtureId, Long gameweekId);
+    List<Fixture> findByExternalFixtureIdIn(List<String> externalFixtureIds);
 
     @Modifying
     @Query("DELETE FROM Fixture f WHERE f.gameweek.id = :gameweekId")
