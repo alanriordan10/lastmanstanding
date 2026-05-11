@@ -114,7 +114,7 @@ export default function SignupPage() {
             Player signup
           </div>
           <div className="mt-6 flex h-20 w-20 items-center justify-center overflow-hidden rounded-3xl bg-transparent p-0 shadow-[0_10px_24px_rgba(2,6,23,0.35)]">
-            <img src="/app-logo.png" alt="Last Man Standing logo" className="h-full w-full rounded-2xl object-cover" />
+            <img src="/app-logo.png?v=20260511" alt="Last Man Standing logo" className="h-full w-full rounded-2xl object-cover" />
           </div>
           <h1 className="mt-6 text-4xl font-black tracking-tight text-white">Create Account</h1>
           <p className="mt-3 max-w-md text-sm leading-6 text-gray-300 sm:text-[15px]">

@@ -100,6 +100,25 @@ interface SurvivorTableProgressResponse {
 
 function deriveLiveActiveCount(data: SurvivorTableProgressResponse | undefined): number | null {
   if (!data) return null;
+  const relevantWeeks = new Set(
+    data.gameweeks
+      .filter((gw) => gw.status === 'IN_PROGRESS' || gw.status === 'COMPLETED')
+      .map((gw) => gw.weekNumber)
+  );
+
+  // Prefer outcome-driven liveness so list cards stay in sync with live competition processing.
+  if (relevantWeeks.size > 0) {
+    const eliminatedFromOutcomes = data.rows.reduce((count, row) => {
+      const eliminated = Object.entries(row.picks ?? {}).some(([week, pick]) => {
+        const weekNumber = Number(week);
+        if (!relevantWeeks.has(weekNumber) || !pick?.outcome) return false;
+        return String(pick.outcome).toUpperCase().includes('ELIMINATED');
+      });
+      return count + (eliminated ? 1 : 0);
+    }, 0);
+    return Math.max(data.rows.length - eliminatedFromOutcomes, 0);
+  }
+
   return data.rows.filter((row) => row.status === 'ACTIVE' || row.status === 'WINNER').length;
 }
 
@@ -1670,8 +1689,28 @@ function MyCompetitionRow({
   onToggleExpand: () => void;
 }) {
   const comp = myComp.competition;
+  const { data: liveProgress } = useQuery<SurvivorTableProgressResponse>({
+    queryKey: ['survivor-table-progress', comp.id],
+    queryFn: () => api.get(`/competitions/${comp.id}/survivor-table`).then((r) => r.data),
+    enabled: comp.status === 'ACTIVE',
+    staleTime: 30_000,
+    refetchInterval: (query) => {
+      const data = query.state.data as SurvivorTableProgressResponse | undefined;
+      const hasInProgress = data?.gameweeks?.some((gw) => gw.status === 'IN_PROGRESS');
+      return hasInProgress ? 60_000 : 300_000;
+    },
+  });
+  const liveActiveCount = deriveLiveActiveCount(liveProgress);
+  const effectiveActiveCount = liveActiveCount ?? comp.activeCount ?? comp.participantCount ?? 0;
   const isFinished = comp.status === 'COMPLETED';
   const isAwaitingPayment = myComp.paymentState === 'AWAITING_PAYMENT';
+  const startLabel = comp.firstGameweekDate
+    ? format(parseDate(comp.firstGameweekDate), 'MMM d')
+    : comp.startDate
+    ? format(parseDate(comp.startDate), 'MMM d')
+    : 'TBD';
+  const startFieldLabel = comp.status === 'UPCOMING' ? 'Starts' : comp.status === 'COMPLETED' ? 'Ended' : 'Started';
+  const survivingLabel = comp.status === 'ACTIVE' ? String(effectiveActiveCount) : '—';
   const isDueSoon = (() => {
     if (myComp.myStatus !== 'ACTIVE' || comp.status !== 'UPCOMING') return false;
     const source = comp.firstGameweekDate ?? comp.startDate;
@@ -1694,6 +1733,12 @@ function MyCompetitionRow({
           {isAwaitingPayment ? ' · Awaiting payment' : ''}
           {isDueSoon ? ' · Pick due soon' : ''}
         </p>
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] text-gray-300">
+          <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">Players: {comp.participantCount ?? 0}</span>
+          <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">Surviving: {survivingLabel}</span>
+          <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">Entry: {comp.entryFee > 0 ? `€${comp.entryFee}` : 'Free'}</span>
+          <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">{startFieldLabel}: {startLabel}</span>
+        </div>
         {actionHint && <p className="mt-1 text-xs font-medium text-amber-300">Action required: {actionHint}</p>}
       </div>
       <button type="button" onClick={onToggleExpand} className="shrink-0 rounded-md border border-white/10 px-2 py-1 text-xs text-gray-300 hover:bg-white/10">
