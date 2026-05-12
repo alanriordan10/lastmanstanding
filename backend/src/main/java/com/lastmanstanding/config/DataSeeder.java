@@ -163,21 +163,21 @@ public class DataSeeder {
             // MCI 4-2 MUN (Man City WIN), NEW 0-1 NFO (Nott Forest WIN),
             // SOU 1-0 TOT (Southampton WIN), WHU 2-2 WOL (draw)
 
-            createPickWithResult(pickRepository, pickResultRepository,
+            createPickWithResult(participantRepository, pickRepository, pickResultRepository,
                     comp1, admin, gw1, teamMap.get("ARS"), PickOutcome.ADVANCE);     // Arsenal won 3-1
-            createPickWithResult(pickRepository, pickResultRepository,
+            createPickWithResult(participantRepository, pickRepository, pickResultRepository,
                     comp1, alice, gw1, teamMap.get("LIV"), PickOutcome.ADVANCE);     // Liverpool won 3-1
-            createPickWithResult(pickRepository, pickResultRepository,
+            createPickWithResult(participantRepository, pickRepository, pickResultRepository,
                     comp1, bob, gw1, teamMap.get("MCI"), PickOutcome.ADVANCE);       // Man City won 4-2
-            createPickWithResult(pickRepository, pickResultRepository,
+            createPickWithResult(participantRepository, pickRepository, pickResultRepository,
                     comp1, charlie, gw1, teamMap.get("BHA"), PickOutcome.ADVANCE);   // Brighton won 2-1
-            createPickWithResult(pickRepository, pickResultRepository,
+            createPickWithResult(participantRepository, pickRepository, pickResultRepository,
                     comp1, dave, gw1, teamMap.get("EVE"), PickOutcome.ELIMINATED);   // Draw 1-1 → eliminated!
-            createPickWithResult(pickRepository, pickResultRepository,
+            createPickWithResult(participantRepository, pickRepository, pickResultRepository,
                     comp1, emma, gw1, teamMap.get("FUL"), PickOutcome.ADVANCE);      // Fulham won 2-0
-            createPickWithResult(pickRepository, pickResultRepository,
+            createPickWithResult(participantRepository, pickRepository, pickResultRepository,
                     comp1, frank, gw1, teamMap.get("NFO"), PickOutcome.ADVANCE);     // Nott Forest won 1-0
-            createPickWithResult(pickRepository, pickResultRepository,
+            createPickWithResult(participantRepository, pickRepository, pickResultRepository,
                     comp1, grace, gw1, teamMap.get("SOU"), PickOutcome.ADVANCE);     // Southampton won 1-0
 
             // Eliminate Dave
@@ -193,20 +193,20 @@ public class DataSeeder {
             // LIV 2-0 MCI (Liverpool WIN), MUN 1-2 NEW (Newcastle WIN),
             // NFO 3-1 SOU (Nott Forest WIN), TOT 0-1 WHU (West Ham WIN), WOL 2-3 ARS (Arsenal WIN)
 
-            createPickWithResult(pickRepository, pickResultRepository,
+            createPickWithResult(participantRepository, pickRepository, pickResultRepository,
                     comp1, admin, gw2, teamMap.get("CHE"), PickOutcome.ADVANCE);     // Chelsea won 3-2
-            createPickWithResult(pickRepository, pickResultRepository,
+            createPickWithResult(participantRepository, pickRepository, pickResultRepository,
                     comp1, alice, gw2, teamMap.get("AVL"), PickOutcome.ADVANCE);     // Aston Villa won 2-1
-            createPickWithResult(pickRepository, pickResultRepository,
+            createPickWithResult(participantRepository, pickRepository, pickResultRepository,
                     comp1, bob, gw2, teamMap.get("NEW"), PickOutcome.ADVANCE);       // Newcastle won 2-1
-            createPickWithResult(pickRepository, pickResultRepository,
+            createPickWithResult(participantRepository, pickRepository, pickResultRepository,
                     comp1, charlie, gw2, teamMap.get("EVE"), PickOutcome.ELIMINATED);// Draw 0-0 → eliminated!
             // dave is already eliminated, no pick
-            createPickWithResult(pickRepository, pickResultRepository,
+            createPickWithResult(participantRepository, pickRepository, pickResultRepository,
                     comp1, emma, gw2, teamMap.get("WHU"), PickOutcome.ADVANCE);      // West Ham won 1-0
-            createPickWithResult(pickRepository, pickResultRepository,
+            createPickWithResult(participantRepository, pickRepository, pickResultRepository,
                     comp1, frank, gw2, teamMap.get("LIV"), PickOutcome.ADVANCE);     // Liverpool won 2-0
-            createPickWithResult(pickRepository, pickResultRepository,
+            createPickWithResult(participantRepository, pickRepository, pickResultRepository,
                     comp1, grace, gw2, teamMap.get("BRE"), PickOutcome.ADVANCE);     // Brentford won 1-0
 
             // Eliminate Charlie
@@ -230,14 +230,14 @@ public class DataSeeder {
 
                 // Active players pick for GW3 (no results yet — all PENDING)
                 // Each player picks a team they haven't used in GW1/GW2
-                createLockedPick(pickRepository, comp1, admin, gw3, teamMap.get("TOT"));    // admin used ARS(gw1), CHE(gw2)
-                createLockedPick(pickRepository, comp1, alice, gw3, teamMap.get("MCI"));    // alice used LIV(gw1), AVL(gw2)
-                createLockedPick(pickRepository, comp1, bob, gw3, teamMap.get("ARS"));      // bob used MCI(gw1), NEW(gw2)
+                createLockedPick(participantRepository, pickRepository, comp1, admin, gw3, teamMap.get("TOT"));    // admin used ARS(gw1), CHE(gw2)
+                createLockedPick(participantRepository, pickRepository, comp1, alice, gw3, teamMap.get("MCI"));    // alice used LIV(gw1), AVL(gw2)
+                createLockedPick(participantRepository, pickRepository, comp1, bob, gw3, teamMap.get("ARS"));      // bob used MCI(gw1), NEW(gw2)
                 // charlie eliminated — no pick
                 // dave eliminated — no pick
-                createLockedPick(pickRepository, comp1, emma, gw3, teamMap.get("LIV"));     // emma used FUL(gw1), WHU(gw2)
-                createLockedPick(pickRepository, comp1, frank, gw3, teamMap.get("MUN"));    // frank used NFO(gw1), LIV(gw2)
-                createLockedPick(pickRepository, comp1, grace, gw3, teamMap.get("ARS"));    // grace used SOU(gw1), BRE(gw2)
+                createLockedPick(participantRepository, pickRepository, comp1, emma, gw3, teamMap.get("LIV"));     // emma used FUL(gw1), WHU(gw2)
+                createLockedPick(participantRepository, pickRepository, comp1, frank, gw3, teamMap.get("MUN"));    // frank used NFO(gw1), LIV(gw2)
+                createLockedPick(participantRepository, pickRepository, comp1, grace, gw3, teamMap.get("ARS"));    // grace used SOU(gw1), BRE(gw2)
                                                                                             // Note: grace & bob both picked ARS — that's fine, different users
 
                 log.info("Created GW3 picks (IN_PROGRESS, locked, pending results)");
@@ -251,28 +251,28 @@ public class DataSeeder {
                 Gameweek gw6 = comp1Gameweeks.get(5);
 
                 // GW4 picks (admin, alice, bob, emma, frank, grace - all still active)
-                createLockedPick(pickRepository, comp1, admin, gw4, teamMap.get("BHA"));
-                createLockedPick(pickRepository, comp1, alice, gw4, teamMap.get("WHU"));
-                createLockedPick(pickRepository, comp1, bob, gw4, teamMap.get("BRE"));
-                createLockedPick(pickRepository, comp1, emma, gw4, teamMap.get("NFO"));
-                createLockedPick(pickRepository, comp1, frank, gw4, teamMap.get("TOT"));
-                createLockedPick(pickRepository, comp1, grace, gw4, teamMap.get("LEI"));
+                createLockedPick(participantRepository, pickRepository, comp1, admin, gw4, teamMap.get("BHA"));
+                createLockedPick(participantRepository, pickRepository, comp1, alice, gw4, teamMap.get("WHU"));
+                createLockedPick(participantRepository, pickRepository, comp1, bob, gw4, teamMap.get("BRE"));
+                createLockedPick(participantRepository, pickRepository, comp1, emma, gw4, teamMap.get("NFO"));
+                createLockedPick(participantRepository, pickRepository, comp1, frank, gw4, teamMap.get("TOT"));
+                createLockedPick(participantRepository, pickRepository, comp1, grace, gw4, teamMap.get("LEI"));
 
                 // GW5 picks
-                createLockedPick(pickRepository, comp1, admin, gw5, teamMap.get("FUL"));
-                createLockedPick(pickRepository, comp1, alice, gw5, teamMap.get("BOU"));
-                createLockedPick(pickRepository, comp1, bob, gw5, teamMap.get("EVE"));
-                createLockedPick(pickRepository, comp1, emma, gw5, teamMap.get("CHE"));
-                createLockedPick(pickRepository, comp1, frank, gw5, teamMap.get("WOL"));
-                createLockedPick(pickRepository, comp1, grace, gw5, teamMap.get("CRY"));
+                createLockedPick(participantRepository, pickRepository, comp1, admin, gw5, teamMap.get("FUL"));
+                createLockedPick(participantRepository, pickRepository, comp1, alice, gw5, teamMap.get("BOU"));
+                createLockedPick(participantRepository, pickRepository, comp1, bob, gw5, teamMap.get("EVE"));
+                createLockedPick(participantRepository, pickRepository, comp1, emma, gw5, teamMap.get("CHE"));
+                createLockedPick(participantRepository, pickRepository, comp1, frank, gw5, teamMap.get("WOL"));
+                createLockedPick(participantRepository, pickRepository, comp1, grace, gw5, teamMap.get("CRY"));
 
                 // GW6 picks
-                createLockedPick(pickRepository, comp1, admin, gw6, teamMap.get("IPS"));
-                createLockedPick(pickRepository, comp1, alice, gw6, teamMap.get("SOU"));
-                createLockedPick(pickRepository, comp1, bob, gw6, teamMap.get("WHU"));
-                createLockedPick(pickRepository, comp1, emma, gw6, teamMap.get("BRE"));
-                createLockedPick(pickRepository, comp1, frank, gw6, teamMap.get("CHE"));
-                createLockedPick(pickRepository, comp1, grace, gw6, teamMap.get("MCI"));
+                createLockedPick(participantRepository, pickRepository, comp1, admin, gw6, teamMap.get("IPS"));
+                createLockedPick(participantRepository, pickRepository, comp1, alice, gw6, teamMap.get("SOU"));
+                createLockedPick(participantRepository, pickRepository, comp1, bob, gw6, teamMap.get("WHU"));
+                createLockedPick(participantRepository, pickRepository, comp1, emma, gw6, teamMap.get("BRE"));
+                createLockedPick(participantRepository, pickRepository, comp1, frank, gw6, teamMap.get("CHE"));
+                createLockedPick(participantRepository, pickRepository, comp1, grace, gw6, teamMap.get("MCI"));
 
                 log.info("Created picks for GW4-6 for simulation testing");
             }
@@ -299,14 +299,15 @@ public class DataSeeder {
         };
     }
 
-    private void createPickWithResult(PickRepository pickRepo, PickResultRepository resultRepo,
+    private void createPickWithResult(CompetitionParticipantRepository participantRepository, PickRepository pickRepo, PickResultRepository resultRepo,
                                       Competition comp, User user, Gameweek gw, Team team,
                                       PickOutcome outcome) {
         if (team == null) {
             log.warn("Skipping seeded pick for user={} gw={} — team not found (short name mismatch)", user.getUsername(), gw.getWeekNumber());
             return;
         }
-        Pick pick = new Pick(comp, user, gw, team, PickSource.USER, true);
+        CompetitionParticipant participant = participantRepository.findByCompetitionIdAndUserId(comp.getId(), user.getId()).orElseThrow();
+        Pick pick = new Pick(comp, user, participant, gw, team, PickSource.USER, true);
         pick = pickRepo.save(pick);
 
         PickResult result = new PickResult(pick, outcome);
@@ -314,13 +315,14 @@ public class DataSeeder {
         resultRepo.save(result);
     }
 
-    private void createLockedPick(PickRepository pickRepo,
+    private void createLockedPick(CompetitionParticipantRepository participantRepository, PickRepository pickRepo,
                                   Competition comp, User user, Gameweek gw, Team team) {
         if (team == null) {
             log.warn("Skipping seeded locked pick for user={} gw={} — team not found (short name mismatch)", user.getUsername(), gw.getWeekNumber());
             return;
         }
-        Pick pick = new Pick(comp, user, gw, team, PickSource.USER, true);
+        CompetitionParticipant participant = participantRepository.findByCompetitionIdAndUserId(comp.getId(), user.getId()).orElseThrow();
+        Pick pick = new Pick(comp, user, participant, gw, team, PickSource.USER, true);
         pickRepo.save(pick);
         // No PickResult — outcome is PENDING (matches not finished yet)
     }

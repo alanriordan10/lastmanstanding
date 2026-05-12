@@ -135,12 +135,16 @@ public class TestDataGenerator {
                 }
 
                 List<Pick> picksToCreate = new ArrayList<>();
+                Map<Long, CompetitionParticipant> participantByUserId = participantRepository.findByCompetitionId(competitionId).stream()
+                        .collect(Collectors.toMap(cp -> cp.getUser().getId(), cp -> cp, (a, b) -> a));
                 for (User user : usersNeedingPick) {
+                    CompetitionParticipant participant = participantByUserId.get(user.getId());
+                    if (participant == null) continue;
                     Set<Long> usedTeamIds = usedTeamsByUser.getOrDefault(user.getId(), Set.of());
                     List<Team> available = allTeams.stream()
                             .filter(t -> !usedTeamIds.contains(t.getId())).toList();
                     if (!available.isEmpty()) {
-                        picksToCreate.add(new Pick(comp, user, gw,
+                        picksToCreate.add(new Pick(comp, user, participant, gw,
                                 available.get(random.nextInt(available.size())), PickSource.USER, true));
                     }
                 }

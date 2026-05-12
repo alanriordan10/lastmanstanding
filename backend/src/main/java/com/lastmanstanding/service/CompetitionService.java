@@ -95,27 +95,41 @@ public class CompetitionService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Competition has already started");
         }
 
-        if (participantRepository.existsByCompetitionIdAndUserId(competitionId, userId)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Already joined this competition");
+        long existingEntries = participantRepository.countByCompetitionIdAndUserId(competitionId, userId);
+        int maxEntries = comp.getMaxEntriesPerUser() != null ? Math.max(1, comp.getMaxEntriesPerUser()) : 1;
+        if (existingEntries >= maxEntries) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Maximum entries reached for this competition");
         }
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
         CompetitionParticipant cp = new CompetitionParticipant(comp, user, ParticipantStatus.ACTIVE);
+        cp.setEntryNumber((int) existingEntries + 1);
         return participantRepository.save(cp);
     }
 
-    public ParticipantInfo getMyStatus(Long competitionId, Long userId) {
-        CompetitionParticipant cp = participantRepository.findByCompetitionIdAndUserId(competitionId, userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Not a participant"));
+    public ParticipantInfo getMyStatus(Long competitionId, Long userId, Long entryId) {
+        CompetitionParticipant cp;
+        if (entryId != null) {
+            cp = participantRepository.findByIdAndCompetitionIdAndUserId(entryId, competitionId, userId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Entry not found"));
+        } else {
+            cp = participantRepository.findByCompetitionIdAndUserIdOrderByEntryNumberAsc(competitionId, userId).stream()
+                    .findFirst()
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Not a participant"));
+        }
 
-        List<Long> usedTeamIds = pickRepository.findUsedTeamIds(competitionId, userId);
-        List<Pick> picks = pickRepository.findByCompetitionIdAndUserId(competitionId, userId);
+        List<Long> usedTeamIds = pickRepository.findUsedTeamIdsForParticipant(competitionId, cp.getId());
+        List<Pick> picks = pickRepository.findByCompetitionIdAndParticipantId(competitionId, cp.getId());
         List<Long> pickIds = picks.stream().map(Pick::getId).toList();
         List<PickResult> results = pickResultRepository.findByPickIdIn(pickIds);
 
         return new ParticipantInfo(cp, usedTeamIds, picks, results);
+    }
+
+    public List<CompetitionParticipant> getMyEntries(Long competitionId, Long userId) {
+        return participantRepository.findByCompetitionIdAndUserIdOrderByEntryNumberAsc(competitionId, userId);
     }
 
     public List<CompetitionParticipant> getParticipants(Long competitionId) {
@@ -127,15 +141,17 @@ public class CompetitionService {
     @Transactional
     public Competition createCompetition(
             String name, String description, BigDecimal entryFee, BigDecimal prizePool,
+            Integer maxEntriesPerUser,
             MissedPickMode missedPickMode, boolean postponedConsumesTeam, boolean passFeeToParticipant,
             String paymentMode, String manualPaymentPolicy, String visibility, java.time.LocalDate startDate, Long adminUserId, Long clubId) {
-        return createCompetition(name, description, entryFee, prizePool, missedPickMode, postponedConsumesTeam,
+        return createCompetition(name, description, entryFee, prizePool, maxEntriesPerUser, missedPickMode, postponedConsumesTeam,
                 passFeeToParticipant, paymentMode, manualPaymentPolicy, visibility, startDate, adminUserId, clubId, true);
     }
 
     @Transactional
     public Competition createCompetition(
             String name, String description, BigDecimal entryFee, BigDecimal prizePool,
+            Integer maxEntriesPerUser,
             MissedPickMode missedPickMode, boolean postponedConsumesTeam, boolean passFeeToParticipant,
             String paymentMode, String manualPaymentPolicy, String visibility, java.time.LocalDate startDate, Long adminUserId, Long clubId,
             boolean autoSyncFixtures) {
@@ -143,6 +159,7 @@ public class CompetitionService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Admin user not found"));
         Competition comp = new Competition(name, description, entryFee,
                 CompetitionStatus.UPCOMING, missedPickMode, postponedConsumesTeam, startDate, admin);
+        comp.setMaxEntriesPerUser(normalizeMaxEntriesPerUser(maxEntriesPerUser));
         comp.setPassFeeToParticipant(passFeeToParticipant);
         comp.setPrizePool(prizePool);
         if (paymentMode != null) {
@@ -211,7 +228,7 @@ public class CompetitionService {
 
     @Transactional
     public Competition updateCompetition(Long id, String name, String description, BigDecimal entryFee,
-                                         BigDecimal prizePool, MissedPickMode missedPickMode,
+                                         BigDecimal prizePool, Integer maxEntriesPerUser, MissedPickMode missedPickMode,
                                          boolean postponedConsumesTeam, Boolean passFeeToParticipant,
                                          String paymentMode, String manualPaymentPolicy, String visibility, java.time.LocalDate startDate,
                                          CompetitionStatus status, Long clubId) {
@@ -221,6 +238,7 @@ public class CompetitionService {
         if (description != null) comp.setDescription(description.isBlank() ? null : description);
         if (entryFee != null) comp.setEntryFee(entryFee);
         comp.setPrizePool(prizePool); // null is valid (clears it)
+        if (maxEntriesPerUser != null) comp.setMaxEntriesPerUser(normalizeMaxEntriesPerUser(maxEntriesPerUser));
         if (missedPickMode != null) comp.setMissedPickMode(missedPickMode);
         comp.setPostponedConsumesTeam(postponedConsumesTeam);
         if (passFeeToParticipant != null) comp.setPassFeeToParticipant(passFeeToParticipant);
@@ -269,6 +287,11 @@ public class CompetitionService {
             comp.setStripeDestinationAccountId(null);
         }
         return competitionRepository.save(comp);
+    }
+
+    private int normalizeMaxEntriesPerUser(Integer maxEntriesPerUser) {
+        if (maxEntriesPerUser == null) return 1;
+        return Math.max(1, Math.min(maxEntriesPerUser, 20));
     }
 
     private void validateStripeClubReady(Club club) {
@@ -366,6 +389,22 @@ public class CompetitionService {
         pickResultRepository.deleteByCompetitionIdAndUserId(competitionId, userId);
         pickRepository.deleteByCompetitionIdAndUserId(competitionId, userId);
         participantRepository.deleteByCompetitionIdAndUserId(competitionId, userId);
+    }
+
+    /**
+     * Remove a single participant entry from a competition, deleting only that entry's picks and results.
+     */
+    @Transactional
+    public void removeParticipantEntry(Long competitionId, Long participantId) {
+        CompetitionParticipant participant = participantRepository.findByIdAndCompetitionId(participantId, competitionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Participant entry not found"));
+        List<Pick> picks = pickRepository.findByCompetitionIdAndParticipantId(competitionId, participant.getId());
+        if (!picks.isEmpty()) {
+            List<Long> pickIds = picks.stream().map(Pick::getId).toList();
+            pickResultRepository.deleteByPickIdIn(pickIds);
+            pickRepository.deleteAllByIdInBatch(pickIds);
+        }
+        participantRepository.deleteById(participant.getId());
     }
 
     public record ParticipantInfo(

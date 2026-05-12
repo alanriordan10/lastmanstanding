@@ -217,6 +217,7 @@ public class ClubAdminController {
         // Force the competition into this club
         Competition c = competitionService.createCompetition(
                 request.name(), request.description(), request.entryFee(), request.prizePool(),
+                request.maxEntriesPerUser(),
                 request.missedPickMode(), request.postponedConsumesTeam(), request.passFeeToParticipant(),
                 request.paymentMode(), request.manualPaymentPolicy(), request.visibility(), request.startDate(), userDetails.getId(), club.getId());
         logAudit(userDetails, "Competition", c.getId(), "name", null, c.getName(), "CREATE");
@@ -246,6 +247,7 @@ public class ClubAdminController {
                 String oldClubId = existing.getClub() != null ? String.valueOf(existing.getClub().getId()) : null;
         Competition c = competitionService.updateCompetition(id,
                 request.name(), request.description(), request.entryFee(), request.prizePool(),
+                request.maxEntriesPerUser(),
                 request.missedPickMode(),
                 request.postponedConsumesTeam() != null ? request.postponedConsumesTeam() : true,
                 request.passFeeToParticipant(),
@@ -347,16 +349,16 @@ public class ClubAdminController {
                 .toList();
     }
 
-    @DeleteMapping("/competitions/{compId}/participants/{userId}")
+    @DeleteMapping("/competitions/{compId}/participants/{participantId}")
     public ResponseEntity<Void> removeParticipant(@PathVariable Long compId,
-                                                  @PathVariable Long userId,
+                                                  @PathVariable Long participantId,
                                                   @AuthenticationPrincipal UserDetailsImpl userDetails) {
         Club club = resolveClub(userDetails);
         assertOwnsCompetition(compId, club);
-        CompetitionParticipant cp = participantRepository.findByCompetitionIdAndUserId(compId, userId)
+        CompetitionParticipant cp = participantRepository.findByIdAndCompetitionId(participantId, compId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Participant not found"));
-        competitionService.removeParticipant(compId, userId);
-        logAudit(userDetails, "CompetitionParticipant", cp.getId(), "userId", String.valueOf(userId), null, "REMOVE_PARTICIPANT");
+        competitionService.removeParticipantEntry(compId, participantId);
+        logAudit(userDetails, "CompetitionParticipant", cp.getId(), "participantId", String.valueOf(participantId), null, "REMOVE_PARTICIPANT");
         return ResponseEntity.noContent().build();
     }
 
@@ -463,12 +465,9 @@ public class ClubAdminController {
         Set<Long> alreadyPaidIds = new HashSet<>(
                 paymentRepository.findPaidUserIdsByCompetitionIdAndUserIdIn(compId, targetIds));
 
-        List<User> users = userRepository.findAllById(targetIds);
-        Map<Long, User> userById = users.stream().collect(java.util.stream.Collectors.toMap(User::getId, u -> u));
-        List<Payment> toCreate = new java.util.ArrayList<>();
         int invalid = 0;
         int alreadyPaid = 0;
-        int created = 0;
+        int eligibleToCreate = 0;
 
         for (Long userId : targetIds) {
             if (!participantIds.contains(userId)) {
@@ -479,24 +478,15 @@ public class ClubAdminController {
                 alreadyPaid++;
                 continue;
             }
-            User user = userById.get(userId);
-            if (user == null) {
-                invalid++;
-                continue;
-            }
-            Payment payment = new Payment(
-                    user, comp, null,
-                    comp.getEntryFee() != null
-                            ? comp.getEntryFee().multiply(java.math.BigDecimal.valueOf(100)).intValue()
-                            : 0,
-                    "eur");
-            payment.setStatus(Payment.PaymentStatus.SUCCEEDED);
-            toCreate.add(payment);
-            created++;
+            eligibleToCreate++;
         }
 
-        if (!toCreate.isEmpty()) {
-            paymentRepository.saveAll(toCreate);
+        int created = 0;
+        if (eligibleToCreate > 0) {
+            int amountCents = comp.getEntryFee() != null
+                    ? comp.getEntryFee().multiply(java.math.BigDecimal.valueOf(100)).intValue()
+                    : 0;
+            created = paymentRepository.insertSucceededManualPaymentsForUsers(compId, targetIds, amountCents, "eur");
         }
 
         logAudit(userDetails, "Payment", compId, "bulkMarkPaid", null,
@@ -544,11 +534,11 @@ public class ClubAdminController {
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping("/competitions/{compId}/declare-winner/{userId}")
+    @PostMapping("/competitions/{compId}/declare-winner/{participantId}")
     @Transactional
     public ResponseEntity<CompetitionResponse> declareWinner(
             @PathVariable Long compId,
-            @PathVariable Long userId,
+            @PathVariable Long participantId,
             @AuthenticationPrincipal UserDetailsImpl userDetails) {
 
         Club club = resolveClub(userDetails);
@@ -557,7 +547,7 @@ public class ClubAdminController {
         Competition comp = competitionRepository.findById(compId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Competition not found"));
 
-        CompetitionParticipant winner = participantRepository.findByCompetitionIdAndUserId(compId, userId)
+        CompetitionParticipant winner = participantRepository.findByIdAndCompetitionId(participantId, compId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Participant not found"));
 
         // Mark this participant as winner
@@ -579,7 +569,7 @@ public class ClubAdminController {
         log.info("Club admin manually declared {} as winner of competition {}",
                 winner.getUser().getUsername(), compId);
 
-        logAudit(userDetails, "Competition", compId, "winnerUserId", null, String.valueOf(userId), "DECLARE_WINNER");
+        logAudit(userDetails, "Competition", compId, "winnerParticipantId", null, String.valueOf(participantId), "DECLARE_WINNER");
 
         int total = participantRepository.findByCompetitionId(compId).size();
         return ResponseEntity.ok(CompetitionResponse.from(comp, total, 1, winner.getUser().getUsername()));

@@ -37,4 +37,18 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     @Modifying
     @Query("UPDATE Payment p SET p.status = :status WHERE p.id = :paymentId")
     void updateStatus(@Param("paymentId") Long paymentId, @Param("status") Payment.PaymentStatus status);
+
+    @Modifying
+    @Query(value = "INSERT INTO payments (" +
+            "user_id, competition_id, stripe_payment_intent_id, amount_cents, currency, status, webhook_confirmed, created_at, updated_at" +
+            ") SELECT " +
+            "u.id, :competitionId, NULL, :amountCents, :currency, 'SUCCEEDED', FALSE, NOW(), NOW() " +
+            "FROM users u " +
+            "JOIN competition_participants cp ON cp.user_id = u.id AND cp.competition_id = :competitionId " +
+            "LEFT JOIN payments p ON p.user_id = u.id AND p.competition_id = :competitionId AND p.status = 'SUCCEEDED' " +
+            "WHERE u.id IN (:userIds) AND p.id IS NULL", nativeQuery = true)
+    int insertSucceededManualPaymentsForUsers(@Param("competitionId") Long competitionId,
+                                              @Param("userIds") List<Long> userIds,
+                                              @Param("amountCents") int amountCents,
+                                              @Param("currency") String currency);
 }

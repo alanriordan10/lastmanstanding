@@ -34,6 +34,7 @@ export interface Competition {
   description?: string;
   entryFee: number;
   prizePool?: number;
+  maxEntriesPerUser?: number;
   passFeeToParticipant?: boolean;
   paymentMode?: 'FREE' | 'MANUAL' | 'STRIPE';
   manualPaymentPolicy?: 'STRICT' | 'LENIENT';
@@ -59,6 +60,7 @@ export interface Participant {
   id: number;
   userId: number;
   username: string;
+  entryNumber?: number;
   status: 'ACTIVE' | 'ELIMINATED' | 'WINNER';
   paymentState?: 'NOT_REQUIRED' | 'AWAITING_PAYMENT' | 'PAID';
   eliminatedWeek: number | null;
@@ -73,6 +75,8 @@ export interface MyStatus {
 
 export interface MyCompetition {
   competition: Competition;
+  participantId?: number;
+  entryNumber?: number;
   myStatus: 'ACTIVE' | 'ELIMINATED' | 'WINNER';
   paymentState?: 'NOT_REQUIRED' | 'AWAITING_PAYMENT' | 'PAID';
   eliminatedWeek: number | null;
@@ -141,8 +145,10 @@ export interface PickResponse {
 }
 
 export interface GameweekSelection {
+  participantId?: number | null;
   userId: number;
   username: string;
+  entryNumber?: number;
   teamId: number;
   teamName: string;
   teamShortName: string;

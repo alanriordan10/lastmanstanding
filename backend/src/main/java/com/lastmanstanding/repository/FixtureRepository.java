@@ -17,6 +17,24 @@ public interface FixtureRepository extends JpaRepository<Fixture, Long> {
 
     List<Fixture> findByGameweekIdIn(List<Long> gameweekIds);
 
+    @Query("SELECT DISTINCT f FROM Fixture f " +
+            "JOIN FETCH f.gameweek " +
+            "JOIN FETCH f.importedHomeTeam " +
+            "JOIN FETCH f.importedAwayTeam " +
+            "LEFT JOIN FETCH f.overrideHomeTeam " +
+            "LEFT JOIN FETCH f.overrideAwayTeam " +
+            "WHERE f.gameweek.id = :gameweekId")
+    List<Fixture> findByGameweekIdFetchAll(@Param("gameweekId") Long gameweekId);
+
+    @Query("SELECT DISTINCT f FROM Fixture f " +
+            "JOIN FETCH f.gameweek " +
+            "JOIN FETCH f.importedHomeTeam " +
+            "JOIN FETCH f.importedAwayTeam " +
+            "LEFT JOIN FETCH f.overrideHomeTeam " +
+            "LEFT JOIN FETCH f.overrideAwayTeam " +
+            "WHERE f.gameweek.id IN :gameweekIds")
+    List<Fixture> findByGameweekIdInFetchAll(@Param("gameweekIds") List<Long> gameweekIds);
+
     Optional<Fixture> findByExternalFixtureId(String externalFixtureId);
 
     Optional<Fixture> findByExternalFixtureIdAndGameweekId(String externalFixtureId, Long gameweekId);

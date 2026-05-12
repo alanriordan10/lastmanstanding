@@ -14,6 +14,11 @@ import org.springframework.stereotype.Repository;
 public interface CompetitionParticipantRepository extends JpaRepository<CompetitionParticipant, Long> {
 
     Optional<CompetitionParticipant> findByCompetitionIdAndUserId(Long competitionId, Long userId);
+    Optional<CompetitionParticipant> findByCompetitionIdAndUserIdAndEntryNumber(Long competitionId, Long userId, Integer entryNumber);
+    List<CompetitionParticipant> findByCompetitionIdAndUserIdOrderByEntryNumberAsc(Long competitionId, Long userId);
+    Optional<CompetitionParticipant> findByIdAndCompetitionIdAndUserId(Long id, Long competitionId, Long userId);
+    Optional<CompetitionParticipant> findByIdAndCompetitionId(Long id, Long competitionId);
+    long countByCompetitionIdAndUserId(Long competitionId, Long userId);
 
     @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"user", "competition"})
     List<CompetitionParticipant> findByCompetitionId(Long competitionId);
@@ -26,6 +31,12 @@ public interface CompetitionParticipantRepository extends JpaRepository<Competit
     List<Long> findParticipantUserIdsByCompetitionIdAndUserIdIn(@Param("competitionId") Long competitionId, @Param("userIds") List<Long> userIds);
 
     long countByCompetitionIdAndStatus(Long competitionId, ParticipantStatus status);
+
+    @Query("SELECT COUNT(cp) FROM CompetitionParticipant cp WHERE cp.competition.id = :competitionId AND (cp.eliminatedWeek IS NULL OR cp.eliminatedWeek >= :weekNumber)")
+    long countActiveAtStartForWeek(@Param("competitionId") Long competitionId, @Param("weekNumber") int weekNumber);
+
+    @Query("SELECT COUNT(cp) FROM CompetitionParticipant cp WHERE cp.competition.id = :competitionId AND cp.eliminatedWeek = :weekNumber")
+    long countEliminatedInWeek(@Param("competitionId") Long competitionId, @Param("weekNumber") int weekNumber);
 
     List<CompetitionParticipant> findByUserId(Long userId);
 

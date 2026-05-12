@@ -296,6 +296,7 @@ function CompetitionsTab() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [entryFee, setEntryFee] = useState('0');
+  const [maxEntriesPerUser, setMaxEntriesPerUser] = useState('1');
   const [prizePool, setPrizePool] = useState('');
   const [missedPickMode, setMissedPickMode] = useState('ELIMINATE');
   const [postponedConsumesTeam, setPostponedConsumesTeam] = useState(true);
@@ -335,6 +336,7 @@ function CompetitionsTab() {
     setName('');
     setDescription('');
     setEntryFee('0');
+    setMaxEntriesPerUser('1');
     setPrizePool('');
     setMissedPickMode('ELIMINATE');
     setPostponedConsumesTeam(true);
@@ -353,6 +355,7 @@ function CompetitionsTab() {
     setName(competition.name);
     setDescription(competition.description ?? '');
     setEntryFee(String(competition.entryFee ?? 0));
+    setMaxEntriesPerUser(String(competition.maxEntriesPerUser ?? 1));
     setPrizePool(competition.prizePool != null ? String(competition.prizePool) : '');
     setMissedPickMode(competition.missedPickMode);
     setPostponedConsumesTeam(competition.postponedConsumesTeam);
@@ -369,6 +372,7 @@ function CompetitionsTab() {
     name,
     description,
     entryFee: parseFloat(entryFee) || 0,
+    maxEntriesPerUser: Math.max(1, parseInt(maxEntriesPerUser, 10) || 1),
     prizePool: prizePool ? parseFloat(prizePool) : null,
     missedPickMode,
     postponedConsumesTeam,
@@ -387,6 +391,7 @@ function CompetitionsTab() {
         name,
         description: description || null,
         entryFee: parseFloat(entryFee) || 0,
+        maxEntriesPerUser: Math.max(1, parseInt(maxEntriesPerUser, 10) || 1),
         prizePool: prizePool ? parseFloat(prizePool) : null,
         missedPickMode,
         postponedConsumesTeam,
@@ -869,6 +874,19 @@ function CompetitionsTab() {
               />
             </div>
             <div>
+              <label className="mb-1 block text-sm font-medium text-gray-300">Max Entries Per User</label>
+              <input
+                type="number"
+                min="1"
+                max="10"
+                step="1"
+                value={maxEntriesPerUser}
+                onChange={(e) => setMaxEntriesPerUser(e.target.value)}
+                className="input-field"
+              />
+              <p className="mt-1 text-xs text-gray-500">Set to `2` to allow users to enter twice.</p>
+            </div>
+            <div>
               <label className="mb-1 block text-sm font-medium text-gray-300">Club (optional)</label>
               <AdminSelect
                 value={clubId}
@@ -1153,7 +1171,7 @@ function ParticipantsPanel({ competitionId, competitionName }: { competitionId: 
   });
 
   const removeMutation = useMutation({
-    mutationFn: (userId: number) => api.delete(`/admin/competitions/${competitionId}/participants/${userId}`),
+    mutationFn: (participantId: number) => api.delete(`/admin/competitions/${competitionId}/participants/${participantId}`),
     onSuccess: () => {
       toast.success('Participant removed');
       queryClient.invalidateQueries({ queryKey: ['admin', 'participants', competitionId] });
@@ -1163,9 +1181,9 @@ function ParticipantsPanel({ competitionId, competitionName }: { competitionId: 
   });
 
   const declareWinnerMutation = useMutation({
-    mutationFn: (userId: number) => api.post(`/admin/competitions/${competitionId}/declare-winner/${userId}`, {}),
-    onSuccess: (_, userId) => {
-      const winner = participants?.find(p => p.userId === userId);
+    mutationFn: (participantId: number) => api.post(`/admin/competitions/${competitionId}/declare-winner/${participantId}`, {}),
+    onSuccess: (_, participantId) => {
+      const winner = participants?.find(p => p.id === participantId);
       toast.success(
         <div className="flex items-center gap-3">
           <span className="text-2xl">🏆</span>
@@ -1411,7 +1429,7 @@ function ParticipantsPanel({ competitionId, competitionName }: { competitionId: 
       <ConfirmDialog
         isOpen={winnerDialogUser !== null}
         onClose={() => setWinnerDialogUser(null)}
-        onConfirm={() => winnerDialogUser && declareWinnerMutation.mutate(winnerDialogUser.userId)}
+        onConfirm={() => winnerDialogUser && declareWinnerMutation.mutate(winnerDialogUser.id)}
         icon="🏆"
         variant="warning"
         title={`Declare ${winnerDialogUser?.username} as Winner?`}
@@ -1428,7 +1446,7 @@ function ParticipantsPanel({ competitionId, competitionName }: { competitionId: 
       <ConfirmDialog
         isOpen={removeDialogUser !== null}
         onClose={() => setRemoveDialogUser(null)}
-        onConfirm={() => removeDialogUser && removeMutation.mutate(removeDialogUser.userId)}
+        onConfirm={() => removeDialogUser && removeMutation.mutate(removeDialogUser.id)}
         variant="danger"
         title={`Remove ${removeDialogUser?.username}?`}
         message={`This will remove them from "${competitionName}" and delete all their picks and results.`}

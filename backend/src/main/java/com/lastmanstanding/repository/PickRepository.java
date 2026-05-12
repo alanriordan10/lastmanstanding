@@ -13,16 +13,30 @@ import org.springframework.stereotype.Repository;
 public interface PickRepository extends JpaRepository<Pick, Long> {
 
     Optional<Pick> findByCompetitionIdAndUserIdAndGameweekId(Long competitionId, Long userId, Long gameweekId);
+    Optional<Pick> findByCompetitionIdAndParticipantIdAndGameweekId(Long competitionId, Long participantId, Long gameweekId);
 
     List<Pick> findByCompetitionIdAndUserId(Long competitionId, Long userId);
+    List<Pick> findByCompetitionIdAndParticipantId(Long competitionId, Long participantId);
+    List<Pick> findByCompetitionIdAndParticipantIdInAndGameweekId(Long competitionId, List<Long> participantIds, Long gameweekId);
 
     List<Pick> findByCompetitionIdAndGameweekId(Long competitionId, Long gameweekId);
 
-    /** Eagerly fetch user and team in one query — eliminates N+1 on the selections endpoint */
-    @Query("SELECT p FROM Pick p JOIN FETCH p.user JOIN FETCH p.team WHERE p.competition.id = :competitionId AND p.gameweek.id = :gameweekId")
+    /** Eagerly fetch user, team, and participant in one query — eliminates N+1 on the selections endpoint */
+    @Query("SELECT p FROM Pick p JOIN FETCH p.user JOIN FETCH p.team JOIN FETCH p.participant WHERE p.competition.id = :competitionId AND p.gameweek.id = :gameweekId")
     List<Pick> findByCompetitionIdAndGameweekIdFetch(@Param("competitionId") Long competitionId, @Param("gameweekId") Long gameweekId);
 
     boolean existsByCompetitionIdAndUserIdAndTeamId(Long competitionId, Long userId, Long teamId);
+    boolean existsByCompetitionIdAndParticipantIdAndTeamId(Long competitionId, Long participantId, Long teamId);
+
+    @Query("SELECT p.team.id FROM Pick p WHERE p.competition.id = :competitionId AND p.participant.id = :participantId")
+    List<Long> findUsedTeamIdsForParticipant(@Param("competitionId") Long competitionId, @Param("participantId") Long participantId);
+
+    @Query("SELECT p.team.id FROM Pick p WHERE p.competition.id = :competitionId AND p.participant.id = :participantId " +
+            "AND p.gameweek.status IN (" +
+            "com.lastmanstanding.entity.GameweekStatus.LOCKED, " +
+            "com.lastmanstanding.entity.GameweekStatus.IN_PROGRESS, " +
+            "com.lastmanstanding.entity.GameweekStatus.COMPLETED)")
+    List<Long> findConsumedTeamIdsForParticipant(@Param("competitionId") Long competitionId, @Param("participantId") Long participantId);
 
     @Query("SELECT p.team.id FROM Pick p WHERE p.competition.id = :competitionId AND p.user.id = :userId")
     List<Long> findUsedTeamIds(@Param("competitionId") Long competitionId, @Param("userId") Long userId);
@@ -37,6 +51,8 @@ public interface PickRepository extends JpaRepository<Pick, Long> {
     /** Returns [userId, teamId] pairs for a list of users in one query — avoids N+1 in auto-assign */
     @Query("SELECT p.user.id, p.team.id FROM Pick p WHERE p.competition.id = :competitionId AND p.user.id IN :userIds")
     List<Object[]> findUsedTeamIdsByUserIds(@Param("competitionId") Long competitionId, @Param("userIds") List<Long> userIds);
+    @Query("SELECT p.participant.id, p.team.id FROM Pick p WHERE p.competition.id = :competitionId AND p.participant.id IN :participantIds")
+    List<Object[]> findUsedTeamIdsByParticipantIds(@Param("competitionId") Long competitionId, @Param("participantIds") List<Long> participantIds);
 
     /** Returns pick IDs for a user in future gameweeks — used for elimination cleanup */
     @Query("SELECT p.id FROM Pick p WHERE p.competition.id = :competitionId AND p.user.id = :userId AND p.gameweek.weekNumber > :weekNumber")
@@ -51,8 +67,24 @@ public interface PickRepository extends JpaRepository<Pick, Long> {
     @Modifying
     @Query("DELETE FROM Pick p WHERE p.competition.id = :competitionId AND p.user.id IN :userIds AND p.gameweek.weekNumber > :weekNumber")
     void deleteFuturePicksForUsers(@Param("competitionId") Long competitionId, @Param("userIds") List<Long> userIds, @Param("weekNumber") int weekNumber);
+    @Modifying
+    @Query("DELETE FROM Pick p WHERE p.competition.id = :competitionId AND p.participant.id = :participantId AND p.gameweek.weekNumber > :weekNumber")
+    void deleteFuturePicksForParticipant(@Param("competitionId") Long competitionId, @Param("participantId") Long participantId, @Param("weekNumber") int weekNumber);
+
+    @Modifying
+    @Query("DELETE FROM Pick p WHERE p.competition.id = :competitionId AND p.participant.id IN :participantIds AND p.gameweek.weekNumber > :weekNumber")
+    void deleteFuturePicksForParticipants(@Param("competitionId") Long competitionId, @Param("participantIds") List<Long> participantIds, @Param("weekNumber") int weekNumber);
 
     List<Pick> findByCompetitionId(Long competitionId);
+
+    /** Eagerly fetch survivor-table associations in one query to avoid N+1 loads of participant/user/team/gameweek. */
+    @Query("SELECT p FROM Pick p " +
+            "JOIN FETCH p.participant cp " +
+            "JOIN FETCH cp.user " +
+            "JOIN FETCH p.team " +
+            "JOIN FETCH p.gameweek " +
+            "WHERE p.competition.id = :competitionId")
+    List<Pick> findByCompetitionIdFetchForSurvivor(@Param("competitionId") Long competitionId);
 
     @Query(value = "SELECT id FROM picks WHERE competition_id = :competitionId ORDER BY id LIMIT :limit", nativeQuery = true)
     List<Long> findIdsByCompetitionIdLimit(@Param("competitionId") Long competitionId, @Param("limit") int limit);

@@ -292,17 +292,21 @@ export default function CompetitionsPage() {
     return [joinCodeCompetition, ...base];
   }, [competitions, joinCodeCompetition]);
   const myComps = useMemo(() => {
-    const source = myCompetitionsData ?? [];
-    const deduped = new Map<number, MyCompetition>();
-    for (const mc of source) {
-      const id = mc?.competition?.id;
-      if (typeof id !== 'number') continue;
-      if (!deduped.has(id)) {
-        deduped.set(id, mc);
-      }
-    }
-    return Array.from(deduped.values());
+    return (myCompetitionsData ?? []).filter((mc) => typeof mc?.competition?.id === 'number');
   }, [myCompetitionsData]);
+  const myEntryCountByCompetition = useMemo(() => {
+    const counts = new Map<number, number>();
+    for (const mc of myComps) {
+      const cid = mc.competition.id;
+      counts.set(cid, (counts.get(cid) ?? 0) + 1);
+    }
+    return counts;
+  }, [myComps]);
+  const canAddEntry = (comp: Competition) => {
+    const limit = comp.maxEntriesPerUser ?? 1;
+    const current = myEntryCountByCompetition.get(comp.id) ?? 0;
+    return comp.status === 'UPCOMING' && current < limit;
+  };
   useEffect(() => {
     if (myComps.length > 8) {
       setCompactMineView(true);
@@ -315,7 +319,7 @@ export default function CompetitionsPage() {
 
   // All useMemo hooks must be called before any early return
   const filteredAvailable = useMemo(() => {
-    let list = allComps.filter((c) => !joinedSet.has(c.id) && c.status === 'UPCOMING');
+    let list = allComps.filter((c) => c.status === 'UPCOMING' && (!joinedSet.has(c.id) || canAddEntry(c)));
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(c => c.name.toLowerCase().includes(q) || c.clubName?.toLowerCase().includes(q) || c.description?.toLowerCase().includes(q));
@@ -942,7 +946,7 @@ export default function CompetitionsPage() {
               </div>
             )}
             {listView ? (
-              <CompListView comps={paginatedAvailable} joinedSet={joinedSet} onJoin={(c) => handleJoin(c)} isPending={joinMutation.isPending} />
+              <CompListView comps={paginatedAvailable} joinedSet={joinedSet} onJoin={(c) => handleJoin(c)} isPending={joinMutation.isPending} entryCounts={myEntryCountByCompetition} />
             ) : (
               <div className="space-y-5">
                 {needsActionAvailableLimited.length > 0 && (
@@ -959,6 +963,8 @@ export default function CompetitionsPage() {
                           joined={joinedSet.has(c.id)}
                           onJoin={() => handleJoin(c)}
                           isPending={joinMutation.isPending}
+                          joinedCount={myEntryCountByCompetition.get(c.id) ?? 0}
+                          canAddEntry={canAddEntry(c)}
                           actionHint={actionHint}
                           isHighlighted={c.id === highlightedCompetitionId}
                           onClearHighlight={() => {
@@ -999,7 +1005,7 @@ export default function CompetitionsPage() {
                 <Section label={`All Competitions (${remainingAvailable.length})`}>
                   {remainingAvailable.length > 0 ? (
                     <>
-                      <CompListView comps={paginatedRemainingAvailable} joinedSet={joinedSet} onJoin={(c) => handleJoin(c)} isPending={joinMutation.isPending} />
+                      <CompListView comps={paginatedRemainingAvailable} joinedSet={joinedSet} onJoin={(c) => handleJoin(c)} isPending={joinMutation.isPending} entryCounts={myEntryCountByCompetition} />
                       <Pagination page={remainingSafePage} totalPages={remainingTotalPages} total={remainingAvailable.length} pageSize={REMAINING_PAGE_SIZE} onPage={setRemainingPage} />
                     </>
                   ) : (
@@ -1106,13 +1112,16 @@ export default function CompetitionsPage() {
 
 /* ── Compact list view ───────────────────────────────────────────────────── */
 
-function CompListView({ comps, joinedSet, onJoin, isPending }: {
-  comps: Competition[]; joinedSet: Set<number>; onJoin: (c: Competition) => void; isPending: boolean;
+function CompListView({ comps, joinedSet, onJoin, isPending, entryCounts }: {
+  comps: Competition[]; joinedSet: Set<number>; onJoin: (c: Competition) => void; isPending: boolean; entryCounts: Map<number, number>;
 }) {
   return (
     <div className="card overflow-hidden divide-y divide-gray-700/50">
       {comps.map((c) => {
         const joined = joinedSet.has(c.id);
+        const joinedCount = entryCounts.get(c.id) ?? 0;
+        const maxEntries = c.maxEntriesPerUser ?? 1;
+        const canAddEntry = c.status === 'UPCOMING' && joinedCount < maxEntries;
         const dateStr = c.firstGameweekDate ?? c.startDate;
         return (
           <div key={c.id} className="flex items-center gap-3 px-4 py-3 hover:bg-surface-700/30 transition-colors">
@@ -1125,7 +1134,7 @@ function CompListView({ comps, joinedSet, onJoin, isPending }: {
                 <span className="font-medium text-sm text-white truncate">{c.name}</span>
                 {c.clubLogoUrl && <img src={c.clubLogoUrl} alt="" className="h-5 w-5 rounded-md object-cover border border-white/15 shrink-0" />}
                 {c.clubName && <span className="badge-yellow badge-soft shrink-0">{c.clubName}</span>}
-                {joined && <span className="badge-brand shrink-0">Joined</span>}
+                {joined && <span className="badge-brand shrink-0">Joined {joinedCount}/{maxEntries}</span>}
               </div>
               <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-500">
                 {dateStr && <span>{format(parseDate(dateStr), 'MMM d, yyyy')}</span>}
@@ -1139,10 +1148,12 @@ function CompListView({ comps, joinedSet, onJoin, isPending }: {
               <Link to={`/competitions/${c.id}`} className="text-xs px-3 py-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 text-gray-300 transition">
                 {joined ? 'Open' : 'View'}
               </Link>
-              {!joined && c.status === 'UPCOMING' && (
+              {(canAddEntry || (!joined && c.status === 'UPCOMING')) && (
                 <button onClick={() => onJoin(c)} disabled={isPending}
                   className="text-xs px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white transition">
-                  {c.entryFee > 0 ? `Join €${c.entryFee}` : 'Join'}
+                  {joined
+                    ? 'Add entry'
+                    : c.entryFee > 0 ? `Join €${c.entryFee}` : 'Join'}
                 </button>
               )}
             </div>
@@ -1357,8 +1368,8 @@ function SurvivorBar({ active, total }: { active: number; total: number }) {
 
 /* ── Cards ───────────────────────────────────────────────────────────────── */
 
-function CompetitionCard({ comp, joined, onJoin, isPending, actionHint, isHighlighted = false, onClearHighlight }: {
-  comp: Competition; joined: boolean; onJoin: () => void; isPending: boolean; actionHint?: string | null; isHighlighted?: boolean; onClearHighlight?: () => void;
+function CompetitionCard({ comp, joined, onJoin, isPending, actionHint, isHighlighted = false, onClearHighlight, joinedCount = 0, canAddEntry = false }: {
+  comp: Competition; joined: boolean; onJoin: () => void; isPending: boolean; actionHint?: string | null; isHighlighted?: boolean; onClearHighlight?: () => void; joinedCount?: number; canAddEntry?: boolean;
 }) {
   const prizePool = comp.prizePool ?? 0;
   const clubAccent = comp.clubPrimaryColor ?? null;
@@ -1376,6 +1387,7 @@ function CompetitionCard({ comp, joined, onJoin, isPending, actionHint, isHighli
   });
   const liveActiveCount = deriveLiveActiveCount(liveProgress);
   const effectiveActiveCount = liveActiveCount ?? comp.activeCount ?? comp.participantCount;
+  const maxEntries = comp.maxEntriesPerUser ?? 1;
 
   return (
     <div
@@ -1414,6 +1426,7 @@ function CompetitionCard({ comp, joined, onJoin, isPending, actionHint, isHighli
               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
             </svg>
             Joined
+            {maxEntries > 1 ? ` ${joinedCount}/${maxEntries}` : ''}
           </span>
           ) : null}
         </div>
@@ -1522,14 +1535,16 @@ function CompetitionCard({ comp, joined, onJoin, isPending, actionHint, isHighli
         <Link to={`/competitions/${comp.id}`} className="btn-secondary flex-1 text-center text-sm py-2">
           {joined ? 'Open →' : 'View'}
         </Link>
-        {!joined && comp.status === 'UPCOMING' && (
+        {(canAddEntry || (!joined && comp.status === 'UPCOMING')) && (
           <button
             onClick={onJoin}
             disabled={isPending}
             className="btn-primary flex-1 text-sm py-2"
             style={competitionPrimaryButtonStyle(clubAccent)}
           >
-            {comp.paymentMode === 'MANUAL'
+            {joined
+              ? 'Add entry'
+              : comp.paymentMode === 'MANUAL'
               ? `Register · €${comp.entryFee} to organiser`
               : comp.entryFee > 0 ? `Join · €${comp.entryFee}` : 'Join Free'}
           </button>
@@ -1588,6 +1603,11 @@ function MyCompetitionCard({ myComp, actionHint }: { myComp: MyCompetition; acti
       </div>
 
       <h3 className="text-base sm:text-lg font-bold leading-snug line-clamp-2">{comp.name}</h3>
+      {myComp.entryNumber && (
+        <div className="mt-1 inline-flex items-center rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-300">
+          Entry #{myComp.entryNumber}
+        </div>
+      )}
       <div className="mt-1 min-h-[18px] flex items-center gap-1.5">
         {comp.clubLogoUrl && <img src={comp.clubLogoUrl} alt="" className="h-5 w-5 rounded-md object-cover border border-white/15 shrink-0" />}
         {comp.clubName && (
@@ -1738,6 +1758,7 @@ function MyCompetitionRow({
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <p className="truncate text-[15px] font-semibold text-white">{comp.name}</p>
+          {myComp.entryNumber && <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-gray-300">#{myComp.entryNumber}</span>}
           {comp.clubName && <span className="hidden rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-gray-300 sm:inline-flex">{comp.clubName}</span>}
         </div>
         <div className="mt-1 flex items-center gap-2">

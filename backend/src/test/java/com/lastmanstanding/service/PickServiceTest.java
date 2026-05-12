@@ -73,14 +73,14 @@ class PickServiceTest {
         fixture.setId(50L);
 
         when(gameweekRepository.findById(gameweek.getId())).thenReturn(Optional.of(gameweek));
-        when(participantRepository.findByCompetitionIdAndUserId(competition.getId(), user.getId()))
-                .thenReturn(Optional.of(participant));
+        when(participantRepository.findByCompetitionIdAndUserIdOrderByEntryNumberAsc(competition.getId(), user.getId()))
+                .thenReturn(List.of(participant));
         when(teamRepository.findById(arsenal.getId())).thenReturn(Optional.of(arsenal));
         when(fixtureRepository.findByGameweekId(gameweek.getId())).thenReturn(List.of(fixture));
-        when(pickRepository.findByCompetitionIdAndUserIdAndGameweekId(
-                competition.getId(), user.getId(), gameweek.getId()))
+        when(pickRepository.findByCompetitionIdAndParticipantIdAndGameweekId(
+                competition.getId(), participant.getId(), gameweek.getId()))
                 .thenReturn(Optional.empty());
-        when(pickRepository.findUsedTeamIds(competition.getId(), user.getId()))
+        when(pickRepository.findConsumedTeamIdsForParticipant(competition.getId(), participant.getId()))
                 .thenReturn(new ArrayList<>());
         when(pickRepository.save(any(Pick.class))).thenAnswer(i -> {
             Pick p = i.getArgument(0);
@@ -90,7 +90,7 @@ class PickServiceTest {
         when(pickResultRepository.findByPickId(1L)).thenReturn(Optional.empty());
         when(pickResultRepository.save(any(PickResult.class))).thenAnswer(i -> i.getArgument(0));
 
-        Pick result = pickService.makePick(competition.getId(), gameweek.getId(), arsenal.getId(), user.getId());
+        Pick result = pickService.makePick(competition.getId(), gameweek.getId(), arsenal.getId(), user.getId(), null);
 
         assertThat(result.getTeam()).isEqualTo(arsenal);
         assertThat(result.getSource()).isEqualTo(PickSource.USER);
@@ -106,7 +106,7 @@ class PickServiceTest {
         when(gameweekRepository.findById(gameweek.getId())).thenReturn(Optional.of(gameweek));
 
         assertThatThrownBy(() ->
-                pickService.makePick(competition.getId(), gameweek.getId(), arsenal.getId(), user.getId()))
+                pickService.makePick(competition.getId(), gameweek.getId(), arsenal.getId(), user.getId(), null))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("locked");
     }
@@ -119,19 +119,19 @@ class PickServiceTest {
         fixture.setId(50L);
 
         when(gameweekRepository.findById(gameweek.getId())).thenReturn(Optional.of(gameweek));
-        when(participantRepository.findByCompetitionIdAndUserId(competition.getId(), user.getId()))
-                .thenReturn(Optional.of(participant));
+        when(participantRepository.findByCompetitionIdAndUserIdOrderByEntryNumberAsc(competition.getId(), user.getId()))
+                .thenReturn(List.of(participant));
         when(teamRepository.findById(arsenal.getId())).thenReturn(Optional.of(arsenal));
         when(fixtureRepository.findByGameweekId(gameweek.getId())).thenReturn(List.of(fixture));
-        when(pickRepository.findByCompetitionIdAndUserIdAndGameweekId(
-                competition.getId(), user.getId(), gameweek.getId()))
+        when(pickRepository.findByCompetitionIdAndParticipantIdAndGameweekId(
+                competition.getId(), participant.getId(), gameweek.getId()))
                 .thenReturn(Optional.empty());
         // Arsenal already used in a previous week
-        when(pickRepository.findUsedTeamIds(competition.getId(), user.getId()))
+        when(pickRepository.findConsumedTeamIdsForParticipant(competition.getId(), participant.getId()))
                 .thenReturn(new ArrayList<>(List.of(arsenal.getId())));
 
         assertThatThrownBy(() ->
-                pickService.makePick(competition.getId(), gameweek.getId(), arsenal.getId(), user.getId()))
+                pickService.makePick(competition.getId(), gameweek.getId(), arsenal.getId(), user.getId(), null))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("already used");
     }
@@ -142,11 +142,11 @@ class PickServiceTest {
         participant.setStatus(ParticipantStatus.ELIMINATED);
 
         when(gameweekRepository.findById(gameweek.getId())).thenReturn(Optional.of(gameweek));
-        when(participantRepository.findByCompetitionIdAndUserId(competition.getId(), user.getId()))
-                .thenReturn(Optional.of(participant));
+        when(participantRepository.findByCompetitionIdAndUserIdOrderByEntryNumberAsc(competition.getId(), user.getId()))
+                .thenReturn(List.of(participant));
 
         assertThatThrownBy(() ->
-                pickService.makePick(competition.getId(), gameweek.getId(), arsenal.getId(), user.getId()))
+                pickService.makePick(competition.getId(), gameweek.getId(), arsenal.getId(), user.getId(), null))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("eliminated");
     }
@@ -165,13 +165,13 @@ class PickServiceTest {
         fixture.setId(50L);
 
         when(gameweekRepository.findById(gameweek.getId())).thenReturn(Optional.of(gameweek));
-        when(participantRepository.findByCompetitionIdAndUserId(competition.getId(), user.getId()))
-                .thenReturn(Optional.of(participant));
+        when(participantRepository.findByCompetitionIdAndUserIdOrderByEntryNumberAsc(competition.getId(), user.getId()))
+                .thenReturn(List.of(participant));
         when(teamRepository.findById(arsenal.getId())).thenReturn(Optional.of(arsenal));
         when(fixtureRepository.findByGameweekId(gameweek.getId())).thenReturn(List.of(fixture));
 
         assertThatThrownBy(() ->
-                pickService.makePick(competition.getId(), gameweek.getId(), arsenal.getId(), user.getId()))
+                pickService.makePick(competition.getId(), gameweek.getId(), arsenal.getId(), user.getId(), null))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("no fixture");
     }

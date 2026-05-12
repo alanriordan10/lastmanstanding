@@ -1,0 +1,26 @@
+spring:
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        generate_statistics: true
+        # Log SQL queries exceeding this threshold (ms)
+        session:
+          events:
+            log:
+              LOG_QUERIES_SLOWER_THAN_MS: 150
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics
+
+logging:
+  level:
+    # SQL text
+    org.hibernate.SQL: DEBUG
+    # Hibernate 6 bind parameters
+    org.hibernate.orm.jdbc.bind: TRACE
+    # Statistics output
+    org.hibernate.stat: DEBUG

@@ -5,8 +5,10 @@ import api from '../api';
 import type { Competition } from '../types';
 
 interface SurvivorRow {
+  participantId: number;
   userId: number;
   username: string;
+  entryNumber: number;
   status: 'ACTIVE' | 'ELIMINATED' | 'WINNER';
   eliminatedWeek: number | null;
   picks: Record<number, { teamShortName: string; outcome: string; source: string } | null>;
@@ -47,17 +49,27 @@ export default function SurvivorTablePage() {
 
   const gameweeks = tableData?.gameweeks ?? [];
   const rows = tableData?.rows ?? [];
+  const userEntryCounts = useMemo(() => {
+    const counts = new Map<number, number>();
+    rows.forEach((r) => counts.set(r.userId, (counts.get(r.userId) ?? 0) + 1));
+    return counts;
+  }, [rows]);
+  const displayName = (row: SurvivorRow) =>
+    (userEntryCounts.get(row.userId) ?? 0) > 1
+      ? `${row.username} #${row.entryNumber ?? 1}`
+      : row.username;
   const eliminatedWeeks = useMemo(
     () => Array.from(new Set(rows.map((r) => r.eliminatedWeek).filter((w): w is number => w != null))).sort((a, b) => a - b),
     [rows],
   );
 
   const filtered = useMemo(() => rows.filter((r) => {
-    const matchSearch = !search || r.username.toLowerCase().includes(search.toLowerCase());
+    const identity = displayName(r);
+    const matchSearch = !search || identity.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === 'ALL' || r.status === statusFilter;
     const matchEliminatedWeek = eliminatedWeekFilter === 'ALL' || r.eliminatedWeek === eliminatedWeekFilter;
     return matchSearch && matchStatus && matchEliminatedWeek;
-  }), [rows, search, statusFilter, eliminatedWeekFilter]);
+  }), [rows, search, statusFilter, eliminatedWeekFilter, userEntryCounts]);
 
   const counts = {
     ALL: rows.length,
@@ -74,7 +86,8 @@ export default function SurvivorTablePage() {
     if (a.status === 'ELIMINATED' && b.status === 'ELIMINATED') {
       return (b.eliminatedWeek ?? 0) - (a.eliminatedWeek ?? 0);
     }
-    return a.username.localeCompare(b.username);
+    if (a.username !== b.username) return a.username.localeCompare(b.username);
+    return (a.entryNumber ?? 1) - (b.entryNumber ?? 1);
   }), [filtered]);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
@@ -230,7 +243,7 @@ export default function SurvivorTablePage() {
                 ) : paginated.map((row) => {
                     return (
                   <tr
-                    key={row.userId}
+                    key={row.participantId}
                     className={`transition-colors ${
                       row.status === 'WINNER' ? 'bg-yellow-600/10 hover:bg-yellow-600/15' :
                       row.status === 'ACTIVE' ? 'hover:bg-surface-700/40' :
@@ -239,7 +252,7 @@ export default function SurvivorTablePage() {
                   >
                     <td className="py-3 px-4 sticky left-0 bg-surface-900/95 z-10">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-gray-200 truncate max-w-[110px]">{row.username}</span>
+                        <span className="font-medium text-gray-200 truncate max-w-[130px]">{displayName(row)}</span>
                         {row.status === 'WINNER' && <span className="text-sm shrink-0">🏆</span>}
                         {row.status === 'ELIMINATED' && (
                           <span className="text-[10px] text-red-400 shrink-0">GW{row.eliminatedWeek}</span>
