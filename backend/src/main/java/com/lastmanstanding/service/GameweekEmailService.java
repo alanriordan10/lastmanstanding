@@ -310,10 +310,10 @@ public class GameweekEmailService {
      * Called ~2 hours before gameweek lock.
      */
     @Transactional(readOnly = true)
-    public void sendPickReminderEmails(Competition comp, Gameweek gw) {
+    public ReminderSendResult sendPickReminderEmails(Competition comp, Gameweek gw) {
         if (!mailEnabled) {
             log.info("Mail disabled — skipping pick reminders for GW{} competition {}", gw.getWeekNumber(), comp.getId());
-            return;
+            return ReminderSendResult.disabled();
         }
         List<CompetitionParticipant> active = participantRepository.findByCompetitionIdAndStatus(
                 comp.getId(), ParticipantStatus.ACTIVE);
@@ -324,10 +324,15 @@ public class GameweekEmailService {
                 .stream().map(p -> p.getParticipant().getId())
                 .collect(java.util.stream.Collectors.toSet());
 
+        int attempted = 0;
+        int sent = 0;
+        int failed = 0;
+
         for (CompetitionParticipant cp : active) {
             if (alreadyPicked.contains(cp.getId())) continue;
             User user = userRepository.findById(cp.getUser().getId()).orElse(null);
             if (user == null || !user.isEmailResultsOptIn()) continue;
+            attempted++;
             try {
                 String pickUrl = frontendUrl + "/competitions/" + comp.getId();
                 String subject = "⏰ Reminder: Make your pick for " + comp.getName() + " — GW" + gw.getWeekNumber();
@@ -353,10 +358,19 @@ public class GameweekEmailService {
                 helper.setSubject(subject);
                 helper.setText(body, true);
                 mailSender.send(message);
+                sent++;
                 log.info("Sent pick reminder to {} for GW{} competition {}", user.getEmail(), gw.getWeekNumber(), comp.getId());
             } catch (Exception e) {
+                failed++;
                 log.warn("Failed to send pick reminder to {} for GW{}: {}", cp.getUser().getEmail(), gw.getWeekNumber(), e.getMessage());
             }
+        }
+        return new ReminderSendResult(attempted, sent, failed, false);
+    }
+
+    public record ReminderSendResult(int attempted, int sent, int failed, boolean mailDisabled) {
+        public static ReminderSendResult disabled() {
+            return new ReminderSendResult(0, 0, 0, true);
         }
     }
 

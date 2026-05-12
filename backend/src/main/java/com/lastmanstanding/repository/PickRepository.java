@@ -21,8 +21,8 @@ public interface PickRepository extends JpaRepository<Pick, Long> {
 
     List<Pick> findByCompetitionIdAndGameweekId(Long competitionId, Long gameweekId);
 
-    /** Eagerly fetch user and team in one query — eliminates N+1 on the selections endpoint */
-    @Query("SELECT p FROM Pick p JOIN FETCH p.user JOIN FETCH p.team WHERE p.competition.id = :competitionId AND p.gameweek.id = :gameweekId")
+    /** Eagerly fetch user, team, and participant in one query — eliminates N+1 on the selections endpoint */
+    @Query("SELECT p FROM Pick p JOIN FETCH p.user JOIN FETCH p.team JOIN FETCH p.participant WHERE p.competition.id = :competitionId AND p.gameweek.id = :gameweekId")
     List<Pick> findByCompetitionIdAndGameweekIdFetch(@Param("competitionId") Long competitionId, @Param("gameweekId") Long gameweekId);
 
     boolean existsByCompetitionIdAndUserIdAndTeamId(Long competitionId, Long userId, Long teamId);
@@ -76,6 +76,15 @@ public interface PickRepository extends JpaRepository<Pick, Long> {
     void deleteFuturePicksForParticipants(@Param("competitionId") Long competitionId, @Param("participantIds") List<Long> participantIds, @Param("weekNumber") int weekNumber);
 
     List<Pick> findByCompetitionId(Long competitionId);
+
+    /** Eagerly fetch survivor-table associations in one query to avoid N+1 loads of participant/user/team/gameweek. */
+    @Query("SELECT p FROM Pick p " +
+            "JOIN FETCH p.participant cp " +
+            "JOIN FETCH cp.user " +
+            "JOIN FETCH p.team " +
+            "JOIN FETCH p.gameweek " +
+            "WHERE p.competition.id = :competitionId")
+    List<Pick> findByCompetitionIdFetchForSurvivor(@Param("competitionId") Long competitionId);
 
     @Query(value = "SELECT id FROM picks WHERE competition_id = :competitionId ORDER BY id LIMIT :limit", nativeQuery = true)
     List<Long> findIdsByCompetitionIdLimit(@Param("competitionId") Long competitionId, @Param("limit") int limit);

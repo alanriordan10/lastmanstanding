@@ -338,7 +338,7 @@ public class CompetitionController {
         }
 
         List<Long> gwIds = gameweeks.stream().map(Gameweek::getId).toList();
-        List<Fixture> fixtures = fixtureRepository.findByGameweekIdIn(gwIds);
+        List<Fixture> fixtures = fixtureRepository.findByGameweekIdInFetchAll(gwIds);
 
         // Deduplicate: if the same two teams appear more than once in a gameweek
         // (can happen when multiple syncs create duplicate entries), keep only the
@@ -355,6 +355,28 @@ public class CompetitionController {
                 .map(java.util.Optional::get)
                 .sorted(Comparator.comparingInt((Fixture f) -> f.getGameweek().getWeekNumber())
                         .thenComparing(f -> f.getEffectiveKickoffAt()))
+                .map(FixtureResponse::from)
+                .toList();
+    }
+
+    @GetMapping("/{id}/gameweeks/{gwId}/fixtures")
+    public List<FixtureResponse> getFixturesForGameweek(@PathVariable Long id, @PathVariable Long gwId) {
+        Gameweek gw = gameweekRepository.findById(gwId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Gameweek not found"));
+        if (!gw.getCompetition().getId().equals(id)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Gameweek does not belong to this competition");
+        }
+
+        return fixtureRepository.findByGameweekIdFetchAll(gwId).stream()
+                .collect(Collectors.groupingBy(
+                        f -> Math.min(f.getEffectiveHomeTeam().getId(), f.getEffectiveAwayTeam().getId()) + "-" +
+                             Math.max(f.getEffectiveHomeTeam().getId(), f.getEffectiveAwayTeam().getId()),
+                        Collectors.maxBy(Comparator.comparingLong(Fixture::getId))
+                ))
+                .values().stream()
+                .filter(java.util.Optional::isPresent)
+                .map(java.util.Optional::get)
+                .sorted(Comparator.comparing(Fixture::getEffectiveKickoffAt))
                 .map(FixtureResponse::from)
                 .toList();
     }
@@ -481,13 +503,8 @@ public class CompetitionController {
             );
         }).toList();
 
-            List<CompetitionParticipant> participants = participantRepository.findByCompetitionId(id);
-            int activeAtStart = (int) participants.stream()
-                .filter(cp -> cp.getEliminatedWeek() == null || cp.getEliminatedWeek() >= gw.getWeekNumber())
-                .count();
-            int eliminatedThisWeek = (int) participants.stream()
-                .filter(cp -> cp.getEliminatedWeek() != null && cp.getEliminatedWeek() == gw.getWeekNumber())
-                .count();
+            int activeAtStart = (int) participantRepository.countActiveAtStartForWeek(id, gw.getWeekNumber());
+            int eliminatedThisWeek = (int) participantRepository.countEliminatedInWeek(id, gw.getWeekNumber());
             int advancedThisWeek = Math.max(activeAtStart - eliminatedThisWeek, 0);
 
             return new GameweekSelectionsData(
@@ -506,10 +523,12 @@ public class CompetitionController {
     public SurvivorTableResponse getSurvivorTable(@PathVariable Long id) {
         List<Gameweek> gameweeks = gameweekRepository.findByCompetitionIdOrderByWeekNumberAsc(id);
         List<CompetitionParticipant> participants = participantRepository.findByCompetitionId(id);
-        List<Pick> allPicks = pickRepository.findByCompetitionId(id);
+        List<Pick> allPicks = pickRepository.findByCompetitionIdFetchForSurvivor(id);
         List<Long> pickIds = allPicks.stream().map(Pick::getId).toList();
-        Map<Long, PickResult> resultMap = pickResultRepository.findByPickIdIn(pickIds).stream()
-                .collect(Collectors.toMap(pr -> pr.getPick().getId(), pr -> pr));
+        Map<Long, PickResult> resultMap = pickIds.isEmpty()
+                ? Map.of()
+                : pickResultRepository.findByPickIdIn(pickIds).stream()
+                        .collect(Collectors.toMap(pr -> pr.getPick().getId(), pr -> pr));
         Map<Long, Map<Long, String>> liveOutcomeByGameweekAndTeam = buildLiveOutcomeByGameweek(gameweeks);
 
         // participantId -> weekNumber -> Pick
@@ -563,41 +582,44 @@ public class CompetitionController {
 
     private Map<Long, Map<Long, String>> buildLiveOutcomeByGameweek(List<Gameweek> gameweeks) {
         Map<Long, Map<Long, String>> outcomeByGameweek = new HashMap<>();
+        if (gameweeks.isEmpty()) return outcomeByGameweek;
 
-        for (Gameweek gw : gameweeks) {
-            if (gw.getStatus() != GameweekStatus.IN_PROGRESS) {
+        Map<Long, GameweekStatus> statusByGameweekId = gameweeks.stream()
+                .collect(Collectors.toMap(Gameweek::getId, Gameweek::getStatus));
+        List<Long> gameweekIds = gameweeks.stream().map(Gameweek::getId).toList();
+        List<Fixture> fixtures = fixtureRepository.findByGameweekIdIn(gameweekIds);
+
+        for (Fixture f : fixtures) {
+            Long gameweekId = f.getGameweek().getId();
+            if (statusByGameweekId.get(gameweekId) != GameweekStatus.IN_PROGRESS) {
                 continue;
             }
-            List<Fixture> fixtures = fixtureRepository.findByGameweekId(gw.getId());
-            Map<Long, String> liveOutcomeByTeam = new HashMap<>();
-            for (Fixture f : fixtures) {
-                FixtureStatus status = f.getEffectiveStatus();
-                if (status == FixtureStatus.FINISHED) {
-                    Integer sh = f.getEffectiveScoreHome();
-                    Integer sa = f.getEffectiveScoreAway();
-                    if (sh == null || sa == null) continue;
-                    Long homeId = f.getEffectiveHomeTeam().getId();
-                    Long awayId = f.getEffectiveAwayTeam().getId();
-                    if (sh > sa) {
-                        liveOutcomeByTeam.put(homeId, "ADVANCE");
-                        liveOutcomeByTeam.put(awayId, "ELIMINATED");
-                    } else if (sa > sh) {
-                        liveOutcomeByTeam.put(awayId, "ADVANCE");
-                        liveOutcomeByTeam.put(homeId, "ELIMINATED");
-                    } else {
-                        liveOutcomeByTeam.put(homeId, "ELIMINATED");
-                        liveOutcomeByTeam.put(awayId, "ELIMINATED");
-                    }
-                } else if (status == FixtureStatus.POSTPONED || status == FixtureStatus.CANCELLED) {
-                    liveOutcomeByTeam.put(f.getEffectiveHomeTeam().getId(), "POSTPONED_ADVANCE");
-                    liveOutcomeByTeam.put(f.getEffectiveAwayTeam().getId(), "POSTPONED_ADVANCE");
+
+            Map<Long, String> liveOutcomeByTeam = outcomeByGameweek.computeIfAbsent(gameweekId, ignored -> new HashMap<>());
+            FixtureStatus status = f.getEffectiveStatus();
+            if (status == FixtureStatus.FINISHED) {
+                Integer sh = f.getEffectiveScoreHome();
+                Integer sa = f.getEffectiveScoreAway();
+                if (sh == null || sa == null) continue;
+                Long homeId = f.getEffectiveHomeTeam().getId();
+                Long awayId = f.getEffectiveAwayTeam().getId();
+                if (sh > sa) {
+                    liveOutcomeByTeam.put(homeId, "ADVANCE");
+                    liveOutcomeByTeam.put(awayId, "ELIMINATED");
+                } else if (sa > sh) {
+                    liveOutcomeByTeam.put(awayId, "ADVANCE");
+                    liveOutcomeByTeam.put(homeId, "ELIMINATED");
+                } else {
+                    liveOutcomeByTeam.put(homeId, "ELIMINATED");
+                    liveOutcomeByTeam.put(awayId, "ELIMINATED");
                 }
-            }
-            if (!liveOutcomeByTeam.isEmpty()) {
-                outcomeByGameweek.put(gw.getId(), liveOutcomeByTeam);
+            } else if (status == FixtureStatus.POSTPONED || status == FixtureStatus.CANCELLED) {
+                liveOutcomeByTeam.put(f.getEffectiveHomeTeam().getId(), "POSTPONED_ADVANCE");
+                liveOutcomeByTeam.put(f.getEffectiveAwayTeam().getId(), "POSTPONED_ADVANCE");
             }
         }
 
+        outcomeByGameweek.entrySet().removeIf(entry -> entry.getValue().isEmpty());
         return outcomeByGameweek;
     }
 

@@ -55,8 +55,8 @@ export default function GameweekResultsPage() {
   });
 
   const { data: fixtures } = useQuery<Fixture[]>({
-    queryKey: ['fixtures', compId],
-    queryFn: () => api.get(`/competitions/${compId}/fixtures?weeks=99`).then((r) =>
+    queryKey: ['fixtures', compId, gameweekId],
+    queryFn: () => api.get(`/competitions/${compId}/gameweeks/${gameweekId}/fixtures`).then((r) =>
       Array.isArray(r.data) ? r.data : []
     ),
   });
@@ -65,6 +65,18 @@ export default function GameweekResultsPage() {
   useEffect(() => {
     setCurrentPage(1);
   }, [filterOutcome, searchQuery]);
+
+  // Keep hook order stable across loading/error/data states.
+  const safeSelections = Array.isArray(selectionsData?.selections) ? selectionsData!.selections : [];
+  const userEntryCounts = useMemo(() => {
+    const counts = new Map<number, number>();
+    safeSelections.forEach((s) => counts.set(s.userId, (counts.get(s.userId) ?? 0) + 1));
+    return counts;
+  }, [safeSelections]);
+  const displayName = (s: GameweekSelection) =>
+    (userEntryCounts.get(s.userId) ?? 0) > 1
+      ? `${s.username} #${s.entryNumber ?? 1}`
+      : s.username;
 
   // NOW we can do early returns AFTER all hooks
   if (selectionsLoading) {
@@ -107,21 +119,9 @@ export default function GameweekResultsPage() {
 
   // All data processing and derived state goes here (after early returns are done)
   const safeFixtures = Array.isArray(fixtures) ? fixtures : [];
-  const gameweekFixtures = safeFixtures.filter(f => f.gameweekId === gameweekId);
-  const weekNumber = gameweekFixtures[0]?.weekNumber || 'N/A';
+  const gameweekFixtures = safeFixtures;
+  const weekNumber = gameweekFixtures[0]?.weekNumber || selectionsData.weekNumber || 'N/A';
   const gameweekStatus = gameweekFixtures[0]?.gameweekStatus || 'UNKNOWN';
-
-  // Handle empty selections (might happen if no picks were made or data issue)
-  const safeSelections = Array.isArray(selections) ? selections : [];
-  const userEntryCounts = useMemo(() => {
-    const counts = new Map<number, number>();
-    safeSelections.forEach((s) => counts.set(s.userId, (counts.get(s.userId) ?? 0) + 1));
-    return counts;
-  }, [safeSelections]);
-  const displayName = (s: GameweekSelection) =>
-    (userEntryCounts.get(s.userId) ?? 0) > 1
-      ? `${s.username} #${s.entryNumber ?? 1}`
-      : s.username;
 
   const advanced = safeSelections.filter(s => s.outcome === 'ADVANCE' || s.outcome === 'POSTPONED_ADVANCE');
   const eliminated = safeSelections.filter(s => s.outcome === 'ELIMINATED');

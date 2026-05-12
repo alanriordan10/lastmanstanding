@@ -465,12 +465,9 @@ public class ClubAdminController {
         Set<Long> alreadyPaidIds = new HashSet<>(
                 paymentRepository.findPaidUserIdsByCompetitionIdAndUserIdIn(compId, targetIds));
 
-        List<User> users = userRepository.findAllById(targetIds);
-        Map<Long, User> userById = users.stream().collect(java.util.stream.Collectors.toMap(User::getId, u -> u));
-        List<Payment> toCreate = new java.util.ArrayList<>();
         int invalid = 0;
         int alreadyPaid = 0;
-        int created = 0;
+        int eligibleToCreate = 0;
 
         for (Long userId : targetIds) {
             if (!participantIds.contains(userId)) {
@@ -481,24 +478,15 @@ public class ClubAdminController {
                 alreadyPaid++;
                 continue;
             }
-            User user = userById.get(userId);
-            if (user == null) {
-                invalid++;
-                continue;
-            }
-            Payment payment = new Payment(
-                    user, comp, null,
-                    comp.getEntryFee() != null
-                            ? comp.getEntryFee().multiply(java.math.BigDecimal.valueOf(100)).intValue()
-                            : 0,
-                    "eur");
-            payment.setStatus(Payment.PaymentStatus.SUCCEEDED);
-            toCreate.add(payment);
-            created++;
+            eligibleToCreate++;
         }
 
-        if (!toCreate.isEmpty()) {
-            paymentRepository.saveAll(toCreate);
+        int created = 0;
+        if (eligibleToCreate > 0) {
+            int amountCents = comp.getEntryFee() != null
+                    ? comp.getEntryFee().multiply(java.math.BigDecimal.valueOf(100)).intValue()
+                    : 0;
+            created = paymentRepository.insertSucceededManualPaymentsForUsers(compId, targetIds, amountCents, "eur");
         }
 
         logAudit(userDetails, "Payment", compId, "bulkMarkPaid", null,

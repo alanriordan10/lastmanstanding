@@ -48,6 +48,18 @@ export default function GameweekSelectionsPage() {
     setCurrentPage(1);
   }, [searchQuery, statusFilter, viewMode]);
 
+  const selections = selectionsData?.selections || [];
+  const byeGranted = selectionsData?.byeGranted || false;
+  const userEntryCounts = useMemo(() => {
+    const counts = new Map<number, number>();
+    selections.forEach((s) => counts.set(s.userId, (counts.get(s.userId) ?? 0) + 1));
+    return counts;
+  }, [selections]);
+  const displayName = (s: GameweekSelection) =>
+    (userEntryCounts.get(s.userId) ?? 0) > 1
+      ? `${s.username} #${s.entryNumber ?? 1}`
+      : s.username;
+
   // NOW we can do early returns AFTER all hooks
   if (isLoading) {
     return (
@@ -76,18 +88,6 @@ export default function GameweekSelectionsPage() {
   }
 
   // All data processing AFTER early returns (regular JavaScript, not hooks)
-  const selections = selectionsData?.selections || [];
-  const byeGranted = selectionsData?.byeGranted || false;
-  const userEntryCounts = useMemo(() => {
-    const counts = new Map<number, number>();
-    selections.forEach((s) => counts.set(s.userId, (counts.get(s.userId) ?? 0) + 1));
-    return counts;
-  }, [selections]);
-  const displayName = (s: GameweekSelection) =>
-    (userEntryCounts.get(s.userId) ?? 0) > 1
-      ? `${s.username} #${s.entryNumber ?? 1}`
-      : s.username;
-
   const pendingCount  = selections.filter((s) => s.outcome === 'PENDING').length;
   const resolvedCount = selections.filter((s) => s.outcome !== 'PENDING').length;
   const isLive = pendingCount > 0 && resolvedCount > 0;

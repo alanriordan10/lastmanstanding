@@ -55,14 +55,28 @@ public class PickReminderScheduler {
             Competition comp = competitionRepository.findById(gw.getCompetition().getId()).orElse(null);
             if (comp == null) continue;
             try {
-                gameweekEmailService.sendPickReminderEmails(comp, gw);
+                GameweekEmailService.ReminderSendResult emailResult = gameweekEmailService.sendPickReminderEmails(comp, gw);
                 webPushService.sendPickReminderNotifications(comp, gw);
-            } catch (Exception e) {
-                log.warn("Error sending reminders for GW{} competition {}: {}", gw.getWeekNumber(), comp.getId(), e.getMessage());
-            } finally {
-                // Always mark as sent so we don't spam even if mail fails
+
+                if (emailResult.mailDisabled()) {
+                    log.info("GW{} competition {} reminders not marked sent because mail is disabled",
+                            gw.getWeekNumber(), comp.getId());
+                    continue;
+                }
+
+                if (emailResult.failed() > 0) {
+                    log.warn("GW{} competition {} reminder emails had failures (attempted={}, sent={}, failed={}) — will retry next run",
+                            gw.getWeekNumber(), comp.getId(), emailResult.attempted(), emailResult.sent(), emailResult.failed());
+                    continue;
+                }
+
+                // Mark sent if all attempted reminders succeeded, or there were no eligible recipients.
                 gw.setReminderSent(true);
                 gameweekRepository.save(gw);
+                log.info("GW{} competition {} reminders marked sent (attempted={}, sent={})",
+                        gw.getWeekNumber(), comp.getId(), emailResult.attempted(), emailResult.sent());
+            } catch (Exception e) {
+                log.warn("Error sending reminders for GW{} competition {}: {}", gw.getWeekNumber(), comp.getId(), e.getMessage());
             }
         }
     }

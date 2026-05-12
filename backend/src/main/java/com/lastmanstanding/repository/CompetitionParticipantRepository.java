@@ -32,6 +32,12 @@ public interface CompetitionParticipantRepository extends JpaRepository<Competit
 
     long countByCompetitionIdAndStatus(Long competitionId, ParticipantStatus status);
 
+    @Query("SELECT COUNT(cp) FROM CompetitionParticipant cp WHERE cp.competition.id = :competitionId AND (cp.eliminatedWeek IS NULL OR cp.eliminatedWeek >= :weekNumber)")
+    long countActiveAtStartForWeek(@Param("competitionId") Long competitionId, @Param("weekNumber") int weekNumber);
+
+    @Query("SELECT COUNT(cp) FROM CompetitionParticipant cp WHERE cp.competition.id = :competitionId AND cp.eliminatedWeek = :weekNumber")
+    long countEliminatedInWeek(@Param("competitionId") Long competitionId, @Param("weekNumber") int weekNumber);
+
     List<CompetitionParticipant> findByUserId(Long userId);
 
     /** Returns [competitionId, totalCount, activeCount] rows — avoids N+1 when listing competitions */
