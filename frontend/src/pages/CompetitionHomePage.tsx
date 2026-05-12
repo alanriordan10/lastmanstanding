@@ -3,7 +3,7 @@ import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/rea
 import { useState, useEffect, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import api from '../api';
-import type { Competition, GameweekSelectionsData, MyStatus, Fixture } from '../types';
+import type { Competition, GameweekSelectionsData, MyStatus, Fixture, Participant } from '../types';
 import toast from 'react-hot-toast';
 import { formatDistanceToNow, isPast } from 'date-fns';
 import clsx from 'clsx';
@@ -178,6 +178,7 @@ export default function CompetitionHomePage() {
   const [mobileInsightsOpen, setMobileInsightsOpen] = useState(false);
   const [mobileRulesOpen, setMobileRulesOpen] = useState(false);
   const [mobileReminderOpen, setMobileReminderOpen] = useState(false);
+  const [selectedEntryId, setSelectedEntryId] = useState<number | null>(null);
 
   // Close share dropdown on outside click
   useEffect(() => {
@@ -208,9 +209,29 @@ export default function CompetitionHomePage() {
     refetchInterval: () => hasPendingResultProcessing(queryClient.getQueryData<Fixture[]>(['fixtures', compId])) ? 3_000 : false,
   });
 
+  const { data: myEntries = [] } = useQuery<Participant[]>({
+    queryKey: ['myEntries', compId],
+    queryFn: () => api.get(`/competitions/${compId}/my-entries`).then((r) => Array.isArray(r.data) ? r.data : []),
+    retry: false,
+    staleTime: 30_000,
+  });
+
+  useEffect(() => {
+    if (!myEntries.length) {
+      setSelectedEntryId(null);
+      return;
+    }
+    setSelectedEntryId((current) => {
+      if (current && myEntries.some((entry) => entry.id === current)) return current;
+      return myEntries[0].id;
+    });
+  }, [myEntries]);
+
   const { data: myStatus, isLoading: statusLoading } = useQuery<MyStatus>({
-    queryKey: ['myStatus', compId],
-    queryFn: () => api.get(`/competitions/${compId}/me`).then((r) => r.data),
+    queryKey: ['myStatus', compId, selectedEntryId],
+    queryFn: () => api.get(`/competitions/${compId}/me`, {
+      params: selectedEntryId ? { entryId: selectedEntryId } : undefined,
+    }).then((r) => r.data),
     retry: false,
     staleTime: 30_000,
     refetchInterval: () => hasPendingResultProcessing(queryClient.getQueryData<Fixture[]>(['fixtures', compId])) ? 3_000 : false,
@@ -302,13 +323,16 @@ export default function CompetitionHomePage() {
 
   const pickMutation = useMutation({
     mutationFn: ({ gwId, teamId }: { gwId: number; teamId: number }) =>
-      api.post(`/competitions/${compId}/gameweeks/${gwId}/pick`, { teamId }),
+      api.post(`/competitions/${compId}/gameweeks/${gwId}/pick`, {
+        teamId,
+        entryId: selectedEntryId ?? undefined,
+      }),
     onMutate: async ({ gwId, teamId }) => {
       // Cancel any in-flight refetches so they don't overwrite our optimistic update
-      await queryClient.cancelQueries({ queryKey: ['myStatus', compId] });
+      await queryClient.cancelQueries({ queryKey: ['myStatus', compId, selectedEntryId] });
 
       // Snapshot the previous value for rollback
-      const previous = queryClient.getQueryData<MyStatus>(['myStatus', compId]);
+      const previous = queryClient.getQueryData<MyStatus>(['myStatus', compId, selectedEntryId]);
 
       // Find team details from fixtures cache
       const fixturesData = queryClient.getQueryData<Fixture[]>(['fixtures', compId]);
@@ -343,7 +367,7 @@ export default function CompetitionHomePage() {
             ? previous.picks.map((p, i) => (i === existingPickIndex ? newPick : p))
             : [...previous.picks, newPick];
 
-        queryClient.setQueryData<MyStatus>(['myStatus', compId], {
+        queryClient.setQueryData<MyStatus>(['myStatus', compId, selectedEntryId], {
           ...previous,
           picks: updatedPicks,
           usedTeamIds: [...(previous.usedTeamIds ?? []).filter((id) => {
@@ -361,12 +385,12 @@ export default function CompetitionHomePage() {
     onSuccess: () => {
       toast.success('Pick saved!');
       // Refresh in background to get the real server state
-      queryClient.invalidateQueries({ queryKey: ['myStatus', compId] });
+      queryClient.invalidateQueries({ queryKey: ['myStatus', compId, selectedEntryId] });
     },
     onError: (err: any, _vars, context) => {
       // Roll back to previous state on error
       if (context?.previous) {
-        queryClient.setQueryData(['myStatus', compId], context.previous);
+        queryClient.setQueryData(['myStatus', compId, selectedEntryId], context.previous);
       }
       toast.error(err.response?.data?.message || 'Failed to save pick');
     },
@@ -465,7 +489,12 @@ export default function CompetitionHomePage() {
   }
 
   const participant = myStatus?.participant;
+  const selectedEntryNumber = participant?.entryNumber ?? myEntries.find((entry) => entry.id === selectedEntryId)?.entryNumber ?? null;
+  const selectedEntryLabel = myEntries.length > 1 && selectedEntryNumber ? `Entry #${selectedEntryNumber}` : null;
   const isParticipant = !!participant;
+  const maxEntriesPerUser = Math.max(1, comp.maxEntriesPerUser ?? 1);
+  const canAddAnotherEntry = comp.status === 'UPCOMING' && myEntries.length > 0 && myEntries.length < maxEntriesPerUser;
+  const additionalEntriesRemaining = Math.max(maxEntriesPerUser - myEntries.length, 0);
   const isEliminated = participant?.status === 'ELIMINATED';
   const isWinner = participant?.status === 'WINNER';
   const canInvite = comp.status === 'UPCOMING';
@@ -1178,6 +1207,16 @@ export default function CompetitionHomePage() {
         ctaKind: 'link' as const,
       };
     }
+    if (canAddAnotherEntry) {
+      return {
+        tone: 'brand' as const,
+        eyebrow: 'Extra Entry',
+        title: additionalEntriesRemaining === 1 ? 'You can add one more entry' : `You can add ${additionalEntriesRemaining} more entries`,
+        detail: `This competition allows up to ${maxEntriesPerUser} entries per user. Add another entry before lock to increase your coverage.`,
+        ctaLabel: 'Add another entry',
+        ctaKind: 'link' as const,
+      };
+    }
     if (awaitingPayment && strictManualPayment) {
       return {
         tone: 'warn' as const,
@@ -1376,6 +1415,23 @@ export default function CompetitionHomePage() {
               <StatusPill tone={comp.status === 'ACTIVE' ? 'success' : comp.status === 'UPCOMING' ? 'info' : 'neutral'}>
                 {comp.status}
               </StatusPill>
+              {selectedEntryLabel && <StatusPill tone="neutral">{selectedEntryLabel}</StatusPill>}
+              {myEntries.length > 1 && (
+                <label className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/20 px-3 py-1 text-[11px] font-semibold text-gray-200">
+                  <span className="uppercase tracking-[0.14em] text-gray-400">Entry</span>
+                  <select
+                    value={selectedEntryId ?? ''}
+                    onChange={(e) => setSelectedEntryId(Number(e.target.value))}
+                    className="bg-transparent text-white outline-none"
+                  >
+                    {myEntries.map((entry) => (
+                      <option key={entry.id} value={entry.id} className="bg-surface-800 text-white">
+                        #{entry.entryNumber ?? 1}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
               {isEliminated && <StatusPill tone="danger">Eliminated</StatusPill>}
               {isWinner && <StatusPill tone="warn">🏆 Winner</StatusPill>}
             </div>
@@ -1944,7 +2000,7 @@ export default function CompetitionHomePage() {
                         {isEliminated && participant?.eliminatedWeek != null && wn > participant.eliminatedWeek && gwStatus !== 'COMPLETED' && (
                           <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm">
                             <p className="text-red-400 font-medium">
-                              ⚠️ You were eliminated in Gameweek {participant.eliminatedWeek} and cannot make picks for this gameweek.
+                              ⚠️ {selectedEntryLabel ?? 'This entry'} was eliminated in Gameweek {participant.eliminatedWeek} and cannot make picks for this gameweek.
                             </p>
                           </div>
                         )}
@@ -2042,7 +2098,10 @@ export default function CompetitionHomePage() {
                 aria-expanded={!historyCollapsed}
                 aria-controls="pick-history"
               >
-                <h2 className="text-xl font-bold">My Pick History</h2>
+                <div>
+                  <h2 className="text-xl font-bold">My Pick History</h2>
+                  {selectedEntryLabel && <p className="mt-1 text-xs text-gray-400">{selectedEntryLabel}</p>}
+                </div>
                 <svg
                   className={clsx('w-5 h-5 text-gray-400 group-hover:text-gray-200 transition-transform duration-200', {
                     'rotate-180': !historyCollapsed,

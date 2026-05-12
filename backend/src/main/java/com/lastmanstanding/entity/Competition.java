@@ -69,6 +69,9 @@ public class Competition {
     @Column(name = "start_date")
     private LocalDate startDate;
 
+    @Column(name = "max_entries_per_user", nullable = false)
+    private Integer maxEntriesPerUser = 1;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by", nullable = false)
     private User createdBy;
@@ -200,6 +203,14 @@ public class Competition {
 
     public void setStartDate(LocalDate startDate) {
         this.startDate = startDate;
+    }
+
+    public Integer getMaxEntriesPerUser() {
+        return maxEntriesPerUser;
+    }
+
+    public void setMaxEntriesPerUser(Integer maxEntriesPerUser) {
+        this.maxEntriesPerUser = maxEntriesPerUser;
     }
 
     public User getCreatedBy() {

@@ -40,7 +40,7 @@ public class PickService {
      * Validates lock time, team reuse, and participant status.
      */
     @Transactional
-    public Pick makePick(Long competitionId, Long gameweekId, Long teamId, Long userId) {
+    public Pick makePick(Long competitionId, Long gameweekId, Long teamId, Long userId, Long entryId) {
         Gameweek gw = gameweekRepository.findById(gameweekId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Gameweek not found"));
 
@@ -54,8 +54,15 @@ public class PickService {
         }
 
         // Check participant is ACTIVE
-        CompetitionParticipant cp = participantRepository.findByCompetitionIdAndUserId(competitionId, userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Not a participant in this competition"));
+        CompetitionParticipant cp;
+        if (entryId != null) {
+            cp = participantRepository.findByIdAndCompetitionIdAndUserId(entryId, competitionId, userId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Entry not found in this competition"));
+        } else {
+            cp = participantRepository.findByCompetitionIdAndUserIdOrderByEntryNumberAsc(competitionId, userId).stream()
+                    .findFirst()
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Not a participant in this competition"));
+        }
 
         if (cp.getStatus() != ParticipantStatus.ACTIVE && cp.getStatus() != ParticipantStatus.WINNER) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
@@ -86,10 +93,10 @@ public class PickService {
         }
 
         // Check team reuse — exclude the current gameweek pick from reuse check
-        Optional<Pick> existingPick = pickRepository.findByCompetitionIdAndUserIdAndGameweekId(
-                competitionId, userId, gameweekId);
+        Optional<Pick> existingPick = pickRepository.findByCompetitionIdAndParticipantIdAndGameweekId(
+                competitionId, cp.getId(), gameweekId);
 
-        List<Long> consumedTeamIds = pickRepository.findConsumedTeamIds(competitionId, userId);
+        List<Long> consumedTeamIds = pickRepository.findConsumedTeamIdsForParticipant(competitionId, cp.getId());
         if (existingPick.isPresent()) {
             consumedTeamIds.remove(existingPick.get().getTeam().getId());
         }
@@ -104,7 +111,7 @@ public class PickService {
             pick.setTeam(team);
             pick.setSource(PickSource.USER);
         } else {
-            pick = new Pick(gw.getCompetition(), cp.getUser(), gw, team, PickSource.USER, false);
+            pick = new Pick(gw.getCompetition(), cp.getUser(), cp, gw, team, PickSource.USER, false);
         }
 
         pick = pickRepository.save(pick);
@@ -127,7 +134,13 @@ public class PickService {
     /**
      * Get user's pick history for a competition.
      */
-    public List<Pick> getPickHistory(Long competitionId, Long userId) {
+    public List<Pick> getPickHistory(Long competitionId, Long userId, Long entryId) {
+        if (entryId != null) {
+            CompetitionParticipant cp = participantRepository
+                    .findByIdAndCompetitionIdAndUserId(entryId, competitionId, userId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Entry not found"));
+            return pickRepository.findByCompetitionIdAndParticipantId(competitionId, cp.getId());
+        }
         return pickRepository.findByCompetitionIdAndUserId(competitionId, userId);
     }
 
@@ -169,7 +182,14 @@ public class PickService {
     /**
      * Get the current user's pick for a specific gameweek (visible at any time to the user).
      */
-    public Optional<Pick> getMyPick(Long competitionId, Long gameweekId, Long userId) {
-        return pickRepository.findByCompetitionIdAndUserIdAndGameweekId(competitionId, userId, gameweekId);
+    public Optional<Pick> getMyPick(Long competitionId, Long gameweekId, Long userId, Long entryId) {
+        if (entryId != null) {
+            return pickRepository.findByCompetitionIdAndParticipantIdAndGameweekId(competitionId, entryId, gameweekId);
+        }
+        CompetitionParticipant cp = participantRepository.findByCompetitionIdAndUserIdOrderByEntryNumberAsc(competitionId, userId).stream()
+                .findFirst()
+                .orElse(null);
+        if (cp == null) return Optional.empty();
+        return pickRepository.findByCompetitionIdAndParticipantIdAndGameweekId(competitionId, cp.getId(), gameweekId);
     }
 }

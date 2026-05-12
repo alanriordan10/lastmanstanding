@@ -14,6 +14,11 @@ import org.springframework.stereotype.Repository;
 public interface CompetitionParticipantRepository extends JpaRepository<CompetitionParticipant, Long> {
 
     Optional<CompetitionParticipant> findByCompetitionIdAndUserId(Long competitionId, Long userId);
+    Optional<CompetitionParticipant> findByCompetitionIdAndUserIdAndEntryNumber(Long competitionId, Long userId, Integer entryNumber);
+    List<CompetitionParticipant> findByCompetitionIdAndUserIdOrderByEntryNumberAsc(Long competitionId, Long userId);
+    Optional<CompetitionParticipant> findByIdAndCompetitionIdAndUserId(Long id, Long competitionId, Long userId);
+    Optional<CompetitionParticipant> findByIdAndCompetitionId(Long id, Long competitionId);
+    long countByCompetitionIdAndUserId(Long competitionId, Long userId);
 
     @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"user", "competition"})
     List<CompetitionParticipant> findByCompetitionId(Long competitionId);

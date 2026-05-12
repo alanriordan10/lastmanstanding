@@ -160,6 +160,8 @@ public class CompetitionController {
             return new MyCompetitionResponse(
                     CompetitionResponse.from(c, (int) cnt[0], (int) cnt[1],
                             winners.get(c.getId()), firstGwDates.get(c.getId())),
+                    cp.getId(),
+                    cp.getEntryNumber(),
                     cp.getStatus().name(), paymentStates.getOrDefault(c.getId(), "NOT_REQUIRED"), cp.getEliminatedWeek(), cp.getJoinedAt()
             );
         }).toList();
@@ -218,10 +220,11 @@ public class CompetitionController {
 
     @GetMapping("/{id}/me")
     public MyStatusResponse myStatus(@PathVariable Long id,
+                                     @RequestParam(required = false) Long entryId,
                                      @AuthenticationPrincipal UserDetailsImpl userDetails) {
         CompetitionService.ParticipantInfo info;
         try {
-            info = competitionService.getMyStatus(id, userDetails.getId());
+            info = competitionService.getMyStatus(id, userDetails.getId(), entryId);
         } catch (ResponseStatusException ex) {
             if (ex.getStatusCode() == HttpStatus.NOT_FOUND) {
                 if (!competitionRepository.existsById(id)) {
@@ -308,6 +311,14 @@ public class CompetitionController {
                 .toList();
     }
 
+    @GetMapping("/{id}/my-entries")
+    public List<ParticipantResponse> getMyEntries(@PathVariable Long id,
+                                                  @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        return competitionService.getMyEntries(id, userDetails.getId()).stream()
+                .map(cp -> ParticipantResponse.from(cp, paymentStateForParticipant(cp)))
+                .toList();
+    }
+
     // ── Gameweeks & Fixtures ────────────────────────────────────────────
 
     @GetMapping("/{id}/gameweeks/current")
@@ -355,8 +366,15 @@ public class CompetitionController {
                                                  @PathVariable Long gwId,
                                                  @RequestBody PickRequest request,
                                                  @AuthenticationPrincipal UserDetailsImpl userDetails) {
-        CompetitionParticipant participant = participantRepository.findByCompetitionIdAndUserId(id, userDetails.getId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Not joined in this competition"));
+        CompetitionParticipant participant;
+        if (request.entryId() != null) {
+            participant = participantRepository.findByIdAndCompetitionIdAndUserId(request.entryId(), id, userDetails.getId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Entry not found"));
+        } else {
+            participant = participantRepository.findByCompetitionIdAndUserIdOrderByEntryNumberAsc(id, userDetails.getId()).stream()
+                    .findFirst()
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Not joined in this competition"));
+        }
         String paymentState = paymentStateForParticipant(participant);
         if ("AWAITING_PAYMENT".equals(paymentState)
                 && participant.getCompetition().getPaymentMode() == PaymentMode.MANUAL
@@ -366,23 +384,25 @@ public class CompetitionController {
                     "Your entry is awaiting payment confirmation. Picks are disabled until payment is confirmed."
             );
         }
-        Pick pick = pickService.makePick(id, gwId, request.teamId(), userDetails.getId());
+        Pick pick = pickService.makePick(id, gwId, request.teamId(), userDetails.getId(), request.entryId());
         return ResponseEntity.ok(PickResponse.from(pick));
     }
 
     @GetMapping("/{id}/gameweeks/{gwId}/my-pick")
     public PickResponse getMyPick(@PathVariable Long id,
                                   @PathVariable Long gwId,
+                                  @RequestParam(required = false) Long entryId,
                                   @AuthenticationPrincipal UserDetailsImpl userDetails) {
-        return pickService.getMyPick(id, gwId, userDetails.getId())
+        return pickService.getMyPick(id, gwId, userDetails.getId(), entryId)
                 .map(PickResponse::from)
                 .orElse(null);
     }
 
     @GetMapping("/{id}/picks/history")
     public List<PickHistoryItem> getPickHistory(@PathVariable Long id,
+                                                @RequestParam(required = false) Long entryId,
                                                 @AuthenticationPrincipal UserDetailsImpl userDetails) {
-        List<Pick> picks = pickService.getPickHistory(id, userDetails.getId());
+        List<Pick> picks = pickService.getPickHistory(id, userDetails.getId(), entryId);
         List<Long> pickIds = picks.stream().map(Pick::getId).toList();
         Map<Long, PickResult> resultMap = pickResultRepository.findByPickIdIn(pickIds).stream()
                 .collect(Collectors.toMap(pr -> pr.getPick().getId(), pr -> pr));
@@ -453,7 +473,9 @@ public class CompetitionController {
                 outcome = "PENDING";
             }
             return new GameweekSelectionResponse(
+                    p.getParticipant() != null ? p.getParticipant().getId() : null,
                     p.getUser().getId(), p.getUser().getUsername(),
+                    p.getParticipant() != null ? p.getParticipant().getEntryNumber() : 1,
                     p.getTeam().getId(), p.getTeam().getName(), p.getTeam().getShortName(),
                     p.getSource().name(), outcome
             );
@@ -490,11 +512,12 @@ public class CompetitionController {
                 .collect(Collectors.toMap(pr -> pr.getPick().getId(), pr -> pr));
         Map<Long, Map<Long, String>> liveOutcomeByGameweekAndTeam = buildLiveOutcomeByGameweek(gameweeks);
 
-        // userId -> weekNumber -> Pick
-        Map<Long, Map<Integer, Pick>> picksByUserAndWeek = new java.util.HashMap<>();
+        // participantId -> weekNumber -> Pick
+        Map<Long, Map<Integer, Pick>> picksByParticipantAndWeek = new java.util.HashMap<>();
         for (Pick p : allPicks) {
-            picksByUserAndWeek
-                .computeIfAbsent(p.getUser().getId(), k -> new java.util.HashMap<>())
+            if (p.getParticipant() == null) continue;
+            picksByParticipantAndWeek
+                .computeIfAbsent(p.getParticipant().getId(), k -> new java.util.HashMap<>())
                 .put(p.getGameweek().getWeekNumber(), p);
         }
 
@@ -504,7 +527,7 @@ public class CompetitionController {
 
         List<SurvivorRow> rows = participants.stream().map(cp -> {
             Map<Integer, SurvivorPickCell> cells = new java.util.HashMap<>();
-            Map<Integer, Pick> userPicks = picksByUserAndWeek.getOrDefault(cp.getUser().getId(), Map.of());
+            Map<Integer, Pick> userPicks = picksByParticipantAndWeek.getOrDefault(cp.getId(), Map.of());
 
             for (Gameweek gw : gameweeks) {
                 Pick pick = userPicks.get(gw.getWeekNumber());
@@ -525,8 +548,10 @@ public class CompetitionController {
                 }
             }
             return new SurvivorRow(
+                    cp.getId(),
                     cp.getUser().getId(),
                     cp.getUser().getUsername(),
+                    cp.getEntryNumber(),
                     cp.getStatus().name(),
                     cp.getEliminatedWeek(),
                     cells

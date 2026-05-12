@@ -1,6 +1,6 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import api from '../api';
 import type { GameweekSelection, GameweekSelectionsData, GameweekResponse } from '../types';
 import clsx from 'clsx';
@@ -78,6 +78,15 @@ export default function GameweekSelectionsPage() {
   // All data processing AFTER early returns (regular JavaScript, not hooks)
   const selections = selectionsData?.selections || [];
   const byeGranted = selectionsData?.byeGranted || false;
+  const userEntryCounts = useMemo(() => {
+    const counts = new Map<number, number>();
+    selections.forEach((s) => counts.set(s.userId, (counts.get(s.userId) ?? 0) + 1));
+    return counts;
+  }, [selections]);
+  const displayName = (s: GameweekSelection) =>
+    (userEntryCounts.get(s.userId) ?? 0) > 1
+      ? `${s.username} #${s.entryNumber ?? 1}`
+      : s.username;
 
   const pendingCount  = selections.filter((s) => s.outcome === 'PENDING').length;
   const resolvedCount = selections.filter((s) => s.outcome !== 'PENDING').length;
@@ -93,7 +102,7 @@ export default function GameweekSelectionsPage() {
   if (searchQuery.trim()) {
     const query = searchQuery.toLowerCase();
     filteredSelections = filteredSelections.filter(s => 
-      s.username.toLowerCase().includes(query) ||
+      displayName(s).toLowerCase().includes(query) ||
       s.teamName.toLowerCase().includes(query) ||
       s.teamShortName.toLowerCase().includes(query)
     );
@@ -232,10 +241,10 @@ export default function GameweekSelectionsPage() {
                 <>
                   {/* ── Mobile: card list ── */}
                   <div className="divide-y divide-gray-700/50 sm:hidden">
-                    {paginatedSelections.sort((a, b) => a.username.localeCompare(b.username)).map((s) => (
-                      <div key={s.userId} className="flex items-center justify-between gap-3 px-4 py-3">
+                    {paginatedSelections.sort((a, b) => displayName(a).localeCompare(displayName(b))).map((s) => (
+                      <div key={`${s.participantId ?? s.userId}-${s.teamId}`} className="flex items-center justify-between gap-3 px-4 py-3">
                         <div className="min-w-0">
-                          <p className="font-medium text-sm truncate">{s.username}</p>
+                          <p className="font-medium text-sm truncate">{displayName(s)}</p>
                           <p className="text-xs text-gray-400 mt-0.5">{s.teamName}</p>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
@@ -258,9 +267,9 @@ export default function GameweekSelectionsPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {paginatedSelections.sort((a, b) => a.username.localeCompare(b.username)).map((s) => (
-                          <tr key={s.userId} className="border-b border-gray-700/50 hover:bg-surface-700/30">
-                            <td className="py-3 px-4 font-medium">{s.username}</td>
+                        {paginatedSelections.sort((a, b) => displayName(a).localeCompare(displayName(b))).map((s) => (
+                          <tr key={`${s.participantId ?? s.userId}-${s.teamId}`} className="border-b border-gray-700/50 hover:bg-surface-700/30">
+                            <td className="py-3 px-4 font-medium">{displayName(s)}</td>
                             <td className="py-3 px-4">
                               <span className="font-semibold">{s.teamShortName}</span>
                               <span className="text-gray-400 ml-2 text-xs">{s.teamName}</span>
@@ -316,7 +325,7 @@ export default function GameweekSelectionsPage() {
                         <div className="flex flex-wrap gap-2">
                           {picks.map((p) => (
                             <span
-                              key={p.userId}
+                              key={`${p.participantId ?? p.userId}-${p.teamId}`}
                               className={`text-xs px-2.5 py-1 rounded font-medium ${
                                 p.outcome === 'ADVANCE' || p.outcome === 'POSTPONED_ADVANCE'
                                   ? 'bg-green-600/20 text-green-400'
@@ -325,7 +334,7 @@ export default function GameweekSelectionsPage() {
                                   : 'bg-yellow-600/20 text-yellow-400'
                               }`}
                             >
-                              {p.username}
+                              {displayName(p)}
                               {p.source === 'AUTO' && ' (auto)'}
                             </span>
                           ))}

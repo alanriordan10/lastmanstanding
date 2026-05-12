@@ -21,6 +21,7 @@ public final class CompetitionDtos {
             String description,
             BigDecimal entryFee,
             BigDecimal prizePool,
+            Integer maxEntriesPerUser,
             @NotNull MissedPickMode missedPickMode,
             boolean postponedConsumesTeam,
             boolean passFeeToParticipant,
@@ -36,6 +37,7 @@ public final class CompetitionDtos {
             String description,
             BigDecimal entryFee,
             BigDecimal prizePool,
+            Integer maxEntriesPerUser,
             MissedPickMode missedPickMode,
             Boolean postponedConsumesTeam,
             Boolean passFeeToParticipant,
@@ -48,7 +50,8 @@ public final class CompetitionDtos {
     ) {}
 
     public record PickRequest(
-            @NotNull Long teamId
+            @NotNull Long teamId,
+            Long entryId
     ) {}
 
     // ── Responses ───────────────────────────────────────────────────────
@@ -87,6 +90,7 @@ public final class CompetitionDtos {
             String description,
             BigDecimal entryFee,
             BigDecimal prizePool,
+            Integer maxEntriesPerUser,
             String status,
             String missedPickMode,
             boolean postponedConsumesTeam,
@@ -117,6 +121,7 @@ public final class CompetitionDtos {
         public static CompetitionResponse from(Competition c, int participantCount, int activeCount, String winnerUsername) {
             return new CompetitionResponse(
                     c.getId(), c.getName(), c.getDescription(), c.getEntryFee(), c.getPrizePool(),
+                    c.getMaxEntriesPerUser(),
                     c.getStatus().name(), c.getMissedPickMode().name(),
                     c.isPostponedConsumesTeam(), c.isPassFeeToParticipant(),
                     c.getPaymentMode() != null ? c.getPaymentMode().name() : "FREE",
@@ -139,6 +144,7 @@ public final class CompetitionDtos {
                                                String winnerUsername, LocalDate firstGameweekDate) {
             return new CompetitionResponse(
                     c.getId(), c.getName(), c.getDescription(), c.getEntryFee(), c.getPrizePool(),
+                    c.getMaxEntriesPerUser(),
                     c.getStatus().name(), c.getMissedPickMode().name(),
                     c.isPostponedConsumesTeam(), c.isPassFeeToParticipant(),
                     c.getPaymentMode() != null ? c.getPaymentMode().name() : "FREE",
@@ -162,6 +168,7 @@ public final class CompetitionDtos {
             Long id,
             Long userId,
             String username,
+            Integer entryNumber,
             String status,
             String paymentState,
             Integer eliminatedWeek,
@@ -174,6 +181,7 @@ public final class CompetitionDtos {
         public static ParticipantResponse from(CompetitionParticipant cp, String paymentState) {
             return new ParticipantResponse(
                     cp.getId(), cp.getUser().getId(), cp.getUser().getUsername(),
+                    cp.getEntryNumber(),
                     cp.getStatus().name(), paymentState, cp.getEliminatedWeek(), cp.getJoinedAt()
             );
         }
@@ -283,8 +291,10 @@ public final class CompetitionDtos {
     }
 
     public record GameweekSelectionResponse(
+            Long participantId,
             Long userId,
             String username,
+            Integer entryNumber,
             Long teamId,
             String teamName,
             String teamShortName,
@@ -335,6 +345,8 @@ public final class CompetitionDtos {
 
     public record MyCompetitionResponse(
             CompetitionResponse competition,
+            Long participantId,
+            Integer entryNumber,
             String myStatus,
             String paymentState,
             Integer eliminatedWeek,
@@ -346,8 +358,10 @@ public final class CompetitionDtos {
     public record SurvivorPickCell(String teamShortName, String outcome, String source) {}
 
     public record SurvivorRow(
+            Long participantId,
             Long userId,
             String username,
+            Integer entryNumber,
             String status,
             Integer eliminatedWeek,
             Map<Integer, SurvivorPickCell> picks

@@ -37,6 +37,9 @@ public class CompetitionParticipant {
     @Column(name = "eliminated_week")
     private Integer eliminatedWeek;
 
+    @Column(name = "entry_number", nullable = false)
+    private Integer entryNumber = 1;
+
     @Column(name = "joined_at", nullable = false, updatable = false)
     private LocalDateTime joinedAt;
 
@@ -47,6 +50,7 @@ public class CompetitionParticipant {
         this.competition = competition;
         this.user = user;
         this.status = status;
+        this.entryNumber = 1;
     }
 
     @PrePersist
@@ -100,5 +104,13 @@ public class CompetitionParticipant {
 
     public void setJoinedAt(LocalDateTime joinedAt) {
         this.joinedAt = joinedAt;
+    }
+
+    public Integer getEntryNumber() {
+        return entryNumber;
+    }
+
+    public void setEntryNumber(Integer entryNumber) {
+        this.entryNumber = entryNumber;
     }
 }

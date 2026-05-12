@@ -121,8 +121,8 @@ public class GameweekEmailService {
     private void sendResultEmailToUser(User user, Competition comp, Gameweek gw,
                                        CompetitionParticipant cp) throws Exception {
         // Find the user's pick and result for this gameweek
-        Pick pick = pickRepository.findByCompetitionIdAndUserIdAndGameweekId(
-                comp.getId(), user.getId(), gw.getId()).orElse(null);
+        Pick pick = pickRepository.findByCompetitionIdAndParticipantIdAndGameweekId(
+                comp.getId(), cp.getId(), gw.getId()).orElse(null);
 
         String resultLine;
         String statusLine;
@@ -321,11 +321,11 @@ public class GameweekEmailService {
         // Find who has already picked
         java.util.Set<Long> alreadyPicked = pickRepository
                 .findByCompetitionIdAndGameweekId(comp.getId(), gw.getId())
-                .stream().map(p -> p.getUser().getId())
+                .stream().map(p -> p.getParticipant().getId())
                 .collect(java.util.stream.Collectors.toSet());
 
         for (CompetitionParticipant cp : active) {
-            if (alreadyPicked.contains(cp.getUser().getId())) continue;
+            if (alreadyPicked.contains(cp.getId())) continue;
             User user = userRepository.findById(cp.getUser().getId()).orElse(null);
             if (user == null || !user.isEmailResultsOptIn()) continue;
             try {

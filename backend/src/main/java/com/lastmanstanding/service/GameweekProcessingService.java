@@ -137,15 +137,15 @@ public class GameweekProcessingService {
         }
 
         // Load ALL picks for this gameweek in ONE query — avoid N+1
-        Map<Long, Pick> pickByUserId = pickRepository
+        Map<Long, Pick> pickByParticipantId = pickRepository
                 .findByCompetitionIdAndGameweekId(comp.getId(), gw.getId())
-                .stream().collect(Collectors.toMap(p -> p.getUser().getId(), p -> p));
+                .stream().collect(Collectors.toMap(p -> p.getParticipant().getId(), p -> p, (a, b) -> a));
 
         List<Pick> picksToLock = new ArrayList<>();
         List<CompetitionParticipant> missedPickParticipants = new ArrayList<>();
 
         for (CompetitionParticipant cp : activeParticipants) {
-            Pick existingPick = pickByUserId.get(cp.getUser().getId());
+            Pick existingPick = pickByParticipantId.get(cp.getId());
             if (existingPick != null) {
                 existingPick.setLocked(true);
                 picksToLock.add(existingPick);
@@ -172,11 +172,11 @@ public class GameweekProcessingService {
 
         if (comp.getMissedPickMode() == MissedPickMode.AUTO_ASSIGN) {
             // Load used team IDs for ALL missed-pick users in ONE query — avoid N+1
-            List<Long> missedUserIds = missed.stream().map(cp -> cp.getUser().getId()).toList();
-            Map<Long, Set<Long>> usedTeamsByUser = new HashMap<>();
-            for (Long uid : missedUserIds) usedTeamsByUser.put(uid, new HashSet<>());
-            pickRepository.findUsedTeamIdsByUserIds(comp.getId(), missedUserIds)
-                    .forEach(row -> usedTeamsByUser
+            List<Long> missedParticipantIds = missed.stream().map(CompetitionParticipant::getId).toList();
+            Map<Long, Set<Long>> usedTeamsByParticipant = new HashMap<>();
+            for (Long pid : missedParticipantIds) usedTeamsByParticipant.put(pid, new HashSet<>());
+            pickRepository.findUsedTeamIdsByParticipantIds(comp.getId(), missedParticipantIds)
+                    .forEach(row -> usedTeamsByParticipant
                             .computeIfAbsent((Long) row[0], k -> new HashSet<>())
                             .add((Long) row[1]));
 
@@ -184,7 +184,7 @@ public class GameweekProcessingService {
             List<Pick> autoPicks = new ArrayList<>();
 
             for (CompetitionParticipant cp : missed) {
-                Set<Long> usedTeamIds = usedTeamsByUser.getOrDefault(cp.getUser().getId(), Set.of());
+                Set<Long> usedTeamIds = usedTeamsByParticipant.getOrDefault(cp.getId(), Set.of());
                 Team autoTeam = null;
                 for (Team t : allTeams) {
                     if (!usedTeamIds.contains(t.getId()) && teamsWithFixture.contains(t.getId())) {
@@ -193,7 +193,7 @@ public class GameweekProcessingService {
                     }
                 }
                 if (autoTeam != null) {
-                    autoPicks.add(new Pick(comp, cp.getUser(), gw, autoTeam, PickSource.AUTO, true));
+                    autoPicks.add(new Pick(comp, cp.getUser(), cp, gw, autoTeam, PickSource.AUTO, true));
                     log.info("Auto-assigned team {} to user {} for GW{}", autoTeam.getName(),
                             cp.getUser().getUsername(), gw.getWeekNumber());
                 } else {
@@ -336,9 +336,9 @@ public class GameweekProcessingService {
                 .stream().collect(Collectors.toMap(pr -> pr.getPick().getId(), pr -> pr));
 
         // Load ALL active participants in one query — avoid N+1 for elimination lookup
-        Map<Long, CompetitionParticipant> participantByUserId = participantRepository
+        Map<Long, CompetitionParticipant> participantById = participantRepository
                 .findByCompetitionIdAndStatus(comp.getId(), ParticipantStatus.ACTIVE)
-                .stream().collect(Collectors.toMap(cp -> cp.getUser().getId(), cp -> cp));
+                .stream().collect(Collectors.toMap(CompetitionParticipant::getId, cp -> cp));
 
         List<CompetitionParticipant> toEliminate = new ArrayList<>();
         List<PickResult> allResults = new ArrayList<>();
@@ -359,7 +359,7 @@ public class GameweekProcessingService {
                     case POSTPONED -> pr.setOutcome(PickOutcome.POSTPONED_ADVANCE);
                     case DRAW, LOSS -> {
                         pr.setOutcome(PickOutcome.ELIMINATED);
-                        CompetitionParticipant cp = participantByUserId.get(pick.getUser().getId());
+                        CompetitionParticipant cp = participantById.get(pick.getParticipant().getId());
                         if (cp != null) toEliminate.add(cp);
                     }
                 }
@@ -418,45 +418,43 @@ public class GameweekProcessingService {
 
                 List<Team> allTeams = teamRepository.findAllByOrderByNameAsc();
 
-                // Collect all users needing a bye auto-pick
-                List<User> byeUsers = allResults.stream()
+                // Load which users already have a pick for next GW in ONE query
+                Set<Long> participantsWithNextPick = pickRepository
+                        .findByCompetitionIdAndGameweekId(comp.getId(), nextGw.getId())
+                        .stream().map(p -> p.getParticipant().getId()).collect(Collectors.toSet());
+
+                List<CompetitionParticipant> usersNeedingPick = allResults.stream()
                         .filter(pr -> pr.getOutcome() == PickOutcome.ADVANCE)
-                        .map(pr -> pr.getPick().getUser())
+                        .map(pr -> pr.getPick().getParticipant())
+                        .filter(cp -> !participantsWithNextPick.contains(cp.getId()))
+                        .distinct()
                         .toList();
 
-                // Load which users already have a pick for next GW in ONE query
-                Set<Long> usersWithNextPick = pickRepository
-                        .findByCompetitionIdAndGameweekId(comp.getId(), nextGw.getId())
-                        .stream().map(p -> p.getUser().getId()).collect(Collectors.toSet());
-
-                List<User> usersNeedingPick = byeUsers.stream()
-                        .filter(u -> !usersWithNextPick.contains(u.getId())).toList();
-
                 // Load ALL used team IDs for ALL bye users in ONE query
-                List<Long> byeUserIds = usersNeedingPick.stream().map(User::getId).toList();
-                Map<Long, Set<Long>> usedTeamsByUser = new HashMap<>();
-                byeUserIds.forEach(uid -> usedTeamsByUser.put(uid, new HashSet<>()));
-                if (!byeUserIds.isEmpty()) {
-                    pickRepository.findUsedTeamIdsByUserIds(comp.getId(), byeUserIds)
-                            .forEach(row -> usedTeamsByUser
+                List<Long> byeParticipantIds = usersNeedingPick.stream().map(CompetitionParticipant::getId).toList();
+                Map<Long, Set<Long>> usedTeamsByParticipant = new HashMap<>();
+                byeParticipantIds.forEach(pid -> usedTeamsByParticipant.put(pid, new HashSet<>()));
+                if (!byeParticipantIds.isEmpty()) {
+                    pickRepository.findUsedTeamIdsByParticipantIds(comp.getId(), byeParticipantIds)
+                            .forEach(row -> usedTeamsByParticipant
                                     .computeIfAbsent((Long) row[0], k -> new HashSet<>())
                                     .add((Long) row[1]));
                 }
 
                 // Build auto-picks in memory, then batch save
                 List<Pick> autoPicksToSave = new ArrayList<>();
-                for (User user : usersNeedingPick) {
-                    Set<Long> usedTeamIds = usedTeamsByUser.getOrDefault(user.getId(), Set.of());
+                for (CompetitionParticipant participant : usersNeedingPick) {
+                    Set<Long> usedTeamIds = usedTeamsByParticipant.getOrDefault(participant.getId(), Set.of());
                     Team autoTeam = allTeams.stream()
                             .filter(t -> !usedTeamIds.contains(t.getId()) && nextGwTeams.contains(t.getId()))
                             .findFirst().orElse(null);
                     if (autoTeam != null) {
-                        autoPicksToSave.add(new Pick(comp, user, nextGw, autoTeam, PickSource.AUTO, false));
+                        autoPicksToSave.add(new Pick(comp, participant.getUser(), participant, nextGw, autoTeam, PickSource.AUTO, false));
                         log.info("✓ Auto-assigned {} to {} for next GW{} (bye follow-up)",
-                                autoTeam.getName(), user.getUsername(), nextGw.getWeekNumber());
+                                autoTeam.getName(), participant.getUser().getUsername(), nextGw.getWeekNumber());
                     } else {
                         log.warn("⚠ No available team for {} in next GW{} after bye",
-                                user.getUsername(), nextGw.getWeekNumber());
+                                participant.getUser().getUsername(), nextGw.getWeekNumber());
                     }
                 }
                 List<Pick> savedAutoPicks = pickRepository.saveAll(autoPicksToSave);
@@ -480,10 +478,10 @@ public class GameweekProcessingService {
             participantRepository.saveAll(toEliminate);
 
             // Two SQL statements instead of 2*N — delete future pick results then picks for all users at once
-            List<Long> eliminatedUserIds = toEliminate.stream().map(cp -> cp.getUser().getId()).toList();
-            pickResultRepository.deleteFuturePickResultsForUsers(comp.getId(), eliminatedUserIds, gw.getWeekNumber());
-            pickRepository.deleteFuturePicksForUsers(comp.getId(), eliminatedUserIds, gw.getWeekNumber());
-            log.info("Bulk-eliminated {} users in GW{} — cleared future picks in 2 queries",
+            List<Long> eliminatedParticipantIds = toEliminate.stream().map(CompetitionParticipant::getId).toList();
+            pickResultRepository.deleteFuturePickResultsForParticipants(comp.getId(), eliminatedParticipantIds, gw.getWeekNumber());
+            pickRepository.deleteFuturePicksForParticipants(comp.getId(), eliminatedParticipantIds, gw.getWeekNumber());
+            log.info("Bulk-eliminated {} entries in GW{} — cleared future picks in 2 queries",
                     toEliminate.size(), gw.getWeekNumber());
         }
 
@@ -517,13 +515,13 @@ public class GameweekProcessingService {
     private void eliminateParticipant(CompetitionParticipant cp, Gameweek gw) {
         // Status/week already set and saved by the batch saveAll before this call
         Long competitionId = cp.getCompetition().getId();
-        Long userId = cp.getUser().getId();
+        Long participantId = cp.getId();
         int weekNumber = gw.getWeekNumber();
 
         // Bulk delete future pick results then picks in 2 SQL statements
-        pickResultRepository.deleteFuturePickResults(competitionId, userId, weekNumber);
-        pickRepository.deleteFuturePicks(competitionId, userId, weekNumber);
-        log.info("Eliminated user {} in competition {} at GW{} — cleared future picks",
+        pickResultRepository.deleteFuturePickResultsForParticipant(competitionId, participantId, weekNumber);
+        pickRepository.deleteFuturePicksForParticipant(competitionId, participantId, weekNumber);
+        log.info("Eliminated entry {} in competition {} at GW{} — cleared future picks",
                 cp.getUser().getUsername(), competitionId, weekNumber);
     }
 

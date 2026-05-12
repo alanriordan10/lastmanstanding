@@ -38,6 +38,10 @@ public class Pick {
     @JoinColumn(name = "team_id", nullable = false)
     private Team team;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "participant_id", nullable = false)
+    private CompetitionParticipant participant;
+
     @Column(name = "picked_at", nullable = false, updatable = false)
     private LocalDateTime pickedAt;
 
@@ -55,6 +59,17 @@ public class Pick {
                 PickSource source, boolean locked) {
         this.competition = competition;
         this.user = user;
+        this.gameweek = gameweek;
+        this.team = team;
+        this.source = source;
+        this.locked = locked;
+    }
+
+    public Pick(Competition competition, User user, CompetitionParticipant participant, Gameweek gameweek, Team team,
+                PickSource source, boolean locked) {
+        this.competition = competition;
+        this.user = user;
+        this.participant = participant;
         this.gameweek = gameweek;
         this.team = team;
         this.source = source;
@@ -104,6 +119,14 @@ public class Pick {
 
     public void setTeam(Team team) {
         this.team = team;
+    }
+
+    public CompetitionParticipant getParticipant() {
+        return participant;
+    }
+
+    public void setParticipant(CompetitionParticipant participant) {
+        this.participant = participant;
     }
 
     public LocalDateTime getPickedAt() {

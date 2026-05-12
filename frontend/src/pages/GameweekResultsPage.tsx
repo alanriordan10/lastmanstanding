@@ -1,13 +1,15 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import api from '../api';
 import type { Competition, GameweekSelectionsData, Fixture } from '../types';
 import { format } from 'date-fns';
 
 interface GameweekSelection {
+  participantId?: number | null;
   userId: number;
   username: string;
+  entryNumber?: number;
   teamId: number;
   teamName: string;
   teamShortName: string;
@@ -111,6 +113,15 @@ export default function GameweekResultsPage() {
 
   // Handle empty selections (might happen if no picks were made or data issue)
   const safeSelections = Array.isArray(selections) ? selections : [];
+  const userEntryCounts = useMemo(() => {
+    const counts = new Map<number, number>();
+    safeSelections.forEach((s) => counts.set(s.userId, (counts.get(s.userId) ?? 0) + 1));
+    return counts;
+  }, [safeSelections]);
+  const displayName = (s: GameweekSelection) =>
+    (userEntryCounts.get(s.userId) ?? 0) > 1
+      ? `${s.username} #${s.entryNumber ?? 1}`
+      : s.username;
 
   const advanced = safeSelections.filter(s => s.outcome === 'ADVANCE' || s.outcome === 'POSTPONED_ADVANCE');
   const eliminated = safeSelections.filter(s => s.outcome === 'ELIMINATED');
@@ -132,7 +143,7 @@ export default function GameweekResultsPage() {
   }
   if (searchQuery.trim()) {
     const query = searchQuery.toLowerCase();
-    filteredSelections = filteredSelections.filter(s => s.username.toLowerCase().includes(query));
+    filteredSelections = filteredSelections.filter(s => displayName(s).toLowerCase().includes(query));
   }
 
   // Pagination
@@ -350,9 +361,9 @@ export default function GameweekResultsPage() {
           ) : (
             <>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {paginatedSelections.map((sel) => (
-                  <SelectionCard key={sel.userId} selection={sel} fixtures={gameweekFixtures} />
-                ))}
+                  {paginatedSelections.map((sel) => (
+                  <SelectionCard key={`${sel.participantId ?? sel.userId}-${sel.teamId}`} selection={sel} fixtures={gameweekFixtures} userEntryCounts={userEntryCounts} />
+                  ))}
               </div>
               
               {/* Pagination */}
@@ -392,10 +403,10 @@ export default function GameweekResultsPage() {
                     : '-';
 
                   return (
-                    <div key={sel.userId} className="px-4 py-3 space-y-2">
+                    <div key={`${sel.participantId ?? sel.userId}-${sel.teamId}`} className="px-4 py-3 space-y-2">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="font-medium text-sm text-gray-100 truncate">{sel.username}</p>
+                          <p className="font-medium text-sm text-gray-100 truncate">{displayName(sel)}</p>
                           <p className="text-xs text-gray-400 mt-0.5">
                             Picked <span className="text-gray-200 font-medium">{sel.teamShortName}</span>
                             {opponent ? <span> vs {opponent}</span> : null}
@@ -440,8 +451,8 @@ export default function GameweekResultsPage() {
                         : '-';
                       
                       return (
-                        <tr key={sel.userId} className="border-b border-gray-700/50 hover:bg-surface-700/30">
-                          <td className="py-3 px-4 font-medium text-gray-200">{sel.username}</td>
+                        <tr key={`${sel.participantId ?? sel.userId}-${sel.teamId}`} className="border-b border-gray-700/50 hover:bg-surface-700/30">
+                          <td className="py-3 px-4 font-medium text-gray-200">{displayName(sel)}</td>
                           <td className="py-3 px-4 text-gray-200">{sel.teamShortName}</td>
                           <td className="py-3 px-4 text-gray-400">{opponent || '—'}</td>
                           <td className="py-3 px-4 text-center font-medium text-white">{score}</td>
@@ -512,7 +523,7 @@ export default function GameweekResultsPage() {
                     <div className="flex flex-wrap gap-2">
                       {picks.map((sel) => (
                         <span
-                          key={sel.userId}
+                          key={`${sel.participantId ?? sel.userId}-${sel.teamId}`}
                           className={`text-xs px-2.5 py-1 rounded font-medium ${
                             sel.outcome === 'ADVANCE' || sel.outcome === 'POSTPONED_ADVANCE'
                               ? 'bg-green-600/20 text-green-400'
@@ -521,7 +532,7 @@ export default function GameweekResultsPage() {
                               : 'bg-yellow-600/20 text-yellow-400'
                           }`}
                         >
-                          {sel.username}
+                          {displayName(sel)}
                           {sel.source === 'AUTO' && ' (auto)'}
                         </span>
                       ))}
@@ -583,7 +594,7 @@ export default function GameweekResultsPage() {
   );
 }
 
-function SelectionCard({ selection, fixtures }: { selection: GameweekSelection; fixtures: Fixture[] }) {
+function SelectionCard({ selection, fixtures, userEntryCounts }: { selection: GameweekSelection; fixtures: Fixture[]; userEntryCounts: Map<number, number> }) {
   // Find the fixture for this team
   const fixture = fixtures.find(
     (f) => f.homeTeamId === selection.teamId || f.awayTeamId === selection.teamId
@@ -597,6 +608,10 @@ function SelectionCard({ selection, fixtures }: { selection: GameweekSelection; 
     ? 'PP' 
     : '-';
 
+  const label = (userEntryCounts.get(selection.userId) ?? 0) > 1
+    ? `${selection.username} #${selection.entryNumber ?? 1}`
+    : selection.username;
+
   return (
     <div
       className={`rounded-lg border p-3 ${
@@ -608,7 +623,7 @@ function SelectionCard({ selection, fixtures }: { selection: GameweekSelection; 
       }`}
     >
       <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="font-semibold text-gray-200">{selection.username}</div>
+        <div className="font-semibold text-gray-200">{label}</div>
         <OutcomeBadge outcome={selection.outcome} />
       </div>
       <div className="text-sm space-y-1">

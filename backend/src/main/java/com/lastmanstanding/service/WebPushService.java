@@ -107,12 +107,12 @@ public class WebPushService {
         List<CompetitionParticipant> active = participantRepository.findByCompetitionIdAndStatus(comp.getId(), ParticipantStatus.ACTIVE);
         Set<Long> alreadyPicked = pickRepository.findByCompetitionIdAndGameweekId(comp.getId(), gw.getId())
                 .stream()
-                .map(p -> p.getUser().getId())
+                .map(p -> p.getParticipant().getId())
                 .collect(Collectors.toSet());
 
         List<Long> targetUserIds = active.stream()
+                .filter(cp -> !alreadyPicked.contains(cp.getId()))
                 .map(cp -> cp.getUser().getId())
-                .filter(userId -> !alreadyPicked.contains(userId))
                 .toList();
 
         if (targetUserIds.isEmpty()) {
@@ -143,7 +143,7 @@ public class WebPushService {
 
         List<CompetitionParticipant> participants = participantRepository.findByCompetitionId(comp.getId());
         List<Pick> picks = pickRepository.findByCompetitionIdAndGameweekIdFetch(comp.getId(), gw.getId());
-        Map<Long, Pick> pickByUserId = picks.stream().collect(Collectors.toMap(p -> p.getUser().getId(), p -> p));
+        Map<Long, Pick> pickByParticipantId = picks.stream().collect(Collectors.toMap(p -> p.getParticipant().getId(), p -> p, (a, b) -> a));
         List<Long> pickIds = picks.stream().map(Pick::getId).toList();
         Map<Long, PickResult> resultByPickId = pickResultRepository.findByPickIdIn(pickIds)
                 .stream()
@@ -155,7 +155,7 @@ public class WebPushService {
                 continue;
             }
 
-            Pick pick = pickByUserId.get(cp.getUser().getId());
+            Pick pick = pickByParticipantId.get(cp.getId());
             String body = buildResultBody(comp, gw, cp, pick, pick == null ? null : resultByPickId.get(pick.getId()));
             sendToSubscriptions(subscriptions, Map.of(
                     "title", "Gameweek " + gw.getWeekNumber() + " results",

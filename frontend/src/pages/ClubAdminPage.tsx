@@ -30,6 +30,7 @@ export default function ClubAdminPage() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [entryFee, setEntryFee] = useState('0');
+  const [maxEntriesPerUser, setMaxEntriesPerUser] = useState('1');
   const [missedPickMode, setMissedPickMode] = useState('ELIMINATE');
   const [postponedConsumesTeam, setPostponedConsumesTeam] = useState(true);
   const [passFeeToParticipant, setPassFeeToParticipant] = useState(false);
@@ -83,6 +84,7 @@ export default function ClubAdminPage() {
     setName('');
     setDescription('');
     setEntryFee('0');
+    setMaxEntriesPerUser('1');
     setMissedPickMode('ELIMINATE');
     setPostponedConsumesTeam(true);
     setPassFeeToParticipant(false);
@@ -107,6 +109,7 @@ export default function ClubAdminPage() {
     setName(competition.name);
     setDescription(competition.description ?? '');
     setEntryFee(String(competition.entryFee ?? 0));
+    setMaxEntriesPerUser(String(competition.maxEntriesPerUser ?? 1));
     setMissedPickMode(competition.missedPickMode);
     setPostponedConsumesTeam(competition.postponedConsumesTeam);
     setPassFeeToParticipant(Boolean(competition.passFeeToParticipant));
@@ -122,6 +125,7 @@ export default function ClubAdminPage() {
     name,
     description,
     entryFee: parseFloat(entryFee) || 0,
+    maxEntriesPerUser: Math.max(1, parseInt(maxEntriesPerUser, 10) || 1),
     prizePool: prizePool ? parseFloat(prizePool) : null,
     missedPickMode,
     postponedConsumesTeam,
@@ -138,6 +142,7 @@ export default function ClubAdminPage() {
       name,
       description: description || null,
       entryFee: parseFloat(entryFee) || 0,
+      maxEntriesPerUser: Math.max(1, parseInt(maxEntriesPerUser, 10) || 1),
       prizePool: prizePool ? parseFloat(prizePool) : null,
       missedPickMode,
       postponedConsumesTeam,
@@ -938,6 +943,19 @@ export default function ClubAdminPage() {
                 <option value="AUTO_ASSIGN">Auto-Assign (pick best available)</option>
               </select>
             </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-300">Max Entries Per User</label>
+              <input
+                type="number"
+                min="1"
+                max="10"
+                step="1"
+                value={maxEntriesPerUser}
+                onChange={(e) => setMaxEntriesPerUser(e.target.value)}
+                className="input-field"
+              />
+              <p className="mt-1 text-xs text-gray-500">Set to `2` to allow users to enter twice.</p>
+            </div>
             {editingComp && (
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-300">Status</label>
@@ -1311,8 +1329,8 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
   const paidSet = new Set(paidUserIds ?? []);
 
   const removeMutation = useMutation({
-    mutationFn: (userId: number) =>
-      api.delete(`/club-admin/competitions/${competitionId}/participants/${userId}`),
+    mutationFn: (participantId: number) =>
+      api.delete(`/club-admin/competitions/${competitionId}/participants/${participantId}`),
     onSuccess: () => {
       toast.success('Participant removed');
       queryClient.invalidateQueries({ queryKey: ['club-admin', 'participants', competitionId] });
@@ -1364,10 +1382,10 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
   });
 
   const declareWinnerMutation = useMutation({
-    mutationFn: (userId: number) =>
-      api.post(`/club-admin/competitions/${competitionId}/declare-winner/${userId}`, {}),
+    mutationFn: (participantId: number) =>
+      api.post(`/club-admin/competitions/${competitionId}/declare-winner/${participantId}`, {}),
     onSuccess: (_, variables) => {
-      const winner = participants?.find(p => p.userId === (variables as number));
+      const winner = participants?.find(p => p.id === (variables as number));
       toast.success(
         <div className="flex items-center gap-3">
           <span className="text-2xl">🏆</span>
@@ -2101,7 +2119,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
       <ConfirmDialog
         isOpen={!!winnerDialogUser}
         onClose={() => setWinnerDialogUser(null)}
-        onConfirm={() => winnerDialogUser && declareWinnerMutation.mutate(winnerDialogUser.userId)}
+        onConfirm={() => winnerDialogUser && declareWinnerMutation.mutate(winnerDialogUser.id)}
         icon="🏆"
         variant="warning"
         title={`Declare ${winnerDialogUser?.username} as Winner?`}
@@ -2118,7 +2136,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
       <ConfirmDialog
         isOpen={!!removeDialogUser}
         onClose={() => setRemoveDialogUser(null)}
-        onConfirm={() => removeDialogUser && removeMutation.mutate(removeDialogUser.userId)}
+        onConfirm={() => removeDialogUser && removeMutation.mutate(removeDialogUser.id)}
         variant="danger"
         title={`Remove ${removeDialogUser?.username}?`}
         message="This will remove the participant and delete all their picks and results for this competition."
