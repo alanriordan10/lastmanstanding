@@ -72,6 +72,9 @@ public class Competition {
     @Column(name = "max_entries_per_user", nullable = false)
     private Integer maxEntriesPerUser = 1;
 
+    @Column(name = "lifeline_enabled", nullable = false)
+    private boolean lifelineEnabled = false;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by", nullable = false)
     private User createdBy;
@@ -211,6 +214,14 @@ public class Competition {
 
     public void setMaxEntriesPerUser(Integer maxEntriesPerUser) {
         this.maxEntriesPerUser = maxEntriesPerUser;
+    }
+
+    public boolean isLifelineEnabled() {
+        return lifelineEnabled;
+    }
+
+    public void setLifelineEnabled(boolean lifelineEnabled) {
+        this.lifelineEnabled = lifelineEnabled;
     }
 
     public User getCreatedBy() {

@@ -90,7 +90,7 @@ class PickServiceTest {
         when(pickResultRepository.findByPickId(1L)).thenReturn(Optional.empty());
         when(pickResultRepository.save(any(PickResult.class))).thenAnswer(i -> i.getArgument(0));
 
-        Pick result = pickService.makePick(competition.getId(), gameweek.getId(), arsenal.getId(), user.getId(), null);
+        Pick result = pickService.makePick(competition.getId(), gameweek.getId(), arsenal.getId(), user.getId(), null, null);
 
         assertThat(result.getTeam()).isEqualTo(arsenal);
         assertThat(result.getSource()).isEqualTo(PickSource.USER);
@@ -106,7 +106,7 @@ class PickServiceTest {
         when(gameweekRepository.findById(gameweek.getId())).thenReturn(Optional.of(gameweek));
 
         assertThatThrownBy(() ->
-                pickService.makePick(competition.getId(), gameweek.getId(), arsenal.getId(), user.getId(), null))
+                pickService.makePick(competition.getId(), gameweek.getId(), arsenal.getId(), user.getId(), null, null))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("locked");
     }
@@ -131,7 +131,7 @@ class PickServiceTest {
                 .thenReturn(new ArrayList<>(List.of(arsenal.getId())));
 
         assertThatThrownBy(() ->
-                pickService.makePick(competition.getId(), gameweek.getId(), arsenal.getId(), user.getId(), null))
+                pickService.makePick(competition.getId(), gameweek.getId(), arsenal.getId(), user.getId(), null, null))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("already used");
     }
@@ -146,7 +146,7 @@ class PickServiceTest {
                 .thenReturn(List.of(participant));
 
         assertThatThrownBy(() ->
-                pickService.makePick(competition.getId(), gameweek.getId(), arsenal.getId(), user.getId(), null))
+                pickService.makePick(competition.getId(), gameweek.getId(), arsenal.getId(), user.getId(), null, null))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("eliminated");
     }
@@ -171,7 +171,7 @@ class PickServiceTest {
         when(fixtureRepository.findByGameweekId(gameweek.getId())).thenReturn(List.of(fixture));
 
         assertThatThrownBy(() ->
-                pickService.makePick(competition.getId(), gameweek.getId(), arsenal.getId(), user.getId(), null))
+                pickService.makePick(competition.getId(), gameweek.getId(), arsenal.getId(), user.getId(), null, null))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("no fixture");
     }

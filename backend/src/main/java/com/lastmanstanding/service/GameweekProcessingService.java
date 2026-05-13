@@ -341,6 +341,7 @@ public class GameweekProcessingService {
                 .stream().collect(Collectors.toMap(CompetitionParticipant::getId, cp -> cp));
 
         List<CompetitionParticipant> toEliminate = new ArrayList<>();
+        List<CompetitionParticipant> toUpdate = new ArrayList<>();
         List<PickResult> allResults = new ArrayList<>();
 
         for (Pick pick : picks) {
@@ -357,7 +358,19 @@ public class GameweekProcessingService {
                 switch (outcome) {
                     case WIN -> pr.setOutcome(PickOutcome.ADVANCE);
                     case POSTPONED -> pr.setOutcome(PickOutcome.POSTPONED_ADVANCE);
-                    case DRAW, LOSS -> {
+                    case DRAW -> {
+                        CompetitionParticipant cp = participantById.get(pick.getParticipant().getId());
+                        if (pick.isUseLifeline() && comp.isLifelineEnabled() && cp != null && !cp.isLifelineUsed()) {
+                            pr.setOutcome(PickOutcome.ADVANCE);
+                            cp.setLifelineUsed(true);
+                            cp.setLifelineUsedWeek(gw.getWeekNumber());
+                            toUpdate.add(cp);
+                        } else {
+                            pr.setOutcome(PickOutcome.ELIMINATED);
+                            if (cp != null) toEliminate.add(cp);
+                        }
+                    }
+                    case LOSS -> {
                         pr.setOutcome(PickOutcome.ELIMINATED);
                         CompetitionParticipant cp = participantById.get(pick.getParticipant().getId());
                         if (cp != null) toEliminate.add(cp);
@@ -468,6 +481,10 @@ public class GameweekProcessingService {
 
         // Save all results in one batch
         pickResultRepository.saveAll(allResults);
+
+        if (!toUpdate.isEmpty()) {
+            participantRepository.saveAll(toUpdate);
+        }
 
         // Bulk-eliminate participants — single saveAll + two bulk DELETEs instead of N*2 SQL statements
         if (!toEliminate.isEmpty()) {

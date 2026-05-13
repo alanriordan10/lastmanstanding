@@ -40,6 +40,12 @@ public class CompetitionParticipant {
     @Column(name = "entry_number", nullable = false)
     private Integer entryNumber = 1;
 
+    @Column(name = "lifeline_used", nullable = false)
+    private boolean lifelineUsed = false;
+
+    @Column(name = "lifeline_used_week")
+    private Integer lifelineUsedWeek;
+
     @Column(name = "joined_at", nullable = false, updatable = false)
     private LocalDateTime joinedAt;
 
@@ -112,5 +118,21 @@ public class CompetitionParticipant {
 
     public void setEntryNumber(Integer entryNumber) {
         this.entryNumber = entryNumber;
+    }
+
+    public boolean isLifelineUsed() {
+        return lifelineUsed;
+    }
+
+    public void setLifelineUsed(boolean lifelineUsed) {
+        this.lifelineUsed = lifelineUsed;
+    }
+
+    public Integer getLifelineUsedWeek() {
+        return lifelineUsedWeek;
+    }
+
+    public void setLifelineUsedWeek(Integer lifelineUsedWeek) {
+        this.lifelineUsedWeek = lifelineUsedWeek;
     }
 }

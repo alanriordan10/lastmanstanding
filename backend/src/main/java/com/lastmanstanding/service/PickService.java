@@ -40,7 +40,7 @@ public class PickService {
      * Validates lock time, team reuse, and participant status.
      */
     @Transactional
-    public Pick makePick(Long competitionId, Long gameweekId, Long teamId, Long userId, Long entryId) {
+    public Pick makePick(Long competitionId, Long gameweekId, Long teamId, Long userId, Long entryId, Boolean useLifeline) {
         Gameweek gw = gameweekRepository.findById(gameweekId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Gameweek not found"));
 
@@ -96,6 +96,14 @@ public class PickService {
         Optional<Pick> existingPick = pickRepository.findByCompetitionIdAndParticipantIdAndGameweekId(
                 competitionId, cp.getId(), gameweekId);
 
+        boolean lifelineRequested = Boolean.TRUE.equals(useLifeline);
+        if (lifelineRequested && !gw.getCompetition().isLifelineEnabled()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lifeline is not enabled for this competition");
+        }
+        if (lifelineRequested && cp.isLifelineUsed()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Lifeline already used for this entry");
+        }
+
         List<Long> consumedTeamIds = pickRepository.findConsumedTeamIdsForParticipant(competitionId, cp.getId());
         if (existingPick.isPresent()) {
             consumedTeamIds.remove(existingPick.get().getTeam().getId());
@@ -113,6 +121,7 @@ public class PickService {
         } else {
             pick = new Pick(gw.getCompetition(), cp.getUser(), cp, gw, team, PickSource.USER, false);
         }
+        pick.setUseLifeline(lifelineRequested);
 
         pick = pickRepository.save(pick);
 

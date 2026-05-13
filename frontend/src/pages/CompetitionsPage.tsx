@@ -89,6 +89,12 @@ function getCompetitionActionHint(comp: Competition, mine?: MyCompetition, requi
   return null;
 }
 
+function getMyCompetitionKey(mc: MyCompetition): string {
+  if (mc.participantId != null) return `entry-${mc.participantId}`;
+  if (mc.entryNumber != null) return `comp-${mc.competition.id}-entry-${mc.entryNumber}`;
+  return `comp-${mc.competition.id}-joined-${mc.joinedAt}`;
+}
+
 interface SurvivorTableProgressResponse {
   gameweeks: Array<{ weekNumber: number; status: string }>;
   rows: Array<{
@@ -158,7 +164,7 @@ export default function CompetitionsPage() {
     const saved = window.localStorage.getItem('lms.competitions.compactMineView');
     return saved == null ? true : saved === 'true';
   });
-  const [expandedMineRows, setExpandedMineRows] = useState<Set<number>>(new Set());
+  const [expandedMineRows, setExpandedMineRows] = useState<Set<string>>(new Set());
   const [showMineAdvancedFilters, setShowMineAdvancedFilters] = useState(false);
   const [mineSections, setMineSections] = useState({
     needsAction: false,
@@ -1038,36 +1044,36 @@ export default function CompetitionsPage() {
             {mineNeedsAction.length > 0 && (
               <Section label={`Needs Action (${mineNeedsAction.length})`} icon="!" iconColor="bg-amber-500" collapsible collapsed={mineSections.needsAction} onToggle={() => setMineSections((s) => ({ ...s, needsAction: !s.needsAction }))}>
                 {compactMineView
-                  ? <div className="space-y-2">{mineNeedsAction.map((mc) => <MyCompetitionRow key={mc.competition.id} myComp={mc} expanded={expandedMineRows.has(mc.competition.id)} onToggleExpand={() => setExpandedMineRows((prev) => { const next = new Set(prev); if (next.has(mc.competition.id)) next.delete(mc.competition.id); else next.add(mc.competition.id); return next; })} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
-                  : <CompGrid>{mineNeedsAction.map((mc) => <MyCompetitionCard key={mc.competition.id} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</CompGrid>}
+                  ? <div className="space-y-2">{mineNeedsAction.map((mc) => <MyCompetitionRow key={getMyCompetitionKey(mc)} myComp={mc} expanded={expandedMineRows.has(getMyCompetitionKey(mc))} onToggleExpand={() => setExpandedMineRows((prev) => { const next = new Set(prev); const rowKey = getMyCompetitionKey(mc); if (next.has(rowKey)) next.delete(rowKey); else next.add(rowKey); return next; })} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
+                  : <CompGrid>{mineNeedsAction.map((mc) => <MyCompetitionCard key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</CompGrid>}
               </Section>
             )}
             {mineActive.length > 0 && (
               <Section label={`Active (${mineActive.length})`} icon="✓" iconColor="bg-green-600" collapsible collapsed={mineSections.active} onToggle={() => setMineSections((s) => ({ ...s, active: !s.active }))}>
                 {compactMineView
-                  ? <div className="space-y-2">{mineActive.map((mc) => <MyCompetitionRow key={mc.competition.id} myComp={mc} expanded={expandedMineRows.has(mc.competition.id)} onToggleExpand={() => setExpandedMineRows((prev) => { const next = new Set(prev); if (next.has(mc.competition.id)) next.delete(mc.competition.id); else next.add(mc.competition.id); return next; })} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
-                  : <CompGrid>{mineActive.map((mc) => <MyCompetitionCard key={mc.competition.id} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</CompGrid>}
+                  ? <div className="space-y-2">{mineActive.map((mc) => <MyCompetitionRow key={getMyCompetitionKey(mc)} myComp={mc} expanded={expandedMineRows.has(getMyCompetitionKey(mc))} onToggleExpand={() => setExpandedMineRows((prev) => { const next = new Set(prev); const rowKey = getMyCompetitionKey(mc); if (next.has(rowKey)) next.delete(rowKey); else next.add(rowKey); return next; })} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
+                  : <CompGrid>{mineActive.map((mc) => <MyCompetitionCard key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</CompGrid>}
               </Section>
             )}
             {mineUpcoming.length > 0 && (mineFilter === 'ALL' || mineFilter === 'UPCOMING') && (
               <Section label={`Upcoming (${mineUpcoming.length})`} icon="○" iconColor="bg-blue-500">
                 {compactMineView
-                  ? <div className="space-y-2">{mineUpcoming.map((mc) => <MyCompetitionRow key={mc.competition.id} myComp={mc} expanded={expandedMineRows.has(mc.competition.id)} onToggleExpand={() => setExpandedMineRows((prev) => { const next = new Set(prev); if (next.has(mc.competition.id)) next.delete(mc.competition.id); else next.add(mc.competition.id); return next; })} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
-                  : <CompGrid>{mineUpcoming.map((mc) => <MyCompetitionCard key={mc.competition.id} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</CompGrid>}
+                  ? <div className="space-y-2">{mineUpcoming.map((mc) => <MyCompetitionRow key={getMyCompetitionKey(mc)} myComp={mc} expanded={expandedMineRows.has(getMyCompetitionKey(mc))} onToggleExpand={() => setExpandedMineRows((prev) => { const next = new Set(prev); const rowKey = getMyCompetitionKey(mc); if (next.has(rowKey)) next.delete(rowKey); else next.add(rowKey); return next; })} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
+                  : <CompGrid>{mineUpcoming.map((mc) => <MyCompetitionCard key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</CompGrid>}
               </Section>
             )}
             {mineEliminated.length > 0 && (
               <Section label={`Eliminated (${mineEliminated.length})`} icon="✕" iconColor="bg-gray-600" collapsible collapsed={mineSections.eliminated} onToggle={() => setMineSections((s) => ({ ...s, eliminated: !s.eliminated }))}>
                 {compactMineView
-                  ? <div className="space-y-2">{mineEliminated.map((mc) => <MyCompetitionRow key={mc.competition.id} myComp={mc} expanded={expandedMineRows.has(mc.competition.id)} onToggleExpand={() => setExpandedMineRows((prev) => { const next = new Set(prev); if (next.has(mc.competition.id)) next.delete(mc.competition.id); else next.add(mc.competition.id); return next; })} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
-                  : <CompGrid>{mineEliminated.map((mc) => <MyCompetitionCard key={mc.competition.id} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</CompGrid>}
+                  ? <div className="space-y-2">{mineEliminated.map((mc) => <MyCompetitionRow key={getMyCompetitionKey(mc)} myComp={mc} expanded={expandedMineRows.has(getMyCompetitionKey(mc))} onToggleExpand={() => setExpandedMineRows((prev) => { const next = new Set(prev); const rowKey = getMyCompetitionKey(mc); if (next.has(rowKey)) next.delete(rowKey); else next.add(rowKey); return next; })} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
+                  : <CompGrid>{mineEliminated.map((mc) => <MyCompetitionCard key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</CompGrid>}
               </Section>
             )}
             {mineFinished.length > 0 && (
               <Section label={`Finished (${mineFinished.length})`} icon="🏁" iconColor="bg-gray-700" collapsible collapsed={mineSections.finished} onToggle={() => setMineSections((s) => ({ ...s, finished: !s.finished }))}>
                 {compactMineView
-                  ? <div className="space-y-2">{mineFinished.map((mc) => <MyCompetitionRow key={mc.competition.id} myComp={mc} expanded={expandedMineRows.has(mc.competition.id)} onToggleExpand={() => setExpandedMineRows((prev) => { const next = new Set(prev); if (next.has(mc.competition.id)) next.delete(mc.competition.id); else next.add(mc.competition.id); return next; })} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
-                  : <CompGrid>{mineFinished.map((mc) => <MyCompetitionCard key={mc.competition.id} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</CompGrid>}
+                  ? <div className="space-y-2">{mineFinished.map((mc) => <MyCompetitionRow key={getMyCompetitionKey(mc)} myComp={mc} expanded={expandedMineRows.has(getMyCompetitionKey(mc))} onToggleExpand={() => setExpandedMineRows((prev) => { const next = new Set(prev); const rowKey = getMyCompetitionKey(mc); if (next.has(rowKey)) next.delete(rowKey); else next.add(rowKey); return next; })} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
+                  : <CompGrid>{mineFinished.map((mc) => <MyCompetitionCard key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</CompGrid>}
               </Section>
             )}
           </div>

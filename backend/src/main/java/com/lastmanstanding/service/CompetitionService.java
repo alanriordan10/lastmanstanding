@@ -142,17 +142,17 @@ public class CompetitionService {
     public Competition createCompetition(
             String name, String description, BigDecimal entryFee, BigDecimal prizePool,
             Integer maxEntriesPerUser,
-            MissedPickMode missedPickMode, boolean postponedConsumesTeam, boolean passFeeToParticipant,
+            MissedPickMode missedPickMode, boolean postponedConsumesTeam, boolean lifelineEnabled, boolean passFeeToParticipant,
             String paymentMode, String manualPaymentPolicy, String visibility, java.time.LocalDate startDate, Long adminUserId, Long clubId) {
         return createCompetition(name, description, entryFee, prizePool, maxEntriesPerUser, missedPickMode, postponedConsumesTeam,
-                passFeeToParticipant, paymentMode, manualPaymentPolicy, visibility, startDate, adminUserId, clubId, true);
+                lifelineEnabled, passFeeToParticipant, paymentMode, manualPaymentPolicy, visibility, startDate, adminUserId, clubId, true);
     }
 
     @Transactional
     public Competition createCompetition(
             String name, String description, BigDecimal entryFee, BigDecimal prizePool,
             Integer maxEntriesPerUser,
-            MissedPickMode missedPickMode, boolean postponedConsumesTeam, boolean passFeeToParticipant,
+            MissedPickMode missedPickMode, boolean postponedConsumesTeam, boolean lifelineEnabled, boolean passFeeToParticipant,
             String paymentMode, String manualPaymentPolicy, String visibility, java.time.LocalDate startDate, Long adminUserId, Long clubId,
             boolean autoSyncFixtures) {
         User admin = userRepository.findById(adminUserId)
@@ -160,6 +160,7 @@ public class CompetitionService {
         Competition comp = new Competition(name, description, entryFee,
                 CompetitionStatus.UPCOMING, missedPickMode, postponedConsumesTeam, startDate, admin);
         comp.setMaxEntriesPerUser(normalizeMaxEntriesPerUser(maxEntriesPerUser));
+        comp.setLifelineEnabled(lifelineEnabled);
         comp.setPassFeeToParticipant(passFeeToParticipant);
         comp.setPrizePool(prizePool);
         if (paymentMode != null) {
@@ -229,7 +230,7 @@ public class CompetitionService {
     @Transactional
     public Competition updateCompetition(Long id, String name, String description, BigDecimal entryFee,
                                          BigDecimal prizePool, Integer maxEntriesPerUser, MissedPickMode missedPickMode,
-                                         boolean postponedConsumesTeam, Boolean passFeeToParticipant,
+                                         boolean postponedConsumesTeam, Boolean lifelineEnabled, Boolean passFeeToParticipant,
                                          String paymentMode, String manualPaymentPolicy, String visibility, java.time.LocalDate startDate,
                                          CompetitionStatus status, Long clubId) {
         Competition comp = competitionRepository.findById(id)
@@ -241,6 +242,7 @@ public class CompetitionService {
         if (maxEntriesPerUser != null) comp.setMaxEntriesPerUser(normalizeMaxEntriesPerUser(maxEntriesPerUser));
         if (missedPickMode != null) comp.setMissedPickMode(missedPickMode);
         comp.setPostponedConsumesTeam(postponedConsumesTeam);
+        if (lifelineEnabled != null) comp.setLifelineEnabled(lifelineEnabled);
         if (passFeeToParticipant != null) comp.setPassFeeToParticipant(passFeeToParticipant);
         if (paymentMode != null) {
             try { comp.setPaymentMode(PaymentMode.valueOf(paymentMode)); }

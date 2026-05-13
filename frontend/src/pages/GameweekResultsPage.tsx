@@ -10,10 +10,13 @@ interface GameweekSelection {
   userId: number;
   username: string;
   entryNumber?: number;
+  lifelineUsed?: boolean;
+  lifelineUsedWeek?: number | null;
   teamId: number;
   teamName: string;
   teamShortName: string;
   source: string;
+  useLifeline?: boolean;
   outcome: string;
 }
 
@@ -126,6 +129,8 @@ export default function GameweekResultsPage() {
   const advanced = safeSelections.filter(s => s.outcome === 'ADVANCE' || s.outcome === 'POSTPONED_ADVANCE');
   const eliminated = safeSelections.filter(s => s.outcome === 'ELIMINATED');
   const pending = safeSelections.filter(s => s.outcome === 'PENDING');
+  const lifelineUsedCount = safeSelections.filter((s) => s.lifelineUsed).length;
+  const lifelineRemainingCount = safeSelections.filter((s) => !s.lifelineUsed).length;
 
   // Special case: All participants eliminated in this gameweek
   const allEliminated = safeSelections.length > 0 && eliminated.length === safeSelections.length;
@@ -172,6 +177,11 @@ export default function GameweekResultsPage() {
             <p className="mt-2 text-sm text-gray-300">
               {safeSelections.length} pick{safeSelections.length !== 1 ? 's' : ''} processed for this round
             </p>
+            {comp.lifelineEnabled && (
+              <p className="mt-2 text-xs text-gray-300">
+                Lifeline status: <span className="text-emerald-300">{lifelineRemainingCount} available</span> · <span className="text-amber-300">{lifelineUsedCount} used</span>
+              </p>
+            )}
           </div>
           <div className="grid grid-cols-3 gap-2 sm:gap-3">
             <ResultStatCard label="Picked" value={String(safeSelections.length)} accent="text-white" />
@@ -362,7 +372,7 @@ export default function GameweekResultsPage() {
             <>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {paginatedSelections.map((sel) => (
-                  <SelectionCard key={`${sel.participantId ?? sel.userId}-${sel.teamId}`} selection={sel} fixtures={gameweekFixtures} userEntryCounts={userEntryCounts} />
+                  <SelectionCard key={`${sel.participantId ?? sel.userId}-${sel.teamId}`} selection={sel} fixtures={gameweekFixtures} userEntryCounts={userEntryCounts} showLifelineStatus={!!comp.lifelineEnabled} />
                   ))}
               </div>
               
@@ -417,7 +427,15 @@ export default function GameweekResultsPage() {
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-gray-500">
                           {sel.source === 'AUTO' ? 'Auto-picked' : 'Self-picked'}
+                          {sel.useLifeline ? ' · Lifeline' : ''}
                         </span>
+                        {comp.lifelineEnabled && (
+                          <span className={sel.lifelineUsed ? 'text-amber-300' : 'text-emerald-300'}>
+                            {sel.lifelineUsed ? `Used${sel.lifelineUsedWeek ? ` · GW${sel.lifelineUsedWeek}` : ''}` : 'Available'}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
                         <span className="font-medium text-gray-300">Score: {score}</span>
                       </div>
                     </div>
@@ -434,6 +452,7 @@ export default function GameweekResultsPage() {
                       <th className="py-3 px-4">Opponent</th>
                       <th className="py-3 px-4 text-center">Score</th>
                       <th className="py-3 px-4">Pick Type</th>
+                      {comp.lifelineEnabled && <th className="py-3 px-4">Lifeline</th>}
                       <th className="py-3 px-4">Outcome</th>
                     </tr>
                   </thead>
@@ -457,12 +476,28 @@ export default function GameweekResultsPage() {
                           <td className="py-3 px-4 text-gray-400">{opponent || '—'}</td>
                           <td className="py-3 px-4 text-center font-medium text-white">{score}</td>
                           <td className="py-3 px-4">
-                            {sel.source === 'AUTO' ? (
-                              <span className="text-xs text-yellow-400">Auto</span>
-                            ) : (
-                              <span className="text-xs text-gray-500">Self</span>
-                            )}
+                            <div className="flex items-center gap-2">
+                              {sel.source === 'AUTO' ? (
+                                <span className="text-xs text-yellow-400">Auto</span>
+                              ) : (
+                                <span className="text-xs text-gray-500">Self</span>
+                              )}
+                              {sel.useLifeline ? <span className="text-[10px] px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-200">Lifeline</span> : null}
+                            </div>
                           </td>
+                          {comp.lifelineEnabled && (
+                            <td className="py-3 px-4">
+                              {sel.lifelineUsed ? (
+                                <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-200">
+                                  Used{sel.lifelineUsedWeek ? ` · GW${sel.lifelineUsedWeek}` : ''}
+                                </span>
+                              ) : (
+                                <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-200">
+                                  Available
+                                </span>
+                              )}
+                            </td>
+                          )}
                           <td className="py-3 px-4"><OutcomeBadge outcome={sel.outcome} /></td>
                         </tr>
                       );
@@ -534,6 +569,8 @@ export default function GameweekResultsPage() {
                         >
                           {displayName(sel)}
                           {sel.source === 'AUTO' && ' (auto)'}
+                          {sel.useLifeline && ' (lifeline)'}
+                          {comp.lifelineEnabled && (sel.lifelineUsed ? ` [used${sel.lifelineUsedWeek ? ` GW${sel.lifelineUsedWeek}` : ''}]` : ' [available]')}
                         </span>
                       ))}
                     </div>
@@ -594,7 +631,17 @@ export default function GameweekResultsPage() {
   );
 }
 
-function SelectionCard({ selection, fixtures, userEntryCounts }: { selection: GameweekSelection; fixtures: Fixture[]; userEntryCounts: Map<number, number> }) {
+function SelectionCard({
+  selection,
+  fixtures,
+  userEntryCounts,
+  showLifelineStatus,
+}: {
+  selection: GameweekSelection;
+  fixtures: Fixture[];
+  userEntryCounts: Map<number, number>;
+  showLifelineStatus: boolean;
+}) {
   // Find the fixture for this team
   const fixture = fixtures.find(
     (f) => f.homeTeamId === selection.teamId || f.awayTeamId === selection.teamId
@@ -644,6 +691,14 @@ function SelectionCard({ selection, fixtures, userEntryCounts }: { selection: Ga
           <div className="flex items-center justify-between">
             <span className="text-gray-400">Score:</span>
             <span className="font-medium text-gray-200">{score}</span>
+          </div>
+        )}
+        {showLifelineStatus && (
+          <div className="flex items-center justify-between">
+            <span className="text-gray-400">Lifeline:</span>
+            <span className={selection.lifelineUsed ? 'text-amber-200 text-xs' : 'text-emerald-200 text-xs'}>
+              {selection.lifelineUsed ? `Used${selection.lifelineUsedWeek ? ` · GW${selection.lifelineUsedWeek}` : ''}` : 'Available'}
+            </span>
           </div>
         )}
       </div>

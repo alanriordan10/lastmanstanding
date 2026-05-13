@@ -249,6 +249,7 @@ export default function GameweekSelectionsPage() {
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           {s.source === 'AUTO' && <span className="badge-yellow text-xs">Auto</span>}
+                          {s.useLifeline && <span className="text-[10px] px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-200">Lifeline</span>}
                           <OutcomeBadge outcome={s.outcome} />
                         </div>
                       </div>
@@ -275,9 +276,12 @@ export default function GameweekSelectionsPage() {
                               <span className="text-gray-400 ml-2 text-xs">{s.teamName}</span>
                             </td>
                             <td className="py-3 px-4">
-                              {s.source === 'AUTO'
-                                ? <span className="badge-yellow text-xs">Auto</span>
-                                : <span className="badge-gray text-xs">Self</span>}
+                              <div className="flex items-center gap-2">
+                                {s.source === 'AUTO'
+                                  ? <span className="badge-yellow text-xs">Auto</span>
+                                  : <span className="badge-gray text-xs">Self</span>}
+                                {s.useLifeline ? <span className="text-[10px] px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-200">Lifeline</span> : null}
+                              </div>
                             </td>
                             <td className="py-3 px-4">
                               <OutcomeBadge outcome={s.outcome} />
@@ -336,6 +340,7 @@ export default function GameweekSelectionsPage() {
                             >
                               {displayName(p)}
                               {p.source === 'AUTO' && ' (auto)'}
+                              {p.useLifeline && ' (lifeline)'}
                             </span>
                           ))}
                         </div>
