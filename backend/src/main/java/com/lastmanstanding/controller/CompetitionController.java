@@ -244,7 +244,7 @@ public class CompetitionController {
             return new PickHistoryItem(
                     p.getId(), p.getGameweek().getId(), p.getGameweek().getWeekNumber(),
                     p.getTeam().getId(), p.getTeam().getName(), p.getTeam().getShortName(),
-                    p.getSource().name(), p.isLocked(), p.getPickedAt(),
+                    p.getSource().name(), p.isLocked(), p.isUseLifeline(), p.getPickedAt(),
                     pr != null ? pr.getOutcome().name() : "PENDING",
                     pr != null ? pr.getResolvedAt() : null
             );
@@ -406,7 +406,7 @@ public class CompetitionController {
                     "Your entry is awaiting payment confirmation. Picks are disabled until payment is confirmed."
             );
         }
-        Pick pick = pickService.makePick(id, gwId, request.teamId(), userDetails.getId(), request.entryId());
+        Pick pick = pickService.makePick(id, gwId, request.teamId(), userDetails.getId(), request.entryId(), request.useLifeline());
         return ResponseEntity.ok(PickResponse.from(pick));
     }
 
@@ -434,7 +434,7 @@ public class CompetitionController {
             return new PickHistoryItem(
                     p.getId(), p.getGameweek().getId(), p.getGameweek().getWeekNumber(),
                     p.getTeam().getId(), p.getTeam().getName(), p.getTeam().getShortName(),
-                    p.getSource().name(), p.isLocked(), p.getPickedAt(),
+                    p.getSource().name(), p.isLocked(), p.isUseLifeline(), p.getPickedAt(),
                     pr != null ? pr.getOutcome().name() : "PENDING",
                     pr != null ? pr.getResolvedAt() : null
             );
@@ -498,8 +498,10 @@ public class CompetitionController {
                     p.getParticipant() != null ? p.getParticipant().getId() : null,
                     p.getUser().getId(), p.getUser().getUsername(),
                     p.getParticipant() != null ? p.getParticipant().getEntryNumber() : 1,
+                    p.getParticipant() != null && p.getParticipant().isLifelineUsed(),
+                    p.getParticipant() != null ? p.getParticipant().getLifelineUsedWeek() : null,
                     p.getTeam().getId(), p.getTeam().getName(), p.getTeam().getShortName(),
-                    p.getSource().name(), outcome
+                    p.getSource().name(), p.isUseLifeline(), outcome
             );
         }).toList();
 
@@ -562,7 +564,8 @@ public class CompetitionController {
                     cells.put(gw.getWeekNumber(), new SurvivorPickCell(
                             pick.getTeam().getShortName(),
                             outcome,
-                            pick.getSource().name()
+                            pick.getSource().name(),
+                            pick.isUseLifeline()
                     ));
                 }
             }
@@ -573,6 +576,8 @@ public class CompetitionController {
                     cp.getEntryNumber(),
                     cp.getStatus().name(),
                     cp.getEliminatedWeek(),
+                    cp.isLifelineUsed(),
+                    cp.getLifelineUsedWeek(),
                     cells
             );
         }).toList();

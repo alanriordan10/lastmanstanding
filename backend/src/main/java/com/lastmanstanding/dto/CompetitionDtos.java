@@ -24,6 +24,7 @@ public final class CompetitionDtos {
             Integer maxEntriesPerUser,
             @NotNull MissedPickMode missedPickMode,
             boolean postponedConsumesTeam,
+            boolean lifelineEnabled,
             boolean passFeeToParticipant,
             String paymentMode,
             String manualPaymentPolicy,
@@ -40,6 +41,7 @@ public final class CompetitionDtos {
             Integer maxEntriesPerUser,
             MissedPickMode missedPickMode,
             Boolean postponedConsumesTeam,
+            Boolean lifelineEnabled,
             Boolean passFeeToParticipant,
             String paymentMode,
             String manualPaymentPolicy,
@@ -51,7 +53,8 @@ public final class CompetitionDtos {
 
     public record PickRequest(
             @NotNull Long teamId,
-            Long entryId
+            Long entryId,
+            Boolean useLifeline
     ) {}
 
     // ── Responses ───────────────────────────────────────────────────────
@@ -94,6 +97,7 @@ public final class CompetitionDtos {
             String status,
             String missedPickMode,
             boolean postponedConsumesTeam,
+            boolean lifelineEnabled,
             boolean passFeeToParticipant,
             String paymentMode,
             String manualPaymentPolicy,
@@ -123,7 +127,7 @@ public final class CompetitionDtos {
                     c.getId(), c.getName(), c.getDescription(), c.getEntryFee(), c.getPrizePool(),
                     c.getMaxEntriesPerUser(),
                     c.getStatus().name(), c.getMissedPickMode().name(),
-                    c.isPostponedConsumesTeam(), c.isPassFeeToParticipant(),
+                    c.isPostponedConsumesTeam(), c.isLifelineEnabled(), c.isPassFeeToParticipant(),
                     c.getPaymentMode() != null ? c.getPaymentMode().name() : "FREE",
                     c.getManualPaymentPolicy() != null ? c.getManualPaymentPolicy().name() : "STRICT",
                     c.getVisibility() != null ? c.getVisibility().name() : "PUBLIC",
@@ -146,7 +150,7 @@ public final class CompetitionDtos {
                     c.getId(), c.getName(), c.getDescription(), c.getEntryFee(), c.getPrizePool(),
                     c.getMaxEntriesPerUser(),
                     c.getStatus().name(), c.getMissedPickMode().name(),
-                    c.isPostponedConsumesTeam(), c.isPassFeeToParticipant(),
+                    c.isPostponedConsumesTeam(), c.isLifelineEnabled(), c.isPassFeeToParticipant(),
                     c.getPaymentMode() != null ? c.getPaymentMode().name() : "FREE",
                     c.getManualPaymentPolicy() != null ? c.getManualPaymentPolicy().name() : "STRICT",
                     c.getVisibility() != null ? c.getVisibility().name() : "PUBLIC",
@@ -171,6 +175,8 @@ public final class CompetitionDtos {
             Integer entryNumber,
             String status,
             String paymentState,
+            boolean lifelineUsed,
+            Integer lifelineUsedWeek,
             Integer eliminatedWeek,
             LocalDateTime joinedAt
     ) {
@@ -182,7 +188,8 @@ public final class CompetitionDtos {
             return new ParticipantResponse(
                     cp.getId(), cp.getUser().getId(), cp.getUser().getUsername(),
                     cp.getEntryNumber(),
-                    cp.getStatus().name(), paymentState, cp.getEliminatedWeek(), cp.getJoinedAt()
+                    cp.getStatus().name(), paymentState, cp.isLifelineUsed(), cp.getLifelineUsedWeek(),
+                    cp.getEliminatedWeek(), cp.getJoinedAt()
             );
         }
     }
@@ -202,6 +209,7 @@ public final class CompetitionDtos {
             String teamShortName,
             String source,
             boolean locked,
+            boolean useLifeline,
             LocalDateTime pickedAt,
             String outcome,
             LocalDateTime resolvedAt
@@ -295,10 +303,13 @@ public final class CompetitionDtos {
             Long userId,
             String username,
             Integer entryNumber,
+            boolean lifelineUsed,
+            Integer lifelineUsedWeek,
             Long teamId,
             String teamName,
             String teamShortName,
             String source,
+            boolean useLifeline,
             String outcome
     ) {}
 
@@ -355,7 +366,7 @@ public final class CompetitionDtos {
 
     public record SurvivorGameweekMeta(Long id, int weekNumber, String status) {}
 
-    public record SurvivorPickCell(String teamShortName, String outcome, String source) {}
+    public record SurvivorPickCell(String teamShortName, String outcome, String source, boolean useLifeline) {}
 
     public record SurvivorRow(
             Long participantId,
@@ -364,6 +375,8 @@ public final class CompetitionDtos {
             Integer entryNumber,
             String status,
             Integer eliminatedWeek,
+            boolean lifelineUsed,
+            Integer lifelineUsedWeek,
             Map<Integer, SurvivorPickCell> picks
     ) {}
 

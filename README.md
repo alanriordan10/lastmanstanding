@@ -161,3 +161,34 @@ LastManStanding/
 | PUT | `/admin/fixtures/{id}/override` | ADMIN | Override fixture |
 | DELETE | `/admin/fixtures/{id}/override` | ADMIN | Revert override |
 | GET | `/admin/audit` | ADMIN | Audit log |
+
+---
+
+## 🛟 Lifeline Feature
+
+Competitions can optionally enable a one-time `lifeline` per entry.
+
+- Admin/Club Admin can enable it when creating or editing a competition.
+- Each entry may use lifeline once, before gameweek lock.
+- Result behavior when lifeline is used on that pick:
+  - `WIN` => advance (normal)
+  - `DRAW` => advance (lifeline effect)
+  - `LOSS` => eliminated (lifeline does not help)
+
+### Create/Update competition payload fields
+
+```json
+{
+  "lifelineEnabled": true
+}
+```
+
+### Pick payload fields
+
+```json
+{
+  "teamId": 12,
+  "entryId": 45,
+  "useLifeline": true
+}
+```

@@ -179,6 +179,7 @@ export default function CompetitionHomePage() {
   const [mobileRulesOpen, setMobileRulesOpen] = useState(false);
   const [mobileReminderOpen, setMobileReminderOpen] = useState(false);
   const [selectedEntryId, setSelectedEntryId] = useState<number | null>(null);
+  const [lifelineForGwId, setLifelineForGwId] = useState<number | null>(null);
 
   // Close share dropdown on outside click
   useEffect(() => {
@@ -322,12 +323,13 @@ export default function CompetitionHomePage() {
   const resultsProcessing = hasPendingResultProcessing(fixtures);
 
   const pickMutation = useMutation({
-    mutationFn: ({ gwId, teamId }: { gwId: number; teamId: number }) =>
+    mutationFn: ({ gwId, teamId, useLifeline }: { gwId: number; teamId: number; useLifeline: boolean }) =>
       api.post(`/competitions/${compId}/gameweeks/${gwId}/pick`, {
         teamId,
         entryId: selectedEntryId ?? undefined,
+        useLifeline,
       }),
-    onMutate: async ({ gwId, teamId }) => {
+    onMutate: async ({ gwId, teamId, useLifeline }) => {
       // Cancel any in-flight refetches so they don't overwrite our optimistic update
       await queryClient.cancelQueries({ queryKey: ['myStatus', compId, selectedEntryId] });
 
@@ -358,6 +360,7 @@ export default function CompetitionHomePage() {
           teamShortName,
           locked: false,
           source: 'USER' as const,
+          useLifeline,
           outcome: 'PENDING' as const,
           pickedAt: new Date().toISOString(),
           resolvedAt: null,
@@ -384,6 +387,7 @@ export default function CompetitionHomePage() {
     },
     onSuccess: () => {
       toast.success('Pick saved!');
+      setLifelineForGwId(null);
       // Refresh in background to get the real server state
       queryClient.invalidateQueries({ queryKey: ['myStatus', compId, selectedEntryId] });
     },
@@ -541,13 +545,14 @@ export default function CompetitionHomePage() {
   };
 
   // Build a map of gameweekId -> pick for this user
-  const pickByGwId = new Map<number, { teamId: number; teamName: string; teamShortName: string; locked: boolean; outcome: string }>();
+  const pickByGwId = new Map<number, { teamId: number; teamName: string; teamShortName: string; locked: boolean; useLifeline?: boolean; outcome: string }>();
   myStatus?.picks.forEach((p) => {
     pickByGwId.set(p.gameweekId, {
       teamId: p.teamId,
       teamName: p.teamName,
       teamShortName: p.teamShortName,
       locked: p.locked,
+      useLifeline: p.useLifeline,
       outcome: p.outcome,
     });
   });
@@ -930,7 +935,7 @@ export default function CompetitionHomePage() {
       return;
     }
     if (isPast(parseDate(lockAt))) return;
-    pickMutation.mutate({ gwId, teamId });
+    pickMutation.mutate({ gwId, teamId, useLifeline: lifelineForGwId === gwId });
   };
 
   let actionTone: 'brand' | 'warning' | 'danger' | 'success' = 'brand';
@@ -1117,6 +1122,20 @@ export default function CompetitionHomePage() {
     ? `Next lock: ${formatDistanceToNow(parseDate(openWeekWithPick.data.lockAt), { addSuffix: true })}`
     : actionMeta;
   const secondaryMeta = actionMeta && actionMeta !== sidebarMeta ? actionMeta : null;
+  const lifelineStatusLabel = !comp.lifelineEnabled
+    ? 'Lifeline disabled'
+    : !isParticipant
+      ? 'Lifeline enabled'
+      : participant?.lifelineUsed
+        ? `Lifeline used${participant.lifelineUsedWeek ? ` · GW ${participant.lifelineUsedWeek}` : ''}`
+        : 'Lifeline available';
+  const lifelineStatusToneClass = !comp.lifelineEnabled
+    ? 'border-white/10 bg-black/20 text-gray-300'
+    : !isParticipant
+      ? 'border-cyan-400/30 bg-cyan-500/10 text-cyan-100'
+      : participant?.lifelineUsed
+        ? 'border-amber-400/30 bg-amber-500/10 text-amber-100'
+        : 'border-emerald-400/30 bg-emerald-500/10 text-emerald-100';
 
   const reminderPanel = showReminderSetup ? (
     <section className="card p-4 sm:p-5">
@@ -1446,6 +1465,9 @@ export default function CompetitionHomePage() {
               <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-gray-200">{sidebarStatusLabel}</span>
               {sidebarMeta && <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-gray-300">{sidebarMeta}</span>}
               {secondaryMeta && <span className="rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1.5 text-brand-100">{secondaryMeta}</span>}
+              <span className={clsx('rounded-full border px-3 py-1.5', lifelineStatusToneClass)}>
+                {lifelineStatusLabel}
+              </span>
             </div>
           </div>
           <div className="flex gap-2 flex-wrap items-start lg:flex-col lg:items-end">
@@ -1996,6 +2018,33 @@ export default function CompetitionHomePage() {
                     {/* ── Fixture rows — collapsible ── */}
                     {!isCollapsed && (
                       <div id={`gw-${wn}-fixtures`} className="space-y-2 mt-4">
+                        {comp.lifelineEnabled && isParticipant && !isWinner && (
+                          <div className="rounded-lg border border-cyan-500/25 bg-cyan-500/10 px-3 py-2 text-xs sm:text-sm">
+                            {participant?.lifelineUsed ? (
+                              <p className="text-cyan-200">
+                                Lifeline already used{participant.lifelineUsedWeek ? ` in Gameweek ${participant.lifelineUsedWeek}` : ''}.
+                              </p>
+                            ) : (
+                              <label className="inline-flex items-center gap-2 text-cyan-100">
+                                <input
+                                  type="checkbox"
+                                  className="h-4 w-4 rounded border-cyan-400/40 bg-transparent"
+                                  checked={lifelineForGwId === gwId}
+                                  disabled={isLocked || gwStatus !== 'UPCOMING'}
+                                  onChange={(e) => setLifelineForGwId(e.target.checked ? gwId : null)}
+                                />
+                                Use lifeline for this gameweek
+                                <span
+                                  className="inline-flex items-center justify-center h-4 w-4 rounded-full border border-cyan-300/40 text-[10px] text-cyan-200"
+                                  title="One-time per entry. Works only if this pick draws. It does not protect a loss."
+                                  aria-label="Lifeline help"
+                                >
+                                  i
+                                </span>
+                              </label>
+                            )}
+                          </div>
+                        )}
                         {/* Show message if user was eliminated before this gameweek (only for non-completed gameweeks) */}
                         {isEliminated && participant?.eliminatedWeek != null && wn > participant.eliminatedWeek && gwStatus !== 'COMPLETED' && (
                           <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm">
@@ -2133,7 +2182,10 @@ export default function CompetitionHomePage() {
                             <span className="text-gray-500">
                               {pick.source === 'AUTO' ? 'Auto-picked' : 'Self-picked'}
                             </span>
-                            {pick.source === 'AUTO' ? <span className="badge-yellow text-[10px]">Auto</span> : <span className="badge-gray text-[10px]">Self</span>}
+                            <div className="flex items-center gap-2">
+                              {pick.useLifeline ? <span className="text-[10px] px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-200">Lifeline</span> : null}
+                              {pick.source === 'AUTO' ? <span className="badge-yellow text-[10px]">Auto</span> : <span className="badge-gray text-[10px]">Self</span>}
+                            </div>
                           </div>
                         </div>
                       )})}
@@ -2162,7 +2214,10 @@ export default function CompetitionHomePage() {
                               <span className="text-gray-400 ml-2 text-xs">{pick.teamName}</span>
                             </td>
                             <td className="py-3 px-4">
-                              {pick.source === 'AUTO' ? <span className="badge-yellow">Auto</span> : <span className="badge-gray">Self</span>}
+                              <div className="flex items-center gap-2">
+                                {pick.source === 'AUTO' ? <span className="badge-yellow">Auto</span> : <span className="badge-gray">Self</span>}
+                                {pick.useLifeline ? <span className="text-xs px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-200">Lifeline</span> : null}
+                              </div>
                             </td>
                             <td className="py-3 px-4">
                               <OutcomeBadge outcome={outcome} />
@@ -2261,6 +2316,26 @@ export default function CompetitionHomePage() {
                   value={isParticipant ? `${consumedTeamIds.size} used${reservedTeamIds.size > 0 ? ` · ${reservedTeamIds.size} reserved` : ''}` : 'Join to track'}
                   detail={isParticipant && remainingTeamsCount !== null ? `${remainingTeamsCount} teams still available` : 'Usage updates after each pick'}
                 />
+                {comp.lifelineEnabled && (
+                  <SummaryTile
+                    label="Lifeline"
+                    value={
+                      !isParticipant
+                        ? 'Enabled'
+                        : participant?.lifelineUsed
+                        ? `Used${participant.lifelineUsedWeek ? ` · GW${participant.lifelineUsedWeek}` : ''}`
+                        : 'Available'
+                    }
+                    detail={
+                      !isParticipant
+                        ? 'One-time draw protection per entry'
+                        : participant?.lifelineUsed
+                        ? 'Already consumed for this entry'
+                        : 'Can be used once before lock'
+                    }
+                    accent={!isParticipant ? 'text-cyan-300' : participant?.lifelineUsed ? 'text-amber-300' : 'text-emerald-300'}
+                  />
+                )}
                 {isParticipant && (
                   <SummaryTile
                     label="Payment"
@@ -2334,6 +2409,26 @@ export default function CompetitionHomePage() {
                       value={isParticipant ? `${consumedTeamIds.size} used${reservedTeamIds.size > 0 ? ` · ${reservedTeamIds.size} reserved` : ''}` : 'Join to track'}
                       detail={isParticipant && remainingTeamsCount !== null ? `${remainingTeamsCount} teams still available` : 'Usage updates after each pick'}
                     />
+                    {comp.lifelineEnabled && (
+                      <SummaryTile
+                        label="Lifeline"
+                        value={
+                          !isParticipant
+                            ? 'Enabled'
+                            : participant?.lifelineUsed
+                            ? `Used${participant.lifelineUsedWeek ? ` · GW${participant.lifelineUsedWeek}` : ''}`
+                            : 'Available'
+                        }
+                        detail={
+                          !isParticipant
+                            ? 'One-time draw protection per entry'
+                            : participant?.lifelineUsed
+                            ? 'Already consumed for this entry'
+                            : 'Can be used once before lock'
+                        }
+                        accent={!isParticipant ? 'text-cyan-300' : participant?.lifelineUsed ? 'text-amber-300' : 'text-emerald-300'}
+                      />
+                    )}
                     {isParticipant && (
                       <SummaryTile
                         label="Payment"

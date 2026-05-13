@@ -33,6 +33,7 @@ export default function ClubAdminPage() {
   const [maxEntriesPerUser, setMaxEntriesPerUser] = useState('1');
   const [missedPickMode, setMissedPickMode] = useState('ELIMINATE');
   const [postponedConsumesTeam, setPostponedConsumesTeam] = useState(true);
+  const [lifelineEnabled, setLifelineEnabled] = useState(false);
   const [passFeeToParticipant, setPassFeeToParticipant] = useState(false);
   const [paymentMode, setPaymentMode] = useState<'FREE' | 'MANUAL' | 'STRIPE'>('FREE');
   const [manualPaymentPolicy, setManualPaymentPolicy] = useState<'STRICT' | 'LENIENT'>('STRICT');
@@ -87,6 +88,7 @@ export default function ClubAdminPage() {
     setMaxEntriesPerUser('1');
     setMissedPickMode('ELIMINATE');
     setPostponedConsumesTeam(true);
+    setLifelineEnabled(false);
     setPassFeeToParticipant(false);
     setPaymentMode('FREE');
     setManualPaymentPolicy('STRICT');
@@ -112,6 +114,7 @@ export default function ClubAdminPage() {
     setMaxEntriesPerUser(String(competition.maxEntriesPerUser ?? 1));
     setMissedPickMode(competition.missedPickMode);
     setPostponedConsumesTeam(competition.postponedConsumesTeam);
+    setLifelineEnabled(Boolean(competition.lifelineEnabled));
     setPassFeeToParticipant(Boolean(competition.passFeeToParticipant));
     setPaymentMode((competition.paymentMode ?? 'FREE') as 'FREE' | 'MANUAL' | 'STRIPE');
     setManualPaymentPolicy((competition.manualPaymentPolicy ?? 'STRICT') as 'STRICT' | 'LENIENT');
@@ -129,6 +132,7 @@ export default function ClubAdminPage() {
     prizePool: prizePool ? parseFloat(prizePool) : null,
     missedPickMode,
     postponedConsumesTeam,
+    lifelineEnabled,
     passFeeToParticipant,
     paymentMode,
     manualPaymentPolicy,
@@ -146,6 +150,7 @@ export default function ClubAdminPage() {
       prizePool: prizePool ? parseFloat(prizePool) : null,
       missedPickMode,
       postponedConsumesTeam,
+      lifelineEnabled,
       passFeeToParticipant,
       paymentMode,
       manualPaymentPolicy,
@@ -979,6 +984,26 @@ export default function ClubAdminPage() {
                 <span className="text-sm text-gray-300">
                   Postponed match counts as used pick
                   <span className="ml-1 text-xs text-gray-500">(recommended)</span>
+                </span>
+              </label>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={lifelineEnabled}
+                  onChange={(e) => setLifelineEnabled(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-600 bg-surface-700 text-brand-500"
+                />
+                <span className="text-sm text-gray-300">
+                  Enable one lifeline per entry
+                  <span
+                    className="ml-2 inline-flex items-center justify-center h-4 w-4 rounded-full border border-gray-500/50 text-[10px] text-gray-300"
+                    title="Each entry can use this once before lock. It turns a draw into survival, but not a loss."
+                    aria-label="Lifeline setting help"
+                  >
+                    i
+                  </span>
                 </span>
               </label>
             </div>

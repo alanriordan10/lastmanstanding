@@ -11,7 +11,9 @@ interface SurvivorRow {
   entryNumber: number;
   status: 'ACTIVE' | 'ELIMINATED' | 'WINNER';
   eliminatedWeek: number | null;
-  picks: Record<number, { teamShortName: string; outcome: string; source: string } | null>;
+  lifelineUsed: boolean;
+  lifelineUsedWeek: number | null;
+  picks: Record<number, { teamShortName: string; outcome: string; source: string; useLifeline?: boolean } | null>;
 }
 
 interface GameweekMeta {
@@ -258,6 +260,19 @@ export default function SurvivorTablePage() {
                           <span className="text-[10px] text-red-400 shrink-0">GW{row.eliminatedWeek}</span>
                         )}
                       </div>
+                      {comp?.lifelineEnabled && (
+                        <div className="mt-1">
+                          {row.lifelineUsed ? (
+                            <span className="inline-flex items-center rounded-full border border-amber-400/30 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-medium text-amber-200">
+                              Lifeline used{row.lifelineUsedWeek ? ` · GW${row.lifelineUsedWeek}` : ''}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center rounded-full border border-emerald-400/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-medium text-emerald-200">
+                              Lifeline available
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </td>
                     {gameweeks.map((gw) => {
                       const pick = row.picks[gw.weekNumber];
@@ -319,6 +334,9 @@ export default function SurvivorTablePage() {
                             )}
                             {pick.source === 'AUTO' && (
                               <span className="inline-flex items-center justify-center rounded-full bg-surface-700 px-2 py-0.5 text-[9px] text-gray-400 italic leading-none">auto</span>
+                            )}
+                            {pick.useLifeline && (
+                              <span className="inline-flex items-center justify-center rounded-full bg-cyan-500/20 px-2 py-0.5 text-[9px] text-cyan-200 leading-none">lifeline</span>
                             )}
                           </div>
                         </td>

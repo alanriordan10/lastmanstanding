@@ -35,6 +35,7 @@ export interface Competition {
   entryFee: number;
   prizePool?: number;
   maxEntriesPerUser?: number;
+  lifelineEnabled?: boolean;
   passFeeToParticipant?: boolean;
   paymentMode?: 'FREE' | 'MANUAL' | 'STRIPE';
   manualPaymentPolicy?: 'STRICT' | 'LENIENT';
@@ -63,6 +64,8 @@ export interface Participant {
   entryNumber?: number;
   status: 'ACTIVE' | 'ELIMINATED' | 'WINNER';
   paymentState?: 'NOT_REQUIRED' | 'AWAITING_PAYMENT' | 'PAID';
+  lifelineUsed?: boolean;
+  lifelineUsedWeek?: number | null;
   eliminatedWeek: number | null;
   joinedAt: string;
 }
@@ -92,6 +95,7 @@ export interface PickHistoryItem {
   teamShortName: string;
   source: 'USER' | 'AUTO';
   locked: boolean;
+  useLifeline?: boolean;
   pickedAt: string;
   outcome: 'PENDING' | 'ADVANCE' | 'ELIMINATED' | 'POSTPONED_ADVANCE';
   resolvedAt: string | null;
@@ -149,10 +153,13 @@ export interface GameweekSelection {
   userId: number;
   username: string;
   entryNumber?: number;
+  lifelineUsed?: boolean;
+  lifelineUsedWeek?: number | null;
   teamId: number;
   teamName: string;
   teamShortName: string;
   source: 'USER' | 'AUTO';
+  useLifeline?: boolean;
   outcome: string;
 }
 

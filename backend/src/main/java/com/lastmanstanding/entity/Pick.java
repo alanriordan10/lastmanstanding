@@ -52,6 +52,9 @@ public class Pick {
     @Column(name = "locked", nullable = false)
     private boolean locked;
 
+    @Column(name = "use_lifeline", nullable = false)
+    private boolean useLifeline = false;
+
     public Pick() {
     }
 
@@ -151,5 +154,13 @@ public class Pick {
 
     public void setLocked(boolean locked) {
         this.locked = locked;
+    }
+
+    public boolean isUseLifeline() {
+        return useLifeline;
+    }
+
+    public void setUseLifeline(boolean useLifeline) {
+        this.useLifeline = useLifeline;
     }
 }

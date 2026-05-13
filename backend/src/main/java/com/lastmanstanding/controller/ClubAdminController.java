@@ -218,7 +218,7 @@ public class ClubAdminController {
         Competition c = competitionService.createCompetition(
                 request.name(), request.description(), request.entryFee(), request.prizePool(),
                 request.maxEntriesPerUser(),
-                request.missedPickMode(), request.postponedConsumesTeam(), request.passFeeToParticipant(),
+                request.missedPickMode(), request.postponedConsumesTeam(), request.lifelineEnabled(), request.passFeeToParticipant(),
                 request.paymentMode(), request.manualPaymentPolicy(), request.visibility(), request.startDate(), userDetails.getId(), club.getId());
         logAudit(userDetails, "Competition", c.getId(), "name", null, c.getName(), "CREATE");
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -250,6 +250,7 @@ public class ClubAdminController {
                 request.maxEntriesPerUser(),
                 request.missedPickMode(),
                 request.postponedConsumesTeam() != null ? request.postponedConsumesTeam() : true,
+                request.lifelineEnabled(),
                 request.passFeeToParticipant(),
                 request.paymentMode(), request.manualPaymentPolicy(), request.visibility(),
                 request.startDate(), request.status(), club.getId());

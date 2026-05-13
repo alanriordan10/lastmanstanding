@@ -45,6 +45,16 @@
 - Select your team for the current gameweek.
 - Confirm before lock time.
 
+### 2.2.1 Lifeline (if enabled by admin)
+- Some competitions enable a `Lifeline`.
+- You can use it at most once per entry, and only before gameweek lock.
+- When enabled for your pick:
+  - `Win`: you advance (normal).
+  - `Draw`: you advance (lifeline effect).
+  - `Loss`: you are eliminated (lifeline does not save a loss).
+- Once consumed, your entry cannot use lifeline again.
+- Pick history and selections/results screens show when lifeline was used.
+
 **Screenshot placeholder:**
 - `assets/screenshots/player-make-pick.png`
 - Caption: "Team selection before gameweek lock"
@@ -82,7 +92,15 @@
   - Payment mode (`Free`, `Manual`, `Stripe`)
   - Entry fee / prize pool
   - Missed pick rule
+  - Lifeline (`Enabled` or `Disabled`)
 - Save.
+
+### 3.2.1 Lifeline Setting (Admin)
+- Toggle: `Enable one lifeline per entry (draw survives, loss still eliminates)`.
+- Scope: per entry (not shared across all entries by a user).
+- Recommended usage:
+  - Enable when you want extra strategy and fewer “harsh exits” on draws.
+  - Keep disabled for classic strict survivor format.
 
 **Screenshot placeholder:**
 - `assets/screenshots/admin-create-competition-form.png`
@@ -177,6 +195,12 @@
 
 ### Can we run free competitions and paid ones together?
 - Yes. Each competition has its own payment mode.
+
+### How does lifeline work exactly?
+- Lifeline must be enabled in competition settings.
+- Each entry can use it once, before lock.
+- It only changes `DRAW` from elimination to advance.
+- It does not protect against `LOSS`.
 
 ### Can we export payment data?
 - Yes. Use `Actions -> Export CSV` in Participants.
