@@ -157,21 +157,27 @@ public class PickService {
      * Get all picks for a gameweek with user+team eagerly loaded (no N+1).
      */
     public List<Pick> getGameweekSelectionsFetch(Long competitionId, Long gameweekId) {
-        Gameweek gw = gameweekRepository.findById(gameweekId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Gameweek not found"));
-        if (gw.getStatus() == GameweekStatus.UPCOMING) {
-            if (LocalDateTime.now().isBefore(gw.getLockAt())) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                        "Selections are hidden until the gameweek is locked");
-            }
-        }
+        requireGameweekSelectionVisibility(gameweekId);
         return pickRepository.findByCompetitionIdAndGameweekIdFetch(competitionId, gameweekId);
+    }
+
+    /**
+     * Get all picks for a gameweek as projection rows in one query.
+     */
+    public List<Object[]> getGameweekSelectionRows(Long competitionId, Long gameweekId) {
+        requireGameweekSelectionVisibility(gameweekId);
+        return pickRepository.findGameweekSelectionRows(competitionId, gameweekId);
     }
 
     /**
      * Get all picks for a gameweek (only after lock time).
      */
     public List<Pick> getGameweekSelections(Long competitionId, Long gameweekId) {
+        requireGameweekSelectionVisibility(gameweekId);
+        return pickRepository.findByCompetitionIdAndGameweekId(competitionId, gameweekId);
+    }
+
+    private Gameweek requireGameweekSelectionVisibility(Long gameweekId) {
         Gameweek gw = gameweekRepository.findById(gameweekId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Gameweek not found"));
 
@@ -184,8 +190,7 @@ public class PickService {
                         "Selections are hidden until the gameweek is locked");
             }
         }
-
-        return pickRepository.findByCompetitionIdAndGameweekId(competitionId, gameweekId);
+        return gw;
     }
 
     /**

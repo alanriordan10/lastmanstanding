@@ -129,7 +129,7 @@ public class CompetitionService {
     }
 
     public List<CompetitionParticipant> getMyEntries(Long competitionId, Long userId) {
-        return participantRepository.findByCompetitionIdAndUserIdOrderByEntryNumberAsc(competitionId, userId);
+        return participantRepository.findEntriesByCompetitionIdAndUserIdFetchUserAndCompetition(competitionId, userId);
     }
 
     public List<CompetitionParticipant> getParticipants(Long competitionId) {

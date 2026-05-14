@@ -44,10 +44,14 @@ export default function GameweekResultsPage() {
   const { data: comp } = useQuery<Competition>({
     queryKey: ['competition', compId],
     queryFn: () => api.get(`/competitions/${compId}`).then((r) => r.data),
+    staleTime: 2 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: selectionsData, isLoading: selectionsLoading, error: selectionsError } = useQuery<GameweekSelectionsData>({
-    queryKey: ['gameweekSelections', compId, gameweekId],
+    // Shared key with GameweekSelectionsPage so both screens reuse the same cache entry.
+    queryKey: ['selections', compId, gameweekId],
     queryFn: () => api.get(`/competitions/${compId}/gameweeks/${gameweekId}/selections`).then((r) => {
       // Handle old API format (array) or new format (object with selections)
       if (Array.isArray(r.data)) {
@@ -55,6 +59,9 @@ export default function GameweekResultsPage() {
       }
       return r.data;
     }),
+    staleTime: 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: fixtures } = useQuery<Fixture[]>({
@@ -62,6 +69,9 @@ export default function GameweekResultsPage() {
     queryFn: () => api.get(`/competitions/${compId}/gameweeks/${gameweekId}/fixtures`).then((r) =>
       Array.isArray(r.data) ? r.data : []
     ),
+    staleTime: 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   // Reset to page 1 when filters change (must be declared before any early returns)

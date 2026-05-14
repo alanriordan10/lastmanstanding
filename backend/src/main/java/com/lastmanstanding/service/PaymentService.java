@@ -2,11 +2,13 @@ package com.lastmanstanding.service;
 
 import com.lastmanstanding.entity.Club;
 import com.lastmanstanding.entity.Competition;
+import com.lastmanstanding.entity.CompetitionParticipant;
 import com.lastmanstanding.entity.CompetitionStatus;
 import com.lastmanstanding.entity.Payment;
 import com.lastmanstanding.entity.PaymentMode;
 import com.lastmanstanding.entity.User;
 import com.lastmanstanding.repository.ClubRepository;
+import com.lastmanstanding.repository.CompetitionParticipantRepository;
 import com.lastmanstanding.repository.CompetitionRepository;
 import com.lastmanstanding.repository.PaymentRepository;
 import com.lastmanstanding.repository.UserRepository;
@@ -34,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Service
 public class PaymentService {
@@ -42,6 +45,7 @@ public class PaymentService {
 
     private final PaymentRepository paymentRepository;
     private final CompetitionRepository competitionRepository;
+    private final CompetitionParticipantRepository participantRepository;
     private final UserRepository userRepository;
     private final ClubRepository clubRepository;
     private final CompetitionService competitionService;
@@ -66,11 +70,13 @@ public class PaymentService {
 
     public PaymentService(PaymentRepository paymentRepository,
                           CompetitionRepository competitionRepository,
+                          CompetitionParticipantRepository participantRepository,
                           UserRepository userRepository,
                           ClubRepository clubRepository,
                           CompetitionService competitionService) {
         this.paymentRepository = paymentRepository;
         this.competitionRepository = competitionRepository;
+        this.participantRepository = participantRepository;
         this.userRepository = userRepository;
         this.clubRepository = clubRepository;
         this.competitionService = competitionService;
@@ -194,9 +200,10 @@ public class PaymentService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-        if (paymentRepository.existsByUserIdAndCompetitionIdAndStatus(
-                userId, competitionId, Payment.PaymentStatus.SUCCEEDED)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Already paid for this competition");
+        long existingEntries = participantRepository.countByCompetitionIdAndUserId(competitionId, userId);
+        int maxEntries = Math.max(1, comp.getMaxEntriesPerUser() != null ? comp.getMaxEntriesPerUser() : 1);
+        if (existingEntries >= maxEntries) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "You have reached the maximum entries for this competition");
         }
 
         Stripe.apiKey = stripeSecretKey;
@@ -288,14 +295,8 @@ public class PaymentService {
             }
 
             markPaymentSucceeded(payment, intent, false);
+            linkPaymentToParticipantEntryIfMissing(payment);
             paymentRepository.save(payment);
-
-            if (!paymentRepository.existsByUserIdAndCompetitionIdAndStatus(
-                    userId, payment.getCompetition().getId(), Payment.PaymentStatus.SUCCEEDED)) {
-                competitionService.joinCompetition(payment.getCompetition().getId(), userId);
-            } else {
-                tryJoinCompetition(payment.getCompetition().getId(), userId);
-            }
 
         } catch (ResponseStatusException e) {
             throw e;
@@ -349,8 +350,8 @@ public class PaymentService {
     private void handlePaymentIntentSucceeded(PaymentIntent intent) {
         paymentRepository.findByStripePaymentIntentId(intent.getId()).ifPresent(payment -> {
             markPaymentSucceeded(payment, intent, true);
+            linkPaymentToParticipantEntryIfMissing(payment);
             paymentRepository.save(payment);
-            tryJoinCompetition(payment.getCompetition().getId(), payment.getUser().getId());
         });
     }
 
@@ -392,13 +393,34 @@ public class PaymentService {
         club.setStripePayoutsEnabled(Boolean.TRUE.equals(account.getPayoutsEnabled()));
     }
 
-    private void tryJoinCompetition(Long competitionId, Long userId) {
+    void linkPaymentToParticipantEntryIfMissing(Payment payment) {
+        if (payment.getParticipant() != null) return;
+
+        Long competitionId = payment.getCompetition().getId();
+        Long userId = payment.getUser().getId();
+        CompetitionParticipant joined = tryJoinCompetition(competitionId, userId);
+        if (joined != null) {
+            payment.setParticipant(joined);
+            return;
+        }
+
+        // Join can legitimately return conflict (already joined by a parallel confirm/webhook path).
+        // In that case, bind this payment to the latest existing entry for the user.
+        List<CompetitionParticipant> existing = participantRepository
+                .findByCompetitionIdAndUserIdOrderByEntryNumberAsc(competitionId, userId);
+        if (!existing.isEmpty()) {
+            payment.setParticipant(existing.get(existing.size() - 1));
+        }
+    }
+
+    private CompetitionParticipant tryJoinCompetition(Long competitionId, Long userId) {
         try {
-            competitionService.joinCompetition(competitionId, userId);
+            return competitionService.joinCompetition(competitionId, userId);
         } catch (ResponseStatusException ex) {
             if (ex.getStatusCode() != HttpStatus.CONFLICT) {
                 throw ex;
             }
+            return null;
         }
     }
 

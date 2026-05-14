@@ -16,6 +16,10 @@ public interface CompetitionParticipantRepository extends JpaRepository<Competit
     Optional<CompetitionParticipant> findByCompetitionIdAndUserId(Long competitionId, Long userId);
     Optional<CompetitionParticipant> findByCompetitionIdAndUserIdAndEntryNumber(Long competitionId, Long userId, Integer entryNumber);
     List<CompetitionParticipant> findByCompetitionIdAndUserIdOrderByEntryNumberAsc(Long competitionId, Long userId);
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"user", "competition"})
+    @Query("SELECT cp FROM CompetitionParticipant cp WHERE cp.competition.id = :competitionId AND cp.user.id = :userId ORDER BY cp.entryNumber ASC")
+    List<CompetitionParticipant> findEntriesByCompetitionIdAndUserIdFetchUserAndCompetition(@Param("competitionId") Long competitionId,
+                                                                                              @Param("userId") Long userId);
     Optional<CompetitionParticipant> findByIdAndCompetitionIdAndUserId(Long id, Long competitionId, Long userId);
     Optional<CompetitionParticipant> findByIdAndCompetitionId(Long id, Long competitionId);
     long countByCompetitionIdAndUserId(Long competitionId, Long userId);
@@ -23,12 +27,19 @@ public interface CompetitionParticipantRepository extends JpaRepository<Competit
     @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"user", "competition"})
     List<CompetitionParticipant> findByCompetitionId(Long competitionId);
 
+    @Query("SELECT cp.id, u.id, u.username, cp.entryNumber, cp.status, cp.eliminatedWeek, cp.lifelineUsed, cp.lifelineUsedWeek " +
+            "FROM CompetitionParticipant cp JOIN cp.user u WHERE cp.competition.id = :competitionId")
+    List<Object[]> findSurvivorParticipantRowsByCompetitionId(@Param("competitionId") Long competitionId);
+
     List<CompetitionParticipant> findByCompetitionIdAndStatus(Long competitionId, ParticipantStatus status);
 
     boolean existsByCompetitionIdAndUserId(Long competitionId, Long userId);
 
     @Query("SELECT cp.user.id FROM CompetitionParticipant cp WHERE cp.competition.id = :competitionId AND cp.user.id IN :userIds")
     List<Long> findParticipantUserIdsByCompetitionIdAndUserIdIn(@Param("competitionId") Long competitionId, @Param("userIds") List<Long> userIds);
+
+    @Query("SELECT cp.id FROM CompetitionParticipant cp WHERE cp.competition.id = :competitionId")
+    List<Long> findParticipantIdsByCompetitionId(@Param("competitionId") Long competitionId);
 
     long countByCompetitionIdAndStatus(Long competitionId, ParticipantStatus status);
 
@@ -40,12 +51,28 @@ public interface CompetitionParticipantRepository extends JpaRepository<Competit
 
     List<CompetitionParticipant> findByUserId(Long userId);
 
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"competition"})
+    List<CompetitionParticipant> findByUserIdOrderByJoinedAtDesc(Long userId);
+
+    @Query("SELECT DISTINCT cp.competition.id FROM CompetitionParticipant cp WHERE cp.user.id = :userId")
+    List<Long> findDistinctCompetitionIdsByUserId(@Param("userId") Long userId);
+
     /** Returns [competitionId, totalCount, activeCount] rows — avoids N+1 when listing competitions */
     @Query("SELECT cp.competition.id, COUNT(cp), SUM(CASE WHEN cp.status IN ('ACTIVE','WINNER') THEN 1 ELSE 0 END) FROM CompetitionParticipant cp GROUP BY cp.competition.id")
     List<Object[]> countParticipantsGroupedByCompetition();
 
+    /** Returns [competitionId, totalCount, activeCount] rows for selected competitions only. */
+    @Query("SELECT cp.competition.id, COUNT(cp), SUM(CASE WHEN cp.status IN ('ACTIVE','WINNER') THEN 1 ELSE 0 END) " +
+            "FROM CompetitionParticipant cp WHERE cp.competition.id IN :competitionIds GROUP BY cp.competition.id")
+    List<Object[]> countParticipantsGroupedByCompetitionIds(@Param("competitionIds") List<Long> competitionIds);
+
     /** Load all winners across all competitions in one query */
     List<CompetitionParticipant> findByStatus(ParticipantStatus status);
+
+    /** Returns [competitionId, winnerUsername] for selected competitions only. */
+    @Query("SELECT cp.competition.id, cp.user.username FROM CompetitionParticipant cp " +
+            "WHERE cp.status = 'WINNER' AND cp.competition.id IN :competitionIds")
+    List<Object[]> findWinnerUsernamesByCompetitionIds(@Param("competitionIds") List<Long> competitionIds);
 
     @Modifying
     @Query("DELETE FROM CompetitionParticipant cp WHERE cp.competition.id = :competitionId AND cp.user.id = :userId")

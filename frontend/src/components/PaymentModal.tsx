@@ -44,6 +44,18 @@ type FeeBreakdown = {
   feePassedToParticipant: boolean;
 };
 
+function normalizeApiError(err: any): string {
+  const status = err?.response?.status;
+  const apiMessage = err?.response?.data?.message as string | undefined;
+  if (apiMessage && apiMessage.trim().length > 0) return apiMessage;
+
+  if (status === 409) return 'You cannot add another entry for this competition.';
+  if (status === 400) return 'This competition is not accepting payments right now.';
+  if (status === 403) return 'You are not allowed to perform this action.';
+  if (status === 404) return 'Competition or payment record was not found.';
+  return err?.message ?? 'Something went wrong. Please try again.';
+}
+
 // ── Inner form (has access to Stripe hooks) ───────────────────────────
 
 function CheckoutForm({
@@ -107,7 +119,7 @@ function CheckoutForm({
         toast.success('Payment complete. You are now entered.');
         onSuccess();
       } catch (err: any) {
-        setErrorMessage(err.response?.data?.message ?? 'Payment succeeded but failed to join. Please contact support.');
+        setErrorMessage(normalizeApiError(err));
         setIsProcessing(false);
       }
     } else if (paymentIntent?.status === 'requires_action') {
@@ -264,7 +276,7 @@ export default function PaymentModal({ competition, onSuccess, onClose }: Paymen
           feePassedToParticipant: intentRes.data.feePassedToParticipant ?? false,
         });
       } catch (err: any) {
-        setError(err.response?.data?.message ?? err.message ?? 'Failed to initialise payment');
+        setError(normalizeApiError(err));
       } finally {
         setLoading(false);
       }

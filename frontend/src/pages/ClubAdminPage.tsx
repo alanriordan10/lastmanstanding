@@ -1,14 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api';
-import type { Competition, Club, Participant, StripeConnectStatus } from '../types';
+import type { Competition, Club, Participant, StripeConnectStatus, AuditLog } from '../types';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import ConfirmDialog from '../components/ConfirmDialog';
 import AddParticipantPanel from '../components/AddParticipantPanel';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 function parseDate(value: string | number[]): Date {
   if (Array.isArray(value)) {
@@ -1203,7 +1204,11 @@ export default function ClubAdminPage() {
                           </button>
                         </div>
                       </div>
-                      {managingComp?.id === comp.id && <ParticipantsPanel competitionId={comp.id} paymentMode={comp.paymentMode} />}
+                      {managingComp?.id === comp.id && (
+                        <ErrorBoundary>
+                          <ParticipantsPanel competitionId={comp.id} paymentMode={comp.paymentMode} />
+                        </ErrorBoundary>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1274,6 +1279,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
   const [showAddPanel, setShowAddPanel] = useState(false);
   const [winnerDialogUser, setWinnerDialogUser] = useState<Participant | null>(null);
   const [removeDialogUser, setRemoveDialogUser] = useState<Participant | null>(null);
+  const [historyParticipant, setHistoryParticipant] = useState<Participant | null>(null);
   const [mobileActionUserId, setMobileActionUserId] = useState<number | null>(null);
   const actionButtonRefs = useRef<Record<number, HTMLButtonElement | null>>({});
   const mobileToolbarRef = useRef<HTMLDivElement | null>(null);
@@ -1344,14 +1350,23 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
     staleTime: 30_000,
   });
 
-  const { data: paidUserIds } = useQuery<number[]>({
-    queryKey: ['club-admin', 'paid-users', String(competitionId)],
-    queryFn: () => api.get(`/club-admin/competitions/${competitionId}/paid-users`).then((r) => r.data),
+  const { data: paymentHistory = [], isLoading: paymentHistoryLoading } = useQuery<AuditLog[]>({
+    queryKey: ['club-admin', 'payment-history', competitionId, historyParticipant?.id ?? null],
+    queryFn: () => api
+      .get(`/club-admin/competitions/${competitionId}/participants/${historyParticipant!.id}/payment-history`)
+      .then((r) => Array.isArray(r.data) ? r.data : []),
+    enabled: !!historyParticipant,
+    staleTime: 15_000,
+  });
+
+  const { data: paidParticipantIds } = useQuery<number[]>({
+    queryKey: ['club-admin', 'paid-participants', String(competitionId)],
+    queryFn: () => api.get(`/club-admin/competitions/${competitionId}/paid-participants`).then((r) => r.data),
     enabled: isManual,
     staleTime: 30_000,
   });
 
-  const paidSet = new Set(paidUserIds ?? []);
+  const paidSet = new Set(paidParticipantIds ?? []);
 
   const removeMutation = useMutation({
     mutationFn: (participantId: number) =>
@@ -1365,44 +1380,44 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
   });
 
   const markPaidMutation = useMutation<void, any, number>({
-    mutationFn: (userId: number) =>
-      api.post(`/club-admin/competitions/${competitionId}/mark-paid/${String(userId)}`),
-    onMutate: async (userId) => {
-      await queryClient.cancelQueries({ queryKey: ['club-admin', 'paid-users', String(competitionId)] });
-      const previous = queryClient.getQueryData<number[]>(['club-admin', 'paid-users', String(competitionId)]);
-      queryClient.setQueryData<number[]>(['club-admin', 'paid-users', String(competitionId)],
-        (old) => old ? [...old, userId] : [userId]);
+    mutationFn: (participantId: number) =>
+      api.post(`/club-admin/competitions/${competitionId}/mark-paid/${String(participantId)}`),
+    onMutate: async (participantId) => {
+      await queryClient.cancelQueries({ queryKey: ['club-admin', 'paid-participants', String(competitionId)] });
+      const previous = queryClient.getQueryData<number[]>(['club-admin', 'paid-participants', String(competitionId)]);
+      queryClient.setQueryData<number[]>(['club-admin', 'paid-participants', String(competitionId)],
+        (old) => old ? [...old, participantId] : [participantId]);
       return { previous };
     },
-    onError: (err: any, _userId, context: any) => {
+    onError: (err: any, _participantId, context: any) => {
       if (context?.previous !== undefined) {
-        queryClient.setQueryData(['club-admin', 'paid-users', String(competitionId)], context.previous);
+        queryClient.setQueryData(['club-admin', 'paid-participants', String(competitionId)], context.previous);
       }
       toast.error(err.response?.data?.message || 'Failed to confirm payment');
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['club-admin', 'paid-users', String(competitionId)] });
+      queryClient.invalidateQueries({ queryKey: ['club-admin', 'paid-participants', String(competitionId)] });
     },
   });
 
   const unmarkPaidMutation = useMutation<void, any, number>({
-    mutationFn: (userId: number) =>
-      api.post(`/club-admin/competitions/${competitionId}/unmark-paid/${String(userId)}`),
-    onMutate: async (userId) => {
-      await queryClient.cancelQueries({ queryKey: ['club-admin', 'paid-users', String(competitionId)] });
-      const previous = queryClient.getQueryData<number[]>(['club-admin', 'paid-users', String(competitionId)]);
-      queryClient.setQueryData<number[]>(['club-admin', 'paid-users', String(competitionId)],
-        (old) => old ? old.filter(id => id !== userId) : []);
+    mutationFn: (participantId: number) =>
+      api.post(`/club-admin/competitions/${competitionId}/unmark-paid/${String(participantId)}`),
+    onMutate: async (participantId) => {
+      await queryClient.cancelQueries({ queryKey: ['club-admin', 'paid-participants', String(competitionId)] });
+      const previous = queryClient.getQueryData<number[]>(['club-admin', 'paid-participants', String(competitionId)]);
+      queryClient.setQueryData<number[]>(['club-admin', 'paid-participants', String(competitionId)],
+        (old) => old ? old.filter(id => id !== participantId) : []);
       return { previous };
     },
-    onError: (err: any, _userId, context: any) => {
+    onError: (err: any, _participantId, context: any) => {
       if (context?.previous !== undefined) {
-        queryClient.setQueryData(['club-admin', 'paid-users', String(competitionId)], context.previous);
+        queryClient.setQueryData(['club-admin', 'paid-participants', String(competitionId)], context.previous);
       }
       toast.error(err.response?.data?.message || 'Failed to revert payment');
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['club-admin', 'paid-users', String(competitionId)] });
+      queryClient.invalidateQueries({ queryKey: ['club-admin', 'paid-participants', String(competitionId)] });
     },
   });
 
@@ -1415,7 +1430,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
         <div className="flex items-center gap-3">
           <span className="text-2xl">🏆</span>
           <div>
-            <p className="font-semibold">{winner?.username} is the Winner!</p>
+            <p className="font-semibold">{winner ? participantLabel(winner) : 'Participant'} is the Winner!</p>
             <p className="text-sm opacity-80">Competition has been completed.</p>
           </div>
         </div>,
@@ -1428,6 +1443,16 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
     onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to declare winner'),
   });
 
+  const entryCountsByUserId = useMemo(() => {
+    const counts = new Map<number, number>();
+    (participants ?? []).forEach((p) => counts.set(p.userId, (counts.get(p.userId) ?? 0) + 1));
+    return counts;
+  }, [participants]);
+  const participantLabel = (p: Participant) =>
+    (entryCountsByUserId.get(p.userId) ?? 0) > 1
+      ? `${p.username} #${p.entryNumber ?? 1}`
+      : p.username;
+
   if (isLoading) {
     return (
       <div className="mt-3 pt-3 border-t border-gray-700/50 flex justify-center py-4">
@@ -1437,7 +1462,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
   }
 
   const activeCount = participants?.filter(p => p.status === 'ACTIVE').length ?? 0;
-  const unpaidCount = isManual ? (participants?.filter(p => !paidSet.has(p.userId)).length ?? 0) : 0;
+  const unpaidCount = isManual ? (participants?.filter(p => !paidSet.has(p.id)).length ?? 0) : 0;
 
   // Filter
   const filtered = (participants ?? []).filter(p => {
@@ -1450,8 +1475,8 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
       !isManual || viewMode === 'ALL'
         ? true
         : viewMode === 'PAID'
-          ? paidSet.has(p.userId)
-          : !paidSet.has(p.userId);
+          ? paidSet.has(p.id)
+          : !paidSet.has(p.id);
     return matchesSearch && matchesStatus && matchesView;
   });
 
@@ -1465,14 +1490,14 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
     ELIMINATED: participants?.filter(p => p.status === 'ELIMINATED').length ?? 0,
     WINNER: participants?.filter(p => p.status === 'WINNER').length ?? 0,
   };
-  const awaitingParticipants = (participants ?? []).filter((p) => !paidSet.has(p.userId));
-  const paidParticipants = (participants ?? []).filter((p) => paidSet.has(p.userId));
+  const awaitingParticipants = (participants ?? []).filter((p) => !paidSet.has(p.id));
+  const paidParticipants = (participants ?? []).filter((p) => paidSet.has(p.id));
 
   const exportPaymentsCsv = () => {
     const rows = (participants ?? []).map((p) => ({
-      username: p.username,
+      username: participantLabel(p),
       status: p.status,
-      payment_status: isManual ? (paidSet.has(p.userId) ? 'PAID' : 'AWAITING_PAYMENT') : (p.paymentState ?? 'NOT_REQUIRED'),
+      payment_status: isManual ? (paidSet.has(p.id) ? 'PAID' : 'AWAITING_PAYMENT') : (p.paymentState ?? 'NOT_REQUIRED'),
       joined_at: p.joinedAt,
     }));
     const header = 'username,status,payment_status,joined_at';
@@ -1495,10 +1520,10 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
     if (!awaitingParticipants.length) return;
     setBulkConfirming(true);
     try {
-      const targets = awaitingParticipants.slice(0, 200).map((p) => p.userId);
+      const targets = awaitingParticipants.slice(0, 200).map((p) => p.id);
       const response = await api.post(
         `/club-admin/competitions/${competitionId}/mark-paid-batch`,
-        { userIds: targets },
+        { participantIds: targets },
         { timeout: 30_000 },
       );
       const created = Number(response.data?.created ?? 0);
@@ -1509,7 +1534,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
         (alreadyPaid ? `, ${alreadyPaid} already paid` : '') +
         (invalid ? `, ${invalid} skipped` : '')
       );
-      queryClient.invalidateQueries({ queryKey: ['club-admin', 'paid-users', String(competitionId)] });
+      queryClient.invalidateQueries({ queryKey: ['club-admin', 'paid-participants', String(competitionId)] });
       queryClient.invalidateQueries({ queryKey: ['club-admin', 'participants', competitionId] });
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Bulk confirmation failed');
@@ -1537,7 +1562,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
   };
 
   const confirmPayment = (p: Participant) => {
-    markPaidMutation.mutate(p.userId, {
+    markPaidMutation.mutate(p.id, {
       onSuccess: () => {
         setMobileActionUserId(null);
         actionButtonRefs.current[p.id]?.focus();
@@ -1547,7 +1572,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
   };
 
   const revertPayment = (p: Participant) => {
-    unmarkPaidMutation.mutate(p.userId, {
+    unmarkPaidMutation.mutate(p.id, {
       onSuccess: () => {
         setMobileActionUserId(null);
         actionButtonRefs.current[p.id]?.focus();
@@ -1856,7 +1881,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                 {awaitingParticipants.slice(0, 50).map((p) => (
                   <div key={`await-${p.id}`} className="flex items-center justify-between rounded-md border border-amber-300/20 bg-black/20 px-2 py-1.5">
                     <div className="min-w-0">
-                      <p className="text-xs font-medium text-amber-100 truncate">{p.username}</p>
+                      <p className="text-xs font-medium text-amber-100 truncate">{participantLabel(p)}</p>
                       <p className="text-[11px] text-amber-200/80">{p.status}</p>
                     </div>
                     <button
@@ -1895,7 +1920,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                 {paidParticipants.slice(0, 50).map((p) => (
                   <div key={`paid-${p.id}`} className="flex items-center justify-between rounded-md border border-green-300/20 bg-black/20 px-2 py-1.5">
                     <div className="min-w-0">
-                      <p className="text-xs font-medium text-green-100 truncate">{p.username}</p>
+                      <p className="text-xs font-medium text-green-100 truncate">{participantLabel(p)}</p>
                       <p className="text-[11px] text-green-200/80">{p.status}</p>
                     </div>
                     <button
@@ -1984,7 +2009,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0 space-y-1.5">
                     <div className="flex items-center gap-2 flex-wrap min-w-0">
-                      <span className="text-gray-200 font-medium">{p.username}</span>
+                      <span className="text-gray-200 font-medium">{participantLabel(p)}</span>
                       <span className={
                         p.status === 'ACTIVE'
                           ? 'badge-green sm:opacity-100 opacity-80'
@@ -1998,7 +2023,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                     </div>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
                       {isManual && (
-                        paidSet.has(p.userId)
+                        paidSet.has(p.id)
                           ? <span className="text-green-400 sm:text-green-400 text-gray-400">Payment confirmed</span>
                           : <span className="text-yellow-400 sm:text-yellow-400 text-gray-400">Awaiting payment</span>
                       )}
@@ -2009,7 +2034,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                   </div>
                   <div className="hidden sm:flex sm:flex-wrap sm:items-center sm:gap-2 sm:ml-2 sm:shrink-0">
                   {isManual && (
-                    paidSet.has(p.userId) ? (
+                    paidSet.has(p.id) ? (
                       <span className="text-xs text-green-400 font-medium flex items-center gap-1">
                         <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
                         Paid
@@ -2024,13 +2049,21 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                       </button>
                     )
                   )}
-                  {isManual && paidSet.has(p.userId) && (
+                  {isManual && paidSet.has(p.id) && (
                     <button
                       onClick={() => revertPayment(p)}
                       disabled={unmarkPaidMutation.isPending}
                       className="text-xs px-3 h-9 rounded-md bg-rose-600/15 hover:bg-rose-600/25 text-rose-300 transition"
                     >
                       ↩️ Revert
+                    </button>
+                  )}
+                  {isManual && (
+                    <button
+                      onClick={() => setHistoryParticipant(p)}
+                      className="text-xs px-3 h-9 rounded-md border border-cyan-400/30 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-200 transition"
+                    >
+                      History
                     </button>
                   )}
                   {activeTab === 'PARTICIPANTS' && p.status === 'ACTIVE' && activeCount > 1 && (
@@ -2064,7 +2097,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                     {mobileActionUserId === p.id && (
                       <div className="absolute left-0 top-full mt-1.5 z-30 w-full min-w-[14rem] rounded-md border border-white/10 bg-surface-800 p-2 shadow-xl space-y-2">
                         {isManual && (
-                          paidSet.has(p.userId) ? (
+                          paidSet.has(p.id) ? (
                             <button
                               type="button"
                               onClick={() => { revertPayment(p); setMobileActionUserId(null); }}
@@ -2083,6 +2116,15 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                               Confirm payment
                             </button>
                           )
+                        )}
+                        {isManual && (
+                          <button
+                            type="button"
+                            onClick={() => { setHistoryParticipant(p); setMobileActionUserId(null); }}
+                            className="w-full h-9 rounded-md border border-cyan-400/30 bg-cyan-500/10 px-2 text-xs text-cyan-200"
+                          >
+                            View payment history
+                          </button>
                         )}
                         {p.status === 'ACTIVE' && activeCount > 1 && (
                           <button
@@ -2147,10 +2189,10 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
         onConfirm={() => winnerDialogUser && declareWinnerMutation.mutate(winnerDialogUser.id)}
         icon="🏆"
         variant="warning"
-        title={`Declare ${winnerDialogUser?.username} as Winner?`}
+        title={`Declare ${winnerDialogUser ? participantLabel(winnerDialogUser) : 'participant'} as Winner?`}
         message="This will end the competition and crown this participant as the champion."
         items={[
-          `${winnerDialogUser?.username} will be marked as WINNER`,
+          `${winnerDialogUser ? participantLabel(winnerDialogUser) : 'This participant'} will be marked as WINNER`,
           'All other active participants will be eliminated',
           'The competition will be marked as COMPLETED',
         ]}
@@ -2163,10 +2205,60 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
         onClose={() => setRemoveDialogUser(null)}
         onConfirm={() => removeDialogUser && removeMutation.mutate(removeDialogUser.id)}
         variant="danger"
-        title={`Remove ${removeDialogUser?.username}?`}
+        title={`Remove ${removeDialogUser ? participantLabel(removeDialogUser) : 'participant'}?`}
         message="This will remove the participant and delete all their picks and results for this competition."
         confirmText="Yes, Remove"
       />
+
+      {historyParticipant && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setHistoryParticipant(null); }}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Payment history"
+        >
+          <div className="w-full max-w-xl rounded-2xl bg-surface-800 border border-gray-700/50 shadow-2xl flex flex-col max-h-[85vh]">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700/50 shrink-0">
+              <div>
+                <h3 className="text-base font-semibold text-white">Payment History</h3>
+                <p className="text-xs text-gray-400 mt-0.5">{participantLabel(historyParticipant)}</p>
+              </div>
+              <button
+                onClick={() => setHistoryParticipant(null)}
+                className="text-gray-400 hover:text-white transition-colors text-xl leading-none"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <div className="px-5 py-4 overflow-y-auto space-y-3">
+              {paymentHistoryLoading ? (
+                <div className="flex items-center justify-center py-10">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
+                </div>
+              ) : paymentHistory.length === 0 ? (
+                <p className="text-sm text-gray-400">No payment history for this entry yet.</p>
+              ) : (
+                paymentHistory.map((log) => (
+                  <div key={log.id} className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium text-gray-100">{log.action.replace(/_/g, ' ')}</p>
+                      <p className="text-[11px] text-gray-400">{format(parseDate(log.createdAt), 'MMM d, yyyy HH:mm')}</p>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-400">By: {log.username ?? 'system'}</p>
+                    {log.fieldName && (
+                      <p className="mt-1 text-xs text-gray-500">
+                        {log.fieldName}: {log.oldValue ?? '—'} → {log.newValue ?? '—'}
+                      </p>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

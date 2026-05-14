@@ -21,6 +21,10 @@ public class Payment {
     @JoinColumn(name = "competition_id", nullable = false)
     private Competition competition;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "participant_id")
+    private CompetitionParticipant participant;
+
     @Column(name = "stripe_payment_intent_id", unique = true)
     private String stripePaymentIntentId;
 
@@ -79,6 +83,8 @@ public class Payment {
     public Long getId() { return id; }
     public User getUser() { return user; }
     public Competition getCompetition() { return competition; }
+    public CompetitionParticipant getParticipant() { return participant; }
+    public void setParticipant(CompetitionParticipant participant) { this.participant = participant; }
     public String getStripePaymentIntentId() { return stripePaymentIntentId; }
     public int getAmountCents() { return amountCents; }
     public String getCurrency() { return currency; }

@@ -27,6 +27,9 @@ export default function GameweekSelectionsPage() {
         return r.data;
       }),
     retry: false,
+    staleTime: 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
     // Poll every 5 minutes only if at least one pick is still pending (game in play).
     // Once all picks are resolved there is nothing left to update.
     refetchInterval: (query) => {

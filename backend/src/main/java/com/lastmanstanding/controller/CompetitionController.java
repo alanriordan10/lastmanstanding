@@ -71,32 +71,25 @@ public class CompetitionController {
         List<Competition> comps = competitionService.getUpcomingCompetitions(clubId);
         if (comps.isEmpty()) return List.of();
 
-        // Batch load counts — avoids N+1
-        Map<Long, long[]> countsByCompId = new java.util.HashMap<>();
-        participantRepository.countParticipantsGroupedByCompetition().forEach(row -> {
-            long cId    = ((Number) row[0]).longValue();
-            long total  = ((Number) row[1]).longValue();
-            long active = row[2] != null ? ((Number) row[2]).longValue() : 0L;
-            countsByCompId.put(cId, new long[]{total, active});
-        });
-
-        Map<Long, String> winnerByCompId = new java.util.HashMap<>();
-        participantRepository.findByStatus(ParticipantStatus.WINNER)
-                .forEach(cp -> winnerByCompId.put(cp.getCompetition().getId(), cp.getUser().getUsername()));
+        List<Long> compIds = comps.stream().map(Competition::getId).distinct().toList();
+        Map<Long, long[]> countsByCompId = batchParticipantCounts(compIds);
+        Map<Long, String> winnerByCompId = batchWinners(compIds);
+        Map<Long, java.time.LocalDate> firstGwDates = batchFirstGameweekDates(compIds);
 
         return comps.stream().map(c -> {
             long[] counts = countsByCompId.getOrDefault(c.getId(), new long[]{0, 0});
             return CompetitionResponse.from(c, (int) counts[0], (int) counts[1],
-                    winnerByCompId.get(c.getId()), firstGameweekDate(c.getId()));
+                    winnerByCompId.get(c.getId()), firstGwDates.get(c.getId()));
         }).toList();
     }
 
     @GetMapping("/code/{joinCode}")
     public CompetitionResponse getCompetitionByJoinCode(@PathVariable String joinCode) {
         Competition c = competitionService.getCompetitionByJoinCode(joinCode);
-        long[] cnt = batchParticipantCounts().getOrDefault(c.getId(), new long[]{0, 0});
+        List<Long> compIds = List.of(c.getId());
+        long[] cnt = batchParticipantCounts(compIds).getOrDefault(c.getId(), new long[]{0, 0});
         return CompetitionResponse.from(c, (int) cnt[0], (int) cnt[1],
-                batchWinners().get(c.getId()), firstGameweekDate(c.getId()));
+                batchWinners(compIds).get(c.getId()), firstGameweekDate(c.getId()));
     }
 
     @GetMapping("/past")
@@ -128,8 +121,9 @@ public class CompetitionController {
                 .toList();
         if (past.isEmpty()) return List.of();
 
-        Map<Long, long[]> counts = batchParticipantCounts();
-        Map<Long, String> winners = batchWinners();
+        List<Long> compIds = past.stream().map(Competition::getId).distinct().toList();
+        Map<Long, long[]> counts = batchParticipantCounts(compIds);
+        Map<Long, String> winners = batchWinners(compIds);
         return past.stream().map(c -> {
             long[] cnt = counts.getOrDefault(c.getId(), new long[]{0, 0});
             return CompetitionResponse.from(c, (int) cnt[0], 0, winners.get(c.getId()));
@@ -138,19 +132,21 @@ public class CompetitionController {
 
     @GetMapping("/my")
     public List<Long> getMyCompetitionIds(@AuthenticationPrincipal UserDetailsImpl userDetails) {
-        return participantRepository.findByUserId(userDetails.getId()).stream()
-                .map(cp -> cp.getCompetition().getId()).toList();
+        return participantRepository.findDistinctCompetitionIdsByUserId(userDetails.getId());
     }
 
     @GetMapping("/my/details")
     public List<MyCompetitionResponse> getMyCompetitions(@AuthenticationPrincipal UserDetailsImpl userDetails) {
-        List<CompetitionParticipant> participants = participantRepository.findByUserId(userDetails.getId());
+        List<CompetitionParticipant> participants = participantRepository.findByUserIdOrderByJoinedAtDesc(userDetails.getId());
         if (participants.isEmpty()) return List.of();
 
         // Batch load all counts, winners, and first gameweek dates in bulk
-        Map<Long, long[]> counts   = batchParticipantCounts();
-        Map<Long, String> winners  = batchWinners();
-        List<Long> compIds = participants.stream().map(cp -> cp.getCompetition().getId()).toList();
+        List<Long> compIds = participants.stream()
+                .map(cp -> cp.getCompetition().getId())
+                .distinct()
+                .toList();
+        Map<Long, long[]> counts   = batchParticipantCounts(compIds);
+        Map<Long, String> winners  = batchWinners(compIds);
         Map<Long, java.time.LocalDate> firstGwDates = batchFirstGameweekDates(compIds);
         Map<Long, String> paymentStates = paymentStatesForUser(userDetails.getId(), participants);
 
@@ -162,7 +158,7 @@ public class CompetitionController {
                             winners.get(c.getId()), firstGwDates.get(c.getId())),
                     cp.getId(),
                     cp.getEntryNumber(),
-                    cp.getStatus().name(), paymentStates.getOrDefault(c.getId(), "NOT_REQUIRED"), cp.getEliminatedWeek(), cp.getJoinedAt()
+                    cp.getStatus().name(), paymentStates.getOrDefault(cp.getId(), "NOT_REQUIRED"), cp.getEliminatedWeek(), cp.getJoinedAt()
             );
         }).toList();
     }
@@ -170,9 +166,10 @@ public class CompetitionController {
     @GetMapping("/{id}")
     public CompetitionResponse getCompetition(@PathVariable Long id) {
         Competition c = competitionService.getCompetition(id);
-        long[] cnt = batchParticipantCounts().getOrDefault(c.getId(), new long[]{0, 0});
+        List<Long> compIds = List.of(c.getId());
+        long[] cnt = batchParticipantCounts(compIds).getOrDefault(c.getId(), new long[]{0, 0});
         return CompetitionResponse.from(c, (int) cnt[0], (int) cnt[1],
-                batchWinners().get(c.getId()), firstGameweekDate(c.getId()));
+                batchWinners(compIds).get(c.getId()), firstGameweekDate(c.getId()));
     }
 
     // ── Batch helpers — each does ONE query ─────────────────────────────
@@ -188,10 +185,30 @@ public class CompetitionController {
         return map;
     }
 
+    private Map<Long, long[]> batchParticipantCounts(List<Long> competitionIds) {
+        if (competitionIds.isEmpty()) return Map.of();
+        Map<Long, long[]> map = new java.util.HashMap<>();
+        participantRepository.countParticipantsGroupedByCompetitionIds(competitionIds).forEach(row -> {
+            long cId    = ((Number) row[0]).longValue();
+            long total  = ((Number) row[1]).longValue();
+            long active = row[2] != null ? ((Number) row[2]).longValue() : 0L;
+            map.put(cId, new long[]{total, active});
+        });
+        return map;
+    }
+
     private Map<Long, String> batchWinners() {
         Map<Long, String> map = new java.util.HashMap<>();
         participantRepository.findByStatus(ParticipantStatus.WINNER)
                 .forEach(cp -> map.put(cp.getCompetition().getId(), cp.getUser().getUsername()));
+        return map;
+    }
+
+    private Map<Long, String> batchWinners(List<Long> competitionIds) {
+        if (competitionIds.isEmpty()) return Map.of();
+        Map<Long, String> map = new java.util.HashMap<>();
+        participantRepository.findWinnerUsernamesByCompetitionIds(competitionIds)
+                .forEach(row -> map.put(((Number) row[0]).longValue(), (String) row[1]));
         return map;
     }
 
@@ -260,38 +277,84 @@ public class CompetitionController {
     private Map<Long, String> paymentStatesForUser(Long userId, List<CompetitionParticipant> participants) {
         if (participants.isEmpty()) return Map.of();
 
-        Map<Long, String> states = new java.util.HashMap<>();
-        List<Long> manualOrStripeCompIds = participants.stream()
+        boolean hasPaidModes = participants.stream()
+                .anyMatch(cp -> cp.getCompetition().getPaymentMode() == PaymentMode.MANUAL
+                        || cp.getCompetition().getPaymentMode() == PaymentMode.STRIPE);
+        if (!hasPaidModes) {
+            Map<Long, String> states = new java.util.HashMap<>();
+            participants.forEach(cp -> states.put(cp.getId(), "NOT_REQUIRED"));
+            return states;
+        }
+
+        List<Long> participantIds = participants.stream().map(CompetitionParticipant::getId).toList();
+        List<Long> paidModeCompetitionIds = participants.stream()
                 .map(CompetitionParticipant::getCompetition)
-                .filter(c -> c.getPaymentMode() != null && c.getPaymentMode() != PaymentMode.FREE)
+                .filter(c -> c.getPaymentMode() == PaymentMode.MANUAL || c.getPaymentMode() == PaymentMode.STRIPE)
                 .map(Competition::getId)
                 .distinct()
                 .toList();
+        java.util.Set<Long> paidParticipantIds = new java.util.HashSet<>(
+                paymentRepository.findSucceededParticipantIdsByCompetitionIdInAndParticipantIdIn(paidModeCompetitionIds, participantIds));
 
-        if (!manualOrStripeCompIds.isEmpty()) {
-            Map<Long, List<Payment.PaymentStatus>> statusesByComp = new java.util.HashMap<>();
-            paymentRepository.findStatusesByUserAndCompetitionIds(userId, manualOrStripeCompIds).forEach(row -> {
-                Long compId = ((Number) row[0]).longValue();
-                Payment.PaymentStatus status = (Payment.PaymentStatus) row[1];
-                statusesByComp.computeIfAbsent(compId, ignored -> new java.util.ArrayList<>()).add(status);
-            });
+        List<Long> stripeCompetitionIds = participants.stream()
+                .map(CompetitionParticipant::getCompetition)
+                .filter(c -> c.getPaymentMode() == PaymentMode.STRIPE)
+                .map(Competition::getId)
+                .distinct()
+                .toList();
+        java.util.Set<Long> participantScopedStripeCompetitions = stripeCompetitionIds.isEmpty()
+                ? java.util.Set.of()
+                : new java.util.HashSet<>(
+                        paymentRepository.findCompetitionIdsWithParticipantScopedPaymentsForUser(userId, stripeCompetitionIds));
+        java.util.Set<Long> legacySucceededStripeCompetitionIds = stripeCompetitionIds.isEmpty()
+                ? java.util.Set.of()
+                : paymentRepository.findStatusesByUserAndCompetitionIds(userId, stripeCompetitionIds).stream()
+                        .filter(row -> row[1] == Payment.PaymentStatus.SUCCEEDED)
+                        .map(row -> ((Number) row[0]).longValue())
+                        .collect(java.util.stream.Collectors.toSet());
 
-            for (CompetitionParticipant cp : participants) {
-                states.put(cp.getCompetition().getId(), derivePaymentState(cp.getCompetition(), statusesByComp.get(cp.getCompetition().getId())));
-            }
-        }
-
+        Map<Long, String> states = new java.util.HashMap<>();
         for (CompetitionParticipant cp : participants) {
-            states.putIfAbsent(cp.getCompetition().getId(), derivePaymentState(cp.getCompetition(), List.of()));
+            Competition competition = cp.getCompetition();
+            String state = "NOT_REQUIRED";
+            if (competition.getPaymentMode() == PaymentMode.MANUAL) {
+                state = paidParticipantIds.contains(cp.getId()) ? "PAID" : "AWAITING_PAYMENT";
+            } else if (competition.getPaymentMode() == PaymentMode.STRIPE) {
+                if (paidParticipantIds.contains(cp.getId())) {
+                    state = "PAID";
+                } else if (!participantScopedStripeCompetitions.contains(competition.getId())
+                        && legacySucceededStripeCompetitionIds.contains(competition.getId())) {
+                    // Backwards compatibility for legacy Stripe payments that predate participant-scoped linkage.
+                    state = "PAID";
+                } else {
+                    state = "AWAITING_PAYMENT";
+                }
+            }
+            states.put(cp.getId(), state);
         }
 
         return states;
     }
 
     private String paymentStateForParticipant(CompetitionParticipant participant) {
-        List<Payment.PaymentStatus> statuses = paymentRepository.findStatusesByUserAndCompetition(
-                participant.getUser().getId(), participant.getCompetition().getId());
-        return derivePaymentState(participant.getCompetition(), statuses);
+        Competition competition = participant.getCompetition();
+        if (competition.getPaymentMode() == null || competition.getPaymentMode() == PaymentMode.FREE) {
+            return "NOT_REQUIRED";
+        }
+        boolean participantPaid = paymentRepository.existsByParticipantIdAndCompetitionIdAndStatus(
+                participant.getId(), competition.getId(), Payment.PaymentStatus.SUCCEEDED);
+        if (participantPaid) {
+            return "PAID";
+        }
+        if (competition.getPaymentMode() == PaymentMode.STRIPE
+                && !paymentRepository.existsByUserIdAndCompetitionIdAndParticipantIsNotNull(
+                participant.getUser().getId(), competition.getId())
+                && paymentRepository.existsByUserIdAndCompetitionIdAndStatus(
+                participant.getUser().getId(), competition.getId(), Payment.PaymentStatus.SUCCEEDED)) {
+            // Backwards compatibility for legacy Stripe payments that predate participant-scoped linkage.
+            return "PAID";
+        }
+        return "AWAITING_PAYMENT";
     }
 
     private String derivePaymentState(Competition competition, List<Payment.PaymentStatus> statuses) {
@@ -314,8 +377,10 @@ public class CompetitionController {
     @GetMapping("/{id}/my-entries")
     public List<ParticipantResponse> getMyEntries(@PathVariable Long id,
                                                   @AuthenticationPrincipal UserDetailsImpl userDetails) {
-        return competitionService.getMyEntries(id, userDetails.getId()).stream()
-                .map(cp -> ParticipantResponse.from(cp, paymentStateForParticipant(cp)))
+        List<CompetitionParticipant> entries = competitionService.getMyEntries(id, userDetails.getId());
+        Map<Long, String> paymentStates = paymentStatesForUser(userDetails.getId(), entries);
+        return entries.stream()
+                .map(cp -> ParticipantResponse.from(cp, paymentStates.getOrDefault(cp.getId(), "NOT_REQUIRED")))
                 .toList();
     }
 
@@ -448,12 +513,8 @@ public class CompetitionController {
         Gameweek gw = gameweekRepository.findById(gwId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Gameweek not found"));
 
-        // Fetch picks with user+team eagerly to avoid N+1 (200 users = 400 lazy queries otherwise)
-        List<Pick> picks = pickService.getGameweekSelectionsFetch(id, gwId);
-
-        // Load all results for this gameweek in one query (not per pick-id list)
-        Map<Long, PickResult> resultMap = pickResultRepository.findByCompetitionIdAndGameweekId(id, gwId)
-                .stream().collect(Collectors.toMap(pr -> pr.getPick().getId(), pr -> pr));
+        // Fetch only fields required by the UI in one query (avoid entity hydration + join fan-out).
+        List<Object[]> rows = pickService.getGameweekSelectionRows(id, gwId);
 
         // For IN_PROGRESS gameweeks, compute a live outcome from fixture results
         Map<Long, String> liveOutcomeByTeam = new java.util.HashMap<>();
@@ -484,24 +545,41 @@ public class CompetitionController {
             }
         }
 
-        List<GameweekSelectionResponse> selections = picks.stream().map(p -> {
-            PickResult pr = resultMap.get(p.getId());
+        List<GameweekSelectionResponse> selections = rows.stream().map(row -> {
+            Long participantId = (Long) row[0];
+            Long userId = (Long) row[1];
+            String username = (String) row[2];
+            Integer entryNumber = (Integer) row[3];
+            Boolean lifelineUsed = (Boolean) row[4];
+            Integer lifelineUsedWeek = (Integer) row[5];
+            Long teamId = (Long) row[6];
+            String teamName = (String) row[7];
+            String teamShortName = (String) row[8];
+            PickSource source = (PickSource) row[9];
+            Boolean useLifeline = (Boolean) row[10];
+            PickOutcome storedOutcome = (PickOutcome) row[11];
+
             String outcome;
-            if (pr != null && pr.getOutcome() != PickOutcome.PENDING) {
-                outcome = pr.getOutcome().name();
+            if (storedOutcome != null && storedOutcome != PickOutcome.PENDING) {
+                outcome = storedOutcome.name();
             } else if (!liveOutcomeByTeam.isEmpty()) {
-                outcome = liveOutcomeByTeam.getOrDefault(p.getTeam().getId(), "PENDING");
+                outcome = liveOutcomeByTeam.getOrDefault(teamId, "PENDING");
             } else {
                 outcome = "PENDING";
             }
             return new GameweekSelectionResponse(
-                    p.getParticipant() != null ? p.getParticipant().getId() : null,
-                    p.getUser().getId(), p.getUser().getUsername(),
-                    p.getParticipant() != null ? p.getParticipant().getEntryNumber() : 1,
-                    p.getParticipant() != null && p.getParticipant().isLifelineUsed(),
-                    p.getParticipant() != null ? p.getParticipant().getLifelineUsedWeek() : null,
-                    p.getTeam().getId(), p.getTeam().getName(), p.getTeam().getShortName(),
-                    p.getSource().name(), p.isUseLifeline(), outcome
+                    participantId,
+                    userId,
+                    username,
+                    entryNumber != null ? entryNumber : 1,
+                    Boolean.TRUE.equals(lifelineUsed),
+                    lifelineUsedWeek,
+                    teamId,
+                    teamName,
+                    teamShortName,
+                    source != null ? source.name() : PickSource.USER.name(),
+                    Boolean.TRUE.equals(useLifeline),
+                    outcome
             );
         }).toList();
 
@@ -524,60 +602,69 @@ public class CompetitionController {
     @GetMapping("/{id}/survivor-table")
     public SurvivorTableResponse getSurvivorTable(@PathVariable Long id) {
         List<Gameweek> gameweeks = gameweekRepository.findByCompetitionIdOrderByWeekNumberAsc(id);
-        List<CompetitionParticipant> participants = participantRepository.findByCompetitionId(id);
-        List<Pick> allPicks = pickRepository.findByCompetitionIdFetchForSurvivor(id);
-        List<Long> pickIds = allPicks.stream().map(Pick::getId).toList();
-        Map<Long, PickResult> resultMap = pickIds.isEmpty()
-                ? Map.of()
-                : pickResultRepository.findByPickIdIn(pickIds).stream()
-                        .collect(Collectors.toMap(pr -> pr.getPick().getId(), pr -> pr));
+        List<Object[]> participantRows = participantRepository.findSurvivorParticipantRowsByCompetitionId(id);
+        List<Object[]> pickRows = pickRepository.findSurvivorPickRowsByCompetitionId(id);
         Map<Long, Map<Long, String>> liveOutcomeByGameweekAndTeam = buildLiveOutcomeByGameweek(gameweeks);
 
-        // participantId -> weekNumber -> Pick
-        Map<Long, Map<Integer, Pick>> picksByParticipantAndWeek = new java.util.HashMap<>();
-        for (Pick p : allPicks) {
-            if (p.getParticipant() == null) continue;
+        // participantId -> weekNumber -> [teamShortName, outcome, source, useLifeline]
+        Map<Long, Map<Integer, Object[]>> picksByParticipantAndWeek = new java.util.HashMap<>();
+        for (Object[] row : pickRows) {
+            Long participantId = (Long) row[0];
+            Long gameweekId = (Long) row[1];
+            Integer weekNumber = (Integer) row[2];
+            Long teamId = (Long) row[3];
+            String teamShortName = (String) row[4];
+            PickSource source = (PickSource) row[5];
+            Boolean useLifeline = (Boolean) row[6];
+            PickOutcome storedOutcome = (PickOutcome) row[7];
+            String outcome = storedOutcome != null ? storedOutcome.name() : "PENDING";
+            if ("PENDING".equals(outcome)) {
+                Map<Long, String> liveOutcomeByTeam = liveOutcomeByGameweekAndTeam.get(gameweekId);
+                if (liveOutcomeByTeam != null) {
+                    outcome = liveOutcomeByTeam.getOrDefault(teamId, "PENDING");
+                }
+            }
             picksByParticipantAndWeek
-                .computeIfAbsent(p.getParticipant().getId(), k -> new java.util.HashMap<>())
-                .put(p.getGameweek().getWeekNumber(), p);
+                .computeIfAbsent(participantId, ignored -> new java.util.HashMap<>())
+                .put(weekNumber, new Object[]{teamShortName, outcome, source != null ? source.name() : PickSource.USER.name(), Boolean.TRUE.equals(useLifeline)});
         }
 
         List<SurvivorGameweekMeta> gwMetas = gameweeks.stream()
                 .map(gw -> new SurvivorGameweekMeta(gw.getId(), gw.getWeekNumber(), gw.getStatus().name()))
                 .toList();
 
-        List<SurvivorRow> rows = participants.stream().map(cp -> {
+        List<SurvivorRow> rows = participantRows.stream().map(cp -> {
+            Long participantId = (Long) cp[0];
+            Long userId = (Long) cp[1];
+            String username = (String) cp[2];
+            Integer entryNumber = (Integer) cp[3];
+            ParticipantStatus status = (ParticipantStatus) cp[4];
+            Integer eliminatedWeek = (Integer) cp[5];
+            boolean lifelineUsed = Boolean.TRUE.equals(cp[6]);
+            Integer lifelineUsedWeek = (Integer) cp[7];
             Map<Integer, SurvivorPickCell> cells = new java.util.HashMap<>();
-            Map<Integer, Pick> userPicks = picksByParticipantAndWeek.getOrDefault(cp.getId(), Map.of());
+            Map<Integer, Object[]> userPicks = picksByParticipantAndWeek.getOrDefault(participantId, Map.of());
 
             for (Gameweek gw : gameweeks) {
-                Pick pick = userPicks.get(gw.getWeekNumber());
+                Object[] pick = userPicks.get(gw.getWeekNumber());
                 if (pick != null) {
-                    PickResult pr = resultMap.get(pick.getId());
-                    String outcome = pr != null ? pr.getOutcome().name() : "PENDING";
-                    if ("PENDING".equals(outcome)) {
-                        Map<Long, String> liveOutcomeByTeam = liveOutcomeByGameweekAndTeam.get(gw.getId());
-                        if (liveOutcomeByTeam != null) {
-                            outcome = liveOutcomeByTeam.getOrDefault(pick.getTeam().getId(), "PENDING");
-                        }
-                    }
                     cells.put(gw.getWeekNumber(), new SurvivorPickCell(
-                            pick.getTeam().getShortName(),
-                            outcome,
-                            pick.getSource().name(),
-                            pick.isUseLifeline()
+                            (String) pick[0],
+                            (String) pick[1],
+                            (String) pick[2],
+                            (Boolean) pick[3]
                     ));
                 }
             }
             return new SurvivorRow(
-                    cp.getId(),
-                    cp.getUser().getId(),
-                    cp.getUser().getUsername(),
-                    cp.getEntryNumber(),
-                    cp.getStatus().name(),
-                    cp.getEliminatedWeek(),
-                    cp.isLifelineUsed(),
-                    cp.getLifelineUsedWeek(),
+                    participantId,
+                    userId,
+                    username,
+                    entryNumber,
+                    status.name(),
+                    eliminatedWeek,
+                    lifelineUsed,
+                    lifelineUsedWeek,
                     cells
             );
         }).toList();

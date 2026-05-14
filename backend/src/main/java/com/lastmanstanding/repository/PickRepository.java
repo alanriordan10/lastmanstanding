@@ -111,4 +111,29 @@ public interface PickRepository extends JpaRepository<Pick, Long> {
     /** Returns [teamId, teamName, teamShortName, count] for all picks in a gameweek */
     @Query("SELECT p.team.id, p.team.name, p.team.shortName, COUNT(p) FROM Pick p WHERE p.competition.id = :competitionId AND p.gameweek.id = :gameweekId GROUP BY p.team.id, p.team.name, p.team.shortName")
     List<Object[]> countPicksPerTeam(@Param("competitionId") Long competitionId, @Param("gameweekId") Long gameweekId);
+
+    /**
+     * Projection for gameweek selections/results endpoint.
+     * Returns only the fields needed by the UI in one query.
+     */
+    @Query("SELECT " +
+            "cp.id, u.id, u.username, cp.entryNumber, cp.lifelineUsed, cp.lifelineUsedWeek, " +
+            "t.id, t.name, t.shortName, p.source, p.useLifeline, pr.outcome " +
+            "FROM Pick p " +
+            "JOIN p.user u " +
+            "JOIN p.team t " +
+            "LEFT JOIN p.participant cp " +
+            "LEFT JOIN PickResult pr ON pr.pick = p " +
+            "WHERE p.competition.id = :competitionId AND p.gameweek.id = :gameweekId")
+    List<Object[]> findGameweekSelectionRows(@Param("competitionId") Long competitionId, @Param("gameweekId") Long gameweekId);
+
+    @Query("SELECT " +
+            "cp.id, gw.id, gw.weekNumber, t.id, t.shortName, p.source, p.useLifeline, pr.outcome " +
+            "FROM Pick p " +
+            "JOIN p.participant cp " +
+            "JOIN p.gameweek gw " +
+            "JOIN p.team t " +
+            "LEFT JOIN PickResult pr ON pr.pick = p " +
+            "WHERE p.competition.id = :competitionId")
+    List<Object[]> findSurvivorPickRowsByCompetitionId(@Param("competitionId") Long competitionId);
 }

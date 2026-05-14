@@ -95,6 +95,17 @@ function getMyCompetitionKey(mc: MyCompetition): string {
   return `comp-${mc.competition.id}-joined-${mc.joinedAt}`;
 }
 
+function normalizeJoinError(err: any): string {
+  const status = err?.response?.status;
+  const message = err?.response?.data?.message as string | undefined;
+  if (message && message.trim().length > 0) return message;
+  if (status === 409) return 'You cannot add another entry to this competition.';
+  if (status === 400) return 'This competition is no longer open for joining.';
+  if (status === 403) return 'You are not allowed to join this competition.';
+  if (status === 404) return 'Competition not found.';
+  return 'Failed to join competition';
+}
+
 interface SurvivorTableProgressResponse {
   gameweeks: Array<{ weekNumber: number; status: string }>;
   rows: Array<{
@@ -277,7 +288,7 @@ export default function CompetitionsPage() {
       }
       queryClient.invalidateQueries({ queryKey: ['competitions'] });
     },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to join'),
+    onError: (err: any) => toast.error(normalizeJoinError(err)),
   });
 
   const handleJoin = (comp: Competition) => {

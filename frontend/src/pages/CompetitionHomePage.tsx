@@ -165,6 +165,25 @@ function usePickStatsMap(compId: number, gwIds: number[]): Map<number, PickStat[
 export default function CompetitionHomePage() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
+  const prefetchGameweekRevealData = (gwId: number) => {
+    queryClient.prefetchQuery({
+      queryKey: ['selections', compId, gwId],
+      queryFn: () =>
+        api.get(`/competitions/${compId}/gameweeks/${gwId}/selections`).then((r) => {
+          if (Array.isArray(r.data)) return { selections: r.data, byeGranted: false, weekNumber: 0 };
+          return r.data;
+        }),
+      staleTime: 60 * 1000,
+    });
+    queryClient.prefetchQuery({
+      queryKey: ['fixtures', compId, gwId],
+      queryFn: () =>
+        api.get(`/competitions/${compId}/gameweeks/${gwId}/fixtures`).then((r) =>
+          Array.isArray(r.data) ? r.data : []
+        ),
+      staleTime: 60 * 1000,
+    });
+  };
   const compId = Number(id);
   const { user } = useAuth();
   const { isSupported: browserAlertsSupported, isSubscribed: browserAlertsEnabled, subscribe, notify, permission } = usePushNotifications();
@@ -286,15 +305,21 @@ export default function CompetitionHomePage() {
   }, [fixtures]);
 
   const { data: latestCompletedSelections } = useQuery<GameweekSelectionsData>({
-    queryKey: ['gameweekSelections', compId, latestCompletedGwId],
-    queryFn: () => api.get(`/competitions/${compId}/gameweeks/${latestCompletedGwId}/selections`).then((r) => r.data),
+    queryKey: ['selections', compId, latestCompletedGwId],
+    queryFn: () => api.get(`/competitions/${compId}/gameweeks/${latestCompletedGwId}/selections`).then((r) => {
+      if (Array.isArray(r.data)) return { selections: r.data, byeGranted: false, weekNumber: 0 };
+      return r.data;
+    }),
     enabled: !!latestCompletedGwId,
     staleTime: 30_000,
   });
 
   const { data: latestNarrativeSelections } = useQuery<GameweekSelectionsData>({
-    queryKey: ['gameweekSelections', compId, latestNarrativeGwId],
-    queryFn: () => api.get(`/competitions/${compId}/gameweeks/${latestNarrativeGwId}/selections`).then((r) => r.data),
+    queryKey: ['selections', compId, latestNarrativeGwId],
+    queryFn: () => api.get(`/competitions/${compId}/gameweeks/${latestNarrativeGwId}/selections`).then((r) => {
+      if (Array.isArray(r.data)) return { selections: r.data, byeGranted: false, weekNumber: 0 };
+      return r.data;
+    }),
     enabled: !!latestNarrativeGwId,
     staleTime: 30_000,
     refetchInterval: (query) => {
@@ -1968,6 +1993,8 @@ export default function CompetitionHomePage() {
                             <Link
                               to={`/competitions/${compId}/gameweeks/${gwId}/selections`}
                               onClick={(e) => e.stopPropagation()}
+                              onMouseEnter={() => prefetchGameweekRevealData(gwId)}
+                              onFocus={() => prefetchGameweekRevealData(gwId)}
                               className="text-xs text-brand-400 hover:text-brand-300 hidden sm:inline whitespace-nowrap"
                             >
                               All selections →
@@ -1976,6 +2003,8 @@ export default function CompetitionHomePage() {
                               <Link
                                 to={`/competitions/${compId}/gameweeks/${gwId}/results`}
                                 onClick={(e) => e.stopPropagation()}
+                                onMouseEnter={() => prefetchGameweekRevealData(gwId)}
+                                onFocus={() => prefetchGameweekRevealData(gwId)}
                                 className="text-xs text-green-400 hover:text-green-300 hidden sm:inline font-medium whitespace-nowrap"
                               >
                                 📊 Results →
@@ -2000,6 +2029,8 @@ export default function CompetitionHomePage() {
                       <div className="mt-2 sm:hidden flex gap-3">
                         <Link
                           to={`/competitions/${compId}/gameweeks/${gwId}/selections`}
+                          onMouseEnter={() => prefetchGameweekRevealData(gwId)}
+                          onFocus={() => prefetchGameweekRevealData(gwId)}
                           className="text-xs text-brand-400 hover:text-brand-300"
                         >
                           View all selections →
@@ -2007,6 +2038,8 @@ export default function CompetitionHomePage() {
                         {isCompleted && (
                           <Link
                             to={`/competitions/${compId}/gameweeks/${gwId}/results`}
+                            onMouseEnter={() => prefetchGameweekRevealData(gwId)}
+                            onFocus={() => prefetchGameweekRevealData(gwId)}
                             className="text-xs text-green-400 hover:text-green-300 font-medium"
                           >
                             📊 Results →
