@@ -1,8 +1,82 @@
 import { Link } from 'react-router-dom';
+import SeoMeta from '../components/SeoMeta';
 
 export default function LandingPage() {
+  const organizationSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'Last Man Standing',
+    url: window.location.origin,
+    logo: `${window.location.origin}/app-logo.png`,
+  };
+
+  const softwareSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: 'Last Man Standing',
+    applicationCategory: 'SportsApplication',
+    operatingSystem: 'Web',
+    url: window.location.origin,
+    description:
+      'A last man standing app to run football survivor pool competitions with lifelines, reminders, payments, and live results.',
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'EUR',
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'Last Man Standing',
+    },
+  };
+
+  const faqSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: [
+      {
+        '@type': 'Question',
+        name: 'How does a last man standing competition work?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'Players pick one team each gameweek. Win or draw advances, loss eliminates. The last active entry wins.',
+        },
+      },
+      {
+        '@type': 'Question',
+        name: 'Can I allow multiple entries per user?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'Yes. You can configure maximum entries per user and track each entry separately in club admin.',
+        },
+      },
+      {
+        '@type': 'Question',
+        name: 'How does the lifeline feature work?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'If enabled, each entry can play one lifeline before a gameweek starts. A win or draw survives; a loss still eliminates.',
+        },
+      },
+      {
+        '@type': 'Question',
+        name: 'Can we collect entry fees?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'Yes. Use manual payment tracking or Stripe, depending on your competition setup.',
+        },
+      },
+    ],
+  };
+
   return (
     <div className="min-h-screen text-white flex flex-col">
+      <SeoMeta
+        title="Last Man Standing App for Football Survivor Pools | Last Man Standing"
+        description="Run football survivor pools with picks, lifelines, reminders, and club admin tools. Create your last man standing competition in minutes."
+        canonicalPath="/"
+        jsonLd={[organizationSchema, softwareSchema, faqSchema]}
+      />
       {/* Navbar */}
       <nav className="sticky top-0 z-50 flex items-center justify-between border-b border-white/8 bg-[linear-gradient(180deg,rgba(8,15,30,0.92),rgba(8,15,30,0.78))] px-6 py-4 backdrop-blur-xl">
         <div className="flex items-center gap-2">
@@ -33,13 +107,13 @@ export default function LandingPage() {
           </div>
 
           <h1 className="text-5xl sm:text-6xl font-black leading-tight tracking-tight">
-            Last Man
-            <span className="text-brand-400"> Standing</span>
+            Last Man Standing App
+            <span className="text-brand-400"> for Football Competitions</span>
           </h1>
 
           <p className="text-xl text-gray-300 max-w-xl mx-auto leading-relaxed">
-            Pick one Premier League team each gameweek. If they win — you survive.
-            If they draw or lose — you're out. Last player standing wins.
+            Run your football last man standing competition in minutes. Manage picks,
+            lifelines, payments, reminders, and results in one place.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
@@ -69,12 +143,12 @@ export default function LandingPage() {
       {/* How it works */}
       <section className="py-20 px-4 border-t border-gray-800">
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-12">How It Works</h2>
+          <h2 className="text-3xl font-bold text-center mb-12">Everything You Need to Run a Survivor Pool</h2>
           <div className="grid sm:grid-cols-3 gap-8">
             {[
-              { icon: '🏠', title: 'Register Your Club', desc: 'Sign up in 2 minutes. Name your club, create your account and get instant Club Admin access.' },
-              { icon: '🏆', title: 'Create Competitions', desc: 'Set up Last Man Standing competitions for your members. Configure entry fees, rules and lock times.' },
-              { icon: '⚽', title: 'Invite & Play', desc: 'Share your competition link. Players pick one team per gameweek. Last one standing wins the pot.' },
+              { icon: '⚙️', title: 'Set Rules That Fit Your Competition', desc: 'Configure lock times, entry limits, missed-pick behavior, and optional lifeline rules for each competition.' },
+              { icon: '💳', title: 'Manage Entries and Payments', desc: 'Track each entry separately with manual or Stripe payment modes and clear club-admin payment history.' },
+              { icon: '📊', title: 'Track Results and Survivor Table Live', desc: 'Reveal all picks after lock, process outcomes quickly, and keep the full survivor table visible to players.' },
             ].map(({ icon, title, desc }) => (
               <div key={title} className="rounded-2xl border border-white/8 bg-white/[0.035] p-6 text-center space-y-3 shadow-[0_20px_50px_rgba(2,6,23,0.28)]">
                 <div className="text-5xl">{icon}</div>
@@ -111,7 +185,7 @@ export default function LandingPage() {
       {/* CTA */}
       <section className="py-20 px-4 border-t border-gray-800 text-center">
         <div className="max-w-xl mx-auto space-y-6">
-          <h2 className="text-3xl font-bold">Ready to run your own competition?</h2>
+          <h2 className="text-3xl font-bold">Ready to run your next survivor pool?</h2>
           <p className="text-gray-400">
             Whether it's your pub, GAA club, workplace or WhatsApp group — set up your Last Man Standing competition in minutes.
           </p>
@@ -129,6 +203,9 @@ export default function LandingPage() {
         <div className="flex items-center justify-center gap-2 mb-2">
           <div className="flex h-6 w-6 items-center justify-center rounded bg-brand-600 text-[10px] font-bold">LMS</div>
           <span className="font-medium text-gray-400">Last Man Standing</span>
+        </div>
+        <div className="mb-2">
+          <Link to="/faq" className="text-gray-400 hover:text-white transition-colors">FAQ</Link>
         </div>
         <p>Premier League survival game · © {new Date().getFullYear()}</p>
       </footer>

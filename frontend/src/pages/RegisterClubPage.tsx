@@ -144,9 +144,14 @@ export default function RegisterClubPage() {
             <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-200/75">Club onboarding</span>
           </div>
         </Link>
-        <div className="text-sm text-gray-400">
-          Already have an account?{' '}
-          <Link to="/login" className="text-brand-400 hover:text-brand-300 font-medium">Sign in</Link>
+        <div className="flex items-center gap-4 text-sm text-gray-400">
+          <Link to="/faq" className="rounded-lg border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-200 transition hover:bg-white/[0.1] hover:text-white">
+            FAQ
+          </Link>
+          <span>
+            Already have an account?{' '}
+            <Link to="/login" className="text-brand-400 hover:text-brand-300 font-medium">Sign in</Link>
+          </span>
         </div>
       </nav>
 

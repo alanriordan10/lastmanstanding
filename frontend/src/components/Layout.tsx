@@ -74,6 +74,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <span className="hidden sm:inline">Contact</span>
               <span className="sm:hidden">Help</span>
             </Link>
+            <Link to="/faq" className={navClass(location.pathname.startsWith('/faq'))} aria-label="Frequently asked questions">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 shrink-0">
+                <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm0 17a1.25 1.25 0 1 1 1.25-1.25A1.25 1.25 0 0 1 12 19Zm1.7-7.4-.6.4a2.2 2.2 0 0 0-1.1 1.9V14h-2v-.1a4.2 4.2 0 0 1 1.9-3.5l.6-.4a1.7 1.7 0 0 0 .8-1.5 1.8 1.8 0 0 0-3.6 0H8a3.8 3.8 0 0 1 7.6 0 3.7 3.7 0 0 1-1.9 3.1Z" />
+              </svg>
+              <span className="hidden sm:inline">FAQ</span>
+              <span className="sm:hidden">FAQ</span>
+            </Link>
 
 
             <div className="flex items-center gap-1 sm:gap-3 sm:border-l sm:border-white/8 sm:pl-4">

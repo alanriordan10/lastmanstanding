@@ -2,6 +2,7 @@ import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { useState } from 'react';
 import api from '../api';
+import SeoMeta from '../components/SeoMeta';
 
 const SUPPORT_EMAIL = 'support@lastmanstanding.com';
 
@@ -97,6 +98,11 @@ Any reference IDs (PaymentIntent, account, etc):
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
+      <SeoMeta
+        title="Contact Support | Last Man Standing"
+        description="Get help with competition setup, payments, account issues, and bug reports for Last Man Standing."
+        canonicalPath="/contact"
+      />
       <section className="relative overflow-hidden rounded-[1.85rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_24rem),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))] px-5 py-6 shadow-[0_30px_75px_rgba(2,6,23,0.48)] sm:px-6">
         <div className="inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-200">
           Support

@@ -19,6 +19,7 @@ const ClubAdminPage = lazy(() => import('./pages/ClubAdminPage'));
 const SurvivorTablePage = lazy(() => import('./pages/SurvivorTablePage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const ContactPage = lazy(() => import('./pages/ContactPage'));
+const FaqPage = lazy(() => import('./pages/FaqPage'));
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -60,6 +61,7 @@ export default function App() {
         <Route path="/oauth2/callback" element={<OAuth2CallbackPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/faq" element={<FaqPage />} />
         <Route path="/invite/:code" element={<InviteRedirect />} />
         <Route path="/competitions" element={<Layout><CompetitionsPage /></Layout>} />
         <Route path="/competitions/:id" element={<Layout><CompetitionHomePage /></Layout>} />

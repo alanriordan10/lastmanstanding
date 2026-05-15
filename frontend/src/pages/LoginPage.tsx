@@ -3,6 +3,7 @@ import { Link, useNavigate, Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import SocialAuthButtons from '../components/SocialAuthButtons';
+import SeoMeta from '../components/SeoMeta';
 
 export default function LoginPage() {
   const { login, user } = useAuth();
@@ -38,6 +39,14 @@ export default function LoginPage() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_16%_20%,rgba(37,99,235,0.16),transparent_34rem),linear-gradient(170deg,#070f22_0%,#0a1731_56%,#0a1730_100%)] px-4 py-10">
+      <Link to="/faq" className="absolute right-4 top-4 z-10 rounded-lg border border-white/10 bg-white/[0.05] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-gray-200 transition hover:bg-white/[0.1] hover:text-white">
+        FAQ
+      </Link>
+      <SeoMeta
+        title="Sign In | Last Man Standing"
+        description="Sign in to manage picks, view results, and run football survivor pool competitions."
+        canonicalPath="/login"
+      />
       <div className="relative grid w-full max-w-6xl gap-6 lg:grid-cols-[1.08fr_0.92fr]">
         <section className="relative overflow-hidden rounded-[2.1rem] border border-white/8 bg-[linear-gradient(145deg,rgba(15,23,42,0.84),rgba(8,15,30,0.8))] px-6 py-8 shadow-[0_22px_56px_rgba(2,6,23,0.42)] backdrop-blur-sm sm:px-8 sm:py-10">
           <div className="inline-flex rounded-full border border-brand-300/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-100">
