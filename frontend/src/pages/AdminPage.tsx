@@ -1248,7 +1248,14 @@ function ParticipantsPanel({ competitionId, competitionName }: { competitionId: 
     ELIMINATED: participants.filter(p => p.status === 'ELIMINATED').length,
     WINNER: participants.filter(p => p.status === 'WINNER').length,
   };
-  const participantLabel = (p: Participant) => `${p.username} • Entry #${p.entryNumber ?? 1}`;
+  const entryCountByUserId = new Map<number, number>();
+  participants.forEach((participant) => {
+    entryCountByUserId.set(participant.userId, (entryCountByUserId.get(participant.userId) ?? 0) + 1);
+  });
+  const participantLabel = (p: Participant) =>
+    (entryCountByUserId.get(p.userId) ?? 0) > 1
+      ? `${p.username} • Entry #${p.entryNumber ?? 1}`
+      : p.username;
 
   // Filter + search (plain JS, no hooks after early returns)
   let filtered = participants;
