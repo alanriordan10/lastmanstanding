@@ -57,14 +57,26 @@ export default function GameweekSelectionsPage() {
   }, [selections]);
   const displayName = (s: GameweekSelection) =>
     (userEntryCounts.get(s.userId) ?? 0) > 1
-      ? `${s.username} #${s.entryNumber ?? 1}`
+      ? `${s.username} • Entry #${s.entryNumber ?? 1}`
       : s.username;
 
   // NOW we can do early returns AFTER all hooks
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
+      <div className="space-y-6 animate-pulse">
+        <div className="rounded-[1.75rem] border border-white/8 bg-surface-800/50 px-4 py-5 sm:px-6 sm:py-6">
+          <div className="h-3 w-24 rounded bg-surface-700" />
+          <div className="mt-3 h-8 w-60 rounded bg-surface-700" />
+          <div className="mt-3 h-4 w-40 rounded bg-surface-700" />
+        </div>
+        <div className="card p-4">
+          <div className="h-5 w-44 rounded bg-surface-700" />
+          <div className="mt-4 grid gap-3">
+            {Array.from({ length: 6 }).map((_, idx) => (
+              <div key={idx} className="h-12 rounded bg-surface-700/80" />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }

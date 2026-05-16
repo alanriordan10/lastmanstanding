@@ -1211,7 +1211,7 @@ function ParticipantsPanel({ competitionId, competitionName }: { competitionId: 
         <div className="flex items-center gap-3">
           <span className="text-2xl">🏆</span>
           <div>
-            <p className="font-semibold">{winner?.username} is the Winner!</p>
+            <p className="font-semibold">{winner ? participantLabel(winner) : 'Participant'} is the Winner!</p>
             <p className="text-sm opacity-80">Competition has been completed.</p>
           </div>
         </div>,
@@ -1248,6 +1248,7 @@ function ParticipantsPanel({ competitionId, competitionName }: { competitionId: 
     ELIMINATED: participants.filter(p => p.status === 'ELIMINATED').length,
     WINNER: participants.filter(p => p.status === 'WINNER').length,
   };
+  const participantLabel = (p: Participant) => `${p.username} • Entry #${p.entryNumber ?? 1}`;
 
   // Filter + search (plain JS, no hooks after early returns)
   let filtered = participants;
@@ -1256,7 +1257,7 @@ function ParticipantsPanel({ competitionId, competitionName }: { competitionId: 
   }
   if (search.trim()) {
     const q = search.toLowerCase();
-    filtered = filtered.filter(p => p.username.toLowerCase().includes(q));
+    filtered = filtered.filter(p => participantLabel(p).toLowerCase().includes(q));
   }
 
   // Pagination
@@ -1356,7 +1357,7 @@ function ParticipantsPanel({ competitionId, competitionName }: { competitionId: 
                 <div className="flex flex-col gap-2">
                   <div className="grid grid-cols-[1fr_auto] items-center gap-[2px] pr-2">
                     <div className="min-w-0">
-                      <span className="font-medium text-gray-200 truncate block">{p.username}</span>
+                      <span className="font-medium text-gray-200 truncate block">{participantLabel(p)}</span>
                     </div>
                     <div className="flex flex-nowrap items-center gap-1 justify-self-end">
                       {p.status === 'ACTIVE' && counts.ACTIVE > 1 && (
@@ -1455,10 +1456,10 @@ function ParticipantsPanel({ competitionId, competitionName }: { competitionId: 
         onConfirm={() => winnerDialogUser && declareWinnerMutation.mutate(winnerDialogUser.id)}
         icon="🏆"
         variant="warning"
-        title={`Declare ${winnerDialogUser?.username} as Winner?`}
+        title={`Declare ${winnerDialogUser ? participantLabel(winnerDialogUser) : 'participant'} as Winner?`}
         message={`This will end "${competitionName}" and crown this participant as the champion.`}
         items={[
-          `${winnerDialogUser?.username} will be marked as WINNER`,
+          `${winnerDialogUser ? participantLabel(winnerDialogUser) : 'This participant'} will be marked as WINNER`,
           'All other active participants will be eliminated',
           'The competition will be marked as COMPLETED',
         ]}
@@ -1471,7 +1472,7 @@ function ParticipantsPanel({ competitionId, competitionName }: { competitionId: 
         onClose={() => setRemoveDialogUser(null)}
         onConfirm={() => removeDialogUser && removeMutation.mutate(removeDialogUser.id)}
         variant="danger"
-        title={`Remove ${removeDialogUser?.username}?`}
+        title={`Remove ${removeDialogUser ? participantLabel(removeDialogUser) : 'participant'}?`}
         message={`This will remove them from "${competitionName}" and delete all their picks and results.`}
         confirmText="Yes, Remove"
       />
