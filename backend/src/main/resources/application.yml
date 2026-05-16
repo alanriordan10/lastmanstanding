@@ -113,6 +113,8 @@ app:
   mail-from: ${MAIL_FROM:noreply@lastmanstanding.com}
   mail-enabled: ${MAIL_ENABLED:false}
   support-email: ${SUPPORT_EMAIL:alanriordan10@gmail.com}
+  perf:
+    endpoint-metrics-enabled: ${ENDPOINT_METRICS_ENABLED:true}
   vapid-public-key: ${VAPID_PUBLIC_KEY:}
   vapid-private-key: ${VAPID_PRIVATE_KEY:}
   vapid-subject: ${VAPID_SUBJECT:}

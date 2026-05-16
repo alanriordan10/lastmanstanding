@@ -40,12 +40,23 @@ public interface CompetitionParticipantRepository extends JpaRepository<Competit
 
     List<CompetitionParticipant> findByUserId(Long userId);
 
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"competition", "competition.createdBy", "competition.club"})
+    List<CompetitionParticipant> findByUserIdOrderByJoinedAtDesc(Long userId);
+
     /** Returns [competitionId, totalCount, activeCount] rows — avoids N+1 when listing competitions */
     @Query("SELECT cp.competition.id, COUNT(cp), SUM(CASE WHEN cp.status IN ('ACTIVE','WINNER') THEN 1 ELSE 0 END) FROM CompetitionParticipant cp GROUP BY cp.competition.id")
     List<Object[]> countParticipantsGroupedByCompetition();
 
+    @Query("SELECT cp.competition.id, COUNT(cp), SUM(CASE WHEN cp.status IN ('ACTIVE','WINNER') THEN 1 ELSE 0 END) " +
+            "FROM CompetitionParticipant cp WHERE cp.competition.id IN :competitionIds GROUP BY cp.competition.id")
+    List<Object[]> countParticipantsGroupedByCompetitionIds(@Param("competitionIds") List<Long> competitionIds);
+
     /** Load all winners across all competitions in one query */
     List<CompetitionParticipant> findByStatus(ParticipantStatus status);
+
+    @Query("SELECT cp.competition.id, cp.user.username FROM CompetitionParticipant cp " +
+            "WHERE cp.status = 'WINNER' AND cp.competition.id IN :competitionIds")
+    List<Object[]> findWinnerUsernamesByCompetitionIds(@Param("competitionIds") List<Long> competitionIds);
 
     @Modifying
     @Query("DELETE FROM CompetitionParticipant cp WHERE cp.competition.id = :competitionId AND cp.user.id = :userId")

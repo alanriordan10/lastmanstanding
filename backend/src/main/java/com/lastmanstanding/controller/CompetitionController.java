@@ -1,19 +1,29 @@
 package com.lastmanstanding.controller;
 
+import com.lastmanstanding.config.CacheConfig;
 import com.lastmanstanding.dto.CompetitionDtos.*;
 import com.lastmanstanding.entity.*;
 import com.lastmanstanding.repository.*;
 import com.lastmanstanding.security.UserDetailsImpl;
 import com.lastmanstanding.service.CompetitionService;
 import com.lastmanstanding.service.PickService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,6 +33,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/competitions")
@@ -39,6 +50,37 @@ public class CompetitionController {
     private final TeamRepository teamRepository;
     private final ClubRepository clubRepository;
     private final PaymentRepository paymentRepository;
+    private final CacheManager cacheManager;
+    private final ObjectMapper objectMapper;
+
+    @Autowired
+    public CompetitionController(CompetitionService competitionService,
+                                 PickService pickService,
+                                 CompetitionRepository competitionRepository,
+                                 GameweekRepository gameweekRepository,
+                                 FixtureRepository fixtureRepository,
+                                 PickRepository pickRepository,
+                                 PickResultRepository pickResultRepository,
+                                 CompetitionParticipantRepository participantRepository,
+                                 TeamRepository teamRepository,
+                                 ClubRepository clubRepository,
+                                 PaymentRepository paymentRepository,
+                                 CacheManager cacheManager,
+                                 ObjectMapper objectMapper) {
+        this.competitionService = competitionService;
+        this.pickService = pickService;
+        this.competitionRepository = competitionRepository;
+        this.gameweekRepository = gameweekRepository;
+        this.fixtureRepository = fixtureRepository;
+        this.pickRepository = pickRepository;
+        this.pickResultRepository = pickResultRepository;
+        this.participantRepository = participantRepository;
+        this.teamRepository = teamRepository;
+        this.clubRepository = clubRepository;
+        this.paymentRepository = paymentRepository;
+        this.cacheManager = cacheManager;
+        this.objectMapper = objectMapper;
+    }
 
     public CompetitionController(CompetitionService competitionService,
                                  PickService pickService,
@@ -51,17 +93,11 @@ public class CompetitionController {
                                  TeamRepository teamRepository,
                                  ClubRepository clubRepository,
                                  PaymentRepository paymentRepository) {
-        this.competitionService = competitionService;
-        this.pickService = pickService;
-        this.competitionRepository = competitionRepository;
-        this.gameweekRepository = gameweekRepository;
-        this.fixtureRepository = fixtureRepository;
-        this.pickRepository = pickRepository;
-        this.pickResultRepository = pickResultRepository;
-        this.participantRepository = participantRepository;
-        this.teamRepository = teamRepository;
-        this.clubRepository = clubRepository;
-        this.paymentRepository = paymentRepository;
+        this(competitionService, pickService, competitionRepository, gameweekRepository, fixtureRepository,
+                pickRepository, pickResultRepository, participantRepository, teamRepository, clubRepository,
+                paymentRepository, new ConcurrentMapCacheManager(
+                        CacheConfig.SURVIVOR_TABLE_CACHE, CacheConfig.GAMEWEEK_SELECTIONS_CACHE),
+                new ObjectMapper());
     }
 
     // ── Competitions ────────────────────────────────────────────────────
@@ -144,13 +180,16 @@ public class CompetitionController {
 
     @GetMapping("/my/details")
     public List<MyCompetitionResponse> getMyCompetitions(@AuthenticationPrincipal UserDetailsImpl userDetails) {
-        List<CompetitionParticipant> participants = participantRepository.findByUserId(userDetails.getId());
+        List<CompetitionParticipant> participants = participantRepository.findByUserIdOrderByJoinedAtDesc(userDetails.getId());
         if (participants.isEmpty()) return List.of();
 
-        // Batch load all counts, winners, and first gameweek dates in bulk
-        Map<Long, long[]> counts   = batchParticipantCounts();
-        Map<Long, String> winners  = batchWinners();
-        List<Long> compIds = participants.stream().map(cp -> cp.getCompetition().getId()).toList();
+        // Batch load only for competitions this user is in.
+        List<Long> compIds = participants.stream()
+                .map(cp -> cp.getCompetition().getId())
+                .distinct()
+                .toList();
+        Map<Long, long[]> counts   = batchParticipantCounts(compIds);
+        Map<Long, String> winners  = batchWinners(compIds);
         Map<Long, java.time.LocalDate> firstGwDates = batchFirstGameweekDates(compIds);
         Map<Long, String> paymentStates = paymentStatesForUser(userDetails.getId(), participants);
 
@@ -188,10 +227,30 @@ public class CompetitionController {
         return map;
     }
 
+    private Map<Long, long[]> batchParticipantCounts(List<Long> competitionIds) {
+        if (competitionIds.isEmpty()) return Map.of();
+        Map<Long, long[]> map = new java.util.HashMap<>();
+        participantRepository.countParticipantsGroupedByCompetitionIds(competitionIds).forEach(row -> {
+            long cId    = ((Number) row[0]).longValue();
+            long total  = ((Number) row[1]).longValue();
+            long active = row[2] != null ? ((Number) row[2]).longValue() : 0L;
+            map.put(cId, new long[]{total, active});
+        });
+        return map;
+    }
+
     private Map<Long, String> batchWinners() {
         Map<Long, String> map = new java.util.HashMap<>();
         participantRepository.findByStatus(ParticipantStatus.WINNER)
                 .forEach(cp -> map.put(cp.getCompetition().getId(), cp.getUser().getUsername()));
+        return map;
+    }
+
+    private Map<Long, String> batchWinners(List<Long> competitionIds) {
+        if (competitionIds.isEmpty()) return Map.of();
+        Map<Long, String> map = new java.util.HashMap<>();
+        participantRepository.findWinnerUsernamesByCompetitionIds(competitionIds)
+                .forEach(row -> map.put(((Number) row[0]).longValue(), (String) row[1]));
         return map;
     }
 
@@ -447,7 +506,25 @@ public class CompetitionController {
     public GameweekSelectionsData getSelections(@PathVariable Long id, @PathVariable Long gwId) {
         Gameweek gw = gameweekRepository.findById(gwId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Gameweek not found"));
+        if (gw.getStatus() == GameweekStatus.IN_PROGRESS) {
+            return buildSelectionsData(id, gwId, gw);
+        }
+        String key = id + ":" + gwId;
+        Cache cache = cacheManager.getCache(CacheConfig.GAMEWEEK_SELECTIONS_CACHE);
+        if (cache != null) {
+            GameweekSelectionsData cached = cache.get(key, GameweekSelectionsData.class);
+            if (cached != null) {
+                return cached;
+            }
+        }
+        GameweekSelectionsData data = buildSelectionsData(id, gwId, gw);
+        if (cache != null) {
+            cache.put(key, data);
+        }
+        return data;
+    }
 
+    private GameweekSelectionsData buildSelectionsData(Long id, Long gwId, Gameweek gw) {
         // Fetch picks with user+team eagerly to avoid N+1 (200 users = 400 lazy queries otherwise)
         List<Pick> picks = pickService.getGameweekSelectionsFetch(id, gwId);
 
@@ -522,8 +599,40 @@ public class CompetitionController {
     // ── Survivor Table ───────────────────────────────────────────────────
 
     @GetMapping("/{id}/survivor-table")
-    public SurvivorTableResponse getSurvivorTable(@PathVariable Long id) {
+    public ResponseEntity<SurvivorTableResponse> getSurvivorTable(@PathVariable Long id, HttpServletRequest request) {
         List<Gameweek> gameweeks = gameweekRepository.findByCompetitionIdOrderByWeekNumberAsc(id);
+        boolean hasInProgress = gameweeks.stream().anyMatch(gw -> gw.getStatus() == GameweekStatus.IN_PROGRESS);
+        if (!hasInProgress) {
+            Cache cache = cacheManager.getCache(CacheConfig.SURVIVOR_TABLE_CACHE);
+            String key = id.toString();
+            if (cache != null) {
+                CachedSurvivorTable cached = cache.get(key, CachedSurvivorTable.class);
+                if (cached != null) {
+                    if (etagMatches(request, cached.etag())) {
+                        return ResponseEntity.status(HttpStatus.NOT_MODIFIED).eTag(cached.etag()).build();
+                    }
+                    return ResponseEntity.ok().eTag(cached.etag()).body(cached.response());
+                }
+            }
+            SurvivorTableResponse response = buildSurvivorTable(id, gameweeks);
+            String etag = buildEtag(response);
+            if (cache != null) {
+                cache.put(key, new CachedSurvivorTable(response, etag));
+            }
+            if (etagMatches(request, etag)) {
+                return ResponseEntity.status(HttpStatus.NOT_MODIFIED).eTag(etag).build();
+            }
+            return ResponseEntity.ok().eTag(etag).body(response);
+        }
+        SurvivorTableResponse response = buildSurvivorTable(id, gameweeks);
+        String etag = buildEtag(response);
+        if (etagMatches(request, etag)) {
+            return ResponseEntity.status(HttpStatus.NOT_MODIFIED).eTag(etag).build();
+        }
+        return ResponseEntity.ok().eTag(etag).body(response);
+    }
+
+    private SurvivorTableResponse buildSurvivorTable(Long id, List<Gameweek> gameweeks) {
         List<CompetitionParticipant> participants = participantRepository.findByCompetitionId(id);
         List<Pick> allPicks = pickRepository.findByCompetitionIdFetchForSurvivor(id);
         List<Long> pickIds = allPicks.stream().map(Pick::getId).toList();
@@ -585,6 +694,30 @@ public class CompetitionController {
         return new SurvivorTableResponse(gwMetas, rows);
     }
 
+    private String buildEtag(Object value) {
+        try {
+            byte[] json = objectMapper.writeValueAsBytes(value);
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] digest = md.digest(json);
+            StringBuilder sb = new StringBuilder("\"");
+            for (byte b : digest) {
+                sb.append(String.format("%02x", b));
+            }
+            sb.append("\"");
+            return sb.toString();
+        } catch (JsonProcessingException | NoSuchAlgorithmException e) {
+            // Fallback to a deterministic string hash representation
+            return "\"" + Integer.toHexString(String.valueOf(value).getBytes(StandardCharsets.UTF_8).length) + "\"";
+        }
+    }
+
+    private boolean etagMatches(HttpServletRequest request, String currentEtag) {
+        String inm = request.getHeader("If-None-Match");
+        return inm != null && inm.equals(currentEtag);
+    }
+
+    private record CachedSurvivorTable(SurvivorTableResponse response, String etag) {}
+
     private Map<Long, Map<Long, String>> buildLiveOutcomeByGameweek(List<Gameweek> gameweeks) {
         Map<Long, Map<Long, String>> outcomeByGameweek = new HashMap<>();
         if (gameweeks.isEmpty()) return outcomeByGameweek;
@@ -640,6 +773,26 @@ public class CompetitionController {
         if (gw.getStatus() == GameweekStatus.UPCOMING) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Pick stats not available until gameweek locks");
         }
+        if (gw.getStatus() != GameweekStatus.IN_PROGRESS) {
+            String key = compId + ":" + gwId;
+            Cache cache = cacheManager.getCache(CacheConfig.PICK_STATS_CACHE);
+            if (cache != null) {
+                @SuppressWarnings("unchecked")
+                List<PickStatDto> cached = cache.get(key, List.class);
+                if (cached != null) {
+                    return cached;
+                }
+            }
+            List<PickStatDto> computed = buildPickStats(compId, gwId);
+            if (cache != null) {
+                cache.put(key, computed);
+            }
+            return computed;
+        }
+        return buildPickStats(compId, gwId);
+    }
+
+    private List<PickStatDto> buildPickStats(Long compId, Long gwId) {
         List<Object[]> rows = pickRepository.countPicksPerTeam(compId, gwId);
         int total = rows.stream().mapToInt(r -> ((Number) r[3]).intValue()).sum();
         return rows.stream().map(r -> new PickStatDto(
