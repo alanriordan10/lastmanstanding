@@ -4,23 +4,27 @@ spring:
     properties:
       hibernate:
         generate_statistics: true
-        # Log SQL queries exceeding this threshold (ms)
         session:
           events:
             log:
-              LOG_QUERIES_SLOWER_THAN_MS: 150
+              LOG_SESSION_METRICS: false
+              # Log SQL queries exceeding this threshold (ms)
+              LOG_QUERIES_SLOWER_THAN_MS: 250
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,metrics
+        include: health,metrics,prometheus
 
 logging:
   level:
-    # SQL text
-    org.hibernate.SQL: DEBUG
-    # Hibernate 6 bind parameters
-    org.hibernate.orm.jdbc.bind: TRACE
-    # Statistics output
-    org.hibernate.stat: DEBUG
+    # Keep hotspot perf summaries visible
+    com.lastmanstanding.config.EndpointPerformanceMetricsFilter: INFO
+    # Disable per-session "Session Metrics { ... }" spam
+    org.hibernate.engine.internal.StatisticalLoggingSessionEventListener: WARN
+    # Quiet-by-default SQL logging (override via env when needed)
+    org.hibernate.SQL: ${PROFILE_LOG_SQL_LEVEL:WARN}
+    org.hibernate.orm.jdbc.bind: ${PROFILE_LOG_BIND_LEVEL:WARN}
+    # Keep Hibernate stats low-noise by default
+    org.hibernate.stat: ${PROFILE_LOG_HIBERNATE_STATS_LEVEL:WARN}

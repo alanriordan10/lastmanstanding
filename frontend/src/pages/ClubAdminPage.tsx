@@ -1415,7 +1415,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
         <div className="flex items-center gap-3">
           <span className="text-2xl">🏆</span>
           <div>
-            <p className="font-semibold">{winner?.username} is the Winner!</p>
+            <p className="font-semibold">{winner ? participantLabel(winner) : 'Participant'} is the Winner!</p>
             <p className="text-sm opacity-80">Competition has been completed.</p>
           </div>
         </div>,
@@ -1438,11 +1438,12 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
 
   const activeCount = participants?.filter(p => p.status === 'ACTIVE').length ?? 0;
   const unpaidCount = isManual ? (participants?.filter(p => !paidSet.has(p.userId)).length ?? 0) : 0;
+  const participantLabel = (p: Participant) => `${p.username} • Entry #${p.entryNumber ?? 1}`;
 
   // Filter
   const filtered = (participants ?? []).filter(p => {
     const matchesSearch = !search.trim() ||
-      p.username.toLowerCase().includes(search.toLowerCase());
+      participantLabel(p).toLowerCase().includes(search.toLowerCase());
     const matchesStatus = activeTab === 'PAYMENTS'
       ? true
       : statusFilter === 'ALL' || p.status === statusFilter;
@@ -1856,7 +1857,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                 {awaitingParticipants.slice(0, 50).map((p) => (
                   <div key={`await-${p.id}`} className="flex items-center justify-between rounded-md border border-amber-300/20 bg-black/20 px-2 py-1.5">
                     <div className="min-w-0">
-                      <p className="text-xs font-medium text-amber-100 truncate">{p.username}</p>
+                      <p className="text-xs font-medium text-amber-100 truncate">{participantLabel(p)}</p>
                       <p className="text-[11px] text-amber-200/80">{p.status}</p>
                     </div>
                     <button
@@ -1895,7 +1896,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                 {paidParticipants.slice(0, 50).map((p) => (
                   <div key={`paid-${p.id}`} className="flex items-center justify-between rounded-md border border-green-300/20 bg-black/20 px-2 py-1.5">
                     <div className="min-w-0">
-                      <p className="text-xs font-medium text-green-100 truncate">{p.username}</p>
+                      <p className="text-xs font-medium text-green-100 truncate">{participantLabel(p)}</p>
                       <p className="text-[11px] text-green-200/80">{p.status}</p>
                     </div>
                     <button
@@ -1984,7 +1985,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0 space-y-1.5">
                     <div className="flex items-center gap-2 flex-wrap min-w-0">
-                      <span className="text-gray-200 font-medium">{p.username}</span>
+                      <span className="text-gray-200 font-medium">{participantLabel(p)}</span>
                       <span className={
                         p.status === 'ACTIVE'
                           ? 'badge-green sm:opacity-100 opacity-80'
@@ -2147,10 +2148,10 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
         onConfirm={() => winnerDialogUser && declareWinnerMutation.mutate(winnerDialogUser.id)}
         icon="🏆"
         variant="warning"
-        title={`Declare ${winnerDialogUser?.username} as Winner?`}
+        title={`Declare ${winnerDialogUser ? participantLabel(winnerDialogUser) : 'participant'} as Winner?`}
         message="This will end the competition and crown this participant as the champion."
         items={[
-          `${winnerDialogUser?.username} will be marked as WINNER`,
+          `${winnerDialogUser ? participantLabel(winnerDialogUser) : 'This participant'} will be marked as WINNER`,
           'All other active participants will be eliminated',
           'The competition will be marked as COMPLETED',
         ]}
@@ -2163,7 +2164,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
         onClose={() => setRemoveDialogUser(null)}
         onConfirm={() => removeDialogUser && removeMutation.mutate(removeDialogUser.id)}
         variant="danger"
-        title={`Remove ${removeDialogUser?.username}?`}
+        title={`Remove ${removeDialogUser ? participantLabel(removeDialogUser) : 'participant'}?`}
         message="This will remove the participant and delete all their picks and results for this competition."
         confirmText="Yes, Remove"
       />

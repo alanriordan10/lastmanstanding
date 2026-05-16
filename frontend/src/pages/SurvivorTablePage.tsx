@@ -31,6 +31,8 @@ export default function SurvivorTablePage() {
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'ELIMINATED' | 'WINNER'>('ALL');
   const [eliminatedWeekFilter, setEliminatedWeekFilter] = useState<'ALL' | number>('ALL');
   const [page, setPage] = useState(1);
+  const [mobileMode, setMobileMode] = useState<'table' | 'compact'>('compact');
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
 
   const { data: comp } = useQuery<Competition>({
     queryKey: ['competition', compId],
@@ -58,7 +60,7 @@ export default function SurvivorTablePage() {
   }, [rows]);
   const displayName = (row: SurvivorRow) =>
     (userEntryCounts.get(row.userId) ?? 0) > 1
-      ? `${row.username} #${row.entryNumber ?? 1}`
+      ? `${row.username} • Entry #${row.entryNumber ?? 1}`
       : row.username;
   const eliminatedWeeks = useMemo(
     () => Array.from(new Set(rows.map((r) => r.eliminatedWeek).filter((w): w is number => w != null))).sort((a, b) => a - b),
@@ -101,6 +103,14 @@ export default function SurvivorTablePage() {
   const handleSearch = (v: string) => { setSearch(v); setPage(1); };
   const handleStatusFilter = (s: typeof statusFilter) => { setStatusFilter(s); setPage(1); };
   const handleEliminatedWeekFilter = (week: 'ALL' | number) => { setEliminatedWeekFilter(week); setPage(1); };
+  const toggleExpanded = (participantId: number) => {
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(participantId)) next.delete(participantId);
+      else next.add(participantId);
+      return next;
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -176,6 +186,24 @@ export default function SurvivorTablePage() {
             ))}
           </select>
         </div>
+        <div className="inline-flex rounded-lg bg-surface-700 p-1 sm:hidden">
+          <button
+            onClick={() => setMobileMode('compact')}
+            className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+              mobileMode === 'compact' ? 'bg-brand-600 text-white' : 'text-gray-400'
+            }`}
+          >
+            📱 Compact
+          </button>
+          <button
+            onClick={() => setMobileMode('table')}
+            className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+              mobileMode === 'table' ? 'bg-brand-600 text-white' : 'text-gray-400'
+            }`}
+          >
+            📊 Table
+          </button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -207,8 +235,54 @@ export default function SurvivorTablePage() {
             )}
           </div>
 
+          {mobileMode === 'compact' && (
+            <div className="sm:hidden space-y-2">
+              {paginated.length === 0 ? (
+                <div className="card py-8 text-center text-gray-400">No participants found</div>
+              ) : paginated.map((row) => {
+                const isOpen = expandedRows.has(row.participantId);
+                const latestPick = [...gameweeks]
+                  .reverse()
+                  .map((gw) => ({ gw, pick: row.picks[gw.weekNumber] }))
+                  .find((item) => item.pick != null);
+                return (
+                  <div key={row.participantId} className="rounded-xl border border-white/10 bg-white/[0.03]">
+                    <button
+                      type="button"
+                      onClick={() => toggleExpanded(row.participantId)}
+                      className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-100 truncate">{displayName(row)}</p>
+                        <p className="text-xs text-gray-400">
+                          {row.status}
+                          {row.status === 'ELIMINATED' && row.eliminatedWeek ? ` · GW${row.eliminatedWeek}` : ''}
+                          {latestPick?.pick ? ` · ${latestPick.pick.teamShortName}` : ''}
+                        </p>
+                      </div>
+                      <span className="text-gray-500 text-xs">{isOpen ? '▲' : '▼'}</span>
+                    </button>
+                    {isOpen && (
+                      <div className="border-t border-white/10 px-3 py-2 text-xs text-gray-300 space-y-1.5">
+                        {comp?.lifelineEnabled && (
+                          <p>
+                            Lifeline:
+                            <span className={row.lifelineUsed ? 'text-amber-300 ml-1' : 'text-emerald-300 ml-1'}>
+                              {row.lifelineUsed ? `Used${row.lifelineUsedWeek ? ` · GW${row.lifelineUsedWeek}` : ''}` : 'Available'}
+                            </span>
+                          </p>
+                        )}
+                        <p>Last resolved pick: <span className="text-gray-100">{latestPick?.pick ? `${latestPick.pick.teamShortName} (${latestPick.pick.outcome})` : '—'}</span></p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           <div
-            className="overflow-x-auto rounded-2xl border border-white/8 bg-white/[0.03] max-h-[70vh] shadow-[0_20px_50px_rgba(2,6,23,0.34)]"
+            className={`overflow-x-auto rounded-2xl border border-white/8 bg-white/[0.03] max-h-[70vh] shadow-[0_20px_50px_rgba(2,6,23,0.34)] ${mobileMode === 'compact' ? 'hidden sm:block' : ''}`}
             style={clubAccent ? { borderColor: `${clubAccent}2f` } : undefined}
           >
             <table className="w-full text-sm min-w-max">

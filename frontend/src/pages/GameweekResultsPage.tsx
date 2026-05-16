@@ -37,8 +37,9 @@ export default function GameweekResultsPage() {
   // ALL HOOKS MUST BE DECLARED BEFORE ANY EARLY RETURNS
   const [searchQuery, setSearchQuery] = useState('');
   const [filterOutcome, setFilterOutcome] = useState<string>('ALL');
-  const [viewMode, setViewMode] = useState<'cards' | 'table' | 'byteam'>('cards');
+  const [viewMode, setViewMode] = useState<'cards' | 'table' | 'byteam' | 'compact'>('cards');
   const [currentPage, setCurrentPage] = useState(1);
+  const [expandedCompactRows, setExpandedCompactRows] = useState<Set<string>>(new Set());
   const itemsPerPage = 24; // Show 24 cards per page (4x6 grid on desktop)
 
   const { data: comp } = useQuery<Competition>({
@@ -78,14 +79,31 @@ export default function GameweekResultsPage() {
   }, [safeSelections]);
   const displayName = (s: GameweekSelection) =>
     (userEntryCounts.get(s.userId) ?? 0) > 1
-      ? `${s.username} #${s.entryNumber ?? 1}`
+      ? `${s.username} • Entry #${s.entryNumber ?? 1}`
       : s.username;
 
   // NOW we can do early returns AFTER all hooks
   if (selectionsLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
+      <div className="space-y-6 animate-pulse">
+        <div className="rounded-[1.75rem] border border-white/8 bg-surface-800/50 px-4 py-5 sm:px-6 sm:py-6">
+          <div className="h-3 w-24 rounded bg-surface-700" />
+          <div className="mt-3 h-8 w-64 rounded bg-surface-700" />
+          <div className="mt-3 h-4 w-44 rounded bg-surface-700" />
+        </div>
+        <div className="grid grid-cols-3 gap-3 sm:gap-4">
+          {Array.from({ length: 3 }).map((_, idx) => (
+            <div key={idx} className="card h-20 rounded bg-surface-700/70" />
+          ))}
+        </div>
+        <div className="card p-4">
+          <div className="h-5 w-48 rounded bg-surface-700" />
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, idx) => (
+              <div key={idx} className="h-24 rounded bg-surface-700/80" />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -163,6 +181,15 @@ export default function GameweekResultsPage() {
     acc[key].push(sel);
     return acc;
   }, {} as Record<string, GameweekSelection[]>);
+
+  const toggleCompactRow = (id: string) => {
+    setExpandedCompactRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -347,6 +374,15 @@ export default function GameweekResultsPage() {
               title="Group by team"
             >
               👥 By Team
+            </button>
+            <button
+              onClick={() => setViewMode('compact')}
+              className={`px-3 py-1 text-xs font-medium rounded transition-colors sm:hidden ${
+                viewMode === 'compact' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'
+              }`}
+              title="Compact mobile view"
+            >
+              📱 Compact
             </button>
           </div>
         </div>
@@ -581,6 +617,73 @@ export default function GameweekResultsPage() {
         </div>
       )}
 
+      {viewMode === 'compact' && (
+        <div className="card space-y-2 sm:hidden">
+          {filteredSelections.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-400">No participants found</p>
+            </div>
+          ) : (
+            <>
+              {paginatedSelections.map((sel) => {
+                const rowId = `${sel.participantId ?? sel.userId}-${sel.teamId}`;
+                const isOpen = expandedCompactRows.has(rowId);
+                const fixture = gameweekFixtures.find((f) => f.homeTeamId === sel.teamId || f.awayTeamId === sel.teamId);
+                const isHome = fixture?.homeTeamId === sel.teamId;
+                const opponent = isHome ? fixture?.awayTeamShortName : fixture?.homeTeamShortName;
+                const score = fixture?.status === 'FINISHED'
+                  ? `${fixture.scoreHome}-${fixture.scoreAway}`
+                  : fixture?.status === 'POSTPONED'
+                  ? 'PP'
+                  : '-';
+                return (
+                  <div key={rowId} className="rounded-lg border border-white/10 bg-surface-800/40">
+                    <button
+                      type="button"
+                      onClick={() => toggleCompactRow(rowId)}
+                      className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-100 truncate">{displayName(sel)}</p>
+                        <p className="text-xs text-gray-400">Picked {sel.teamShortName}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <OutcomeBadge outcome={sel.outcome} />
+                        <span className="text-gray-500 text-xs">{isOpen ? '▲' : '▼'}</span>
+                      </div>
+                    </button>
+                    {isOpen && (
+                      <div className="border-t border-white/10 px-3 py-2 text-xs text-gray-300 space-y-1.5">
+                        <p>Opponent: <span className="text-gray-100">{opponent || '—'}</span></p>
+                        <p>Score: <span className="text-gray-100">{score}</span></p>
+                        <p>Pick type: <span className="text-gray-100">{sel.source === 'AUTO' ? 'Auto' : 'Self'}{sel.useLifeline ? ' · Lifeline' : ''}</span></p>
+                        {comp.lifelineEnabled && (
+                          <p>
+                            Lifeline:
+                            <span className={sel.lifelineUsed ? 'text-amber-300 ml-1' : 'text-emerald-300 ml-1'}>
+                              {sel.lifelineUsed ? `Used${sel.lifelineUsedWeek ? ` · GW${sel.lifelineUsedWeek}` : ''}` : 'Available'}
+                            </span>
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {totalPages > 1 && (
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                  totalItems={filteredSelections.length}
+                  itemsPerPage={itemsPerPage}
+                />
+              )}
+            </>
+          )}
+        </div>
+      )}
+
       {/* Fixtures for Reference */}
       {gameweekFixtures.length > 0 && (
         <section className="card">
@@ -656,7 +759,7 @@ function SelectionCard({
     : '-';
 
   const label = (userEntryCounts.get(selection.userId) ?? 0) > 1
-    ? `${selection.username} #${selection.entryNumber ?? 1}`
+    ? `${selection.username} • Entry #${selection.entryNumber ?? 1}`
     : selection.username;
 
   return (

@@ -544,6 +544,32 @@ export default function CompetitionHomePage() {
     }
   };
 
+  const prefetchGameweekViews = (gwId: number) => {
+    void queryClient.prefetchQuery({
+      queryKey: ['selections', compId, gwId],
+      queryFn: () =>
+        api.get(`/competitions/${compId}/gameweeks/${gwId}/selections`).then((r) => {
+          if (Array.isArray(r.data)) return { selections: r.data, byeGranted: false, weekNumber: 0 };
+          return r.data;
+        }),
+      staleTime: 30_000,
+    });
+    void queryClient.prefetchQuery({
+      queryKey: ['gameweekSelections', compId, gwId],
+      queryFn: () =>
+        api.get(`/competitions/${compId}/gameweeks/${gwId}/selections`).then((r) => {
+          if (Array.isArray(r.data)) return { selections: r.data, byeGranted: false, weekNumber: 0 };
+          return r.data;
+        }),
+      staleTime: 30_000,
+    });
+    void queryClient.prefetchQuery({
+      queryKey: ['fixtures', compId, gwId],
+      queryFn: () => api.get(`/competitions/${compId}/gameweeks/${gwId}/fixtures`).then((r) => (Array.isArray(r.data) ? r.data : [])),
+      staleTime: 30_000,
+    });
+  };
+
   // Build a map of gameweekId -> pick for this user
   const pickByGwId = new Map<number, { teamId: number; teamName: string; teamShortName: string; locked: boolean; useLifeline?: boolean; outcome: string }>();
   myStatus?.picks.forEach((p) => {
@@ -758,6 +784,8 @@ export default function CompetitionHomePage() {
   const weeklyEliminatedCount = narrativeWeekInProgress
     ? (gwEliminatedFromSelections || (weeklyPickedCount > 0 ? Math.max(weeklyPickedCount - weeklyAdvancedCount, 0) : 0))
     : (gwEliminatedThisWeek ?? (weeklyPickedCount > 0 ? Math.max(weeklyPickedCount - weeklyAdvancedCount, 0) : 0));
+  const weekSelectionsForChanges = latestNarrativeSelections?.selections ?? latestCompletedSelections?.selections ?? [];
+  const lifelinesPlayedThisWeek = weekSelectionsForChanges.filter((selection) => selection.useLifeline).length;
   const baseEliminatedCount = Math.max((comp.participantCount ?? 0) - (comp.activeCount ?? 0), 0);
   const liveWeekExtraEliminations = latestNarrativeWeek?.data.gwStatus === 'IN_PROGRESS' ? gwEliminatedFromSelections : 0;
   const effectiveEliminatedCount = Math.min(baseEliminatedCount + liveWeekExtraEliminations, comp.participantCount ?? 0);
@@ -1670,6 +1698,35 @@ export default function CompetitionHomePage() {
         ))}
       </section>
 
+      <section className="rounded-[1.35rem] border border-white/10 bg-white/[0.03] px-4 py-4 sm:px-5">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-200">What Changed This Gameweek</div>
+        <h2 className="mt-1 text-lg font-semibold text-white">
+          {narrativeWeekLabel ?? 'Latest gameweek'} snapshot
+        </h2>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-xl border border-white/10 bg-black/15 px-3 py-2">
+            <div className="text-[11px] uppercase tracking-[0.14em] text-gray-400">New eliminations</div>
+            <div className="mt-1 text-base font-bold text-red-300">{weeklyEliminatedCount}</div>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-black/15 px-3 py-2">
+            <div className="text-[11px] uppercase tracking-[0.14em] text-gray-400">Most picked</div>
+            <div className="mt-1 text-base font-bold text-white">
+              {mostBackedTeam ? `${mostBackedTeam.teamShortName} (${mostBackedTeam.pickCount})` : 'No picks yet'}
+            </div>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-black/15 px-3 py-2">
+            <div className="text-[11px] uppercase tracking-[0.14em] text-gray-400">Lifelines played</div>
+            <div className="mt-1 text-base font-bold text-amber-300">
+              {comp.lifelineEnabled ? lifelinesPlayedThisWeek : 'Lifeline off'}
+            </div>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-black/15 px-3 py-2">
+            <div className="text-[11px] uppercase tracking-[0.14em] text-gray-400">Entries remaining</div>
+            <div className="mt-1 text-base font-bold text-emerald-300">{effectiveActiveCount}</div>
+          </div>
+        </div>
+      </section>
+
       {stateBanner && (
         <section className={clsx(
           'rounded-[1.35rem] border px-4 py-4 sm:px-5',
@@ -1968,6 +2025,8 @@ export default function CompetitionHomePage() {
                             <Link
                               to={`/competitions/${compId}/gameweeks/${gwId}/selections`}
                               onClick={(e) => e.stopPropagation()}
+                              onMouseEnter={() => prefetchGameweekViews(gwId)}
+                              onFocus={() => prefetchGameweekViews(gwId)}
                               className="text-xs text-brand-400 hover:text-brand-300 hidden sm:inline whitespace-nowrap"
                             >
                               All selections →
@@ -1976,6 +2035,8 @@ export default function CompetitionHomePage() {
                               <Link
                                 to={`/competitions/${compId}/gameweeks/${gwId}/results`}
                                 onClick={(e) => e.stopPropagation()}
+                                onMouseEnter={() => prefetchGameweekViews(gwId)}
+                                onFocus={() => prefetchGameweekViews(gwId)}
                                 className="text-xs text-green-400 hover:text-green-300 hidden sm:inline font-medium whitespace-nowrap"
                               >
                                 📊 Results →
@@ -2000,6 +2061,8 @@ export default function CompetitionHomePage() {
                       <div className="mt-2 sm:hidden flex gap-3">
                         <Link
                           to={`/competitions/${compId}/gameweeks/${gwId}/selections`}
+                          onMouseEnter={() => prefetchGameweekViews(gwId)}
+                          onFocus={() => prefetchGameweekViews(gwId)}
                           className="text-xs text-brand-400 hover:text-brand-300"
                         >
                           View all selections →
@@ -2007,6 +2070,8 @@ export default function CompetitionHomePage() {
                         {isCompleted && (
                           <Link
                             to={`/competitions/${compId}/gameweeks/${gwId}/results`}
+                            onMouseEnter={() => prefetchGameweekViews(gwId)}
+                            onFocus={() => prefetchGameweekViews(gwId)}
                             className="text-xs text-green-400 hover:text-green-300 font-medium"
                           >
                             📊 Results →
