@@ -1438,7 +1438,14 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
 
   const activeCount = participants?.filter(p => p.status === 'ACTIVE').length ?? 0;
   const unpaidCount = isManual ? (participants?.filter(p => !paidSet.has(p.userId)).length ?? 0) : 0;
-  const participantLabel = (p: Participant) => `${p.username} • Entry #${p.entryNumber ?? 1}`;
+  const entryCountByUserId = new Map<number, number>();
+  (participants ?? []).forEach((participant) => {
+    entryCountByUserId.set(participant.userId, (entryCountByUserId.get(participant.userId) ?? 0) + 1);
+  });
+  const participantLabel = (p: Participant) =>
+    (entryCountByUserId.get(p.userId) ?? 0) > 1
+      ? `${p.username} • Entry #${p.entryNumber ?? 1}`
+      : p.username;
 
   // Filter
   const filtered = (participants ?? []).filter(p => {
@@ -1614,141 +1621,70 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
 
       {(participants?.length ?? 0) > 0 && activeTab === 'PARTICIPANTS' && (
         <div ref={mobileToolbarRef} className="sm:hidden sticky top-2 z-20 rounded-lg border border-white/10 bg-surface-800/95 backdrop-blur px-2 py-2 space-y-2">
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              onClick={() => setMobileSearchOpen((v) => !v)}
-              className="text-xs h-9 rounded-md border border-white/10 bg-white/[0.03] px-2 text-gray-300"
-            >
-              Search
-            </button>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setMobileFiltersOpen((v) => !v)}
-                className="w-full text-xs h-9 rounded-md border border-white/10 bg-white/[0.03] px-2 text-gray-300"
+          <div className="relative">
+            <input
+              type="text"
+              value={search}
+              onChange={e => { setSearch(e.target.value); setPage(1); }}
+              placeholder="Search by name…"
+              className="w-full pl-3 pr-8 h-9 text-xs rounded-lg bg-surface-800 border border-gray-600/50 text-gray-200 placeholder-gray-500 focus:outline-none focus:border-brand-500"
+            />
+            {search && (
+              <button onClick={() => { setSearch(''); setPage(1); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400">×</button>
+            )}
+          </div>
+          <div className="grid grid-cols-12 gap-2">
+            <div className="col-span-7">
+              <label className="mb-1 block text-[10px] uppercase tracking-[0.12em] text-gray-500">Status</label>
+              <select
+                value={statusFilter}
+                onChange={(e) => { setStatusFilter(e.target.value as typeof statusFilter); setPage(1); }}
+                className="w-full h-8 rounded-md border border-white/10 bg-surface-700 px-2 text-xs text-gray-200"
               >
-                Filters
-              </button>
-              {mobileFiltersOpen && (
-                <div className="absolute left-0 top-full mt-1.5 z-30 w-64 rounded-md border border-white/10 bg-surface-800 p-2 shadow-xl space-y-2">
-                  <div>
-                    <p className="mb-1 text-[10px] uppercase tracking-[0.12em] text-gray-400">Participant status</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {(['ALL', 'ACTIVE', 'ELIMINATED', 'WINNER'] as const).map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          onClick={() => { setStatusFilter(s); setPage(1); setMobileFiltersOpen(false); }}
-                          className={`text-xs h-9 rounded-md px-2 ${statusFilter === s ? 'bg-brand-600 text-white' : 'bg-white/[0.04] text-gray-300 border border-white/10'}`}
-                        >
-                          {s === 'ALL' ? `All (${statusCounts.ALL})` : `${s.charAt(0) + s.slice(1).toLowerCase()} (${statusCounts[s]})`}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  {isManual && (
-                    <div>
-                      <p className="mb-1 text-[10px] uppercase tracking-[0.12em] text-gray-400">Payment status</p>
-                      <div className="inline-flex rounded-lg bg-surface-700 p-0.5">
-                        {(['ALL', 'AWAITING', 'PAID'] as const).map((mode) => (
-                          <button
-                            key={mode}
-                            type="button"
-                            onClick={() => applyMobileViewMode(mode)}
-                            className={`px-2 h-8 text-xs rounded-md ${viewMode === mode ? 'bg-brand-600 text-white' : 'text-gray-300 hover:text-white'}`}
-                          >
-                            {mode}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={clearAllFilters}
-                    className="w-full h-9 rounded-md border border-white/10 bg-white/[0.03] px-2 text-xs text-gray-300"
-                  >
-                    Clear all filters
-                  </button>
-                </div>
-              )}
+                <option value="ALL">All ({statusCounts.ALL})</option>
+                <option value="ACTIVE">Active ({statusCounts.ACTIVE})</option>
+                <option value="ELIMINATED">Eliminated ({statusCounts.ELIMINATED})</option>
+                <option value="WINNER">Winner ({statusCounts.WINNER})</option>
+              </select>
             </div>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setMobileActionsOpen((v) => !v)}
-                className="w-full text-xs h-9 rounded-md border border-white/10 bg-white/[0.03] px-2 text-gray-300"
+            <div className="col-span-5">
+              <label className="mb-1 block text-[10px] uppercase tracking-[0.12em] text-gray-500">Payment</label>
+              <select
+                value={viewMode}
+                onChange={(e) => applyMobileViewMode(e.target.value as 'ALL' | 'AWAITING' | 'PAID')}
+                disabled={!isManual}
+                className="w-full h-8 rounded-md border border-white/10 bg-surface-700 px-2 text-xs text-gray-200 disabled:opacity-40"
               >
-                Actions
-              </button>
-              {mobileActionsOpen && (
-                <div className="absolute right-0 top-full mt-1.5 z-30 w-56 rounded-md border border-white/10 bg-surface-800 p-2 shadow-xl space-y-2">
-                  {activeTab === 'PARTICIPANTS' && (
-                    <button
-                      type="button"
-                      onClick={() => { setShowAddPanel((v) => !v); setMobileActionsOpen(false); }}
-                      className="w-full h-9 rounded-md border border-white/10 bg-white/[0.04] px-2 text-xs text-gray-200"
-                    >
-                      {showAddPanel ? 'Close add panel' : 'Add participant'}
-                    </button>
-                  )}
-                  <button type="button" onClick={() => { exportPaymentsCsv(); setMobileActionsOpen(false); }} className="w-full h-9 rounded-md border border-white/10 px-2 text-xs text-gray-300">Export CSV</button>
-                </div>
-              )}
+                <option value="ALL">All</option>
+                <option value="AWAITING">Awaiting</option>
+                <option value="PAID">Paid</option>
+              </select>
             </div>
           </div>
-          {mobileSearchOpen && (
-            <div className="relative">
-              <input
-                type="text"
-                value={search}
-                onChange={e => { setSearch(e.target.value); setPage(1); }}
-                placeholder="Search by name…"
-                className="w-full pl-3 pr-8 h-9 text-xs rounded-lg bg-surface-800 border border-gray-600/50 text-gray-200 placeholder-gray-500 focus:outline-none focus:border-brand-500"
-              />
-              {search && (
-                <button onClick={() => { setSearch(''); setPage(1); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400">×</button>
-              )}
-            </div>
-          )}
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setShowAddPanel((v) => !v)}
+              className="w-full h-9 rounded-md border border-white/10 bg-white/[0.04] px-2 text-xs text-gray-200"
+            >
+              {showAddPanel ? 'Close add panel' : 'Add participant'}
+            </button>
+            <button
+              type="button"
+              onClick={exportPaymentsCsv}
+              className="w-full h-9 rounded-md border border-white/10 bg-white/[0.03] px-2 text-xs text-gray-300"
+            >
+              Export CSV
+            </button>
+          </div>
           {(statusFilter !== 'ALL' || (isManual && viewMode !== 'ALL') || search.trim()) && (
-            <div className="flex flex-wrap items-center gap-1">
-              {statusFilter !== 'ALL' && (
-                <button
-                  type="button"
-                  onClick={() => { setStatusFilter('ALL'); setPage(1); }}
-                  className="inline-flex h-7 items-center rounded-full border border-white/10 bg-white/[0.04] px-2 text-[11px] text-gray-300"
-                >
-                  Status: {statusFilter.toLowerCase()} ×
-                </button>
-              )}
-              {isManual && viewMode !== 'ALL' && (
-                <button
-                  type="button"
-                  onClick={() => { setViewMode('ALL'); setPage(1); }}
-                  className="inline-flex h-7 items-center rounded-full border border-white/10 bg-white/[0.04] px-2 text-[11px] text-gray-300"
-                >
-                  Payment: {viewMode.toLowerCase()} ×
-                </button>
-              )}
-              {search.trim() && (
-                <button
-                  type="button"
-                  onClick={() => { setSearch(''); setPage(1); }}
-                  className="inline-flex h-7 items-center rounded-full border border-white/10 bg-white/[0.04] px-2 text-[11px] text-gray-300"
-                >
-                  Search: "{search}" ×
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={clearAllFilters}
-                className="inline-flex h-7 items-center rounded-full border border-brand-400/30 bg-brand-500/10 px-2 text-[11px] text-brand-200"
-              >
-                Clear all
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={clearAllFilters}
+              className="w-full h-8 rounded-md border border-brand-400/25 bg-brand-500/10 px-2 text-xs text-brand-200"
+            >
+              Clear filters
+            </button>
           )}
         </div>
       )}
@@ -2053,22 +1989,23 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                     </button>
                   )}
                 </div>
-                  <div className="sm:hidden relative">
+                  <div className="sm:hidden">
                     <button
                       type="button"
                       ref={(el) => { actionButtonRefs.current[p.id] = el; }}
                       onClick={() => setMobileActionUserId((id) => (id === p.id ? null : p.id))}
-                      className="rounded-md border border-white/10 bg-white/[0.03] px-3 h-9 text-xs text-gray-300"
+                      className="w-full h-9 rounded-md border border-white/10 bg-white/[0.03] px-3 text-xs text-gray-300 flex items-center justify-between"
                     >
-                      Actions
+                      <span>Manage</span>
+                      <span className="text-gray-500">{mobileActionUserId === p.id ? '▲' : '▼'}</span>
                     </button>
                     {mobileActionUserId === p.id && (
-                      <div className="absolute left-0 top-full mt-1.5 z-30 w-full min-w-[14rem] rounded-md border border-white/10 bg-surface-800 p-2 shadow-xl space-y-2">
+                      <div className="mt-2 grid grid-cols-1 gap-2">
                         {isManual && (
                           paidSet.has(p.userId) ? (
                             <button
                               type="button"
-                              onClick={() => { revertPayment(p); setMobileActionUserId(null); }}
+                              onClick={() => revertPayment(p)}
                               disabled={unmarkPaidMutation.isPending}
                               className="w-full h-9 rounded-md bg-rose-600/15 px-2 text-xs text-rose-300"
                             >
@@ -2077,7 +2014,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                           ) : (
                             <button
                               type="button"
-                              onClick={() => { confirmPayment(p); setMobileActionUserId(null); }}
+                              onClick={() => confirmPayment(p)}
                               disabled={markPaidMutation.isPending}
                               className="w-full h-9 rounded-md bg-green-600/15 px-2 text-xs text-green-300"
                             >
@@ -2088,7 +2025,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                         {p.status === 'ACTIVE' && activeCount > 1 && (
                           <button
                             type="button"
-                            onClick={() => { setWinnerDialogUser(p); setMobileActionUserId(null); }}
+                            onClick={() => setWinnerDialogUser(p)}
                             disabled={declareWinnerMutation.isPending}
                             className="w-full h-9 rounded-md bg-amber-600/15 px-2 text-xs text-amber-300"
                           >
@@ -2097,7 +2034,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                         )}
                         <button
                           type="button"
-                          onClick={() => { setRemoveDialogUser(p); setMobileActionUserId(null); }}
+                          onClick={() => setRemoveDialogUser(p)}
                           disabled={removeMutation.isPending}
                           className="w-full h-9 rounded-md border border-rose-400/30 bg-rose-600/10 px-2 text-xs text-rose-300"
                         >

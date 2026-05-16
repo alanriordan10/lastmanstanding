@@ -104,7 +104,12 @@ function impliedFromDecimalOdds(home?: number | null, draw?: number | null, away
 }
 
 function calculateTeamRisk(fixture: Fixture, side: 'home' | 'away', pickStat?: PickStat): TeamRisk | null {
-  // Show risk while the fixture is still unresolved across upcoming/locked/in-progress states.
+  // Risk guidance is only useful before lock; hide once the gameweek is locked/live/completed.
+  if (fixture.gameweekStatus !== 'UPCOMING') {
+    return null;
+  }
+
+  // Keep risk hidden for resolved fixture states.
   if (fixture.status === 'FINISHED' || fixture.status === 'POSTPONED' || fixture.status === 'CANCELLED') {
     return null;
   }
