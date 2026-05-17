@@ -647,6 +647,18 @@ export default function CompetitionHomePage() {
     if (pick.outcome !== 'PENDING') return pick.outcome;
     return liveOutcomeByGwTeam.get(`${pick.gameweekId}:${pick.teamId}`) ?? 'PENDING';
   };
+  const derivedEliminatedWeek =
+    participant?.eliminatedWeek
+    ?? myStatus?.picks
+      ?.filter((p) => effectivePickOutcome(p) === 'ELIMINATED')
+      ?.sort((a, b) => a.weekNumber - b.weekNumber)?.[0]?.weekNumber
+    ?? null;
+  const pickHistoryOutcome = (pick: { outcome: string; gameweekId: number; teamId: number; weekNumber: number }) => {
+    if (derivedEliminatedWeek != null && pick.weekNumber > derivedEliminatedWeek) {
+      return 'OUT';
+    }
+    return effectivePickOutcome(pick);
+  };
   const uniqueTeamIds = new Set<number>();
   fixtures?.forEach((f) => {
     uniqueTeamIds.add(f.homeTeamId);
@@ -2237,7 +2249,7 @@ export default function CompetitionHomePage() {
                     {myStatus.picks
                       .sort((a, b) => a.weekNumber - b.weekNumber)
                       .map((pick) => {
-                        const outcome = effectivePickOutcome(pick);
+                        const outcome = pickHistoryOutcome(pick);
                         return (
                         <div key={pick.pickId} className="py-3 space-y-2">
                           <div className="flex items-start justify-between gap-3">
@@ -2275,7 +2287,7 @@ export default function CompetitionHomePage() {
                         {myStatus.picks
                           .sort((a, b) => a.weekNumber - b.weekNumber)
                           .map((pick) => {
-                          const outcome = effectivePickOutcome(pick);
+                          const outcome = pickHistoryOutcome(pick);
                           return (
                           <tr key={pick.pickId} className="border-b border-gray-700/50 hover:bg-surface-700/30">
                             <td className="py-3 px-4 font-medium">{pick.weekNumber}</td>
@@ -2815,6 +2827,7 @@ function OutcomeBadge({ outcome }: { outcome: string }) {
   switch (outcome) {
     case 'ADVANCE': return <span className="badge-green">✓ Advanced</span>;
     case 'ELIMINATED': return <span className="badge-red">✗ Eliminated</span>;
+    case 'OUT': return <span className="badge-red">○ Out</span>;
     case 'POSTPONED_ADVANCE': return <span className="badge-yellow">↷ Postponed</span>;
     case 'PENDING': return <span className="badge-gray">⏳ Pending</span>;
     default: return <span className="badge-gray">{outcome}</span>;

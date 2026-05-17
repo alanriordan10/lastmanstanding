@@ -173,17 +173,13 @@ export default function CompetitionsPage() {
     finished: true,
   });
   const [currentPage, setCurrentPage] = useState(1);
-  const [remainingPage, setRemainingPage] = useState(1);
   const [joinCodeInput, setJoinCodeInput] = useState(joinCodeParam);
   const [recentJoinSuccess, setRecentJoinSuccess] = useState<{ name: string; payment: 'PAID' | 'MANUAL' | 'FREE' } | null>(null);
   const PAGE_SIZE = 12;
-  const FEATURED_LIMIT = 6;
-  const REMAINING_PAGE_SIZE = 20;
 
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-    setRemainingPage(1);
   }, [search, statusFilter, feeFilter, startWindow, sortBy, selectedClub, viewMode]);
 
   useEffect(() => {
@@ -367,6 +363,33 @@ export default function CompetitionsPage() {
     return list;
   }, [allComps, joinedSet, search, statusFilter, feeFilter, startWindow, sortBy, highlightedCompetitionId]);
 
+  const filteredLiveAvailable = useMemo(() => {
+    let list = allComps.filter((c) => c.status === 'ACTIVE' && !joinedSet.has(c.id));
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(c => c.name.toLowerCase().includes(q) || c.clubName?.toLowerCase().includes(q) || c.description?.toLowerCase().includes(q));
+    }
+    if (statusFilter !== 'ALL') list = list.filter((c) => c.status === statusFilter);
+    if (feeFilter !== 'ALL') {
+      list = list.filter(c => feeFilter === 'FREE' ? (c.entryFee ?? 0) === 0 : (c.entryFee ?? 0) > 0);
+    }
+    switch (sortBy) {
+      case 'players': list = [...list].sort((a, b) => b.participantCount - a.participantCount); break;
+      case 'name':    list = [...list].sort((a, b) => a.name.localeCompare(b.name)); break;
+      case 'date':
+      default:
+        list = [...list].sort((a, b) => a.name.localeCompare(b.name));
+    }
+    if (highlightedCompetitionId) {
+      list = [...list].sort((a, b) => {
+        if (a.id === highlightedCompetitionId) return -1;
+        if (b.id === highlightedCompetitionId) return 1;
+        return 0;
+      });
+    }
+    return list;
+  }, [allComps, joinedSet, search, statusFilter, feeFilter, sortBy, highlightedCompetitionId]);
+
   const searchedMine = useMemo(() => {
     if (!search.trim()) return myComps;
     const q = search.toLowerCase();
@@ -482,39 +505,11 @@ export default function CompetitionsPage() {
   const totalPages = Math.max(1, Math.ceil(filteredAvailable.length / PAGE_SIZE));
   const page = Math.min(currentPage, totalPages);
   const paginatedAvailable = filteredAvailable.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const myCompetitionById = new Map(myComps.map((mc) => [mc.competition.id, mc]));
-  const activeCountForHeader = useMemo(() => {
-    const fromVisible = allComps.filter((c) => c.status === 'ACTIVE').length;
-    const extraJoinedPrivate = myComps.filter(
-      (mc) => mc.competition.status === 'ACTIVE' && !allComps.some((c) => c.id === mc.competition.id),
-    ).length;
-    return fromVisible + extraJoinedPrivate;
-  }, [allComps, myComps]);
-  const openCountForHeader = useMemo(() => {
-    const fromVisible = allComps.filter((c) => c.status === 'UPCOMING').length;
-    const extraJoinedPrivate = myComps.filter(
-      (mc) => mc.competition.status === 'UPCOMING' && !allComps.some((c) => c.id === mc.competition.id),
-    ).length;
-    return fromVisible + extraJoinedPrivate;
-  }, [allComps, myComps]);
-  const needsActionAvailable = filteredAvailable.filter((c) => {
-    const mine = myCompetitionById.get(c.id);
-    if (!mine) return false;
-    if (mine.paymentState === 'AWAITING_PAYMENT') return true;
-    if (c.status === 'UPCOMING' && (mine.myStatus === 'ACTIVE' || mine.myStatus === 'WINNER')) return hasPickDueAction(mine);
-    return false;
-  });
-  const needsActionAvailableLimited = needsActionAvailable.slice(0, FEATURED_LIMIT);
-  const needsActionIds = new Set(needsActionAvailableLimited.map((c) => c.id));
-  const liveAvailable = filteredAvailable.filter((c) => joinedSet.has(c.id) && c.status === 'ACTIVE' && !needsActionIds.has(c.id));
-  const liveAvailableLimited = liveAvailable.slice(0, FEATURED_LIMIT);
-  const featuredIds = new Set([...needsActionIds, ...liveAvailableLimited.map((c) => c.id)]);
-  const remainingAvailable = filteredAvailable.filter((c) => !featuredIds.has(c.id));
-  const remainingTotalPages = Math.max(1, Math.ceil(remainingAvailable.length / REMAINING_PAGE_SIZE));
-  const remainingSafePage = Math.min(remainingPage, remainingTotalPages);
-  const paginatedRemainingAvailable = remainingAvailable.slice(
-    (remainingSafePage - 1) * REMAINING_PAGE_SIZE,
-    remainingSafePage * REMAINING_PAGE_SIZE,
+  // Keep header metrics aligned with what users can actually see.
+  const activeCountForHeader = filteredLiveAvailable.length;
+  const openCountForHeader = useMemo(
+    () => filteredAvailable.length,
+    [filteredAvailable]
   );
 
   const sorted      = [...allComps].sort((a, b) => (joinedSet.has(a.id) ? 0 : 1) - (joinedSet.has(b.id) ? 0 : 1));
@@ -578,7 +573,7 @@ export default function CompetitionsPage() {
               onClick={() => setViewMode('available')}
               label="Available"
               hint="Open to join"
-              count={filteredAvailable.length}
+              count={filteredAvailable.length + filteredLiveAvailable.length}
               isLoading={isLoading}
             />
             <ModeTab
@@ -803,7 +798,7 @@ export default function CompetitionsPage() {
             <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
               {viewMode === 'available' && (
                 <span>
-                  {filteredAvailable.length} result{filteredAvailable.length !== 1 ? 's' : ''}
+                  {filteredAvailable.length} open • {filteredLiveAvailable.length} live
                 </span>
               )}
               {search && <span className="rounded-full bg-surface-700 px-2 py-1 text-gray-300">Search: {search}</span>}
@@ -926,7 +921,7 @@ export default function CompetitionsPage() {
           <LoadingState />
         ) : error ? (
           <ErrorState message="Failed to load competitions" />
-        ) : filteredAvailable.length === 0 ? (
+        ) : filteredAvailable.length === 0 && filteredLiveAvailable.length === 0 ? (
           search || statusFilter !== 'ALL'
             ? <EmptyState icon="🔍" title="No competitions match your search" action={<button onClick={() => { setSearch(''); setStatusFilter('ALL'); }} className="text-brand-400 hover:text-brand-300 underline text-sm">Clear filters</button>} />
             : <EmptyState icon="🏆" title="No competitions available yet" subtitle="Check back soon — new competitions are added regularly" />
@@ -952,76 +947,73 @@ export default function CompetitionsPage() {
               </div>
             )}
             {listView ? (
-              <CompListView comps={paginatedAvailable} joinedSet={joinedSet} onJoin={(c) => handleJoin(c)} isPending={joinMutation.isPending} entryCounts={myEntryCountByCompetition} />
-            ) : (
               <div className="space-y-5">
-                {needsActionAvailableLimited.length > 0 && (
-                  <Section label={`Needs Action (${needsActionAvailable.length})`} icon="!" iconColor="bg-amber-500">
-                    <CompGrid>
-                      {needsActionAvailableLimited.map((c) => (
-                        (() => {
-                          const mine = myCompetitionById.get(c.id);
-                          const actionHint = getCompetitionActionHint(c, mine);
-                          return (
-                        <CompetitionCard
-                          key={c.id}
-                          comp={c}
-                          joined={joinedSet.has(c.id)}
-                          onJoin={() => handleJoin(c)}
-                          isPending={joinMutation.isPending}
-                          joinedCount={myEntryCountByCompetition.get(c.id) ?? 0}
-                          canAddEntry={canAddEntry(c)}
-                          actionHint={actionHint}
-                          isHighlighted={c.id === highlightedCompetitionId}
-                          onClearHighlight={() => {
-                            const next = new URLSearchParams(searchParams);
-                            next.delete('join');
-                            setSearchParams(next, { replace: true });
-                          }}
-                        />
-                          );
-                        })()
-                      ))}
-                    </CompGrid>
-                  </Section>
-                )}
-
-                {liveAvailableLimited.length > 0 && (
-                  <Section label={`Live (${liveAvailable.length})`} icon="●" iconColor="bg-green-600">
-                    <CompGrid>
-                      {liveAvailableLimited.map((c) => (
-                        <CompetitionCard
-                          key={c.id}
-                          comp={c}
-                          joined={joinedSet.has(c.id)}
-                          onJoin={() => handleJoin(c)}
-                          isPending={joinMutation.isPending}
-                          isHighlighted={c.id === highlightedCompetitionId}
-                          onClearHighlight={() => {
-                            const next = new URLSearchParams(searchParams);
-                            next.delete('join');
-                            setSearchParams(next, { replace: true });
-                          }}
-                        />
-                      ))}
-                    </CompGrid>
-                  </Section>
-                )}
-
-                <Section label={`All Competitions (${remainingAvailable.length})`}>
-                  {remainingAvailable.length > 0 ? (
+                <Section label={`Open to Join (${filteredAvailable.length})`}>
+                  {filteredAvailable.length > 0 ? (
                     <>
-                      <CompListView comps={paginatedRemainingAvailable} joinedSet={joinedSet} onJoin={(c) => handleJoin(c)} isPending={joinMutation.isPending} entryCounts={myEntryCountByCompetition} />
-                      <Pagination page={remainingSafePage} totalPages={remainingTotalPages} total={remainingAvailable.length} pageSize={REMAINING_PAGE_SIZE} onPage={setRemainingPage} />
+                      <CompListView comps={paginatedAvailable} joinedSet={joinedSet} onJoin={(c) => handleJoin(c)} isPending={joinMutation.isPending} entryCounts={myEntryCountByCompetition} />
+                      <Pagination page={page} totalPages={totalPages} total={filteredAvailable.length} pageSize={PAGE_SIZE} onPage={setCurrentPage} />
                     </>
                   ) : (
-                    <div className="card px-4 py-3 text-sm text-gray-400">No other competitions match the current filters.</div>
+                    <div className="card px-4 py-3 text-sm text-gray-400">No upcoming competitions match the current filters.</div>
+                  )}
+                </Section>
+
+                <Section label={`Live Now · View Only (${filteredLiveAvailable.length})`} icon="●" iconColor="bg-green-600">
+                  {filteredLiveAvailable.length > 0 ? (
+                    <>
+                      <div className="rounded-lg border border-green-500/25 bg-green-500/10 px-3 py-2 text-xs text-green-200">
+                        These competitions are already in progress. You can view details but cannot join now.
+                      </div>
+                      <CompListView comps={filteredLiveAvailable} joinedSet={joinedSet} onJoin={(c) => handleJoin(c)} isPending={joinMutation.isPending} entryCounts={myEntryCountByCompetition} />
+                    </>
+                  ) : (
+                    <div className="card px-4 py-3 text-sm text-gray-400">No live public competitions match the current filters.</div>
                   )}
                 </Section>
               </div>
-            )}
-            {listView && (
-              <Pagination page={page} totalPages={totalPages} total={filteredAvailable.length} pageSize={PAGE_SIZE} onPage={setCurrentPage} />
+            ) : (
+              <div className="space-y-5">
+                <Section label={`Open to Join (${filteredAvailable.length})`}>
+                  {filteredAvailable.length > 0 ? (
+                    <>
+                      <CompListView comps={paginatedAvailable} joinedSet={joinedSet} onJoin={(c) => handleJoin(c)} isPending={joinMutation.isPending} entryCounts={myEntryCountByCompetition} />
+                      <Pagination page={page} totalPages={totalPages} total={filteredAvailable.length} pageSize={PAGE_SIZE} onPage={setCurrentPage} />
+                    </>
+                  ) : (
+                    <div className="card px-4 py-3 text-sm text-gray-400">No upcoming competitions match the current filters.</div>
+                  )}
+                </Section>
+
+                <Section label={`Live Now · View Only (${filteredLiveAvailable.length})`} icon="●" iconColor="bg-green-600">
+                  {filteredLiveAvailable.length > 0 ? (
+                    <>
+                      <div className="rounded-lg border border-green-500/25 bg-green-500/10 px-3 py-2 text-xs text-green-200">
+                        These competitions are already in progress. You can view details but cannot join now.
+                      </div>
+                      <CompGrid>
+                        {filteredLiveAvailable.map((c) => (
+                          <CompetitionCard
+                            key={c.id}
+                            comp={c}
+                            joined={joinedSet.has(c.id)}
+                            onJoin={() => handleJoin(c)}
+                            isPending={joinMutation.isPending}
+                            isHighlighted={c.id === highlightedCompetitionId}
+                            onClearHighlight={() => {
+                              const next = new URLSearchParams(searchParams);
+                              next.delete('join');
+                              setSearchParams(next, { replace: true });
+                            }}
+                          />
+                        ))}
+                      </CompGrid>
+                    </>
+                  ) : (
+                    <div className="card px-4 py-3 text-sm text-gray-400">No live public competitions match the current filters.</div>
+                  )}
+                </Section>
+              </div>
             )}
           </div>
         )
@@ -1154,6 +1146,11 @@ function CompListView({ comps, joinedSet, onJoin, isPending, entryCounts }: {
               <Link to={`/competitions/${c.id}`} className="text-xs px-3 py-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 text-gray-300 transition">
                 {joined ? 'Open' : 'View'}
               </Link>
+              {!joined && c.status === 'ACTIVE' && (
+                <span className="text-[11px] px-2.5 py-1.5 rounded-lg border border-green-500/35 bg-green-500/12 text-green-200">
+                  Live · View only
+                </span>
+              )}
               {(canAddEntry || (!joined && c.status === 'UPCOMING')) && (
                 <button onClick={() => onJoin(c)} disabled={isPending}
                   className="text-xs px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white transition">
@@ -1556,7 +1553,7 @@ function CompetitionCard({ comp, joined, onJoin, isPending, actionHint, isHighli
           </button>
         )}
         {!joined && comp.status === 'ACTIVE' && (
-          <span className="flex-1 inline-flex min-h-[40px] items-center justify-center rounded-lg border border-gray-700/60 bg-surface-800/60 text-xs text-gray-500 italic">In progress</span>
+          <span className="flex-1 inline-flex min-h-[40px] items-center justify-center rounded-lg border border-green-500/30 bg-green-500/10 text-xs text-green-200">Live now · View only</span>
         )}
       </div>
     </div>
