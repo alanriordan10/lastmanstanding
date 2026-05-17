@@ -283,6 +283,14 @@ export default function SignupPage() {
         <div className="card">
           <SocialAuthButtons mode="signup" />
         </div>
+        <div className="rounded-2xl border border-cyan-400/25 bg-cyan-500/[0.08] px-4 py-3.5">
+          <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm leading-5 text-cyan-100">
+            <span>Planning to run competitions for a club?</span>
+            <Link to="/register-club" className="font-semibold text-cyan-200 underline decoration-cyan-300/60 underline-offset-2 hover:text-white">
+              Create your club
+            </Link>
+          </p>
+        </div>
 
         <p className="text-center text-sm text-gray-400">
           Already have an account?{' '}

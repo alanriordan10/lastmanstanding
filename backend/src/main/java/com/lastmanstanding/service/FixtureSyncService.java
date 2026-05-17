@@ -128,14 +128,14 @@ public class FixtureSyncService {
         LocalDate from = compStart.minusDays(7);
         LocalDate to   = compStart.plusDays(120);
 
-        log.info("syncForCompetition: competition='{}' fetchRange={} → {} compStart={}",
+        log.debug("syncForCompetition: competition='{}' fetchRange={} → {} compStart={}",
                 competition.getName(), from, to, compStart);
 
         fixtureProvider.evictAll();
         List<ProviderTeam> teams = fixtureProvider.fetchTeams();
         List<ProviderFixture> fixtures = fixtureProvider.fetchFixtures(from, to);
         List<ProviderFixture> results  = fixtureProvider.fetchResults(from, to);
-        log.info("syncForCompetition: provider returned {} fixtures, {} results", fixtures.size(), results.size());
+        log.debug("syncForCompetition: provider returned {} fixtures, {} results", fixtures.size(), results.size());
 
         return transactionTemplate.execute(status ->
                 fixtureMutationLockService.callWithLock(() -> syncForCompetitionInternal(competition, teams, fixtures, results)));
@@ -208,7 +208,7 @@ public class FixtureSyncService {
                 .collect(Collectors.toMap(Team::getExternalTeamId, t -> t, (a, b) -> a));
 
         LocalDateTime now = LocalDateTime.now(java.time.ZoneOffset.UTC);
-        log.info("syncForCompetition: current UTC time = {}", now);
+        log.debug("syncForCompetition: current UTC time = {}", now);
 
         Set<Integer> startedWeeks = allFixtures.stream()
                 .filter(pf -> pf.kickoffAt().isBefore(now))
@@ -216,12 +216,14 @@ public class FixtureSyncService {
                 .collect(Collectors.toSet());
 
         // Log per-week earliest kickoff
-        allFixtures.stream()
-                .collect(Collectors.groupingBy(ProviderFixture::weekNumber,
-                        Collectors.minBy(Comparator.comparing(ProviderFixture::kickoffAt))))
-                .forEach((week, earliest) -> earliest.ifPresent(pf ->
-                        log.info("syncForCompetition: PL week {} earliest kickoff={} started={}",
-                                week, pf.kickoffAt(), startedWeeks.contains(week))));
+        if (log.isDebugEnabled()) {
+            allFixtures.stream()
+                    .collect(Collectors.groupingBy(ProviderFixture::weekNumber,
+                            Collectors.minBy(Comparator.comparing(ProviderFixture::kickoffAt))))
+                    .forEach((week, earliest) -> earliest.ifPresent(pf ->
+                            log.debug("syncForCompetition: PL week {} earliest kickoff={} started={}",
+                                    week, pf.kickoffAt(), startedWeeks.contains(week))));
+        }
 
         return upsertFixturesForCompetition(competition, allFixtures, teamByExternalId, startedWeeks);
     }
@@ -301,7 +303,7 @@ public class FixtureSyncService {
 
         if (validWeeks.isEmpty()) return 0;
 
-        log.info("syncForCompetition: {} valid weeks for '{}': {}",
+        log.debug("syncForCompetition: {} valid weeks for '{}': {}",
                 validWeeks.size(), comp.getName(), validWeeks.stream().sorted().toList());
 
         // Build providerWeek → compGwNumber mapping anchored to existing gameweeks
@@ -409,7 +411,11 @@ public class FixtureSyncService {
         // Batch save all fixtures at once
         fixtureRepository.saveAll(fixturesToSave);
         long newCount = fixturesToSave.stream().filter(f -> f.getId() == null).count();
-        log.info("Synced {} fixtures for competition '{}' ({} new)", fixturesToSave.size(), comp.getName(), newCount);
+        if (newCount > 0) {
+            log.info("Synced {} fixtures for competition '{}' ({} new)", fixturesToSave.size(), comp.getName(), newCount);
+        } else {
+            log.debug("Synced {} fixtures for competition '{}' ({} new)", fixturesToSave.size(), comp.getName(), newCount);
+        }
         return fixturesToSave.size();
     }
 }
