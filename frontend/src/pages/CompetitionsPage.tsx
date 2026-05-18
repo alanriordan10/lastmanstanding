@@ -68,6 +68,10 @@ function competitionPrimaryButtonStyle(color?: string | null): CSSProperties | u
   };
 }
 
+function fixtureSourceLabel(comp: Competition): string {
+  return (comp.fixtureCompetitionCode ?? 'PL') === 'WC' ? 'World Cup' : 'Premier League';
+}
+
 function isPickLockSoon(comp: Competition, withinHours = 24): boolean {
   const source = comp.firstGameweekDate ?? comp.startDate;
   if (!source) return false;
@@ -1132,6 +1136,9 @@ function CompListView({ comps, joinedSet, onJoin, isPending, entryCounts }: {
                 <span className="font-medium text-sm text-white truncate">{c.name}</span>
                 {c.clubLogoUrl && <img src={c.clubLogoUrl} alt="" className="h-5 w-5 rounded-md object-cover border border-white/15 shrink-0" />}
                 {c.clubName && <span className="badge-yellow badge-soft shrink-0">{c.clubName}</span>}
+                <span className="shrink-0 rounded-full border border-cyan-400/35 bg-cyan-500/12 px-2 py-0.5 text-[10px] font-semibold text-cyan-200">
+                  {fixtureSourceLabel(c)}
+                </span>
                 {joined && <span className="badge-brand shrink-0">Joined {joinedCount}/{maxEntries}</span>}
               </div>
               <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-500">
@@ -1421,6 +1428,9 @@ function CompetitionCard({ comp, joined, onJoin, isPending, actionHint, isHighli
           {comp.visibility === 'PRIVATE'
             ? <span className="badge-yellow">Private</span>
             : <span className="badge-gray">Public</span>}
+          <span className="rounded-full border border-cyan-400/35 bg-cyan-500/12 px-2 py-0.5 text-[10px] font-semibold text-cyan-200">
+            {fixtureSourceLabel(comp)}
+          </span>
         </div>
         <div className="flex items-start">
           {joined ? (
@@ -1603,6 +1613,9 @@ function MyCompetitionCard({ myComp, actionHint }: { myComp: MyCompetition; acti
         {paymentState === 'AWAITING_PAYMENT' && <span className="badge-yellow">Awaiting payment</span>}
         {paymentState === 'PAID' && comp.paymentMode && comp.paymentMode !== 'FREE' && <span className="badge-green">Paid</span>}
         {urgencyDueSoon && <span className="badge-yellow">Due soon</span>}
+        <span className="rounded-full border border-cyan-400/35 bg-cyan-500/12 px-2 py-0.5 text-[10px] font-semibold text-cyan-200">
+          {fixtureSourceLabel(comp)}
+        </span>
       </div>
 
       <h3 className="text-base sm:text-lg font-bold leading-snug line-clamp-2">{comp.name}</h3>

@@ -2,6 +2,8 @@ import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import Layout from './components/Layout';
+import ErrorBoundary from './components/ErrorBoundary';
+import api from './api';
 
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const SignupPage = lazy(() => import('./pages/SignupPage'));
@@ -47,6 +49,34 @@ function InviteRedirect() {
   return <Navigate to={`/competitions?code=${encodeURIComponent(normalized)}`} replace />;
 }
 
+function CompetitionsCrashFallback() {
+  return (
+    <div className="card py-10 text-center space-y-3">
+      <div className="text-3xl">⚠️</div>
+      <p className="text-red-400 font-medium">Competitions failed to load</p>
+      <p className="text-xs text-gray-500">Try reloading this page. If it keeps happening, clear site data and sign in again.</p>
+      <div className="flex justify-center gap-2">
+        <button onClick={() => window.location.reload()} className="btn-primary text-sm">Reload</button>
+      </div>
+    </div>
+  );
+}
+
+function reportClientError(error: Error, componentStack?: string) {
+  void api.post('/client-errors', {
+    source: 'frontend',
+    page: 'competitions',
+    message: error.message,
+    stack: error.stack ?? null,
+    componentStack: componentStack ?? null,
+    path: window.location.pathname + window.location.search,
+    userAgent: navigator.userAgent,
+    timestamp: new Date().toISOString(),
+  }).catch(() => {
+    // Swallow reporting failures so users only see the original crash fallback.
+  });
+}
+
 export default function App() {
   const { user } = useAuth();
 
@@ -63,7 +93,19 @@ export default function App() {
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/faq" element={<FaqPage />} />
         <Route path="/invite/:code" element={<InviteRedirect />} />
-        <Route path="/competitions" element={<Layout><CompetitionsPage /></Layout>} />
+        <Route
+          path="/competitions"
+          element={
+            <Layout>
+              <ErrorBoundary
+                fallback={<CompetitionsCrashFallback />}
+                onError={(error, info) => reportClientError(error, info.componentStack ?? undefined)}
+              >
+                <CompetitionsPage />
+              </ErrorBoundary>
+            </Layout>
+          }
+        />
         <Route path="/competitions/:id" element={<Layout><CompetitionHomePage /></Layout>} />
         <Route path="/competitions/:id/survivor-table" element={<Layout><SurvivorTablePage /></Layout>} />
 

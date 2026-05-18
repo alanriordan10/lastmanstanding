@@ -142,9 +142,10 @@ public class CompetitionService {
     public Competition createCompetition(
             String name, String description, BigDecimal entryFee, BigDecimal prizePool,
             Integer maxEntriesPerUser,
+            String fixtureCompetitionCode,
             MissedPickMode missedPickMode, boolean postponedConsumesTeam, boolean lifelineEnabled, boolean passFeeToParticipant,
             String paymentMode, String manualPaymentPolicy, String visibility, java.time.LocalDate startDate, Long adminUserId, Long clubId) {
-        return createCompetition(name, description, entryFee, prizePool, maxEntriesPerUser, missedPickMode, postponedConsumesTeam,
+        return createCompetition(name, description, entryFee, prizePool, maxEntriesPerUser, fixtureCompetitionCode, missedPickMode, postponedConsumesTeam,
                 lifelineEnabled, passFeeToParticipant, paymentMode, manualPaymentPolicy, visibility, startDate, adminUserId, clubId, true);
     }
 
@@ -152,6 +153,7 @@ public class CompetitionService {
     public Competition createCompetition(
             String name, String description, BigDecimal entryFee, BigDecimal prizePool,
             Integer maxEntriesPerUser,
+            String fixtureCompetitionCode,
             MissedPickMode missedPickMode, boolean postponedConsumesTeam, boolean lifelineEnabled, boolean passFeeToParticipant,
             String paymentMode, String manualPaymentPolicy, String visibility, java.time.LocalDate startDate, Long adminUserId, Long clubId,
             boolean autoSyncFixtures) {
@@ -160,6 +162,7 @@ public class CompetitionService {
         Competition comp = new Competition(name, description, entryFee,
                 CompetitionStatus.UPCOMING, missedPickMode, postponedConsumesTeam, startDate, admin);
         comp.setMaxEntriesPerUser(normalizeMaxEntriesPerUser(maxEntriesPerUser));
+        comp.setFixtureCompetitionCode(normalizeFixtureCompetitionCode(fixtureCompetitionCode));
         comp.setLifelineEnabled(lifelineEnabled);
         comp.setPassFeeToParticipant(passFeeToParticipant);
         comp.setPrizePool(prizePool);
@@ -229,7 +232,7 @@ public class CompetitionService {
 
     @Transactional
     public Competition updateCompetition(Long id, String name, String description, BigDecimal entryFee,
-                                         BigDecimal prizePool, Integer maxEntriesPerUser, MissedPickMode missedPickMode,
+                                         BigDecimal prizePool, Integer maxEntriesPerUser, String fixtureCompetitionCode, MissedPickMode missedPickMode,
                                          boolean postponedConsumesTeam, Boolean lifelineEnabled, Boolean passFeeToParticipant,
                                          String paymentMode, String manualPaymentPolicy, String visibility, java.time.LocalDate startDate,
                                          CompetitionStatus status, Long clubId) {
@@ -240,6 +243,7 @@ public class CompetitionService {
         if (entryFee != null) comp.setEntryFee(entryFee);
         comp.setPrizePool(prizePool); // null is valid (clears it)
         if (maxEntriesPerUser != null) comp.setMaxEntriesPerUser(normalizeMaxEntriesPerUser(maxEntriesPerUser));
+        if (fixtureCompetitionCode != null) comp.setFixtureCompetitionCode(normalizeFixtureCompetitionCode(fixtureCompetitionCode));
         if (missedPickMode != null) comp.setMissedPickMode(missedPickMode);
         comp.setPostponedConsumesTeam(postponedConsumesTeam);
         if (lifelineEnabled != null) comp.setLifelineEnabled(lifelineEnabled);
@@ -294,6 +298,15 @@ public class CompetitionService {
     private int normalizeMaxEntriesPerUser(Integer maxEntriesPerUser) {
         if (maxEntriesPerUser == null) return 1;
         return Math.max(1, Math.min(maxEntriesPerUser, 20));
+    }
+
+    private String normalizeFixtureCompetitionCode(String fixtureCompetitionCode) {
+        if (fixtureCompetitionCode == null || fixtureCompetitionCode.isBlank()) return "PL";
+        String normalized = fixtureCompetitionCode.trim().toUpperCase(Locale.ROOT);
+        return switch (normalized) {
+            case "PL", "WC" -> normalized;
+            default -> "PL";
+        };
     }
 
     private void validateStripeClubReady(Club club) {

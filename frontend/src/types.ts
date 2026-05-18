@@ -35,6 +35,7 @@ export interface Competition {
   entryFee: number;
   prizePool?: number;
   maxEntriesPerUser?: number;
+  fixtureCompetitionCode?: 'PL' | 'WC';
   lifelineEnabled?: boolean;
   passFeeToParticipant?: boolean;
   paymentMode?: 'FREE' | 'MANUAL' | 'STRIPE';

@@ -9,10 +9,19 @@ import java.util.List;
 public interface FixtureProvider {
 
     List<ProviderTeam> fetchTeams();
+    default List<ProviderTeam> fetchTeams(String competitionCode) {
+        return fetchTeams();
+    }
 
     List<ProviderFixture> fetchFixtures(LocalDate from, LocalDate to);
+    default List<ProviderFixture> fetchFixtures(LocalDate from, LocalDate to, String competitionCode) {
+        return fetchFixtures(from, to);
+    }
 
     List<ProviderFixture> fetchResults(LocalDate from, LocalDate to);
+    default List<ProviderFixture> fetchResults(LocalDate from, LocalDate to, String competitionCode) {
+        return fetchResults(from, to);
+    }
 
     /** Evict any cached data so the next fetch goes to the source. */
     default void evictAll() {}

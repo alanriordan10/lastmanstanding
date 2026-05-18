@@ -13,6 +13,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -28,6 +29,9 @@ public class FixtureSyncService {
     // Broad historical refresh remains covered by daily full sync.
     private final int incrementalFromDays;
     private final int incrementalToDays;
+    private final int worldCupMaxFixturesPerGameweek;
+    private final int worldCupMinFixturesPerGameweek;
+    private final ZoneId fixtureSplitZone;
 
     private final FixtureProvider fixtureProvider;
     private final TeamRepository teamRepository;
@@ -45,7 +49,10 @@ public class FixtureSyncService {
                               FixtureMutationLockService fixtureMutationLockService,
                               TransactionTemplate transactionTemplate,
                               @Value("${fixture.sync.from-days:2}") int incrementalFromDays,
-                              @Value("${fixture.sync.to-days:10}") int incrementalToDays) {
+                              @Value("${fixture.sync.to-days:10}") int incrementalToDays,
+                              @Value("${fixture.sync.world-cup-max-fixtures-per-gameweek:10}") int worldCupMaxFixturesPerGameweek,
+                              @Value("${fixture.sync.world-cup-min-fixtures-per-gameweek:6}") int worldCupMinFixturesPerGameweek,
+                              @Value("${fixture.sync.split-zone:Europe/Dublin}") String fixtureSplitZone) {
         this.fixtureProvider = fixtureProvider;
         this.teamRepository = teamRepository;
         this.fixtureRepository = fixtureRepository;
@@ -55,6 +62,9 @@ public class FixtureSyncService {
         this.transactionTemplate = transactionTemplate;
         this.incrementalFromDays = Math.max(0, incrementalFromDays);
         this.incrementalToDays = Math.max(1, incrementalToDays);
+        this.worldCupMaxFixturesPerGameweek = Math.max(1, worldCupMaxFixturesPerGameweek);
+        this.worldCupMinFixturesPerGameweek = Math.max(1, worldCupMinFixturesPerGameweek);
+        this.fixtureSplitZone = ZoneId.of(fixtureSplitZone);
     }
 
     public void syncTeams() {
@@ -84,39 +94,29 @@ public class FixtureSyncService {
     public void syncFixturesAndResults() {
         LocalDate from = LocalDate.now().minusDays(incrementalFromDays);
         LocalDate to = LocalDate.now().plusDays(incrementalToDays);
-        List<ProviderFixture> fixtures = fixtureProvider.fetchFixtures(from, to);
-        List<ProviderFixture> results = fixtureProvider.fetchResults(from, to);
         transactionTemplate.executeWithoutResult(status ->
-                fixtureMutationLockService.runWithLock(() -> syncFixturesAndResultsInternal(fixtures, results)));
+                fixtureMutationLockService.runWithLock(() -> syncFixturesAndResultsInternal(from, to)));
     }
 
     public boolean trySyncFixturesAndResults() {
         LocalDate from = LocalDate.now().minusDays(incrementalFromDays);
         LocalDate to = LocalDate.now().plusDays(incrementalToDays);
-        List<ProviderFixture> fixtures = fixtureProvider.fetchFixtures(from, to);
-        List<ProviderFixture> results = fixtureProvider.fetchResults(from, to);
         return Boolean.TRUE.equals(transactionTemplate.execute(status ->
-                fixtureMutationLockService.tryRunWithLock(() -> syncFixturesAndResultsInternal(fixtures, results))));
+                fixtureMutationLockService.tryRunWithLock(() -> syncFixturesAndResultsInternal(from, to))));
     }
 
     public void fullSync() {
-        List<ProviderTeam> teams = fixtureProvider.fetchTeams();
         LocalDate from = LocalDate.now().minusDays(30);
         LocalDate to = LocalDate.now().plusDays(60);
-        List<ProviderFixture> fixtures = fixtureProvider.fetchFixtures(from, to);
-        List<ProviderFixture> results = fixtureProvider.fetchResults(from, to);
         transactionTemplate.executeWithoutResult(status ->
-                fixtureMutationLockService.runWithLock(() -> fullSyncInternal(teams, fixtures, results)));
+                fixtureMutationLockService.runWithLock(() -> fullSyncInternal(from, to)));
     }
 
     public boolean tryFullSync() {
-        List<ProviderTeam> teams = fixtureProvider.fetchTeams();
         LocalDate from = LocalDate.now().minusDays(30);
         LocalDate to = LocalDate.now().plusDays(60);
-        List<ProviderFixture> fixtures = fixtureProvider.fetchFixtures(from, to);
-        List<ProviderFixture> results = fixtureProvider.fetchResults(from, to);
         return Boolean.TRUE.equals(transactionTemplate.execute(status ->
-                fixtureMutationLockService.tryRunWithLock(() -> fullSyncInternal(teams, fixtures, results))));
+                fixtureMutationLockService.tryRunWithLock(() -> fullSyncInternal(from, to))));
     }
 
     /**
@@ -132,23 +132,28 @@ public class FixtureSyncService {
                 competition.getName(), from, to, compStart);
 
         fixtureProvider.evictAll();
-        List<ProviderTeam> teams = fixtureProvider.fetchTeams();
-        List<ProviderFixture> fixtures = fixtureProvider.fetchFixtures(from, to);
-        List<ProviderFixture> results  = fixtureProvider.fetchResults(from, to);
+        String competitionCode = normalizeCompetitionCode(competition.getFixtureCompetitionCode());
+        List<ProviderTeam> teams = fixtureProvider.fetchTeams(competitionCode);
+        List<ProviderFixture> fixtures = fixtureProvider.fetchFixtures(from, to, competitionCode);
+        List<ProviderFixture> results  = fixtureProvider.fetchResults(from, to, competitionCode);
         log.debug("syncForCompetition: provider returned {} fixtures, {} results", fixtures.size(), results.size());
 
         return transactionTemplate.execute(status ->
                 fixtureMutationLockService.callWithLock(() -> syncForCompetitionInternal(competition, teams, fixtures, results)));
     }
 
-    private void syncFixturesAndResultsInternal(List<ProviderFixture> fixtures, List<ProviderFixture> results) {
-        upsertFixtures(mergeProviderFixtures(fixtures, results));
-        log.info("Synced {} fixtures and {} results", fixtures.size(), results.size());
+    private void syncFixturesAndResultsInternal(LocalDate from, LocalDate to) {
+        List<Competition> competitions = competitionRepository.findByStatusInOrderByStartDateAsc(
+                List.of(CompetitionStatus.UPCOMING, CompetitionStatus.ACTIVE));
+        if (competitions.isEmpty()) return;
+        syncByCompetitionCode(competitions, from, to);
     }
 
-    private void fullSyncInternal(List<ProviderTeam> teams, List<ProviderFixture> fixtures, List<ProviderFixture> results) {
-        syncTeamsInternal(teams);
-        syncFixturesAndResultsInternal(fixtures, results);
+    private void fullSyncInternal(LocalDate from, LocalDate to) {
+        List<Competition> competitions = competitionRepository.findByStatusInOrderByStartDateAsc(
+                List.of(CompetitionStatus.UPCOMING, CompetitionStatus.ACTIVE));
+        if (competitions.isEmpty()) return;
+        syncByCompetitionCode(competitions, from, to);
     }
 
     private int syncForCompetitionInternal(Competition competition,
@@ -158,6 +163,36 @@ public class FixtureSyncService {
         syncTeamsInternal(teams);
         Map<String, ProviderFixture> merged = mergeProviderFixtures(fixtures, results);
         return upsertFixturesForCompetition(competition, new ArrayList<>(merged.values()));
+    }
+
+    private void syncByCompetitionCode(List<Competition> competitions, LocalDate from, LocalDate to) {
+        Map<String, List<Competition>> competitionsByCode = competitions.stream()
+                .collect(Collectors.groupingBy(c -> normalizeCompetitionCode(c.getFixtureCompetitionCode())));
+
+        int totalFixtures = 0;
+        int totalResults = 0;
+        for (Map.Entry<String, List<Competition>> entry : competitionsByCode.entrySet()) {
+            String competitionCode = entry.getKey();
+            List<Competition> compsForCode = entry.getValue();
+            List<ProviderTeam> teams = fixtureProvider.fetchTeams(competitionCode);
+            syncTeamsInternal(teams);
+            List<ProviderFixture> fixtures = fixtureProvider.fetchFixtures(from, to, competitionCode);
+            List<ProviderFixture> results = fixtureProvider.fetchResults(from, to, competitionCode);
+            Map<String, ProviderFixture> merged = mergeProviderFixtures(fixtures, results);
+            List<ProviderFixture> mergedFixtures = new ArrayList<>(merged.values());
+            for (Competition competition : compsForCode) {
+                upsertFixturesForCompetition(competition, mergedFixtures);
+            }
+            totalFixtures += fixtures.size();
+            totalResults += results.size();
+        }
+        log.info("Synced {} fixtures and {} results across {} competition source(s)",
+                totalFixtures, totalResults, competitionsByCode.size());
+    }
+
+    private String normalizeCompetitionCode(String competitionCode) {
+        if (competitionCode == null || competitionCode.isBlank()) return "PL";
+        return competitionCode.trim().toUpperCase(Locale.ROOT);
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────
@@ -290,7 +325,9 @@ public class FixtureSyncService {
                     return bUpdated.isAfter(aUpdated) ? b : a;
                 }));
 
-        // Determine valid weeks (≥3 playable fixtures)
+        // Determine valid provider weeks (≥3 playable fixtures).
+        // This is useful for league formats, but World Cup chunking is day-based
+        // and should include all eligible fixtures.
         final int MIN_PLAYABLE = 3;
         Set<Integer> validWeeks = allFixtures.stream()
                 .collect(Collectors.groupingBy(ProviderFixture::weekNumber,
@@ -301,30 +338,185 @@ public class FixtureSyncService {
                 .map(Map.Entry::getKey)
                 .collect(Collectors.toSet());
 
-        if (validWeeks.isEmpty()) return 0;
+        if (validWeeks.isEmpty() && !"WC".equalsIgnoreCase(comp.getFixtureCompetitionCode())) return 0;
 
         log.debug("syncForCompetition: {} valid weeks for '{}': {}",
                 validWeeks.size(), comp.getName(), validWeeks.stream().sorted().toList());
 
-        // Build providerWeek → compGwNumber mapping anchored to existing gameweeks
-        Map<Integer, Integer> providerWeekToCompGw = new LinkedHashMap<>();
-        for (Gameweek existingGw : existingGameweeks) {
-            for (ProviderFixture pf : eligible) {
-                if (existingFixtureByExtId.containsKey(pf.externalFixtureId())) {
-                    Fixture ef = existingFixtureByExtId.get(pf.externalFixtureId());
-                    if (ef.getGameweek().getId().equals(existingGw.getId())) {
-                        providerWeekToCompGw.put(pf.weekNumber(), existingGw.getWeekNumber());
-                        break;
-                    }
-                }
+        // Build provider fixture → compGwNumber mapping anchored to existing fixtures.
+        // For World Cup sources we allow splitting large provider weeks into chunks of 10 fixtures.
+        boolean splitLargeWeeks = "WC".equalsIgnoreCase(comp.getFixtureCompetitionCode());
+        final int maxFixturesPerGameweek = splitLargeWeeks ? worldCupMaxFixturesPerGameweek : Integer.MAX_VALUE;
+
+        Map<String, Integer> fixtureToCompGw = new HashMap<>();
+        for (ProviderFixture pf : eligible) {
+            Fixture existing = existingFixtureByExtId.get(pf.externalFixtureId());
+            if (existing != null) {
+                fixtureToCompGw.put(pf.externalFixtureId(), existing.getGameweek().getWeekNumber());
             }
         }
 
         int nextGwNum = existingGameweeks.stream().mapToInt(Gameweek::getWeekNumber).max().orElse(0) + 1;
-        for (ProviderFixture pf : eligible) {
-            if (validWeeks.contains(pf.weekNumber()) && !providerWeekToCompGw.containsKey(pf.weekNumber())) {
-                providerWeekToCompGw.put(pf.weekNumber(), nextGwNum++);
+        if (splitLargeWeeks) {
+            final int minFixturesPerGameweek = Math.min(worldCupMinFixturesPerGameweek, maxFixturesPerGameweek);
+
+            // Group by UTC date across the full competition window so dates never overlap across gameweeks.
+            Map<LocalDate, List<ProviderFixture>> byDay = eligible.stream()
+                    .sorted(Comparator.comparing(ProviderFixture::kickoffAt).thenComparing(ProviderFixture::externalFixtureId))
+                    .collect(Collectors.groupingBy(
+                            pf -> pf.kickoffAt().atZone(java.time.ZoneOffset.UTC).withZoneSameInstant(fixtureSplitZone).toLocalDate(),
+                            LinkedHashMap::new,
+                            Collectors.toList()
+                    ));
+
+            class DayGroup {
+                final LocalDate day;
+                final List<ProviderFixture> fixtures;
+                DayGroup(LocalDate day, List<ProviderFixture> fixtures) {
+                    this.day = day;
+                    this.fixtures = fixtures;
+                }
             }
+            class DayChunk {
+                final List<DayGroup> groups = new ArrayList<>();
+                int size() {
+                    return groups.stream().mapToInt(g -> g.fixtures.size()).sum();
+                }
+                List<ProviderFixture> flatten() {
+                    return groups.stream().flatMap(g -> g.fixtures.stream()).toList();
+                }
+            }
+
+            List<DayChunk> chunks = new ArrayList<>();
+            DayChunk currentChunk = new DayChunk();
+
+            for (Map.Entry<LocalDate, List<ProviderFixture>> dayEntry : byDay.entrySet()) {
+                List<ProviderFixture> dayFixtures = dayEntry.getValue();
+                int currentSize = currentChunk.size();
+                int daySize = dayFixtures.size();
+                int nextSize = currentSize + daySize;
+
+                if (!currentChunk.groups.isEmpty() && nextSize > maxFixturesPerGameweek) {
+                    // If current chunk is too small, absorb this day to avoid tiny gameweeks (unless it's the first chunk).
+                    if (currentSize < minFixturesPerGameweek && !chunks.isEmpty()) {
+                        currentChunk.groups.add(new DayGroup(dayEntry.getKey(), dayFixtures));
+                    } else {
+                        chunks.add(currentChunk);
+                        currentChunk = new DayChunk();
+                        currentChunk.groups.add(new DayGroup(dayEntry.getKey(), dayFixtures));
+                    }
+                } else {
+                    currentChunk.groups.add(new DayGroup(dayEntry.getKey(), dayFixtures));
+                }
+            }
+            if (!currentChunk.groups.isEmpty()) {
+                chunks.add(currentChunk);
+            }
+
+            // Rebalance from the end: move whole days from previous chunk when possible.
+            for (int i = chunks.size() - 1; i > 0; i--) {
+                DayChunk cur = chunks.get(i);
+                DayChunk prev = chunks.get(i - 1);
+                while (cur.size() < minFixturesPerGameweek && !prev.groups.isEmpty()) {
+                    DayGroup candidate = prev.groups.get(prev.groups.size() - 1);
+                    int candidateSize = candidate.fixtures.size();
+                    if (prev.size() - candidateSize < minFixturesPerGameweek) {
+                        break;
+                    }
+                    prev.groups.remove(prev.groups.size() - 1);
+                    cur.groups.add(0, candidate);
+                }
+            }
+
+            // Ensure no chunk remains below minimum by merging with a neighbor (whole days only).
+            for (int i = 0; i < chunks.size(); i++) {
+                DayChunk chunk = chunks.get(i);
+                if (chunk.size() >= minFixturesPerGameweek || chunks.size() <= 1) {
+                    continue;
+                }
+                if (i + 1 < chunks.size()) {
+                    // Prefer merging into next to keep forward chronology stable.
+                    DayChunk next = chunks.get(i + 1);
+                    next.groups.addAll(0, chunk.groups);
+                    chunks.remove(i);
+                    i = Math.max(-1, i - 2); // reset to re-evaluate from prior position
+                } else {
+                    // Last chunk: merge into previous.
+                    DayChunk prev = chunks.get(i - 1);
+                    prev.groups.addAll(chunk.groups);
+                    chunks.remove(i);
+                    i = Math.max(-1, i - 2);
+                }
+            }
+
+            for (DayChunk chunk : chunks) {
+                List<ProviderFixture> flat = chunk.flatten();
+                Integer chunkGwNum = flat.stream()
+                        .map(pf -> fixtureToCompGw.get(pf.externalFixtureId()))
+                        .filter(Objects::nonNull)
+                        .findFirst()
+                        .orElse(null);
+                if (chunkGwNum == null) {
+                    chunkGwNum = nextGwNum++;
+                }
+                Integer finalChunkGwNum = chunkGwNum;
+                flat.forEach(pf -> fixtureToCompGw.put(pf.externalFixtureId(), finalChunkGwNum));
+            }
+
+            // Hard guarantee: no WC chunk should remain below minimum if we can merge by day.
+            Map<Integer, List<ProviderFixture>> fixturesByGw = new HashMap<>();
+            for (ProviderFixture pf : eligible) {
+                Integer gwNum = fixtureToCompGw.get(pf.externalFixtureId());
+                if (gwNum == null) continue;
+                fixturesByGw.computeIfAbsent(gwNum, __ -> new ArrayList<>()).add(pf);
+            }
+            List<Integer> orderedGw = fixturesByGw.entrySet().stream()
+                    .sorted(Comparator.comparing(e -> e.getValue().stream()
+                            .map(ProviderFixture::kickoffAt)
+                            .min(LocalDateTime::compareTo)
+                            .orElse(LocalDateTime.MAX)))
+                    .map(Map.Entry::getKey)
+                    .toList();
+
+            for (int i = 0; i < orderedGw.size(); i++) {
+                Integer gwNum = orderedGw.get(i);
+                List<ProviderFixture> gwFixtures = fixturesByGw.getOrDefault(gwNum, List.of());
+                if (gwFixtures.size() >= minFixturesPerGameweek) continue;
+
+                Integer targetGw = null;
+                if (i > 0) {
+                    targetGw = orderedGw.get(i - 1);
+                } else if (i + 1 < orderedGw.size()) {
+                    targetGw = orderedGw.get(i + 1);
+                }
+                if (targetGw == null) continue;
+
+                for (ProviderFixture pf : gwFixtures) {
+                    fixtureToCompGw.put(pf.externalFixtureId(), targetGw);
+                }
+            }
+        } else {
+            Map<Integer, Integer> providerWeekToCompGw = new LinkedHashMap<>();
+            for (ProviderFixture pf : eligible) {
+                Integer existingGwNum = fixtureToCompGw.get(pf.externalFixtureId());
+                if (existingGwNum != null) {
+                    providerWeekToCompGw.putIfAbsent(pf.weekNumber(), existingGwNum);
+                }
+            }
+            for (ProviderFixture pf : eligible) {
+                if (!validWeeks.contains(pf.weekNumber())) continue;
+                if (!providerWeekToCompGw.containsKey(pf.weekNumber())) {
+                    providerWeekToCompGw.put(pf.weekNumber(), nextGwNum++);
+                }
+                fixtureToCompGw.putIfAbsent(pf.externalFixtureId(), providerWeekToCompGw.get(pf.weekNumber()));
+            }
+        }
+
+        Map<Integer, LocalDateTime> earliestKickoffByCompGw = new HashMap<>();
+        for (ProviderFixture pf : eligible) {
+            Integer gwNumber = fixtureToCompGw.get(pf.externalFixtureId());
+            if (gwNumber == null) continue;
+            earliestKickoffByCompGw.merge(gwNumber, pf.kickoffAt(), (a, b) -> a.isBefore(b) ? a : b);
         }
 
         // ── Process fixtures — no DB queries inside this loop ────────────────────
@@ -332,7 +524,8 @@ public class FixtureSyncService {
         List<Gameweek> gameweeksToSave = new ArrayList<>();
 
         for (ProviderFixture pf : eligible) {
-            if (!providerWeekToCompGw.containsKey(pf.weekNumber())) continue;
+            Integer compWeekNumber = fixtureToCompGw.get(pf.externalFixtureId());
+            if (compWeekNumber == null) continue;
 
             Team homeTeam = teamByExternalId.get(pf.homeTeamExternalId());
             Team awayTeam = teamByExternalId.get(pf.awayTeamExternalId());
@@ -342,12 +535,10 @@ public class FixtureSyncService {
             try { status = FixtureStatus.valueOf(pf.status()); }
             catch (IllegalArgumentException e) { status = FixtureStatus.SCHEDULED; }
 
-            int compWeekNumber = providerWeekToCompGw.get(pf.weekNumber());
-
             // Get or create gameweek — use in-memory map, no DB query
             Gameweek gw = gwByCompWeekNum.get(compWeekNumber);
             if (gw == null) {
-                LocalDateTime earliest = weekEarliestKickoff.get(pf.weekNumber());
+                LocalDateTime earliest = earliestKickoffByCompGw.getOrDefault(compWeekNumber, weekEarliestKickoff.get(pf.weekNumber()));
                 LocalDateTime lockAt   = earliest;
                 LocalDateTime weekStart = earliest.toLocalDate().atStartOfDay();
                 gw = new Gameweek(comp, compWeekNumber, lockAt, weekStart,
@@ -356,7 +547,7 @@ public class FixtureSyncService {
                 gw = gameweekRepository.save(gw);
                 gwByCompWeekNum.put(compWeekNumber, gw);
             } else if (gw.getStatus() == GameweekStatus.UPCOMING) {
-                LocalDateTime earliest = weekEarliestKickoff.get(pf.weekNumber());
+                LocalDateTime earliest = earliestKickoffByCompGw.getOrDefault(compWeekNumber, weekEarliestKickoff.get(pf.weekNumber()));
                 if (earliest != null && !earliest.equals(gw.getLockAt())) {
                     gw.setLockAt(earliest);
                     gw = gameweekRepository.save(gw);
@@ -366,6 +557,9 @@ public class FixtureSyncService {
 
             Fixture existing = existingFixtureByExtId.get(pf.externalFixtureId());
             if (existing != null) {
+                if (existing.getGameweek() == null || !existing.getGameweek().getId().equals(gw.getId())) {
+                    existing.setGameweek(gw);
+                }
                 existing.setImportedHomeTeam(homeTeam);
                 existing.setImportedAwayTeam(awayTeam);
                 existing.setImportedKickoffAt(pf.kickoffAt());
@@ -410,6 +604,9 @@ public class FixtureSyncService {
 
         // Batch save all fixtures at once
         fixtureRepository.saveAll(fixturesToSave);
+        if ("WC".equalsIgnoreCase(comp.getFixtureCompetitionCode()) && comp.getStatus() == CompetitionStatus.UPCOMING) {
+            rebalancePersistedWorldCupGameweeks(comp);
+        }
         long newCount = fixturesToSave.stream().filter(f -> f.getId() == null).count();
         if (newCount > 0) {
             log.info("Synced {} fixtures for competition '{}' ({} new)", fixturesToSave.size(), comp.getName(), newCount);
@@ -417,5 +614,105 @@ public class FixtureSyncService {
             log.debug("Synced {} fixtures for competition '{}' ({} new)", fixturesToSave.size(), comp.getName(), newCount);
         }
         return fixturesToSave.size();
+    }
+
+    private void rebalancePersistedWorldCupGameweeks(Competition comp) {
+        List<Gameweek> gameweeks = gameweekRepository.findByCompetitionIdOrderByWeekNumberAsc(comp.getId());
+        if (gameweeks.isEmpty()) return;
+        List<Long> gwIds = gameweeks.stream().map(Gameweek::getId).toList();
+        List<Fixture> fixtures = fixtureRepository.findByGameweekIdIn(gwIds);
+        if (fixtures.isEmpty()) return;
+
+        int maxPerGw = Math.max(1, worldCupMaxFixturesPerGameweek);
+        int minPerGw = Math.min(worldCupMinFixturesPerGameweek, maxPerGw);
+
+        Map<LocalDate, List<Fixture>> byDay = fixtures.stream()
+                .sorted(Comparator.comparing((Fixture f) -> f.getEffectiveKickoffAt()).thenComparing(Fixture::getExternalFixtureId))
+                .collect(Collectors.groupingBy(
+                        f -> f.getEffectiveKickoffAt().atZone(java.time.ZoneOffset.UTC).withZoneSameInstant(fixtureSplitZone).toLocalDate(),
+                        LinkedHashMap::new,
+                        Collectors.toList()
+                ));
+
+        class DayChunk {
+            final List<List<Fixture>> days = new ArrayList<>();
+            int size() { return days.stream().mapToInt(List::size).sum(); }
+            List<Fixture> flatten() { return days.stream().flatMap(List::stream).toList(); }
+        }
+
+        List<DayChunk> chunks = new ArrayList<>();
+        DayChunk current = new DayChunk();
+        for (List<Fixture> dayFixtures : byDay.values()) {
+            if (!current.days.isEmpty() && current.size() + dayFixtures.size() > maxPerGw) {
+                if (current.size() < minPerGw && !chunks.isEmpty()) {
+                    current.days.add(dayFixtures);
+                } else {
+                    chunks.add(current);
+                    current = new DayChunk();
+                    current.days.add(dayFixtures);
+                }
+            } else {
+                current.days.add(dayFixtures);
+            }
+        }
+        if (!current.days.isEmpty()) chunks.add(current);
+
+        for (int i = chunks.size() - 1; i > 0; i--) {
+            DayChunk cur = chunks.get(i);
+            DayChunk prev = chunks.get(i - 1);
+            while (cur.size() < minPerGw && !prev.days.isEmpty()) {
+                List<Fixture> candidate = prev.days.get(prev.days.size() - 1);
+                if (prev.size() - candidate.size() < minPerGw) break;
+                prev.days.remove(prev.days.size() - 1);
+                cur.days.add(0, candidate);
+            }
+        }
+        for (int i = 0; i < chunks.size(); i++) {
+            if (chunks.get(i).size() >= minPerGw || chunks.size() <= 1) continue;
+            if (i + 1 < chunks.size()) {
+                chunks.get(i + 1).days.addAll(0, chunks.get(i).days);
+                chunks.remove(i);
+                i = Math.max(-1, i - 2);
+            } else {
+                chunks.get(i - 1).days.addAll(chunks.get(i).days);
+                chunks.remove(i);
+                i = Math.max(-1, i - 2);
+            }
+        }
+
+        // Ensure we have enough gameweeks to map all chunks.
+        List<Gameweek> ordered = new ArrayList<>(gameweeks);
+        int nextWeekNumber = ordered.stream().mapToInt(Gameweek::getWeekNumber).max().orElse(0) + 1;
+        while (ordered.size() < chunks.size()) {
+            LocalDateTime fallback = fixtures.stream()
+                    .map(Fixture::getEffectiveKickoffAt)
+                    .min(LocalDateTime::compareTo)
+                    .orElse(LocalDateTime.now(java.time.ZoneOffset.UTC));
+            Gameweek gw = new Gameweek(comp, nextWeekNumber++, fallback, fallback.toLocalDate().atStartOfDay(), fallback.toLocalDate().atStartOfDay().plusDays(3), GameweekStatus.UPCOMING);
+            ordered.add(gameweekRepository.save(gw));
+        }
+        ordered.sort(Comparator.comparingInt(Gameweek::getWeekNumber));
+
+        List<Gameweek> gwToSave = new ArrayList<>();
+        List<Fixture> fixturesToSave = new ArrayList<>();
+        for (int i = 0; i < chunks.size(); i++) {
+            Gameweek target = ordered.get(i);
+            List<Fixture> chunkFixtures = chunks.get(i).flatten();
+            LocalDateTime earliest = chunkFixtures.stream().map(Fixture::getEffectiveKickoffAt).min(LocalDateTime::compareTo).orElse(target.getLockAt());
+            if (target.getStatus() == GameweekStatus.UPCOMING && earliest != null && !earliest.equals(target.getLockAt())) {
+                target.setLockAt(earliest);
+                target.setStartsAt(earliest.toLocalDate().atStartOfDay());
+                target.setEndsAt(earliest.toLocalDate().atStartOfDay().plusDays(3));
+                gwToSave.add(target);
+            }
+            for (Fixture fixture : chunkFixtures) {
+                if (fixture.getGameweek() == null || !fixture.getGameweek().getId().equals(target.getId())) {
+                    fixture.setGameweek(target);
+                    fixturesToSave.add(fixture);
+                }
+            }
+        }
+        if (!gwToSave.isEmpty()) gameweekRepository.saveAll(gwToSave);
+        if (!fixturesToSave.isEmpty()) fixtureRepository.saveAll(fixturesToSave);
     }
 }

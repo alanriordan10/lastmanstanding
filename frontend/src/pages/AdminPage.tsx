@@ -298,6 +298,7 @@ function CompetitionsTab() {
   const [entryFee, setEntryFee] = useState('0');
   const [maxEntriesPerUser, setMaxEntriesPerUser] = useState('1');
   const [prizePool, setPrizePool] = useState('');
+  const [fixtureCompetitionCode, setFixtureCompetitionCode] = useState<'PL' | 'WC'>('PL');
   const [missedPickMode, setMissedPickMode] = useState('ELIMINATE');
   const [postponedConsumesTeam, setPostponedConsumesTeam] = useState(true);
   const [lifelineEnabled, setLifelineEnabled] = useState(false);
@@ -339,6 +340,7 @@ function CompetitionsTab() {
     setEntryFee('0');
     setMaxEntriesPerUser('1');
     setPrizePool('');
+    setFixtureCompetitionCode('PL');
     setMissedPickMode('ELIMINATE');
     setPostponedConsumesTeam(true);
     setLifelineEnabled(false);
@@ -359,6 +361,7 @@ function CompetitionsTab() {
     setEntryFee(String(competition.entryFee ?? 0));
     setMaxEntriesPerUser(String(competition.maxEntriesPerUser ?? 1));
     setPrizePool(competition.prizePool != null ? String(competition.prizePool) : '');
+    setFixtureCompetitionCode((competition.fixtureCompetitionCode ?? 'PL') as 'PL' | 'WC');
     setMissedPickMode(competition.missedPickMode);
     setPostponedConsumesTeam(competition.postponedConsumesTeam);
     setLifelineEnabled(Boolean(competition.lifelineEnabled));
@@ -377,6 +380,7 @@ function CompetitionsTab() {
     entryFee: parseFloat(entryFee) || 0,
     maxEntriesPerUser: Math.max(1, parseInt(maxEntriesPerUser, 10) || 1),
     prizePool: prizePool ? parseFloat(prizePool) : null,
+    fixtureCompetitionCode,
     missedPickMode,
     postponedConsumesTeam,
     lifelineEnabled,
@@ -384,7 +388,7 @@ function CompetitionsTab() {
     paymentMode,
     manualPaymentPolicy,
     visibility,
-    startDate,
+    startDate: startDate || null,
     status,
     clubId: clubId === '' ? null : clubId === 'none' ? 0 : Number(clubId),
   };
@@ -397,6 +401,7 @@ function CompetitionsTab() {
         entryFee: parseFloat(entryFee) || 0,
         maxEntriesPerUser: Math.max(1, parseInt(maxEntriesPerUser, 10) || 1),
         prizePool: prizePool ? parseFloat(prizePool) : null,
+        fixtureCompetitionCode,
         missedPickMode,
         postponedConsumesTeam,
         lifelineEnabled,
@@ -867,6 +872,17 @@ function CompetitionsTab() {
               </div>
             </div>
 
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-300">Fixture Source</label>
+              <AdminSelect
+                value={fixtureCompetitionCode}
+                onChange={(next) => setFixtureCompetitionCode(next as 'PL' | 'WC')}
+                options={[
+                  { value: 'PL', label: 'Premier League' },
+                  { value: 'WC', label: 'World Cup' },
+                ]}
+              />
+            </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-300">Missed Pick Mode</label>
               <AdminSelect

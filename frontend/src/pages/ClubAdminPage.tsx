@@ -31,6 +31,7 @@ export default function ClubAdminPage() {
   const [description, setDescription] = useState('');
   const [entryFee, setEntryFee] = useState('0');
   const [maxEntriesPerUser, setMaxEntriesPerUser] = useState('1');
+  const [fixtureCompetitionCode, setFixtureCompetitionCode] = useState<'PL' | 'WC'>('PL');
   const [missedPickMode, setMissedPickMode] = useState('ELIMINATE');
   const [postponedConsumesTeam, setPostponedConsumesTeam] = useState(true);
   const [lifelineEnabled, setLifelineEnabled] = useState(false);
@@ -86,6 +87,7 @@ export default function ClubAdminPage() {
     setDescription('');
     setEntryFee('0');
     setMaxEntriesPerUser('1');
+    setFixtureCompetitionCode('PL');
     setMissedPickMode('ELIMINATE');
     setPostponedConsumesTeam(true);
     setLifelineEnabled(false);
@@ -112,6 +114,7 @@ export default function ClubAdminPage() {
     setDescription(competition.description ?? '');
     setEntryFee(String(competition.entryFee ?? 0));
     setMaxEntriesPerUser(String(competition.maxEntriesPerUser ?? 1));
+    setFixtureCompetitionCode((competition.fixtureCompetitionCode ?? 'PL') as 'PL' | 'WC');
     setMissedPickMode(competition.missedPickMode);
     setPostponedConsumesTeam(competition.postponedConsumesTeam);
     setLifelineEnabled(Boolean(competition.lifelineEnabled));
@@ -129,6 +132,7 @@ export default function ClubAdminPage() {
     description,
     entryFee: parseFloat(entryFee) || 0,
     maxEntriesPerUser: Math.max(1, parseInt(maxEntriesPerUser, 10) || 1),
+    fixtureCompetitionCode,
     prizePool: prizePool ? parseFloat(prizePool) : null,
     missedPickMode,
     postponedConsumesTeam,
@@ -137,7 +141,7 @@ export default function ClubAdminPage() {
     paymentMode,
     manualPaymentPolicy,
     visibility,
-    startDate,
+    startDate: startDate || null,
     status,
   };
 
@@ -147,6 +151,7 @@ export default function ClubAdminPage() {
       description: description || null,
       entryFee: parseFloat(entryFee) || 0,
       maxEntriesPerUser: Math.max(1, parseInt(maxEntriesPerUser, 10) || 1),
+      fixtureCompetitionCode,
       prizePool: prizePool ? parseFloat(prizePool) : null,
       missedPickMode,
       postponedConsumesTeam,
@@ -940,6 +945,17 @@ export default function ClubAdminPage() {
                 ))}
               </div>
               <p className="mt-1 text-xs text-gray-500">Set a fixed prize amount to display on the competition card.</p>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-300">Fixture Source</label>
+              <select
+                value={fixtureCompetitionCode}
+                onChange={(e) => setFixtureCompetitionCode(e.target.value as 'PL' | 'WC')}
+                className="input-field"
+              >
+                <option value="PL">Premier League</option>
+                <option value="WC">World Cup</option>
+              </select>
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-300">Missed Pick Rule</label>

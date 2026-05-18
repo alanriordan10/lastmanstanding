@@ -75,6 +75,9 @@ public class Competition {
     @Column(name = "lifeline_enabled", nullable = false)
     private boolean lifelineEnabled = false;
 
+    @Column(name = "fixture_competition_code", nullable = false, length = 16)
+    private String fixtureCompetitionCode = "PL";
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by", nullable = false)
     private User createdBy;
@@ -222,6 +225,14 @@ public class Competition {
 
     public void setLifelineEnabled(boolean lifelineEnabled) {
         this.lifelineEnabled = lifelineEnabled;
+    }
+
+    public String getFixtureCompetitionCode() {
+        return fixtureCompetitionCode;
+    }
+
+    public void setFixtureCompetitionCode(String fixtureCompetitionCode) {
+        this.fixtureCompetitionCode = fixtureCompetitionCode;
     }
 
     public User getCreatedBy() {

@@ -74,6 +74,9 @@ fixture:
   sync:
     from-days: ${FIXTURE_SYNC_FROM_DAYS:2}
     to-days: ${FIXTURE_SYNC_TO_DAYS:10}
+    world-cup-max-fixtures-per-gameweek: ${FIXTURE_SYNC_WORLD_CUP_MAX_FIXTURES_PER_GAMEWEEK:10}
+    world-cup-min-fixtures-per-gameweek: ${FIXTURE_SYNC_WORLD_CUP_MIN_FIXTURES_PER_GAMEWEEK:6}
+    split-zone: ${FIXTURE_SYNC_SPLIT_ZONE:Europe/Dublin}
 
 football-data:
   api-key: ${FOOTBALL_DATA_API_KEY:c565137f0689452ca211e2ae468c8693}
