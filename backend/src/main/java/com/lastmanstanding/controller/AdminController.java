@@ -232,6 +232,7 @@ public class AdminController {
         Competition c = competitionService.createCompetition(
                 request.name(), request.description(), request.entryFee(), request.prizePool(),
                 request.maxEntriesPerUser(),
+                request.fixtureCompetitionCode(),
                 request.missedPickMode(), request.postponedConsumesTeam(), request.lifelineEnabled(), request.passFeeToParticipant(),
                 request.paymentMode(), request.manualPaymentPolicy(), request.visibility(), request.startDate(), userDetails.getId(), request.clubId());
         logAudit(userDetails, "Competition", c.getId(), "name", null, c.getName(), "CREATE");
@@ -263,6 +264,7 @@ public class AdminController {
                         java.math.BigDecimal.ZERO,
                         null,
                         1,
+                        "PL",
                         MissedPickMode.ELIMINATE,
                         true,
                         false,
@@ -312,6 +314,7 @@ public class AdminController {
         String oldEntryFee = existing.getEntryFee() != null ? existing.getEntryFee().toString() : null;
         String oldPrizePool = existing.getPrizePool() != null ? existing.getPrizePool().toString() : null;
         String oldMissedPickMode = existing.getMissedPickMode() != null ? existing.getMissedPickMode().name() : null;
+        String oldFixtureCompetitionCode = existing.getFixtureCompetitionCode();
         String oldPostponedConsumesTeam = String.valueOf(existing.isPostponedConsumesTeam());
         String oldPassFeeToParticipant = String.valueOf(existing.isPassFeeToParticipant());
         String oldPaymentMode = existing.getPaymentMode() != null ? existing.getPaymentMode().name() : null;
@@ -322,6 +325,7 @@ public class AdminController {
         Competition c = competitionService.updateCompetition(id,
                 request.name(), request.description(), request.entryFee(), request.prizePool(),
                 request.maxEntriesPerUser(),
+                request.fixtureCompetitionCode(),
                 request.missedPickMode(),
                 request.postponedConsumesTeam() != null ? request.postponedConsumesTeam() : true,
                 request.lifelineEnabled(),
@@ -344,6 +348,10 @@ public class AdminController {
             logAudit(userDetails, "Competition", c.getId(), "prizePool", oldPrizePool, newPrizePool, "UPDATE_FIELD");
         }
         String newMissedPickMode = c.getMissedPickMode() != null ? c.getMissedPickMode().name() : null;
+        String newFixtureCompetitionCode = c.getFixtureCompetitionCode();
+        if (!Objects.equals(oldFixtureCompetitionCode, newFixtureCompetitionCode)) {
+            logAudit(userDetails, "Competition", c.getId(), "fixtureCompetitionCode", oldFixtureCompetitionCode, newFixtureCompetitionCode, "UPDATE_FIELD");
+        }
         if (!Objects.equals(oldMissedPickMode, newMissedPickMode)) {
             logAudit(userDetails, "Competition", c.getId(), "missedPickMode", oldMissedPickMode, newMissedPickMode, "UPDATE_FIELD");
         }

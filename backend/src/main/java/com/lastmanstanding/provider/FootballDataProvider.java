@@ -98,33 +98,51 @@ public class FootballDataProvider implements FixtureProvider {
 
     @Override
     public List<ProviderTeam> fetchTeams() {
-        Optional<List<ProviderTeam>> cached = fromCache("teams");
+        return fetchTeams(competitionCode);
+    }
+
+    @Override
+    public List<ProviderTeam> fetchTeams(String competitionCode) {
+        String code = normalizeCompetitionCode(competitionCode);
+        Optional<List<ProviderTeam>> cached = fromCache("teams:" + code);
         if (cached.isPresent()) return cached.get();
-        List<ProviderTeam> teams = loadTeams();
-        putCache("teams", teams, teamsCacheTtl);
+        List<ProviderTeam> teams = loadTeams(code);
+        putCache("teams:" + code, teams, teamsCacheTtl);
         return teams;
     }
 
     @Override
     public List<ProviderFixture> fetchFixtures(LocalDate from, LocalDate to) {
-        boolean hasLive = hasLiveMatchesNow();
+        return fetchFixtures(from, to, competitionCode);
+    }
+
+    @Override
+    public List<ProviderFixture> fetchFixtures(LocalDate from, LocalDate to, String competitionCode) {
+        String code = normalizeCompetitionCode(competitionCode);
+        boolean hasLive = hasLiveMatchesNow(code);
         long ttl = hasLive ? liveCacheTtl : fixturesCacheTtl;
-        String key = "fixtures:" + from + ":" + to;
+        String key = "fixtures:" + code + ":" + from + ":" + to;
         if (!hasLive) {
             Optional<List<ProviderFixture>> cached = fromCache(key);
             if (cached.isPresent()) return cached.get();
         }
-        List<ProviderFixture> fixtures = loadMatches(from, to, false);
+        List<ProviderFixture> fixtures = loadMatches(from, to, false, code);
         putCache(key, fixtures, ttl);
         return fixtures;
     }
 
     @Override
     public List<ProviderFixture> fetchResults(LocalDate from, LocalDate to) {
-        String key = "results:" + from + ":" + to;
+        return fetchResults(from, to, competitionCode);
+    }
+
+    @Override
+    public List<ProviderFixture> fetchResults(LocalDate from, LocalDate to, String competitionCode) {
+        String code = normalizeCompetitionCode(competitionCode);
+        String key = "results:" + code + ":" + from + ":" + to;
         Optional<List<ProviderFixture>> cached = fromCache(key);
         if (cached.isPresent()) return cached.get();
-        List<ProviderFixture> results = loadMatches(from, to, true);
+        List<ProviderFixture> results = loadMatches(from, to, true, code);
         putCache(key, results, resultsCacheTtl);
         return results;
     }
@@ -133,15 +151,20 @@ public class FootballDataProvider implements FixtureProvider {
 
     /** True if any match in the competition is currently IN_PLAY or PAUSED. */
     public boolean hasLiveMatchesNow() {
-        Optional<Boolean> cached = fromCache("live-status");
+        return hasLiveMatchesNow(competitionCode);
+    }
+
+    public boolean hasLiveMatchesNow(String competitionCode) {
+        String code = normalizeCompetitionCode(competitionCode);
+        Optional<Boolean> cached = fromCache("live-status:" + code);
         if (cached.isPresent()) return cached.get();
 
-        boolean live = hasLiveMatches();
-        putCache("live-status", live, liveStatusCacheTtl);
+        boolean live = hasLiveMatches(code);
+        putCache("live-status:" + code, live, liveStatusCacheTtl);
         return live;
     }
 
-    private boolean hasLiveMatches() {
+    private boolean hasLiveMatches(String competitionCode) {
         try {
             String url = baseUrl + "/competitions/" + competitionCode + "/matches?status=IN_PLAY,PAUSED";
             MatchesResponse resp = get(url, MatchesResponse.class);
@@ -152,7 +175,7 @@ public class FootballDataProvider implements FixtureProvider {
         }
     }
 
-    private List<ProviderTeam> loadTeams() {
+    private List<ProviderTeam> loadTeams(String competitionCode) {
         try {
             String url = baseUrl + "/competitions/" + competitionCode + "/teams";
             TeamsResponse resp = get(url, TeamsResponse.class);
@@ -181,7 +204,7 @@ public class FootballDataProvider implements FixtureProvider {
         }
     }
 
-    private List<ProviderFixture> loadMatches(LocalDate from, LocalDate to, boolean finishedOnly) {
+    private List<ProviderFixture> loadMatches(LocalDate from, LocalDate to, boolean finishedOnly, String competitionCode) {
         try {
             String statusParam = finishedOnly ? "&status=FINISHED" : "";
             String url = baseUrl + "/competitions/" + competitionCode + "/matches"
@@ -204,6 +227,11 @@ public class FootballDataProvider implements FixtureProvider {
             log.error("Failed to load matches from football-data.org ({}): {}", e.getClass().getSimpleName(), e.getMessage());
             return List.of();
         }
+    }
+
+    private String normalizeCompetitionCode(String code) {
+        if (code == null || code.isBlank()) return competitionCode;
+        return code.trim().toUpperCase(Locale.ROOT);
     }
 
     private ProviderFixture toProviderFixture(ApiMatch m) {
