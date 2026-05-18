@@ -11,13 +11,28 @@ import PaymentModal from '../components/PaymentModal';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { FilterPill, MetricCard } from '../components/ui-primitives';
 
-function parseDate(value: string | number[]): Date {
+function parseDate(value: unknown): Date | null {
   if (Array.isArray(value)) {
     const [y, m, d, h = 0, mi = 0, s = 0] = value as number[];
-    return new Date(Date.UTC(y, m - 1, d, h, mi, s));
+    const dt = new Date(Date.UTC(y, m - 1, d, h, mi, s));
+    return Number.isNaN(dt.getTime()) ? null : dt;
   }
-  const str = (value.endsWith('Z') || value.includes('+')) ? value : value + 'Z';
-  return new Date(str);
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const str = (trimmed.endsWith('Z') || trimmed.includes('+')) ? trimmed : `${trimmed}Z`;
+  const dt = new Date(str);
+  return Number.isNaN(dt.getTime()) ? null : dt;
+}
+
+function formatDateSafe(value: unknown, pattern: string, fallback = '—'): string {
+  const dt = parseDate(value);
+  if (!dt) return fallback;
+  try {
+    return format(dt, pattern);
+  } catch {
+    return fallback;
+  }
 }
 
 function normalizeCompetition(raw: any): Competition | null {
@@ -75,7 +90,9 @@ function fixtureSourceLabel(comp: Competition): string {
 function isPickLockSoon(comp: Competition, withinHours = 24): boolean {
   const source = comp.firstGameweekDate ?? comp.startDate;
   if (!source) return false;
-  const lockAt = parseDate(source).getTime();
+  const parsed = parseDate(source);
+  if (!parsed) return false;
+  const lockAt = parsed.getTime();
   const msUntilLock = lockAt - Date.now();
   return msUntilLock > 0 && msUntilLock <= withinHours * 60 * 60 * 1000;
 }
@@ -343,6 +360,7 @@ export default function CompetitionsPage() {
         const rawDate = c.firstGameweekDate ?? c.startDate;
         if (!rawDate) return false;
         const start = parseDate(rawDate);
+        if (!start) return false;
         return start >= now && start <= cutoff;
       });
     }
@@ -1142,7 +1160,7 @@ function CompListView({ comps, joinedSet, onJoin, isPending, entryCounts }: {
                 {joined && <span className="badge-brand shrink-0">Joined {joinedCount}/{maxEntries}</span>}
               </div>
               <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-500">
-                {dateStr && <span>{format(parseDate(dateStr), 'MMM d, yyyy')}</span>}
+                {dateStr && <span>{formatDateSafe(dateStr, 'MMM d, yyyy', '')}</span>}
                 <span>{c.participantCount} players{c.status === 'ACTIVE' ? ` · ${c.activeCount} surviving` : ''}</span>
                 <span className={c.entryFee > 0 ? 'text-brand-400 font-medium' : 'text-green-400'}>{c.entryFee > 0 ? `€${c.entryFee}` : 'Free'}</span>
               </div>
@@ -1494,9 +1512,9 @@ function CompetitionCard({ comp, joined, onJoin, isPending, actionHint, isHighli
           <span className="block text-gray-500">First Gameweek</span>
           <span className="text-gray-200 font-medium">
             {comp.firstGameweekDate
-              ? format(parseDate(comp.firstGameweekDate), 'MMM d, yyyy')
+              ? formatDateSafe(comp.firstGameweekDate, 'MMM d, yyyy')
               : comp.startDate
-              ? format(parseDate(comp.startDate), 'MMM d, yyyy')
+              ? formatDateSafe(comp.startDate, 'MMM d, yyyy')
               : '—'}
           </span>
         </div>
@@ -1594,6 +1612,7 @@ function MyCompetitionCard({ myComp, actionHint }: { myComp: MyCompetition; acti
     const source = comp.firstGameweekDate ?? comp.startDate;
     if (!source) return false;
     const dt = parseDate(source);
+    if (!dt) return false;
     const ms = dt.getTime() - Date.now();
     return ms > 0 && ms <= 24 * 60 * 60 * 1000;
   }, [myStatus, comp.status, comp.firstGameweekDate, comp.startDate]);
@@ -1741,9 +1760,9 @@ function MyCompetitionRow({
   const isFinished = comp.status === 'COMPLETED';
   const isAwaitingPayment = myComp.paymentState === 'AWAITING_PAYMENT';
   const startLabel = comp.firstGameweekDate
-    ? format(parseDate(comp.firstGameweekDate), 'MMM d')
+    ? formatDateSafe(comp.firstGameweekDate, 'MMM d', 'TBD')
     : comp.startDate
-    ? format(parseDate(comp.startDate), 'MMM d')
+    ? formatDateSafe(comp.startDate, 'MMM d', 'TBD')
     : 'TBD';
   const startFieldLabel = comp.status === 'UPCOMING' ? 'Starts' : comp.status === 'COMPLETED' ? 'Ended' : 'Started';
   const survivingLabel = comp.status === 'ACTIVE' ? String(effectiveActiveCount) : '—';
@@ -1751,7 +1770,9 @@ function MyCompetitionRow({
     if (myComp.myStatus !== 'ACTIVE' || comp.status !== 'UPCOMING') return false;
     const source = comp.firstGameweekDate ?? comp.startDate;
     if (!source) return false;
-    const ms = parseDate(source).getTime() - Date.now();
+    const parsed = parseDate(source);
+    if (!parsed) return false;
+    const ms = parsed.getTime() - Date.now();
     return ms > 0 && ms <= 24 * 60 * 60 * 1000;
   })();
   const quickAction = isAwaitingPayment
@@ -1851,9 +1872,9 @@ function PastCompetitionCard({ comp }: { comp: Competition }) {
           <span className="block text-gray-500">Started</span>
           <span className="text-gray-200">
             {comp.firstGameweekDate
-              ? format(parseDate(comp.firstGameweekDate), 'MMM d, yyyy')
+              ? formatDateSafe(comp.firstGameweekDate, 'MMM d, yyyy')
               : comp.startDate
-              ? format(parseDate(comp.startDate), 'MMM d, yyyy')
+              ? formatDateSafe(comp.startDate, 'MMM d, yyyy')
               : '—'}
           </span>
         </div>

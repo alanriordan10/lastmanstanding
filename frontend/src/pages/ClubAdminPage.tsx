@@ -10,14 +10,29 @@ import { format } from 'date-fns';
 import ConfirmDialog from '../components/ConfirmDialog';
 import AddParticipantPanel from '../components/AddParticipantPanel';
 
-function parseDate(value: string | number[]): Date {
+function parseDate(value: unknown): Date | null {
   if (Array.isArray(value)) {
     const [y, m, d, h = 0, mi = 0, s = 0] = value as number[];
-    return new Date(Date.UTC(y, m - 1, d, h, mi, s));
+    const dt = new Date(Date.UTC(y, m - 1, d, h, mi, s));
+    return Number.isNaN(dt.getTime()) ? null : dt;
   }
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
   // Backend sends LocalDateTime without timezone — treat as UTC by appending Z
-  const str = (value.endsWith('Z') || value.includes('+')) ? value : value + 'Z';
-  return new Date(str);
+  const str = (trimmed.endsWith('Z') || trimmed.includes('+')) ? trimmed : `${trimmed}Z`;
+  const dt = new Date(str);
+  return Number.isNaN(dt.getTime()) ? null : dt;
+}
+
+function formatDateSafe(value: unknown, pattern: string, fallback = '—'): string {
+  const dt = parseDate(value);
+  if (!dt) return fallback;
+  try {
+    return format(dt, pattern);
+  } catch {
+    return fallback;
+  }
 }
 
 export default function ClubAdminPage() {
@@ -1154,7 +1169,7 @@ export default function ClubAdminPage() {
                             <h3 className="font-semibold text-gray-100 truncate">{comp.name}</h3>
                           </div>
                         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400">
-                          <span>Starts {format(parseDate(comp.startDate), 'MMM d, yyyy')}</span>
+                          <span>Starts {formatDateSafe(comp.startDate, 'MMM d, yyyy')}</span>
                           <span>{comp.participantCount} players ({comp.activeCount} active)</span>
                           {comp.entryFee > 0 && <span className="text-brand-400 font-semibold">€{comp.entryFee}</span>}
                         </div>

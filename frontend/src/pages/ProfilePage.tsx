@@ -18,6 +18,12 @@ export default function ProfilePage() {
   const [deleteSectionOpen, setDeleteSectionOpen] = useState(false);
   const { isSupported, permission, isSubscribed, subscribe, unsubscribe, notify } = usePushNotifications();
 
+  const getApiErrorMessage = (err: any, fallback: string) =>
+    err?.response?.data?.message ||
+    err?.response?.data?.reason ||
+    err?.response?.data?.error ||
+    fallback;
+
   const handleToggle = async () => {
     const newValue = !optIn;
     setSaving(true);
@@ -56,7 +62,7 @@ export default function ProfilePage() {
       toast.success('Password verified. You can now confirm account deletion.');
     } catch (err: any) {
       setDeleteToken(null);
-      toast.error(err?.response?.data?.message || 'Password verification failed.');
+      toast.error(getApiErrorMessage(err, 'Password verification failed.'));
     }
   };
 
@@ -73,7 +79,7 @@ export default function ProfilePage() {
       toast.success('Account deleted.');
       navigate('/login');
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Could not delete account.');
+      toast.error(getApiErrorMessage(err, 'Could not delete account.'));
     } finally {
       setShowDeleteConfirmModal(false);
       setDeleting(false);

@@ -38,6 +38,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/auth")
@@ -279,8 +280,18 @@ public class AuthController {
                 !jwtService.isDeleteTokenValidForUser(request.deleteToken(), user.getId())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Delete verification expired. Re-enter your password.");
         }
-        if (clubRepository.existsByClubAdminId(user.getId())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Transfer your club admin role before deleting your account");
+        var adminClubs = clubRepository.findByClubAdminId(user.getId());
+        if (!adminClubs.isEmpty()) {
+            String clubNames = adminClubs.stream()
+                    .map(Club::getName)
+                    .filter(name -> name != null && !name.isBlank())
+                    .limit(3)
+                    .collect(Collectors.joining(", "));
+            String suffix = adminClubs.size() > 3 ? " (+" + (adminClubs.size() - 3) + " more)" : "";
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "You are still club admin for: " + clubNames + suffix + ". Transfer club admin role before deleting your account"
+            );
         }
 
         // Soft-delete for data integrity and audit history preservation.
