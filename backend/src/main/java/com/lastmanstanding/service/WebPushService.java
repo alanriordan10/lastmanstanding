@@ -1,9 +1,11 @@
 package com.lastmanstanding.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lastmanstanding.entity.Competition;
 import com.lastmanstanding.entity.CompetitionParticipant;
 import com.lastmanstanding.entity.Gameweek;
+import com.lastmanstanding.entity.MobilePushToken;
 import com.lastmanstanding.entity.ParticipantStatus;
 import com.lastmanstanding.entity.Pick;
 import com.lastmanstanding.entity.PickOutcome;
@@ -11,6 +13,7 @@ import com.lastmanstanding.entity.PickResult;
 import com.lastmanstanding.entity.PushSubscription;
 import com.lastmanstanding.entity.User;
 import com.lastmanstanding.repository.CompetitionParticipantRepository;
+import com.lastmanstanding.repository.MobilePushTokenRepository;
 import com.lastmanstanding.repository.PickRepository;
 import com.lastmanstanding.repository.PickResultRepository;
 import com.lastmanstanding.repository.PushSubscriptionRepository;
@@ -26,6 +29,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.util.List;
@@ -39,13 +46,16 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 public class WebPushService {
 
     private static final Logger log = LoggerFactory.getLogger(WebPushService.class);
+    private static final String EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 
     private final PushSubscriptionRepository pushSubscriptionRepository;
+    private final MobilePushTokenRepository mobilePushTokenRepository;
     private final UserRepository userRepository;
     private final CompetitionParticipantRepository participantRepository;
     private final PickRepository pickRepository;
     private final PickResultRepository pickResultRepository;
     private final ObjectMapper objectMapper;
+    private final HttpClient httpClient;
 
     @Value("${app.frontend-url:http://localhost:5173}")
     private String frontendUrl;
@@ -60,17 +70,20 @@ public class WebPushService {
     private String vapidSubject;
 
     public WebPushService(PushSubscriptionRepository pushSubscriptionRepository,
+                          MobilePushTokenRepository mobilePushTokenRepository,
                           UserRepository userRepository,
                           CompetitionParticipantRepository participantRepository,
                           PickRepository pickRepository,
                           PickResultRepository pickResultRepository,
                           ObjectMapper objectMapper) {
         this.pushSubscriptionRepository = pushSubscriptionRepository;
+        this.mobilePushTokenRepository = mobilePushTokenRepository;
         this.userRepository = userRepository;
         this.participantRepository = participantRepository;
         this.pickRepository = pickRepository;
         this.pickResultRepository = pickResultRepository;
         this.objectMapper = objectMapper;
+        this.httpClient = HttpClient.newHttpClient();
     }
 
     @Transactional
@@ -100,8 +113,7 @@ public class WebPushService {
     @Transactional
     public void sendPickReminderNotifications(Competition comp, Gameweek gw) {
         if (!isConfigured()) {
-            log.info("Web push not configured — skipping push reminders for GW{} competition {}", gw.getWeekNumber(), comp.getId());
-            return;
+            log.info("Web push not configured — skipping web-push reminders for GW{} competition {}", gw.getWeekNumber(), comp.getId());
         }
 
         List<CompetitionParticipant> active = participantRepository.findByCompetitionIdAndStatus(comp.getId(), ParticipantStatus.ACTIVE);
@@ -120,25 +132,31 @@ public class WebPushService {
         }
 
         for (Long userId : targetUserIds) {
-            List<PushSubscription> subscriptions = pushSubscriptionRepository.findByUserId(userId);
-            if (subscriptions.isEmpty()) {
-                continue;
+            String title = "Pick reminder";
+            String body = "You have not made your pick for " + comp.getName() + " yet. Gameweek " + gw.getWeekNumber() + " locks soon.";
+            String url = frontendUrl + "/competitions/" + comp.getId();
+            String tag = "pick-reminder-" + gw.getId();
+
+            if (isConfigured()) {
+                List<PushSubscription> subscriptions = pushSubscriptionRepository.findByUserId(userId);
+                if (!subscriptions.isEmpty()) {
+                    sendToSubscriptions(subscriptions, Map.of(
+                            "title", title,
+                            "body", body,
+                            "url", url,
+                            "tag", tag
+                    ));
+                }
             }
 
-            sendToSubscriptions(subscriptions, Map.of(
-                    "title", "Pick reminder",
-                    "body", "You have not made your pick for " + comp.getName() + " yet. Gameweek " + gw.getWeekNumber() + " locks soon.",
-                    "url", frontendUrl + "/competitions/" + comp.getId(),
-                    "tag", "pick-reminder-" + gw.getId()
-            ));
+            sendToMobileTokens(userId, title, body, url, tag);
         }
     }
 
     @Transactional
     public void sendGameweekResultNotifications(Competition comp, Gameweek gw) {
         if (!isConfigured()) {
-            log.info("Web push not configured — skipping result push notifications for GW{} competition {}", gw.getWeekNumber(), comp.getId());
-            return;
+            log.info("Web push not configured — skipping web-push result notifications for GW{} competition {}", gw.getWeekNumber(), comp.getId());
         }
 
         List<CompetitionParticipant> participants = participantRepository.findByCompetitionId(comp.getId());
@@ -150,41 +168,106 @@ public class WebPushService {
                 .collect(Collectors.toMap(pr -> pr.getPick().getId(), pr -> pr));
 
         for (CompetitionParticipant cp : participants) {
-            List<PushSubscription> subscriptions = pushSubscriptionRepository.findByUserId(cp.getUser().getId());
-            if (subscriptions.isEmpty()) {
-                continue;
+            String title = "Gameweek " + gw.getWeekNumber() + " results";
+            String body = buildResultBody(comp, gw, cp, pickByParticipantId.get(cp.getId()),
+                    pickByParticipantId.get(cp.getId()) == null ? null : resultByPickId.get(pickByParticipantId.get(cp.getId()).getId()));
+            String url = frontendUrl + "/competitions/" + comp.getId();
+            String tag = "gw-results-" + gw.getId() + "-" + cp.getUser().getId();
+
+            if (isConfigured()) {
+                List<PushSubscription> subscriptions = pushSubscriptionRepository.findByUserId(cp.getUser().getId());
+                if (!subscriptions.isEmpty()) {
+                    sendToSubscriptions(subscriptions, Map.of(
+                            "title", title,
+                            "body", body,
+                            "url", url,
+                            "tag", tag
+                    ));
+                }
             }
 
-            Pick pick = pickByParticipantId.get(cp.getId());
-            String body = buildResultBody(comp, gw, cp, pick, pick == null ? null : resultByPickId.get(pick.getId()));
-            sendToSubscriptions(subscriptions, Map.of(
-                    "title", "Gameweek " + gw.getWeekNumber() + " results",
-                    "body", body,
-                    "url", frontendUrl + "/competitions/" + comp.getId(),
-                    "tag", "gw-results-" + gw.getId() + "-" + cp.getUser().getId()
-            ));
+            sendToMobileTokens(cp.getUser().getId(), title, body, url, tag);
         }
     }
 
     @Transactional
     public void sendPaymentConfirmedNotification(Competition comp, User user) {
-        if (!isConfigured()) {
-            log.info("Web push not configured — skipping payment-confirmed notification for user {} competition {}",
+        String title = "Payment confirmed";
+        String body = "Your payment for " + comp.getName() + " has been confirmed. You can now make your pick.";
+        String url = frontendUrl + "/competitions/" + comp.getId();
+        String tag = "payment-confirmed-" + comp.getId() + "-" + user.getId();
+
+        if (isConfigured()) {
+            List<PushSubscription> subscriptions = pushSubscriptionRepository.findByUserId(user.getId());
+            if (!subscriptions.isEmpty()) {
+                sendToSubscriptions(subscriptions, Map.of(
+                        "title", title,
+                        "body", body,
+                        "url", url,
+                        "tag", tag
+                ));
+            }
+        } else {
+            log.info("Web push not configured — skipping web-push payment notification for user {} competition {}",
                     user.getId(), comp.getId());
-            return;
         }
 
-        List<PushSubscription> subscriptions = pushSubscriptionRepository.findByUserId(user.getId());
-        if (subscriptions.isEmpty()) {
-            return;
-        }
+        sendToMobileTokens(user.getId(), title, body, url, tag);
+    }
 
-        sendToSubscriptions(subscriptions, Map.of(
-                "title", "Payment confirmed",
-                "body", "Your payment for " + comp.getName() + " has been confirmed. You can now make your pick.",
-                "url", frontendUrl + "/competitions/" + comp.getId(),
-                "tag", "payment-confirmed-" + comp.getId() + "-" + user.getId()
-        ));
+    private void sendToMobileTokens(Long userId, String title, String body, String url, String tag) {
+        List<MobilePushToken> tokens = mobilePushTokenRepository.findByUserId(userId);
+        if (tokens.isEmpty()) return;
+
+        for (MobilePushToken token : tokens) {
+            try {
+                Map<String, Object> payload = Map.of(
+                        "to", token.getToken(),
+                        "title", title,
+                        "body", body,
+                        "sound", "default",
+                        "data", Map.of("url", url, "tag", tag)
+                );
+
+                String json = objectMapper.writeValueAsString(payload);
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create(EXPO_PUSH_URL))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(json))
+                        .build();
+
+                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+                if (response.statusCode() >= 400) {
+                    log.warn("Expo push send failed status={} userId={} tokenPrefix={}",
+                            response.statusCode(), userId, previewToken(token.getToken()));
+                    continue;
+                }
+
+                JsonNode root = objectMapper.readTree(response.body());
+                JsonNode data = root.path("data");
+                if (data.isArray() && data.size() > 0) {
+                    JsonNode first = data.get(0);
+                    if ("error".equals(first.path("status").asText())) {
+                        String expoError = first.path("details").path("error").asText();
+                        if ("DeviceNotRegistered".equals(expoError)) {
+                            log.info("Removing stale Expo token userId={} tokenPrefix={}", userId, previewToken(token.getToken()));
+                            mobilePushTokenRepository.deleteByToken(token.getToken());
+                        } else {
+                            log.warn("Expo push error userId={} error={} tokenPrefix={}",
+                                    userId, expoError, previewToken(token.getToken()));
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Failed to send Expo push userId={} tokenPrefix={} error={}",
+                        userId, previewToken(token.getToken()), e.getMessage());
+            }
+        }
+    }
+
+    private String previewToken(String token) {
+        if (token == null || token.length() < 12) return "short";
+        return token.substring(0, 12) + "...";
     }
 
     private void sendToSubscriptions(List<PushSubscription> subscriptions, Map<String, String> payload) {
