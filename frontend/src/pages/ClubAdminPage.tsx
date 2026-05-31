@@ -1375,14 +1375,14 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
     staleTime: 30_000,
   });
 
-  const { data: paidUserIds } = useQuery<number[]>({
-    queryKey: ['club-admin', 'paid-users', String(competitionId)],
-    queryFn: () => api.get(`/club-admin/competitions/${competitionId}/paid-users`).then((r) => r.data),
+  const { data: paidParticipantIds } = useQuery<number[]>({
+    queryKey: ['club-admin', 'paid-participants', String(competitionId)],
+    queryFn: () => api.get(`/club-admin/competitions/${competitionId}/paid-participants`).then((r) => r.data),
     enabled: isManual,
     staleTime: 30_000,
   });
 
-  const paidSet = new Set(paidUserIds ?? []);
+  const paidSet = new Set(paidParticipantIds ?? []);
 
   const removeMutation = useMutation({
     mutationFn: (participantId: number) =>
@@ -1396,44 +1396,44 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
   });
 
   const markPaidMutation = useMutation<void, any, number>({
-    mutationFn: (userId: number) =>
-      api.post(`/club-admin/competitions/${competitionId}/mark-paid/${String(userId)}`),
-    onMutate: async (userId) => {
-      await queryClient.cancelQueries({ queryKey: ['club-admin', 'paid-users', String(competitionId)] });
-      const previous = queryClient.getQueryData<number[]>(['club-admin', 'paid-users', String(competitionId)]);
-      queryClient.setQueryData<number[]>(['club-admin', 'paid-users', String(competitionId)],
-        (old) => old ? [...old, userId] : [userId]);
+    mutationFn: (participantId: number) =>
+      api.post(`/club-admin/competitions/${competitionId}/participants/${String(participantId)}/mark-paid`),
+    onMutate: async (participantId) => {
+      await queryClient.cancelQueries({ queryKey: ['club-admin', 'paid-participants', String(competitionId)] });
+      const previous = queryClient.getQueryData<number[]>(['club-admin', 'paid-participants', String(competitionId)]);
+      queryClient.setQueryData<number[]>(['club-admin', 'paid-participants', String(competitionId)],
+        (old) => old ? [...old, participantId] : [participantId]);
       return { previous };
     },
-    onError: (err: any, _userId, context: any) => {
+    onError: (err: any, _participantId, context: any) => {
       if (context?.previous !== undefined) {
-        queryClient.setQueryData(['club-admin', 'paid-users', String(competitionId)], context.previous);
+        queryClient.setQueryData(['club-admin', 'paid-participants', String(competitionId)], context.previous);
       }
       toast.error(err.response?.data?.message || 'Failed to confirm payment');
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['club-admin', 'paid-users', String(competitionId)] });
+      queryClient.invalidateQueries({ queryKey: ['club-admin', 'paid-participants', String(competitionId)] });
     },
   });
 
   const unmarkPaidMutation = useMutation<void, any, number>({
-    mutationFn: (userId: number) =>
-      api.post(`/club-admin/competitions/${competitionId}/unmark-paid/${String(userId)}`),
-    onMutate: async (userId) => {
-      await queryClient.cancelQueries({ queryKey: ['club-admin', 'paid-users', String(competitionId)] });
-      const previous = queryClient.getQueryData<number[]>(['club-admin', 'paid-users', String(competitionId)]);
-      queryClient.setQueryData<number[]>(['club-admin', 'paid-users', String(competitionId)],
-        (old) => old ? old.filter(id => id !== userId) : []);
+    mutationFn: (participantId: number) =>
+      api.post(`/club-admin/competitions/${competitionId}/participants/${String(participantId)}/unmark-paid`),
+    onMutate: async (participantId) => {
+      await queryClient.cancelQueries({ queryKey: ['club-admin', 'paid-participants', String(competitionId)] });
+      const previous = queryClient.getQueryData<number[]>(['club-admin', 'paid-participants', String(competitionId)]);
+      queryClient.setQueryData<number[]>(['club-admin', 'paid-participants', String(competitionId)],
+        (old) => old ? old.filter(id => id !== participantId) : []);
       return { previous };
     },
-    onError: (err: any, _userId, context: any) => {
+    onError: (err: any, _participantId, context: any) => {
       if (context?.previous !== undefined) {
-        queryClient.setQueryData(['club-admin', 'paid-users', String(competitionId)], context.previous);
+        queryClient.setQueryData(['club-admin', 'paid-participants', String(competitionId)], context.previous);
       }
       toast.error(err.response?.data?.message || 'Failed to revert payment');
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['club-admin', 'paid-users', String(competitionId)] });
+      queryClient.invalidateQueries({ queryKey: ['club-admin', 'paid-participants', String(competitionId)] });
     },
   });
 
@@ -1468,7 +1468,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
   }
 
   const activeCount = participants?.filter(p => p.status === 'ACTIVE').length ?? 0;
-  const unpaidCount = isManual ? (participants?.filter(p => !paidSet.has(p.userId)).length ?? 0) : 0;
+  const unpaidCount = isManual ? (participants?.filter(p => !paidSet.has(p.id)).length ?? 0) : 0;
   const entryCountByUserId = new Map<number, number>();
   (participants ?? []).forEach((participant) => {
     entryCountByUserId.set(participant.userId, (entryCountByUserId.get(participant.userId) ?? 0) + 1);
@@ -1489,8 +1489,8 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
       !isManual || viewMode === 'ALL'
         ? true
         : viewMode === 'PAID'
-          ? paidSet.has(p.userId)
-          : !paidSet.has(p.userId);
+          ? paidSet.has(p.id)
+          : !paidSet.has(p.id);
     return matchesSearch && matchesStatus && matchesView;
   });
 
@@ -1504,14 +1504,14 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
     ELIMINATED: participants?.filter(p => p.status === 'ELIMINATED').length ?? 0,
     WINNER: participants?.filter(p => p.status === 'WINNER').length ?? 0,
   };
-  const awaitingParticipants = (participants ?? []).filter((p) => !paidSet.has(p.userId));
-  const paidParticipants = (participants ?? []).filter((p) => paidSet.has(p.userId));
+  const awaitingParticipants = (participants ?? []).filter((p) => !paidSet.has(p.id));
+  const paidParticipants = (participants ?? []).filter((p) => paidSet.has(p.id));
 
   const exportPaymentsCsv = () => {
     const rows = (participants ?? []).map((p) => ({
       username: p.username,
       status: p.status,
-      payment_status: isManual ? (paidSet.has(p.userId) ? 'PAID' : 'AWAITING_PAYMENT') : (p.paymentState ?? 'NOT_REQUIRED'),
+      payment_status: isManual ? (paidSet.has(p.id) ? 'PAID' : 'AWAITING_PAYMENT') : (p.paymentState ?? 'NOT_REQUIRED'),
       joined_at: p.joinedAt,
     }));
     const header = 'username,status,payment_status,joined_at';
@@ -1534,10 +1534,10 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
     if (!awaitingParticipants.length) return;
     setBulkConfirming(true);
     try {
-      const targets = awaitingParticipants.slice(0, 200).map((p) => p.userId);
+      const targets = awaitingParticipants.slice(0, 200).map((p) => p.id);
       const response = await api.post(
-        `/club-admin/competitions/${competitionId}/mark-paid-batch`,
-        { userIds: targets },
+        `/club-admin/competitions/${competitionId}/mark-paid-participants-batch`,
+        { participantIds: targets },
         { timeout: 30_000 },
       );
       const created = Number(response.data?.created ?? 0);
@@ -1548,7 +1548,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
         (alreadyPaid ? `, ${alreadyPaid} already paid` : '') +
         (invalid ? `, ${invalid} skipped` : '')
       );
-      queryClient.invalidateQueries({ queryKey: ['club-admin', 'paid-users', String(competitionId)] });
+      queryClient.invalidateQueries({ queryKey: ['club-admin', 'paid-participants', String(competitionId)] });
       queryClient.invalidateQueries({ queryKey: ['club-admin', 'participants', competitionId] });
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Bulk confirmation failed');
@@ -1576,7 +1576,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
   };
 
   const confirmPayment = (p: Participant) => {
-    markPaidMutation.mutate(p.userId, {
+    markPaidMutation.mutate(p.id, {
       onSuccess: () => {
         setMobileActionUserId(null);
         actionButtonRefs.current[p.id]?.focus();
@@ -1586,7 +1586,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
   };
 
   const revertPayment = (p: Participant) => {
-    unmarkPaidMutation.mutate(p.userId, {
+    unmarkPaidMutation.mutate(p.id, {
       onSuccess: () => {
         setMobileActionUserId(null);
         actionButtonRefs.current[p.id]?.focus();
@@ -1966,7 +1966,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                     </div>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
                       {isManual && (
-                        paidSet.has(p.userId)
+                        paidSet.has(p.id)
                           ? <span className="text-green-400 sm:text-green-400 text-gray-400">Payment confirmed</span>
                           : <span className="text-yellow-400 sm:text-yellow-400 text-gray-400">Awaiting payment</span>
                       )}
@@ -1977,7 +1977,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                   </div>
                   <div className="hidden sm:flex sm:flex-wrap sm:items-center sm:gap-2 sm:ml-2 sm:shrink-0">
                   {isManual && (
-                    paidSet.has(p.userId) ? (
+                    paidSet.has(p.id) ? (
                       <span className="text-xs text-green-400 font-medium flex items-center gap-1">
                         <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
                         Paid
@@ -1992,7 +1992,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                       </button>
                     )
                   )}
-                  {isManual && paidSet.has(p.userId) && (
+                  {isManual && paidSet.has(p.id) && (
                     <button
                       onClick={() => revertPayment(p)}
                       disabled={unmarkPaidMutation.isPending}
@@ -2033,7 +2033,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                     {mobileActionUserId === p.id && (
                       <div className="mt-2 grid grid-cols-1 gap-2">
                         {isManual && (
-                          paidSet.has(p.userId) ? (
+                          paidSet.has(p.id) ? (
                             <button
                               type="button"
                               onClick={() => revertPayment(p)}
