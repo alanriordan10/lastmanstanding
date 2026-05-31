@@ -84,6 +84,7 @@ public class ClubAdminController {
 
     public record AssignAdminRequest(Long userId) {}
     public record MarkPaidBatchRequest(List<Long> userIds) {}
+    public record MarkPaidParticipantsBatchRequest(List<Long> participantIds) {}
 
     @PutMapping("/my-club/assign-admin")
     @Transactional
@@ -370,7 +371,7 @@ public class ClubAdminController {
         return ResponseEntity.noContent().build();
     }
 
-    /** Returns IDs of users who have confirmed payment for this competition */
+    /** Returns IDs of users who have confirmed payment for this competition. Kept for older clients. */
     @GetMapping("/competitions/{compId}/paid-users")
     public ResponseEntity<List<Long>> getPaidUsers(
             @PathVariable Long compId,
@@ -380,7 +381,36 @@ public class ClubAdminController {
         return ResponseEntity.ok(paymentRepository.findPaidUserIdsByCompetitionId(compId));
     }
 
-    /** Record manual payment confirmation for a participant already registered in the competition */
+    /** Returns IDs of participant entries that have confirmed payment for this competition. */
+    @GetMapping("/competitions/{compId}/paid-participants")
+    public ResponseEntity<List<Long>> getPaidParticipants(
+            @PathVariable Long compId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        Club club = resolveClub(userDetails);
+        assertOwnsCompetition(compId, club);
+        return ResponseEntity.ok(paymentRepository.findPaidParticipantIdsByCompetitionId(compId));
+    }
+
+    /** Record manual payment confirmation for one participant entry. */
+    @PostMapping("/competitions/{compId}/participants/{participantId}/mark-paid")
+    @Transactional
+    public ResponseEntity<Void> markManualPaymentForParticipant(
+            @PathVariable Long compId,
+            @PathVariable Long participantId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        Club club = resolveClub(userDetails);
+        assertOwnsCompetition(compId, club);
+        CompetitionParticipant participant = participantRepository.findByIdAndCompetitionId(participantId, compId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Participant not found"));
+        Payment payment = ensureManualPaymentForParticipant(compId, participant);
+        log.info("Club admin {} confirmed manual payment for participant {} in competition {}",
+                userDetails.getUsername(), participantId, participant.getCompetition().getName());
+        notifyPaymentConfirmed(participant.getCompetition(), participant.getUser());
+        logAudit(userDetails, "Payment", payment.getId(), "participantId", null, String.valueOf(participantId), "MARK_PAID");
+        return ResponseEntity.ok().build();
+    }
+
+    /** Record manual payment confirmation for a participant already registered in the competition. Kept for older clients. */
     @PostMapping("/competitions/{compId}/mark-paid/{userId}")
     @Transactional
     public ResponseEntity<Void> markManualPayment(
@@ -399,46 +429,82 @@ public class ClubAdminController {
                     "This competition does not use manual payment");
         }
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-
-        // Verify the player is registered
-        if (!participantRepository.existsByCompetitionIdAndUserId(compId, userId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
-                    "User is not registered for this competition");
-        }
-
-        // Record payment confirmation if not already done
-        Payment payment;
-        if (!paymentRepository.existsByUserIdAndCompetitionIdAndStatus(
-                userId, compId, Payment.PaymentStatus.SUCCEEDED)) {
-            payment = new Payment(
-                    user, comp, null,
-                    comp.getEntryFee() != null
-                            ? comp.getEntryFee().multiply(java.math.BigDecimal.valueOf(100)).intValue()
-                            : 0,
-                    "eur");
-            payment.setStatus(Payment.PaymentStatus.SUCCEEDED);
-            paymentRepository.save(payment);
-        } else {
-            payment = paymentRepository.findSucceededByCompetitionAndUser(compId, userId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Payment not found"));
-        }
+        CompetitionParticipant participant = participantRepository.findByCompetitionIdAndUserIdOrderByEntryNumberAsc(compId, userId).stream()
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "User is not registered for this competition"));
+        Payment payment = ensureManualPaymentForParticipant(compId, participant);
 
         log.info("Club admin {} confirmed manual payment from user {} for competition {}",
-                userDetails.getUsername(), user.getUsername(), comp.getName());
-
-        try {
-            webPushService.sendPaymentConfirmedNotification(comp, user);
-        } catch (Exception e) {
-            log.warn("Manual payment notification failed for user {} in competition {}: {}",
-                    userId, compId, e.getMessage());
-        }
-        gameweekEmailService.sendPaymentConfirmedEmail(user, comp);
-
-        logAudit(userDetails, "Payment", payment.getId(), "status", null, "SUCCEEDED", "MARK_PAID");
+                userDetails.getUsername(), participant.getUser().getUsername(), comp.getName());
+        notifyPaymentConfirmed(comp, participant.getUser());
+        logAudit(userDetails, "Payment", payment.getId(), "participantId", null, String.valueOf(participant.getId()), "MARK_PAID");
 
         return ResponseEntity.ok().build();
+    }
+
+    /** Record manual payment confirmations in bulk for participant entries. */
+    @PostMapping("/competitions/{compId}/mark-paid-participants-batch")
+    @Transactional
+    public ResponseEntity<Map<String, Integer>> markManualPaymentParticipantsBatch(
+            @PathVariable Long compId,
+            @RequestBody MarkPaidParticipantsBatchRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+
+        Club club = resolveClub(userDetails);
+        assertOwnsCompetition(compId, club);
+
+        Competition comp = competitionRepository.findById(compId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Competition not found"));
+
+        if (comp.getPaymentMode() != PaymentMode.MANUAL) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "This competition does not use manual payment");
+        }
+
+        List<Long> requestedIds = request != null && request.participantIds() != null ? request.participantIds() : List.of();
+        if (requestedIds.isEmpty()) {
+            return ResponseEntity.ok(Map.of("requested", 0, "created", 0, "alreadyPaid", 0, "invalid", 0));
+        }
+
+        List<Long> targetIds = new HashSet<>(requestedIds).stream().limit(200).toList();
+        Set<Long> validParticipantIds = new HashSet<>(participantRepository.findAllById(targetIds).stream()
+                .filter(cp -> cp.getCompetition().getId().equals(compId))
+                .map(CompetitionParticipant::getId)
+                .toList());
+        Set<Long> alreadyPaidIds = new HashSet<>(
+                paymentRepository.findPaidParticipantIdsByCompetitionIdAndParticipantIdIn(compId, targetIds));
+
+        int invalid = 0;
+        int alreadyPaid = 0;
+        for (Long participantId : targetIds) {
+            if (!validParticipantIds.contains(participantId)) {
+                invalid++;
+            } else if (alreadyPaidIds.contains(participantId)) {
+                alreadyPaid++;
+            }
+        }
+
+        List<Long> eligibleIds = targetIds.stream()
+                .filter(validParticipantIds::contains)
+                .filter(id -> !alreadyPaidIds.contains(id))
+                .toList();
+        int created = 0;
+        if (!eligibleIds.isEmpty()) {
+            created = paymentRepository.insertSucceededManualPaymentsForParticipants(
+                    compId, eligibleIds, paymentAmountCents(comp), "eur");
+        }
+
+        logAudit(userDetails, "Payment", compId, "bulkMarkPaidParticipants", null,
+                "requested=" + targetIds.size() + ", created=" + created + ", alreadyPaid=" + alreadyPaid + ", invalid=" + invalid,
+                "BULK_MARK_PAID");
+
+        return ResponseEntity.ok(Map.of(
+                "requested", targetIds.size(),
+                "created", created,
+                "alreadyPaid", alreadyPaid,
+                "invalid", invalid
+        ));
     }
 
     /** Record manual payment confirmations in bulk for participants already registered in the competition */
@@ -509,6 +575,40 @@ public class ClubAdminController {
         ));
     }
 
+    /** Revert/undo a manual payment confirmation for one participant entry. */
+    @PostMapping("/competitions/{compId}/participants/{participantId}/unmark-paid")
+    @Transactional
+    public ResponseEntity<Void> unmarkManualPaymentForParticipant(
+            @PathVariable Long compId,
+            @PathVariable Long participantId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+
+        Club club = resolveClub(userDetails);
+        assertOwnsCompetition(compId, club);
+
+        Competition comp = competitionRepository.findById(compId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Competition not found"));
+
+        if (comp.getPaymentMode() != PaymentMode.MANUAL) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "This competition does not use manual payment");
+        }
+
+        participantRepository.findByIdAndCompetitionId(participantId, compId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Participant not found"));
+        Payment payment = paymentRepository.findSucceededByCompetitionAndParticipant(compId, participantId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No confirmed manual payment found for this entry"));
+
+        paymentRepository.updateStatus(payment.getId(), Payment.PaymentStatus.FAILED);
+
+        log.info("Club admin {} reverted manual payment for participant {} on competition {}",
+                userDetails.getUsername(), participantId, comp.getName());
+
+        logAudit(userDetails, "Payment", payment.getId(), "status", "SUCCEEDED", "FAILED", "UNMARK_PAID");
+
+        return ResponseEntity.ok().build();
+    }
+
     /** Revert/undo a manual payment confirmation */
     @PostMapping("/competitions/{compId}/unmark-paid/{userId}")
     @Transactional
@@ -540,6 +640,37 @@ public class ClubAdminController {
         logAudit(userDetails, "Payment", payment.getId(), "status", "SUCCEEDED", "FAILED", "UNMARK_PAID");
 
         return ResponseEntity.ok().build();
+    }
+
+    private Payment ensureManualPaymentForParticipant(Long compId, CompetitionParticipant participant) {
+        Competition comp = participant.getCompetition();
+        if (comp.getPaymentMode() != PaymentMode.MANUAL) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "This competition does not use manual payment");
+        }
+        return paymentRepository.findSucceededByCompetitionAndParticipant(compId, participant.getId())
+                .orElseGet(() -> {
+                    Payment payment = new Payment(participant.getUser(), comp, null, paymentAmountCents(comp), "eur");
+                    payment.setParticipant(participant);
+                    payment.setStatus(Payment.PaymentStatus.SUCCEEDED);
+                    return paymentRepository.save(payment);
+                });
+    }
+
+    private int paymentAmountCents(Competition comp) {
+        return comp.getEntryFee() != null
+                ? comp.getEntryFee().multiply(java.math.BigDecimal.valueOf(100)).intValue()
+                : 0;
+    }
+
+    private void notifyPaymentConfirmed(Competition comp, User user) {
+        try {
+            webPushService.sendPaymentConfirmedNotification(comp, user);
+        } catch (Exception e) {
+            log.warn("Manual payment notification failed for user {} in competition {}: {}",
+                    user.getId(), comp.getId(), e.getMessage());
+        }
+        gameweekEmailService.sendPaymentConfirmedEmail(user, comp);
     }
 
     @PostMapping("/competitions/{compId}/declare-winner/{participantId}")
