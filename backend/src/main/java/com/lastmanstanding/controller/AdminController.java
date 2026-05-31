@@ -10,6 +10,9 @@ import com.lastmanstanding.repository.FixtureRepository;
 import com.lastmanstanding.repository.GameweekRepository;
 import com.lastmanstanding.repository.PickRepository;
 import com.lastmanstanding.repository.PickResultRepository;
+import com.lastmanstanding.repository.PasswordResetTokenRepository;
+import com.lastmanstanding.repository.PushSubscriptionRepository;
+import com.lastmanstanding.repository.MobilePushTokenRepository;
 import com.lastmanstanding.provider.FootballDataProvider;
 import com.lastmanstanding.security.UserDetailsImpl;
 import com.lastmanstanding.service.AdminService;
@@ -60,6 +63,9 @@ public class AdminController {
     private final com.lastmanstanding.service.FixtureSyncService fixtureSyncService;
     private final Optional<FootballDataProvider> footballDataProvider;
     private final AuditLogRepository auditLogRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final PushSubscriptionRepository pushSubscriptionRepository;
+    private final MobilePushTokenRepository mobilePushTokenRepository;
 
     public AdminController(AdminService adminService,
                            CompetitionService competitionService,
@@ -76,7 +82,10 @@ public class AdminController {
                            TestDataGenerator testDataGenerator,
                            com.lastmanstanding.service.FixtureSyncService fixtureSyncService,
                            Optional<FootballDataProvider> footballDataProvider,
-                           AuditLogRepository auditLogRepository) {
+                           AuditLogRepository auditLogRepository,
+                           PasswordResetTokenRepository passwordResetTokenRepository,
+                           PushSubscriptionRepository pushSubscriptionRepository,
+                           MobilePushTokenRepository mobilePushTokenRepository) {
         this.adminService = adminService;
         this.competitionService = competitionService;
         this.clubRepository = clubRepository;
@@ -93,6 +102,9 @@ public class AdminController {
         this.fixtureSyncService = fixtureSyncService;
         this.footballDataProvider = footballDataProvider;
         this.auditLogRepository = auditLogRepository;
+        this.passwordResetTokenRepository = passwordResetTokenRepository;
+        this.pushSubscriptionRepository = pushSubscriptionRepository;
+        this.mobilePushTokenRepository = mobilePushTokenRepository;
     }
 
     // ── Clubs ───────────────────────────────────────────────────────────
@@ -781,12 +793,31 @@ public class AdminController {
         // 2. Delete competition participations
         participantRepository.deleteByUserId(userId);
 
-        // 3. Preserve audit history but detach old rows from the user being deleted.
-        auditLogRepository.detachUser(userId);
+        // 3. Remove active club-admin ownership. created_by stays intact for historical ownership.
+        clubRepository.findByClubAdminId(userId).forEach(club -> {
+            club.setClubAdmin(null);
+            clubRepository.save(club);
+        });
 
-        // 4. Delete the user
-        logAudit(currentUser, "User", userId, "username", user.getUsername(), null, "DELETE");
-        userRepository.deleteById(userId);
+        // 4. Remove account tokens/subscriptions and anonymize the user row.
+        passwordResetTokenRepository.deleteByUserId(userId);
+        pushSubscriptionRepository.deleteByUserId(userId);
+        mobilePushTokenRepository.deleteByUserId(userId);
+
+        String oldUsername = user.getUsername();
+        String marker = "deleted-" + user.getId() + "-" + System.currentTimeMillis();
+        user.setDisabled(true);
+        user.setEmail(marker + "@deleted.local");
+        user.setUsername(marker);
+        user.setPasswordHash(null);
+        user.setRole(Role.USER);
+        user.setOauthProvider(null);
+        user.setOauthProviderId(null);
+        user.setAvatarUrl(null);
+        user.setEmailResultsOptIn(false);
+        userRepository.save(user);
+
+        logAudit(currentUser, "User", userId, "username", oldUsername, marker, "DELETE");
 
         return ResponseEntity.noContent().build();
     }
