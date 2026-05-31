@@ -1,5 +1,6 @@
 package com.lastmanstanding.security;
 
+import com.lastmanstanding.controller.OAuth2StartController;
 import com.lastmanstanding.entity.Role;
 import com.lastmanstanding.entity.User;
 import com.lastmanstanding.repository.UserRepository;
@@ -25,15 +26,18 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
     private final UserRepository userRepository;
     private final JwtService jwtService;
     private final String frontendUrl;
+    private final String mobileOauthCallbackUrl;
 
     public OAuth2AuthenticationSuccessHandler(
             UserRepository userRepository,
             JwtService jwtService,
-            @Value("${app.frontend-url:http://localhost:5173}") String frontendUrl
+            @Value("${app.frontend-url:http://localhost:5173}") String frontendUrl,
+            @Value("${app.mobile-oauth-callback-url:lastmanstanding://oauth2/callback}") String mobileOauthCallbackUrl
     ) {
         this.userRepository = userRepository;
         this.jwtService = jwtService;
         this.frontendUrl = frontendUrl;
+        this.mobileOauthCallbackUrl = mobileOauthCallbackUrl;
     }
 
     @Override
@@ -58,7 +62,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
         String avatarUrl = principal.getAttribute("picture");
 
         if (email == null || email.isBlank()) {
-            redirectWithError(response, "missing_email");
+            redirectWithError(request, response, "missing_email");
             return;
         }
 
@@ -68,13 +72,12 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
                 .orElseGet(() -> createOauthUser(email, displayName, provider, providerId, avatarUrl));
 
         if (user.isDisabled()) {
-            redirectWithError(response, "account_disabled");
+            redirectWithError(request, response, "account_disabled");
             return;
         }
 
         String accessToken = jwtService.generateAccessToken(user);
-        String target = UriComponentsBuilder.fromHttpUrl(frontendUrl)
-                .path("/oauth2/callback")
+        String target = callbackBuilder(request)
                 .queryParam("token", accessToken)
                 .queryParam("provider", "Google")
                 .build()
@@ -82,13 +85,32 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
         response.sendRedirect(target);
     }
 
-    private void redirectWithError(HttpServletResponse response, String error) throws IOException {
-        String target = UriComponentsBuilder.fromHttpUrl(frontendUrl)
-                .path("/oauth2/callback")
+    private void redirectWithError(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            String error
+    ) throws IOException {
+        String target = callbackBuilder(request)
                 .queryParam("error", error)
                 .build()
                 .toUriString();
         response.sendRedirect(target);
+    }
+
+    private UriComponentsBuilder callbackBuilder(HttpServletRequest request) {
+        boolean mobileClient = Optional.ofNullable(request.getSession(false))
+                .map((session) -> {
+                    Object client = session.getAttribute(OAuth2StartController.OAUTH_CLIENT_SESSION_KEY);
+                    session.removeAttribute(OAuth2StartController.OAUTH_CLIENT_SESSION_KEY);
+                    return OAuth2StartController.MOBILE_CLIENT.equals(client);
+                })
+                .orElse(false);
+
+        if (mobileClient) {
+            return UriComponentsBuilder.fromUriString(mobileOauthCallbackUrl);
+        }
+
+        return UriComponentsBuilder.fromHttpUrl(frontendUrl).path("/oauth2/callback");
     }
 
     private User updateOauthProfile(
