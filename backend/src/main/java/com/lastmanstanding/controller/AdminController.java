@@ -781,7 +781,10 @@ public class AdminController {
         // 2. Delete competition participations
         participantRepository.deleteByUserId(userId);
 
-        // 3. Delete the user
+        // 3. Preserve audit history but detach old rows from the user being deleted.
+        auditLogRepository.detachUser(userId);
+
+        // 4. Delete the user
         logAudit(currentUser, "User", userId, "username", user.getUsername(), null, "DELETE");
         userRepository.deleteById(userId);
 

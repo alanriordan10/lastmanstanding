@@ -678,7 +678,10 @@ function CompetitionsTab() {
           <div className="w-full max-w-4xl rounded-2xl border border-white/10 bg-surface-900 shadow-2xl">
             <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
               <div>
-                <h2 className="font-semibold text-gray-200">{editingComp ? `Edit ${editingComp.name}` : 'New Competition'}</h2>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="font-semibold text-gray-200">{editingComp ? `Edit ${editingComp.name}` : 'New Competition'}</h2>
+                  {editingComp && <span className="badge-blue">Editing</span>}
+                </div>
                 <p className="text-xs text-gray-500">
                   {editingComp ? 'Update competition settings, fees, timing, and visibility.' : 'Set up a new competition and its entry settings.'}
                 </p>
@@ -702,17 +705,6 @@ function CompetitionsTab() {
               }}
               className="space-y-4 p-5"
             >
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-white">{editingComp ? `Edit ${editingComp.name}` : 'New Competition'}</h3>
-              <p className="text-sm text-gray-400">
-                {editingComp ? 'Update competition settings, fees, timing, and visibility.' : 'Set up a new competition and its entry settings.'}
-              </p>
-            </div>
-            {editingComp && (
-              <span className="badge-blue self-start sm:self-auto">Editing</span>
-            )}
-          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-300">Name</label>
