@@ -47,6 +47,9 @@ public class Gameweek {
     @Column(name = "reminder_sent", nullable = false)
     private boolean reminderSent = false;
 
+    @Column(name = "results_email_sent", nullable = false)
+    private boolean resultsEmailSent = false;
+
     public Gameweek() {
     }
 
@@ -131,5 +134,13 @@ public class Gameweek {
 
     public void setReminderSent(boolean reminderSent) {
         this.reminderSent = reminderSent;
+    }
+
+    public boolean isResultsEmailSent() {
+        return resultsEmailSent;
+    }
+
+    public void setResultsEmailSent(boolean resultsEmailSent) {
+        this.resultsEmailSent = resultsEmailSent;
     }
 }

@@ -9,13 +9,19 @@ import AddParticipantPanel from '../components/AddParticipantPanel';
 import ErrorBoundary from '../components/ErrorBoundary';
 import ConfirmDialog from '../components/ConfirmDialog';
 
-function parseDate(value: string | number[]): Date {
+function parseDate(value: string | number[] | null | undefined): Date {
+  if (!value) return new Date(Number.NaN);
   if (Array.isArray(value)) {
     const [y, mo, d, h = 0, mi = 0, s = 0] = value as number[];
     return new Date(Date.UTC(y, mo - 1, d, h, mi, s));
   }
   const str = (value.endsWith('Z') || value.includes('+')) ? value : value + 'Z';
   return new Date(str);
+}
+
+function formatAdminDate(value: string | number[] | null | undefined): string {
+  const date = parseDate(value);
+  return Number.isNaN(date.getTime()) ? 'No lock time' : date.toLocaleString();
 }
 
 export default function AdminPage() {
@@ -2266,7 +2272,7 @@ function SimulateTab() {
 
   const { data: gameweeks, isLoading: gwLoading } = useQuery<GameweekWithFixtures[]>({
     queryKey: ['admin', 'gameweeks', selectedCompId],
-    queryFn: () => api.get(`/admin/competitions/${selectedCompId}/gameweeks`).then((r) => r.data),
+    queryFn: () => api.get(`/admin/competitions/${selectedCompId}/gameweeks`).then((r) => Array.isArray(r.data) ? r.data : []),
     enabled: !!selectedCompId,
   });
 
@@ -2538,7 +2544,7 @@ function SimulateTab() {
                 { value: '', label: 'Choose a gameweek…' },
                 ...gameweeks.map((gw) => ({
                   value: String(gw.id),
-                  label: `GW${gw.weekNumber} — ${gw.status} — ${gw.fixtures.length} fixtures — Locks: ${parseDate(gw.lockAt).toLocaleString()}`,
+                  label: `GW${gw.weekNumber} — ${gw.status} — ${(gw.fixtures ?? []).length} fixtures — Locks: ${formatAdminDate(gw.lockAt)}`,
                 })),
               ]}
             />
@@ -2619,10 +2625,7 @@ function SimulateTab() {
                         )}
                       </div>
                       <span className="text-xs text-gray-500 sm:text-right">
-                        {parseDate(fixture.kickoffAt).toLocaleString(undefined, {
-                          day: '2-digit', month: '2-digit', year: 'numeric',
-                          hour: '2-digit', minute: '2-digit', hour12: false
-                        })}
+                        {formatAdminDate(fixture.kickoffAt)}
                       </span>
                     </div>
 

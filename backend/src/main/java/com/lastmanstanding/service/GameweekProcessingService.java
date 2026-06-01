@@ -515,15 +515,34 @@ public class GameweekProcessingService {
         // if fewer than MIN_UPCOMING_BUFFER weeks are still UPCOMING.
         ensureUpcomingBuffer(comp);
 
-        // Send result emails to opted-in participants
-        gameweekEmailService.sendGameweekResultEmails(comp, gw);
-        webPushService.sendGameweekResultNotifications(comp, gw);
-
         // Check if competition should be completed (1 or fewer active participants)
         if (!skipAutoComplete) {
             checkCompetitionCompletion(comp);
         } else {
             log.info("Skipped auto-completion check for competition {} (testing mode)", comp.getId());
+        }
+
+        // Result notifications are external side effects. Never let them roll back result processing,
+        // and only send emails once per gameweek even if processing is retried.
+        if (!gw.isResultsEmailSent()) {
+            try {
+                gameweekEmailService.sendGameweekResultEmails(comp, gw);
+                gw.setResultsEmailSent(true);
+                gameweekRepository.save(gw);
+            } catch (Exception e) {
+                log.warn("Failed to send result emails for GW{} competition {}: {}",
+                        gw.getWeekNumber(), comp.getId(), e.getMessage());
+            }
+        } else {
+            log.info("Skipping GW{} result emails for competition {} because they were already sent",
+                    gw.getWeekNumber(), comp.getId());
+        }
+
+        try {
+            webPushService.sendGameweekResultNotifications(comp, gw);
+        } catch (Throwable e) {
+            log.warn("Failed to send web push result notifications for GW{} competition {}: {}",
+                    gw.getWeekNumber(), comp.getId(), e.getMessage());
         }
 
         log.info("Processed results for GW{} in competition {}", gw.getWeekNumber(), comp.getId());

@@ -1,0 +1,1 @@
+ALTER TABLE gameweeks ADD COLUMN results_email_sent BOOLEAN NOT NULL DEFAULT FALSE;

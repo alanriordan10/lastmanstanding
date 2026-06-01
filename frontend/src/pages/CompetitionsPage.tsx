@@ -187,9 +187,14 @@ export default function CompetitionsPage() {
   });
   const [expandedMineRows, setExpandedMineRows] = useState<Set<string>>(new Set());
   const [showMineAdvancedFilters, setShowMineAdvancedFilters] = useState(false);
+  const [availableSections, setAvailableSections] = useState({
+    open: true,
+    live: true,
+  });
   const [mineSections, setMineSections] = useState({
-    needsAction: false,
-    active: false,
+    needsAction: true,
+    active: true,
+    upcoming: true,
     eliminated: true,
     finished: true,
   });
@@ -342,7 +347,7 @@ export default function CompetitionsPage() {
 
   // All useMemo hooks must be called before any early return
   const filteredAvailable = useMemo(() => {
-    let list = allComps.filter((c) => c.status === 'UPCOMING' && (!joinedSet.has(c.id) || canAddEntry(c)));
+    let list = allComps.filter((c) => c.status === 'UPCOMING' && !joinedSet.has(c.id));
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(c => c.name.toLowerCase().includes(q) || c.clubName?.toLowerCase().includes(q) || c.description?.toLowerCase().includes(q));
@@ -593,8 +598,8 @@ export default function CompetitionsPage() {
             <ModeTab
               active={viewMode === 'available'}
               onClick={() => setViewMode('available')}
-              label="Available"
-              hint="Open to join"
+              label="Browse"
+              hint="Open + live"
               count={filteredAvailable.length + filteredLiveAvailable.length}
               isLoading={isLoading}
             />
@@ -891,14 +896,14 @@ export default function CompetitionsPage() {
             </button>
             <button
               type="button"
-              onClick={() => setMineSections({ needsAction: false, active: false, eliminated: false, finished: false })}
+              onClick={() => setMineSections({ needsAction: false, active: false, upcoming: false, eliminated: false, finished: false })}
               className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-gray-300"
             >
               Expand all
             </button>
             <button
               type="button"
-              onClick={() => setMineSections({ needsAction: true, active: true, eliminated: true, finished: true })}
+              onClick={() => setMineSections({ needsAction: true, active: true, upcoming: true, eliminated: true, finished: true })}
               className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-gray-300"
             >
               Collapse all
@@ -937,7 +942,7 @@ export default function CompetitionsPage() {
         </div>
       )}
 
-      {/* ── Available ── */}
+      {/* ── Browse ── */}
       {viewMode === 'available' && (
         isLoading ? (
           <LoadingState />
@@ -970,7 +975,7 @@ export default function CompetitionsPage() {
             )}
             {listView ? (
               <div className="space-y-5">
-                <Section label={`Open to Join (${filteredAvailable.length})`}>
+                <Section label={`Joinable Competitions (${filteredAvailable.length})`} collapsible collapsed={availableSections.open} onToggle={() => setAvailableSections((s) => ({ ...s, open: !s.open }))}>
                   {filteredAvailable.length > 0 ? (
                     <>
                       <CompListView comps={paginatedAvailable} joinedSet={joinedSet} onJoin={(c) => handleJoin(c)} isPending={joinMutation.isPending} entryCounts={myEntryCountByCompetition} />
@@ -981,11 +986,11 @@ export default function CompetitionsPage() {
                   )}
                 </Section>
 
-                <Section label={`Live Now · View Only (${filteredLiveAvailable.length})`} icon="●" iconColor="bg-green-600">
+                <Section label={`Live Now · View Only (${filteredLiveAvailable.length})`} icon="●" iconColor="bg-green-600" collapsible collapsed={availableSections.live} onToggle={() => setAvailableSections((s) => ({ ...s, live: !s.live }))}>
                   {filteredLiveAvailable.length > 0 ? (
                     <>
                       <div className="rounded-lg border border-green-500/25 bg-green-500/10 px-3 py-2 text-xs text-green-200">
-                        These competitions are already in progress. You can view details but cannot join now.
+                        These competitions are already in progress. You can view details but cannot join now. Your joined entries are under My Competitions.
                       </div>
                       <CompListView comps={filteredLiveAvailable} joinedSet={joinedSet} onJoin={(c) => handleJoin(c)} isPending={joinMutation.isPending} entryCounts={myEntryCountByCompetition} />
                     </>
@@ -996,7 +1001,7 @@ export default function CompetitionsPage() {
               </div>
             ) : (
               <div className="space-y-5">
-                <Section label={`Open to Join (${filteredAvailable.length})`}>
+                <Section label={`Joinable Competitions (${filteredAvailable.length})`} collapsible collapsed={availableSections.open} onToggle={() => setAvailableSections((s) => ({ ...s, open: !s.open }))}>
                   {filteredAvailable.length > 0 ? (
                     <>
                       <CompListView comps={paginatedAvailable} joinedSet={joinedSet} onJoin={(c) => handleJoin(c)} isPending={joinMutation.isPending} entryCounts={myEntryCountByCompetition} />
@@ -1007,11 +1012,11 @@ export default function CompetitionsPage() {
                   )}
                 </Section>
 
-                <Section label={`Live Now · View Only (${filteredLiveAvailable.length})`} icon="●" iconColor="bg-green-600">
+                <Section label={`Live Now · View Only (${filteredLiveAvailable.length})`} icon="●" iconColor="bg-green-600" collapsible collapsed={availableSections.live} onToggle={() => setAvailableSections((s) => ({ ...s, live: !s.live }))}>
                   {filteredLiveAvailable.length > 0 ? (
                     <>
                       <div className="rounded-lg border border-green-500/25 bg-green-500/10 px-3 py-2 text-xs text-green-200">
-                        These competitions are already in progress. You can view details but cannot join now.
+                        These competitions are already in progress. You can view details but cannot join now. Your joined entries are under My Competitions.
                       </div>
                       <CompGrid>
                         {filteredLiveAvailable.map((c) => (
@@ -1070,7 +1075,7 @@ export default function CompetitionsPage() {
               </Section>
             )}
             {mineUpcoming.length > 0 && (mineFilter === 'ALL' || mineFilter === 'UPCOMING') && (
-              <Section label={`Upcoming (${mineUpcoming.length})`} icon="○" iconColor="bg-blue-500">
+              <Section label={`Upcoming (${mineUpcoming.length})`} icon="○" iconColor="bg-blue-500" collapsible collapsed={mineSections.upcoming} onToggle={() => setMineSections((s) => ({ ...s, upcoming: !s.upcoming }))}>
                 {compactMineView
                   ? <div className="space-y-2">{mineUpcoming.map((mc) => <MyCompetitionRow key={getMyCompetitionKey(mc)} myComp={mc} expanded={expandedMineRows.has(getMyCompetitionKey(mc))} onToggleExpand={() => setExpandedMineRows((prev) => { const next = new Set(prev); const rowKey = getMyCompetitionKey(mc); if (next.has(rowKey)) next.delete(rowKey); else next.add(rowKey); return next; })} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
                   : <CompGrid>{mineUpcoming.map((mc) => <MyCompetitionCard key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</CompGrid>}

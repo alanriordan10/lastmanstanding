@@ -725,6 +725,29 @@ public class AdminController {
                 .toList();
     }
 
+    @GetMapping("/users/page")
+    public Page<UserResponse> getUsersPage(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) Role role) {
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.max(1, Math.min(size, 100));
+        String search = q == null || q.isBlank() ? null : q.trim();
+        PageRequest pageRequest = PageRequest.of(safePage, safeSize);
+        Page<User> users;
+        if (search == null && role == null) {
+            users = userRepository.findAllByOrderByUsernameAsc(pageRequest);
+        } else if (search == null) {
+            users = userRepository.findByRoleOrderByUsernameAsc(role, pageRequest);
+        } else if (role == null) {
+            users = userRepository.searchAdminUsers(search, pageRequest);
+        } else {
+            users = userRepository.searchAdminUsersByRole(search, role, pageRequest);
+        }
+        return users.map(UserResponse::from);
+    }
+
     @PostMapping("/users")
     public ResponseEntity<UserResponse> createUser(@RequestBody CreateUserRequest request,
                                                    @AuthenticationPrincipal UserDetailsImpl userDetails) {

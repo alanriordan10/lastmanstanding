@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import api from '../api';
@@ -33,8 +33,51 @@ export default function RegisterClubPage() {
   const [emailStatus, setEmailStatus] = useState<EmailCheckState>('idle');
   const [emailMessage, setEmailMessage] = useState('');
 
+  useEffect(() => {
+    const normalized = username.trim();
+    if (!normalized || normalized.length < 3) {
+      setUsernameStatus('idle');
+      setUsernameMessage('');
+      return;
+    }
+    if (/\s/.test(normalized)) {
+      setUsernameStatus('error');
+      setUsernameMessage('Username cannot contain spaces');
+      return;
+    }
+
+    let cancelled = false;
+    setUsernameStatus('checking');
+    setUsernameMessage('');
+
+    const timer = window.setTimeout(async () => {
+      try {
+        const { data } = await api.get<{ available: boolean; message: string }>('/auth/username-availability', {
+          params: { username: normalized },
+        });
+        if (cancelled) return;
+        setUsernameStatus(data.available ? 'available' : 'taken');
+        setUsernameMessage(data.message);
+      } catch (err: any) {
+        if (cancelled) return;
+        setUsernameStatus('error');
+        setUsernameMessage(err.response?.data?.message || 'Could not verify username right now');
+      }
+    }, 400);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [username]);
+
   const checkUsernameAvailability = async () => {
     const normalized = username.trim();
+    if (/\s/.test(normalized)) {
+      setUsernameStatus('error');
+      setUsernameMessage('Username cannot contain spaces');
+      return false;
+    }
     if (normalized.length < 3) {
       setUsernameStatus('idle');
       setUsernameMessage('');
@@ -298,7 +341,7 @@ export default function RegisterClubPage() {
                   <input
                     value={username}
                     onChange={(e) => {
-                      setUsername(e.target.value);
+                      setUsername(e.target.value.replace(/\s+/g, ''));
                       setUsernameStatus('idle');
                       setUsernameMessage('');
                     }}

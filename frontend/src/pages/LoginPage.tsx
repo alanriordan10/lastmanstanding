@@ -132,6 +132,19 @@ export default function LoginPage() {
             Sign up
           </Link>
         </p>
+
+        <div className="rounded-[1.4rem] border border-brand-300/25 bg-[linear-gradient(145deg,rgba(14,165,233,0.14),rgba(15,23,42,0.9))] p-5 shadow-[0_18px_42px_rgba(2,6,23,0.34)]">
+          <div className="inline-flex rounded-full border border-brand-300/25 bg-brand-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-brand-100">
+            Running a club?
+          </div>
+          <h2 className="mt-3 text-xl font-black tracking-tight text-white">Create a club account</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-300">
+            Set up your club, create competitions, invite members, and manage payments from one admin area.
+          </p>
+          <Link to="/register-club" className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-brand-300/35 bg-brand-500/15 px-4 py-3 text-sm font-black text-brand-100 transition hover:bg-brand-500/25 hover:text-white">
+            Start a club
+          </Link>
+        </div>
         </div>
       </div>
     </div>

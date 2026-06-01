@@ -16,6 +16,7 @@ import com.lastmanstanding.service.GameweekEmailService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -76,7 +77,7 @@ public class AuthController {
     public record RegisterClubRequest(
         @NotBlank String clubName,
         String clubDescription,
-        @NotBlank String username,
+        @NotBlank @Pattern(regexp = "\\S+", message = "Username cannot contain spaces") String username,
         @NotBlank String email,
         @NotBlank @Size(min = 6) String password
     ) {}
@@ -95,10 +96,12 @@ public class AuthController {
     public ResponseEntity<RegisterClubResponse> registerClub(
             @Valid @RequestBody RegisterClubRequest request) {
 
-        if (userRepository.existsByEmail(request.email())) {
+        String normalizedUsername = normalizeUsername(request.username());
+        String normalizedEmail = request.email().trim();
+        if (userRepository.existsByEmail(normalizedEmail)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email is already in use");
         }
-        if (userRepository.existsByUsernameIgnoreCase(request.username().trim())) {
+        if (userRepository.existsByUsernameIgnoreCase(normalizedUsername)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Username is already taken");
         }
         if (clubRepository.existsByName(request.clubName())) {
@@ -107,8 +110,8 @@ public class AuthController {
 
         // Create the user as CLUB_ADMIN
         User user = new User(
-                request.email(),
-                request.username(),
+                normalizedEmail,
+                normalizedUsername,
                 passwordEncoder.encode(request.password()),
                 Role.CLUB_ADMIN);
         user = userRepository.save(user);
@@ -129,6 +132,9 @@ public class AuthController {
     public ResponseEntity<UsernameAvailabilityResponse> checkUsernameAvailability(
             @RequestParam @NotBlank @Size(min = 3, max = 30) String username) {
         String normalized = username.trim();
+        if (containsUsernameWhitespace(normalized)) {
+            return ResponseEntity.ok(new UsernameAvailabilityResponse(false, "Username cannot contain spaces"));
+        }
         boolean available = !userRepository.existsByUsernameIgnoreCase(normalized);
         String message = available ? "Username is available" : "Username is already taken";
         return ResponseEntity.ok(new UsernameAvailabilityResponse(available, message));
@@ -145,22 +151,36 @@ public class AuthController {
 
     @PostMapping("/signup")
     public ResponseEntity<AuthResponse> signup(@Valid @RequestBody SignupRequest request) {
-        if (userRepository.existsByEmail(request.email())) {
+        String normalizedUsername = normalizeUsername(request.username());
+        String normalizedEmail = request.email().trim();
+        if (userRepository.existsByEmail(normalizedEmail)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email is already in use");
         }
-        if (userRepository.existsByUsernameIgnoreCase(request.username().trim())) {
+        if (userRepository.existsByUsernameIgnoreCase(normalizedUsername)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Username is already taken");
         }
 
         User user = new User(
-                request.email(),
-                request.username(),
+                normalizedEmail,
+                normalizedUsername,
                 passwordEncoder.encode(request.password()),
                 Role.USER);
 
         user = userRepository.save(user);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(buildAuthResponse(user));
+    }
+
+    private static String normalizeUsername(String username) {
+        String normalized = username.trim();
+        if (containsUsernameWhitespace(normalized)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Username cannot contain spaces");
+        }
+        return normalized;
+    }
+
+    private static boolean containsUsernameWhitespace(String username) {
+        return username.chars().anyMatch(Character::isWhitespace);
     }
 
     // ── Login ───────────────────────────────────────────────────────────
