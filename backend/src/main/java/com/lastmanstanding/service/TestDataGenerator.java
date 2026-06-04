@@ -23,6 +23,7 @@ public class TestDataGenerator {
     private final PickRepository pickRepository;
     private final PickResultRepository pickResultRepository;
     private final TeamRepository teamRepository;
+    private final FixtureRepository fixtureRepository;
     private final PasswordEncoder passwordEncoder;
 
     public TestDataGenerator(UserRepository userRepository,
@@ -32,6 +33,7 @@ public class TestDataGenerator {
                              PickRepository pickRepository,
                              PickResultRepository pickResultRepository,
                              TeamRepository teamRepository,
+                             FixtureRepository fixtureRepository,
                              PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.competitionRepository = competitionRepository;
@@ -40,6 +42,7 @@ public class TestDataGenerator {
         this.pickRepository = pickRepository;
         this.pickResultRepository = pickResultRepository;
         this.teamRepository = teamRepository;
+        this.fixtureRepository = fixtureRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -104,15 +107,31 @@ public class TestDataGenerator {
         }
         int usersJoined = savedParticipants.size();
 
-        // Seed picks
+        // Seed picks from the fixture teams in each requested gameweek.
+        // This is important for World Cup/test competitions: using the global team list can create
+        // picks for teams that are not playing in the gameweek, which later resolve as postponed.
         int picksCreated = 0;
         if (gameweeksToSeedPicks != null && !gameweeksToSeedPicks.isEmpty()) {
             Random random = new Random();
+            Map<Long, CompetitionParticipant> participantByUserId = participantRepository.findByCompetitionId(competitionId).stream()
+                    .collect(Collectors.toMap(cp -> cp.getUser().getId(), cp -> cp, (a, b) -> a));
 
             for (Integer weekNumber : gameweeksToSeedPicks) {
                 Gameweek gw = gameweekRepository.findByCompetitionIdAndWeekNumber(competitionId, weekNumber)
                         .orElse(null);
                 if (gw == null) continue;
+
+                List<Team> gameweekTeams = fixtureRepository.findByGameweekIdFetchAll(gw.getId()).stream()
+                        .flatMap(fixture -> java.util.stream.Stream.of(fixture.getEffectiveHomeTeam(), fixture.getEffectiveAwayTeam()))
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.collectingAndThen(
+                                Collectors.toMap(Team::getId, team -> team, (a, b) -> a, LinkedHashMap::new),
+                                map -> new ArrayList<>(map.values())
+                        ));
+                if (gameweekTeams.isEmpty()) {
+                    log.warn("Skipping test picks for competition {} GW{} because no fixture teams were found", competitionId, weekNumber);
+                    continue;
+                }
 
                 // Load picks that already exist for this gameweek in ONE query
                 Set<Long> usersWithPick = pickRepository.findByCompetitionIdAndGameweekId(competitionId, gw.getId())
@@ -135,13 +154,11 @@ public class TestDataGenerator {
                 }
 
                 List<Pick> picksToCreate = new ArrayList<>();
-                Map<Long, CompetitionParticipant> participantByUserId = participantRepository.findByCompetitionId(competitionId).stream()
-                        .collect(Collectors.toMap(cp -> cp.getUser().getId(), cp -> cp, (a, b) -> a));
                 for (User user : usersNeedingPick) {
                     CompetitionParticipant participant = participantByUserId.get(user.getId());
                     if (participant == null) continue;
                     Set<Long> usedTeamIds = usedTeamsByUser.getOrDefault(user.getId(), Set.of());
-                    List<Team> available = allTeams.stream()
+                    List<Team> available = gameweekTeams.stream()
                             .filter(t -> !usedTeamIds.contains(t.getId())).toList();
                     if (!available.isEmpty()) {
                         picksToCreate.add(new Pick(comp, user, participant, gw,

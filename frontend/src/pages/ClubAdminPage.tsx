@@ -1176,7 +1176,7 @@ export default function ClubAdminPage() {
                         {comp.visibility === 'PRIVATE' && comp.joinCode ? (
                           <div className="mt-2 inline-flex w-fit items-center gap-2 rounded-lg border border-brand-500/25 bg-brand-500/8 px-2.5 py-1 text-[11px] text-brand-200">
                             <span className="font-semibold uppercase tracking-[0.12em] text-brand-300">Invite code</span>
-                            <span className="rounded bg-brand-500/12 px-1.5 py-0.5 font-mono text-[12px] font-semibold tracking-[0.14em] text-white">
+                            <span className="select-all rounded bg-brand-500/12 px-1.5 py-0.5 font-mono text-[12px] font-semibold tracking-[0.14em] text-white cursor-text">
                               {comp.joinCode}
                             </span>
                           </div>

@@ -716,8 +716,16 @@ export default function CompetitionHomePage() {
     ) ?? latestCompletedWeek;
   const pulseLatestWeek = inProgressWeek ?? latestCompletedWeek;
 
+  const latestNarrativeTeamIds = new Set<number>();
+  latestNarrativeWeek?.data.fixtures.forEach((fixture) => {
+    latestNarrativeTeamIds.add(fixture.homeTeamId);
+    latestNarrativeTeamIds.add(fixture.awayTeamId);
+  });
+
   const latestNarrativeStats = latestNarrativeWeek
-    ? [...(pickStatsByGwId.get(latestNarrativeWeek.data.gwId) ?? [])].sort((a, b) => b.pickCount - a.pickCount)
+    ? [...(pickStatsByGwId.get(latestNarrativeWeek.data.gwId) ?? [])]
+        .filter((stat) => latestNarrativeTeamIds.has(stat.teamId))
+        .sort((a, b) => b.pickCount - a.pickCount)
     : [];
 
   const liveInsightWeek = inProgressWeek
@@ -726,8 +734,16 @@ export default function CompetitionHomePage() {
         .map((weekNumber) => ({ weekNumber, data: fixturesByWeek.get(weekNumber)! }))
         .find(({ data }) => data.gwStatus === 'LOCKED');
 
+  const liveInsightTeamIds = new Set<number>();
+  liveInsightWeek?.data.fixtures.forEach((fixture) => {
+    liveInsightTeamIds.add(fixture.homeTeamId);
+    liveInsightTeamIds.add(fixture.awayTeamId);
+  });
+
   const liveInsightStats = liveInsightWeek
-    ? [...(pickStatsByGwId.get(liveInsightWeek.data.gwId) ?? [])].sort((a, b) => b.pickCount - a.pickCount)
+    ? [...(pickStatsByGwId.get(liveInsightWeek.data.gwId) ?? [])]
+        .filter((stat) => liveInsightTeamIds.has(stat.teamId))
+        .sort((a, b) => b.pickCount - a.pickCount)
     : [];
 
   const narrativeTeamResults = new Map<number, 'WIN' | 'LOSS' | 'DRAW' | 'POSTPONED'>();

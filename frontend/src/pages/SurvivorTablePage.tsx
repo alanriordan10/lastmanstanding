@@ -31,7 +31,7 @@ export default function SurvivorTablePage() {
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'ELIMINATED' | 'WINNER'>('ALL');
   const [eliminatedWeekFilter, setEliminatedWeekFilter] = useState<'ALL' | number>('ALL');
   const [page, setPage] = useState(1);
-  const [mobileMode, setMobileMode] = useState<'table' | 'compact'>('compact');
+  const [mobileMode, setMobileMode] = useState<'table' | 'compact'>('table');
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
 
   const { data: comp } = useQuery<Competition>({
