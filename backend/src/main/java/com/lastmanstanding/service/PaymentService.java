@@ -219,11 +219,10 @@ public class PaymentService {
                     .setAmount(chargeAmountCents)
                     .setCurrency("eur")
                     .setDescription("Entry fee: " + comp.getName())
-                    .setAutomaticPaymentMethods(
-                            PaymentIntentCreateParams.AutomaticPaymentMethods.builder()
-                                    .setEnabled(true)
-                                    .build()
-                    )
+                    // Keep checkout focused: card wallets, Revolut Pay, and Klarna only.
+                    .addPaymentMethodType("card")
+                    .addPaymentMethodType("revolut_pay")
+                    .addPaymentMethodType("klarna")
                     .putMetadata("competitionId", String.valueOf(competitionId))
                     .putMetadata("userId", String.valueOf(userId))
                     .putMetadata("userEmail", user.getEmail());

@@ -2805,11 +2805,30 @@ function SimulateTab() {
 
 // ── Test Data Tab ───────────────────────────────────────────────────
 
+function parseGameweekRangeInput(input: string): number[] {
+  const weeks = new Set<number>();
+  for (const rawPart of input.split(',')) {
+    const part = rawPart.trim();
+    if (!part) continue;
+    const rangeMatch = part.match(/^(\d+)\s*-\s*(\d+)$/);
+    if (rangeMatch) {
+      const start = Number(rangeMatch[1]);
+      const end = Number(rangeMatch[2]);
+      const [from, to] = start <= end ? [start, end] : [end, start];
+      for (let week = from; week <= to; week += 1) weeks.add(week);
+      continue;
+    }
+    const week = Number(part);
+    if (Number.isInteger(week) && week > 0) weeks.add(week);
+  }
+  return Array.from(weeks).sort((a, b) => a - b);
+}
+
 function TestDataTab() {
   const queryClient = useQueryClient();
   const [selectedCompId, setSelectedCompId] = useState<string>('');
   const [userCount, setUserCount] = useState<number>(100);
-  const [gameweeks, setGameweeks] = useState<string>('3,4,5,6');
+  const [gameweeks, setGameweeks] = useState<string>('3-6');
   const [cleanupDialogOpen, setCleanupDialogOpen] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const timerRef = useState<ReturnType<typeof setInterval> | null>(null);
@@ -2821,7 +2840,7 @@ function TestDataTab() {
 
   const generateMutation = useMutation({
     mutationFn: () => {
-      const gwArray = gameweeks.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+      const gwArray = parseGameweekRangeInput(gameweeks);
       return api.post('/admin/test/generate', {
         competitionId: Number(selectedCompId),
         userCount: userCount,
@@ -2923,17 +2942,17 @@ function TestDataTab() {
 
           <div>
             <label className="block text-sm text-gray-400 mb-2">
-              Gameweeks to Seed Picks (comma-separated)
+              Gameweeks to Seed Picks
             </label>
             <input
               type="text"
               value={gameweeks}
               onChange={(e) => setGameweeks(e.target.value)}
-              placeholder="e.g., 3,4,5,6"
+              placeholder="e.g., 1-8 or 1-4,7,9"
               className="input-field"
             />
             <p className="text-xs text-gray-500 mt-1">
-              Creates random picks for these gameweeks so you can simulate results without mass elimination.
+              Creates random picks for these gameweeks. Supports ranges like 1-8, comma lists like 1,3,5, or mixed 1-4,7,9.
             </p>
           </div>
 

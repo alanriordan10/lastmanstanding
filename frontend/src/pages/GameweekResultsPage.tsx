@@ -73,9 +73,13 @@ export default function GameweekResultsPage() {
   // Keep hook order stable across loading/error/data states.
   const safeSelections = Array.isArray(selectionsData?.selections) ? selectionsData!.selections : [];
   const userEntryCounts = useMemo(() => {
-    const counts = new Map<number, number>();
-    safeSelections.forEach((s) => counts.set(s.userId, (counts.get(s.userId) ?? 0) + 1));
-    return counts;
+    const entriesByUser = new Map<number, Set<string>>();
+    safeSelections.forEach((s) => {
+      const entries = entriesByUser.get(s.userId) ?? new Set<string>();
+      entries.add(s.participantId != null ? `participant:${s.participantId}` : `entry:${s.entryNumber ?? 1}`);
+      entriesByUser.set(s.userId, entries);
+    });
+    return new Map(Array.from(entriesByUser.entries()).map(([userId, entries]) => [userId, entries.size]));
   }, [safeSelections]);
   const displayName = (s: GameweekSelection) =>
     (userEntryCounts.get(s.userId) ?? 0) > 1
