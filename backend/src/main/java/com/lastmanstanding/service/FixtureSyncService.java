@@ -347,6 +347,8 @@ public class FixtureSyncService {
         // For World Cup sources we allow splitting large provider weeks into chunks of 10 fixtures.
         boolean splitLargeWeeks = "WC".equalsIgnoreCase(comp.getFixtureCompetitionCode());
         final int maxFixturesPerGameweek = splitLargeWeeks ? worldCupMaxFixturesPerGameweek : Integer.MAX_VALUE;
+        boolean preserveWorldCupExistingAssignments = splitLargeWeeks && existingGameweeks.stream()
+                .anyMatch(gw -> gw.getStatus() != GameweekStatus.UPCOMING);
 
         Map<String, Integer> fixtureToCompGw = new HashMap<>();
         for (ProviderFixture pf : eligible) {
@@ -359,9 +361,19 @@ public class FixtureSyncService {
         int nextGwNum = existingGameweeks.stream().mapToInt(Gameweek::getWeekNumber).max().orElse(0) + 1;
         if (splitLargeWeeks) {
             final int minFixturesPerGameweek = Math.min(worldCupMinFixturesPerGameweek, maxFixturesPerGameweek);
+            List<ProviderFixture> fixturesToChunk = preserveWorldCupExistingAssignments
+                    ? eligible.stream()
+                            .filter(pf -> !existingFixtureByExtId.containsKey(pf.externalFixtureId()))
+                            .toList()
+                    : eligible;
+
+            if (preserveWorldCupExistingAssignments && !fixturesToChunk.isEmpty()) {
+                log.debug("Preserving existing WC fixture assignments for competition {} and chunking {} new fixture(s)",
+                        comp.getId(), fixturesToChunk.size());
+            }
 
             // Group by UTC date across the full competition window so dates never overlap across gameweeks.
-            Map<LocalDate, List<ProviderFixture>> byDay = eligible.stream()
+            Map<LocalDate, List<ProviderFixture>> byDay = fixturesToChunk.stream()
                     .sorted(Comparator.comparing(ProviderFixture::kickoffAt).thenComparing(ProviderFixture::externalFixtureId))
                     .collect(Collectors.groupingBy(
                             pf -> pf.kickoffAt().atZone(java.time.ZoneOffset.UTC).withZoneSameInstant(fixtureSplitZone).toLocalDate(),
@@ -465,7 +477,7 @@ public class FixtureSyncService {
 
             // Hard guarantee: no WC chunk should remain below minimum if we can merge by day.
             Map<Integer, List<ProviderFixture>> fixturesByGw = new HashMap<>();
-            for (ProviderFixture pf : eligible) {
+            for (ProviderFixture pf : fixturesToChunk) {
                 Integer gwNum = fixtureToCompGw.get(pf.externalFixtureId());
                 if (gwNum == null) continue;
                 fixturesByGw.computeIfAbsent(gwNum, __ -> new ArrayList<>()).add(pf);
@@ -557,7 +569,10 @@ public class FixtureSyncService {
 
             Fixture existing = existingFixtureByExtId.get(pf.externalFixtureId());
             if (existing != null) {
-                if (existing.getGameweek() == null || !existing.getGameweek().getId().equals(gw.getId())) {
+                boolean existingGameweekCanMove = existing.getGameweek() == null
+                        || existing.getGameweek().getStatus() == GameweekStatus.UPCOMING;
+                if (existingGameweekCanMove
+                        && (existing.getGameweek() == null || !existing.getGameweek().getId().equals(gw.getId()))) {
                     existing.setGameweek(gw);
                 }
                 existing.setImportedHomeTeam(homeTeam);
@@ -619,6 +634,11 @@ public class FixtureSyncService {
     private void rebalancePersistedWorldCupGameweeks(Competition comp) {
         List<Gameweek> gameweeks = gameweekRepository.findByCompetitionIdOrderByWeekNumberAsc(comp.getId());
         if (gameweeks.isEmpty()) return;
+        if (gameweeks.stream().anyMatch(gw -> gw.getStatus() != GameweekStatus.UPCOMING)) {
+            log.debug("Skipping WC persisted rebalance for competition {} because one or more gameweeks have started",
+                    comp.getId());
+            return;
+        }
         List<Long> gwIds = gameweeks.stream().map(Gameweek::getId).toList();
         List<Fixture> fixtures = fixtureRepository.findByGameweekIdIn(gwIds);
         if (fixtures.isEmpty()) return;
