@@ -15,6 +15,9 @@ public interface PickRepository extends JpaRepository<Pick, Long> {
     Optional<Pick> findByCompetitionIdAndUserIdAndGameweekId(Long competitionId, Long userId, Long gameweekId);
     Optional<Pick> findByCompetitionIdAndParticipantIdAndGameweekId(Long competitionId, Long participantId, Long gameweekId);
 
+    @Query("SELECT COUNT(p) > 0 FROM Pick p WHERE p.competition.id = :competitionId AND p.participant.id = :participantId AND p.useLifeline = true AND p.gameweek.id <> :gameweekId")
+    boolean existsOtherLifelinePick(@Param("competitionId") Long competitionId, @Param("participantId") Long participantId, @Param("gameweekId") Long gameweekId);
+
     List<Pick> findByCompetitionIdAndUserId(Long competitionId, Long userId);
     List<Pick> findByCompetitionIdAndParticipantId(Long competitionId, Long participantId);
     List<Pick> findByCompetitionIdAndParticipantIdInAndGameweekId(Long competitionId, List<Long> participantIds, Long gameweekId);

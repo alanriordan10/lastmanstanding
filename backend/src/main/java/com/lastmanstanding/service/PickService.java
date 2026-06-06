@@ -103,6 +103,9 @@ public class PickService {
         if (lifelineRequested && cp.isLifelineUsed()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Lifeline already used for this entry");
         }
+        if (lifelineRequested && pickRepository.existsOtherLifelinePick(competitionId, cp.getId(), gameweekId)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Lifeline is already selected for another gameweek");
+        }
 
         List<Long> consumedTeamIds = pickRepository.findConsumedTeamIdsForParticipant(competitionId, cp.getId());
         if (existingPick.isPresent()) {
