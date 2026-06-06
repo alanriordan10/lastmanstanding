@@ -8,6 +8,10 @@ export interface AuthResponse {
   username: string;
   role: string;
   emailResultsOptIn: boolean;
+  notificationPickReminders?: boolean;
+  notificationResultUpdates?: boolean;
+  notificationCompetitionAnnouncements?: boolean;
+  notificationPaymentUpdates?: boolean;
 }
 
 export interface Club {

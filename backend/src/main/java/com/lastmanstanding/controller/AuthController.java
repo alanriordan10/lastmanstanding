@@ -239,6 +239,27 @@ public class AuthController {
 
     public record EmailPreferencesRequest(boolean emailResultsOptIn) {}
     public record EmailPreferencesResponse(boolean emailResultsOptIn) {}
+    public record NotificationPreferencesRequest(
+            Boolean emailResultsOptIn,
+            Boolean notificationPickReminders,
+            Boolean notificationResultUpdates,
+            Boolean notificationCompetitionAnnouncements,
+            Boolean notificationPaymentUpdates) {}
+    public record NotificationPreferencesResponse(
+            boolean emailResultsOptIn,
+            boolean notificationPickReminders,
+            boolean notificationResultUpdates,
+            boolean notificationCompetitionAnnouncements,
+            boolean notificationPaymentUpdates) {
+        static NotificationPreferencesResponse from(User user) {
+            return new NotificationPreferencesResponse(
+                    user.isEmailResultsOptIn(),
+                    user.isNotificationPickReminders(),
+                    user.isNotificationResultUpdates(),
+                    user.isNotificationCompetitionAnnouncements(),
+                    user.isNotificationPaymentUpdates());
+        }
+    }
     public record DeleteAccountRequest(String deleteToken, String confirmText) {}
     public record DeleteTokenRequest(String password) {}
     public record DeleteTokenResponse(String deleteToken, long expiresInSeconds) {}
@@ -260,6 +281,29 @@ public class AuthController {
         User user = userRepository.findById(principal.getId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
         return ResponseEntity.ok(new EmailPreferencesResponse(user.isEmailResultsOptIn()));
+    }
+
+    @GetMapping("/notification-preferences")
+    public ResponseEntity<NotificationPreferencesResponse> getNotificationPreferences(
+            @AuthenticationPrincipal UserDetailsImpl principal) {
+        User user = userRepository.findById(principal.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+        return ResponseEntity.ok(NotificationPreferencesResponse.from(user));
+    }
+
+    @PutMapping("/notification-preferences")
+    public ResponseEntity<NotificationPreferencesResponse> updateNotificationPreferences(
+            @AuthenticationPrincipal UserDetailsImpl principal,
+            @RequestBody NotificationPreferencesRequest request) {
+        User user = userRepository.findById(principal.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+        if (request.emailResultsOptIn() != null) user.setEmailResultsOptIn(request.emailResultsOptIn());
+        if (request.notificationPickReminders() != null) user.setNotificationPickReminders(request.notificationPickReminders());
+        if (request.notificationResultUpdates() != null) user.setNotificationResultUpdates(request.notificationResultUpdates());
+        if (request.notificationCompetitionAnnouncements() != null) user.setNotificationCompetitionAnnouncements(request.notificationCompetitionAnnouncements());
+        if (request.notificationPaymentUpdates() != null) user.setNotificationPaymentUpdates(request.notificationPaymentUpdates());
+        userRepository.save(user);
+        return ResponseEntity.ok(NotificationPreferencesResponse.from(user));
     }
 
     @PostMapping("/delete-token")
@@ -391,6 +435,10 @@ public class AuthController {
                 user.getEmail(),
                 user.getUsername(),
                 user.getRole().name(),
-                user.isEmailResultsOptIn());
+                user.isEmailResultsOptIn(),
+                user.isNotificationPickReminders(),
+                user.isNotificationResultUpdates(),
+                user.isNotificationCompetitionAnnouncements(),
+                user.isNotificationPaymentUpdates());
     }
 }

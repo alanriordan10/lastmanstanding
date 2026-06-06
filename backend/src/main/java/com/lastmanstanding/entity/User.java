@@ -48,6 +48,18 @@ public class User {
     @Column(name = "email_results_opt_in", nullable = false)
     private boolean emailResultsOptIn = false;
 
+    @Column(name = "notification_pick_reminders", nullable = false)
+    private boolean notificationPickReminders = true;
+
+    @Column(name = "notification_result_updates", nullable = false)
+    private boolean notificationResultUpdates = true;
+
+    @Column(name = "notification_competition_announcements", nullable = false)
+    private boolean notificationCompetitionAnnouncements = true;
+
+    @Column(name = "notification_payment_updates", nullable = false)
+    private boolean notificationPaymentUpdates = true;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -130,6 +142,18 @@ public class User {
 
     public boolean isEmailResultsOptIn() { return emailResultsOptIn; }
     public void setEmailResultsOptIn(boolean emailResultsOptIn) { this.emailResultsOptIn = emailResultsOptIn; }
+
+    public boolean isNotificationPickReminders() { return notificationPickReminders; }
+    public void setNotificationPickReminders(boolean notificationPickReminders) { this.notificationPickReminders = notificationPickReminders; }
+
+    public boolean isNotificationResultUpdates() { return notificationResultUpdates; }
+    public void setNotificationResultUpdates(boolean notificationResultUpdates) { this.notificationResultUpdates = notificationResultUpdates; }
+
+    public boolean isNotificationCompetitionAnnouncements() { return notificationCompetitionAnnouncements; }
+    public void setNotificationCompetitionAnnouncements(boolean notificationCompetitionAnnouncements) { this.notificationCompetitionAnnouncements = notificationCompetitionAnnouncements; }
+
+    public boolean isNotificationPaymentUpdates() { return notificationPaymentUpdates; }
+    public void setNotificationPaymentUpdates(boolean notificationPaymentUpdates) { this.notificationPaymentUpdates = notificationPaymentUpdates; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
 

@@ -124,6 +124,7 @@ public class WebPushService {
 
         List<Long> targetUserIds = active.stream()
                 .filter(cp -> !alreadyPicked.contains(cp.getId()))
+                .filter(cp -> cp.getUser().isNotificationPickReminders())
                 .map(cp -> cp.getUser().getId())
                 .toList();
 
@@ -168,6 +169,7 @@ public class WebPushService {
                 .collect(Collectors.toMap(pr -> pr.getPick().getId(), pr -> pr));
 
         for (CompetitionParticipant cp : participants) {
+            if (!cp.getUser().isNotificationResultUpdates()) continue;
             String title = "Gameweek " + gw.getWeekNumber() + " results";
             String body = buildResultBody(comp, gw, cp, pickByParticipantId.get(cp.getId()),
                     pickByParticipantId.get(cp.getId()) == null ? null : resultByPickId.get(pickByParticipantId.get(cp.getId()).getId()));
@@ -192,6 +194,10 @@ public class WebPushService {
 
     @Transactional
     public void sendPaymentConfirmedNotification(Competition comp, User user) {
+        if (!user.isNotificationPaymentUpdates()) {
+            log.info("User {} opted out of payment push notifications — skipping competition {}", user.getId(), comp.getId());
+            return;
+        }
         String title = "Payment confirmed";
         String body = "Your payment for " + comp.getName() + " has been confirmed. You can now make your pick.";
         String url = frontendUrl + "/competitions/" + comp.getId();

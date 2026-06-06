@@ -64,7 +64,7 @@ public class GameweekEmailService {
 
         long optedIn = participants.stream()
                 .map(cp -> userRepository.findById(cp.getUser().getId()).orElse(null))
-                .filter(u -> u != null && u.isEmailResultsOptIn())
+                .filter(u -> u != null && u.isEmailResultsOptIn() && u.isNotificationResultUpdates())
                 .count();
 
         log.info("Sending GW{} result emails for competition {} — {} of {} participants opted in",
@@ -73,7 +73,7 @@ public class GameweekEmailService {
         for (CompetitionParticipant cp : participants) {
             // Re-fetch user to avoid lazy loading issues
             User user = userRepository.findById(cp.getUser().getId()).orElse(null);
-            if (user == null || !user.isEmailResultsOptIn()) continue;
+            if (user == null || !user.isEmailResultsOptIn() || !user.isNotificationResultUpdates()) continue;
 
             try {
                 sendResultEmailToUser(user, comp, gw, cp);
@@ -85,6 +85,10 @@ public class GameweekEmailService {
 
     @Transactional(readOnly = true)
     public void sendPaymentConfirmedEmail(User user, Competition comp) {
+        if (!user.isEmailResultsOptIn() || !user.isNotificationPaymentUpdates()) {
+            log.info("User {} opted out of payment emails — skipping competition {}", user.getId(), comp.getId());
+            return;
+        }
         if (!mailEnabled) {
             log.info("Mail disabled — skipping payment confirmation email for user {} competition {}", user.getId(), comp.getId());
             return;
@@ -331,7 +335,7 @@ public class GameweekEmailService {
         for (CompetitionParticipant cp : active) {
             if (alreadyPicked.contains(cp.getId())) continue;
             User user = userRepository.findById(cp.getUser().getId()).orElse(null);
-            if (user == null || !user.isEmailResultsOptIn()) continue;
+            if (user == null || !user.isEmailResultsOptIn() || !user.isNotificationPickReminders()) continue;
             attempted++;
             try {
                 String pickUrl = frontendUrl + "/competitions/" + comp.getId();

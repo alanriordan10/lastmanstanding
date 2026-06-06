@@ -8,8 +8,14 @@ import { useNavigate } from 'react-router-dom';
 export default function ProfilePage() {
   const { user, loginWithData, logout } = useAuth();
   const navigate = useNavigate();
-  const [optIn, setOptIn] = useState(user?.emailResultsOptIn ?? false);
-  const [saving, setSaving] = useState(false);
+  const [notificationPrefs, setNotificationPrefs] = useState({
+    emailResultsOptIn: user?.emailResultsOptIn ?? false,
+    notificationPickReminders: user?.notificationPickReminders ?? true,
+    notificationResultUpdates: user?.notificationResultUpdates ?? user?.emailResultsOptIn ?? false,
+    notificationCompetitionAnnouncements: user?.notificationCompetitionAnnouncements ?? true,
+    notificationPaymentUpdates: user?.notificationPaymentUpdates ?? true,
+  });
+  const [savingPreference, setSavingPreference] = useState<keyof typeof notificationPrefs | null>(null);
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleteToken, setDeleteToken] = useState<string | null>(null);
@@ -24,18 +30,27 @@ export default function ProfilePage() {
     err?.response?.data?.error ||
     fallback;
 
-  const handleToggle = async () => {
-    const newValue = !optIn;
-    setSaving(true);
+  const handleNotificationPreferenceToggle = async (key: keyof typeof notificationPrefs) => {
+    const nextPrefs = { ...notificationPrefs, [key]: !notificationPrefs[key] };
+    if (key === 'notificationResultUpdates') nextPrefs.emailResultsOptIn = nextPrefs.notificationResultUpdates;
+    if (key === 'emailResultsOptIn') nextPrefs.notificationResultUpdates = nextPrefs.emailResultsOptIn;
+    setSavingPreference(key);
     try {
-      await api.put('/auth/email-preferences', { emailResultsOptIn: newValue });
-      setOptIn(newValue);
-      if (user) loginWithData({ ...user, emailResultsOptIn: newValue });
-      toast.success(newValue ? 'Result emails enabled' : 'Result emails turned off');
+      const { data } = await api.put('/auth/notification-preferences', nextPrefs);
+      setNotificationPrefs(data);
+      if (user) loginWithData({
+        ...user,
+        emailResultsOptIn: data.emailResultsOptIn,
+        notificationPickReminders: data.notificationPickReminders,
+        notificationResultUpdates: data.notificationResultUpdates,
+        notificationCompetitionAnnouncements: data.notificationCompetitionAnnouncements,
+        notificationPaymentUpdates: data.notificationPaymentUpdates,
+      });
+      toast.success('Notification preference updated');
     } catch {
       toast.error('Failed to update preference. Please try again.');
     } finally {
-      setSaving(false);
+      setSavingPreference(null);
     }
   };
 
@@ -146,7 +161,7 @@ export default function ProfilePage() {
         </div>
         <div className="mt-6 grid grid-cols-3 gap-3">
           <ProfileMetric label="Role" value={badge.label} />
-          <ProfileMetric label="Email" value={optIn ? 'On' : 'Off'} />
+          <ProfileMetric label="Results" value={notificationPrefs.notificationResultUpdates ? 'On' : 'Off'} />
           <ProfileMetric label="Alerts" value={isSubscribed ? 'On' : 'Off'} />
         </div>
       </div>
@@ -159,42 +174,38 @@ export default function ProfilePage() {
           <p className="text-xs text-gray-500 mt-0.5">Turn on reminders before picks lock and updates after results are processed.</p>
         </div>
 
-        {/* Email results toggle row */}
-        <div className="flex items-center justify-between gap-4 px-6 py-5">
-          <div className="flex items-start gap-3">
-            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-700 text-lg">
-              📧
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-100">Email reminders and result updates</p>
-              <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">
-                Get pick reminders before a gameweek locks and email updates after results are processed.
-              </p>
-              <p className={`mt-1.5 text-xs font-medium ${optIn ? 'text-green-400' : 'text-gray-500'}`}>
-                {optIn ? '● Enabled' : '○ Disabled'}
-              </p>
-            </div>
-          </div>
-
-          {/* Toggle */}
-          <button
-            onClick={handleToggle}
-            disabled={saving}
-            role="switch"
-            aria-checked={optIn}
-            className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent
-              transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2
-              focus:ring-offset-surface-800
-              ${optIn ? 'bg-brand-500' : 'bg-gray-600'}
-              ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            <span
-              className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md
-                transition duration-200 ease-in-out
-                ${optIn ? 'translate-x-5' : 'translate-x-0'}`}
-            />
-          </button>
-        </div>
+        <PreferenceToggleRow
+          icon="⏰"
+          title="Pick reminders"
+          description="Deadline reminders before a gameweek locks."
+          enabled={notificationPrefs.notificationPickReminders}
+          saving={savingPreference === 'notificationPickReminders'}
+          onToggle={() => handleNotificationPreferenceToggle('notificationPickReminders')}
+        />
+        <PreferenceToggleRow
+          icon="📣"
+          title="Result updates"
+          description="Gameweek outcomes, advancement, and elimination updates."
+          enabled={notificationPrefs.notificationResultUpdates}
+          saving={savingPreference === 'notificationResultUpdates'}
+          onToggle={() => handleNotificationPreferenceToggle('notificationResultUpdates')}
+        />
+        <PreferenceToggleRow
+          icon="📝"
+          title="Competition announcements"
+          description="Messages from competition or club admins."
+          enabled={notificationPrefs.notificationCompetitionAnnouncements}
+          saving={savingPreference === 'notificationCompetitionAnnouncements'}
+          onToggle={() => handleNotificationPreferenceToggle('notificationCompetitionAnnouncements')}
+        />
+        <PreferenceToggleRow
+          icon="💳"
+          title="Payment reminders"
+          description="Payment confirmations and payment follow-up notices."
+          enabled={notificationPrefs.notificationPaymentUpdates}
+          saving={savingPreference === 'notificationPaymentUpdates'}
+          onToggle={() => handleNotificationPreferenceToggle('notificationPaymentUpdates')}
+        />
 
         {/* Browser alerts row */}
         <div className="flex items-center justify-between gap-4 px-6 py-5">
@@ -349,6 +360,34 @@ export default function ProfilePage() {
         </div>
       )}
 
+    </div>
+  );
+}
+
+function PreferenceToggleRow({ icon, title, description, enabled, saving, onToggle }: { icon: string; title: string; description: string; enabled: boolean; saving: boolean; onToggle: () => void }) {
+  return (
+    <div className="flex items-center justify-between gap-4 px-6 py-5">
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-700 text-lg">
+          {icon}
+        </div>
+        <div>
+          <p className="text-sm font-medium text-gray-100">{title}</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-gray-400">{description}</p>
+          <p className={`mt-1.5 text-xs font-medium ${enabled ? 'text-green-400' : 'text-gray-500'}`}>
+            {enabled ? '● Enabled' : '○ Disabled'}
+          </p>
+        </div>
+      </div>
+      <button
+        onClick={onToggle}
+        disabled={saving}
+        role="switch"
+        aria-checked={enabled}
+        className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 focus:ring-offset-surface-800 ${enabled ? 'bg-brand-500' : 'bg-gray-600'} ${saving ? 'cursor-not-allowed opacity-50' : ''}`}
+      >
+        <span className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition duration-200 ease-in-out ${enabled ? 'translate-x-5' : 'translate-x-0'}`} />
+      </button>
     </div>
   );
 }

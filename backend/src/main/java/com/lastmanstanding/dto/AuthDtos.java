@@ -50,6 +50,10 @@ public final class AuthDtos {
             String email,
             String username,
             String role,
-            boolean emailResultsOptIn
+            boolean emailResultsOptIn,
+            boolean notificationPickReminders,
+            boolean notificationResultUpdates,
+            boolean notificationCompetitionAnnouncements,
+            boolean notificationPaymentUpdates
     ) {}
 }
