@@ -77,6 +77,8 @@ public interface PickRepository extends JpaRepository<Pick, Long> {
 
     List<Pick> findByCompetitionId(Long competitionId);
 
+    boolean existsByCompetitionId(Long competitionId);
+
     /** Eagerly fetch survivor-table associations in one query to avoid N+1 loads of participant/user/team/gameweek. */
     @Query("SELECT p FROM Pick p " +
             "JOIN FETCH p.participant cp " +

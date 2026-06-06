@@ -351,6 +351,15 @@ public class GameweekProcessingService {
 
             Long pickedTeamId = pick.getTeam().getId();
             FixtureOutcome outcome = teamOutcomes.get(pickedTeamId);
+            CompetitionParticipant cp = pick.getParticipant() != null
+                    ? participantById.get(pick.getParticipant().getId())
+                    : null;
+            boolean lifelinePlayed = pick.isUseLifeline() && comp.isLifelineEnabled() && cp != null;
+            if (lifelinePlayed && !cp.isLifelineUsed()) {
+                cp.setLifelineUsed(true);
+                cp.setLifelineUsedWeek(gw.getWeekNumber());
+                if (!toUpdate.contains(cp)) toUpdate.add(cp);
+            }
 
             if (outcome == null) {
                 pr.setOutcome(PickOutcome.POSTPONED_ADVANCE);
@@ -359,12 +368,8 @@ public class GameweekProcessingService {
                     case WIN -> pr.setOutcome(PickOutcome.ADVANCE);
                     case POSTPONED -> pr.setOutcome(PickOutcome.POSTPONED_ADVANCE);
                     case DRAW -> {
-                        CompetitionParticipant cp = participantById.get(pick.getParticipant().getId());
-                        if (pick.isUseLifeline() && comp.isLifelineEnabled() && cp != null && !cp.isLifelineUsed()) {
+                        if (lifelinePlayed) {
                             pr.setOutcome(PickOutcome.ADVANCE);
-                            cp.setLifelineUsed(true);
-                            cp.setLifelineUsedWeek(gw.getWeekNumber());
-                            toUpdate.add(cp);
                         } else {
                             pr.setOutcome(PickOutcome.ELIMINATED);
                             if (cp != null) toEliminate.add(cp);
@@ -372,7 +377,6 @@ public class GameweekProcessingService {
                     }
                     case LOSS -> {
                         pr.setOutcome(PickOutcome.ELIMINATED);
-                        CompetitionParticipant cp = participantById.get(pick.getParticipant().getId());
                         if (cp != null) toEliminate.add(cp);
                     }
                 }

@@ -203,29 +203,7 @@ public class CompetitionService {
             return saved;
         }
 
-        // Run fixture sync in background after commit so the competition is visible to the thread.
-        Long savedId = saved.getId();
-        String savedName = saved.getName();
-        Runnable syncTask = () -> {
-            try {
-                int fixtureCount = fixtureSyncService.syncForCompetition(
-                        competitionRepository.findById(savedId)
-                                .orElseThrow(() -> new IllegalStateException("Competition not found for sync")));
-                log.info("Auto-synced {} fixtures for new competition '{}'", fixtureCount, savedName);
-            } catch (Exception e) {
-                log.warn("Could not auto-sync fixtures for competition '{}': {}", savedName, e.getMessage());
-            }
-        };
-        if (TransactionSynchronizationManager.isActualTransactionActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    new Thread(syncTask, "fixture-sync-" + savedId).start();
-                }
-            });
-        } else {
-            new Thread(syncTask, "fixture-sync-" + savedId).start();
-        }
+        scheduleFixtureSyncAfterCommit(saved.getId(), saved.getName(), "new competition");
 
         return saved;
     }
@@ -243,7 +221,14 @@ public class CompetitionService {
         if (entryFee != null) comp.setEntryFee(entryFee);
         comp.setPrizePool(prizePool); // null is valid (clears it)
         if (maxEntriesPerUser != null) comp.setMaxEntriesPerUser(normalizeMaxEntriesPerUser(maxEntriesPerUser));
-        if (fixtureCompetitionCode != null) comp.setFixtureCompetitionCode(normalizeFixtureCompetitionCode(fixtureCompetitionCode));
+        String normalizedFixtureCompetitionCode = fixtureCompetitionCode != null
+                ? normalizeFixtureCompetitionCode(fixtureCompetitionCode)
+                : null;
+        boolean fixtureProviderChanged = normalizedFixtureCompetitionCode != null
+                && !normalizedFixtureCompetitionCode.equalsIgnoreCase(comp.getFixtureCompetitionCode());
+        if (fixtureProviderChanged) {
+            resetFixturesForProviderChange(comp, normalizedFixtureCompetitionCode);
+        }
         if (missedPickMode != null) comp.setMissedPickMode(missedPickMode);
         comp.setPostponedConsumesTeam(postponedConsumesTeam);
         if (lifelineEnabled != null) comp.setLifelineEnabled(lifelineEnabled);
@@ -292,7 +277,53 @@ public class CompetitionService {
         if (comp.getPaymentMode() != PaymentMode.STRIPE) {
             comp.setStripeDestinationAccountId(null);
         }
-        return competitionRepository.save(comp);
+        Competition saved = competitionRepository.save(comp);
+        if (fixtureProviderChanged) {
+            scheduleFixtureSyncAfterCommit(saved.getId(), saved.getName(), "fixture provider change");
+        }
+        return saved;
+    }
+
+    private void resetFixturesForProviderChange(Competition comp, String normalizedFixtureCompetitionCode) {
+        if (comp.getStatus() != CompetitionStatus.UPCOMING) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Fixture source can only be changed before the competition starts");
+        }
+        if (pickRepository.existsByCompetitionId(comp.getId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Fixture source cannot be changed after picks have been made");
+        }
+
+        fixtureMutationLockService.runWithLock(() -> {
+            fixtureRepository.deleteByCompetitionId(comp.getId());
+            gameweekRepository.deleteByCompetitionId(comp.getId());
+            entityManager.flush();
+            entityManager.clear();
+        });
+        comp.setFixtureCompetitionCode(normalizedFixtureCompetitionCode);
+    }
+
+    private void scheduleFixtureSyncAfterCommit(Long competitionId, String competitionName, String reason) {
+        Runnable syncTask = () -> {
+            try {
+                int fixtureCount = fixtureSyncService.syncForCompetition(
+                        competitionRepository.findById(competitionId)
+                                .orElseThrow(() -> new IllegalStateException("Competition not found for sync")));
+                log.info("Auto-synced {} fixtures for competition '{}' after {}", fixtureCount, competitionName, reason);
+            } catch (Exception e) {
+                log.warn("Could not auto-sync fixtures for competition '{}' after {}: {}", competitionName, reason, e.getMessage());
+            }
+        };
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    new Thread(syncTask, "fixture-sync-" + competitionId).start();
+                }
+            });
+        } else {
+            new Thread(syncTask, "fixture-sync-" + competitionId).start();
+        }
     }
 
     private int normalizeMaxEntriesPerUser(Integer maxEntriesPerUser) {
