@@ -149,7 +149,7 @@ function calculateTeamRisk(fixture: Fixture, side: 'home' | 'away', pickStat?: P
 }
 
 /** Fetches pick stats for a list of locked gameweek IDs, returning a Map<gwId, stats[]> */
-function usePickStatsMap(compId: number, gwIds: number[]): Map<number, PickStat[]> {
+function usePickStatsMap(compId: number, gwIds: number[]): { map: Map<number, PickStat[]>; isLoading: boolean } {
   const results = useQueries({
     queries: gwIds.map(gwId => ({
       queryKey: ['pick-stats', compId, gwId],
@@ -163,7 +163,7 @@ function usePickStatsMap(compId: number, gwIds: number[]): Map<number, PickStat[
       const data = results[i]?.data;
       if (data) map.set(gwId, data);
     });
-    return map;
+    return { map, isLoading: results.some((result) => result.isLoading && result.data === undefined) };
   }, [results, gwIds]);
 }
 
@@ -324,7 +324,7 @@ export default function CompetitionHomePage() {
     return ids;
   }, [fixtures]);
 
-  const pickStatsByGwId = usePickStatsMap(compId, lockedGwIds);
+  const { map: pickStatsByGwId, isLoading: pickStatsLoading } = usePickStatsMap(compId, lockedGwIds);
   const resultsProcessing = hasPendingResultProcessing(fixtures);
 
   const pickMutation = useMutation({
@@ -772,7 +772,7 @@ export default function CompetitionHomePage() {
 
   const mostBackedTeam = latestNarrativeStats[0];
   const crowdReadTeam = liveInsightStats[0] ?? mostBackedTeam;
-  const biggestCasualty = latestNarrativeStats.find((stat) => narrativeTeamResults.get(stat.teamId) === 'LOSS');
+  const losingPickedTeam = latestNarrativeStats.find((stat) => narrativeTeamResults.get(stat.teamId) === 'LOSS');
   const contrarianSurvivor = [...latestNarrativeStats]
     .reverse()
     .find((stat) => {
@@ -783,7 +783,7 @@ export default function CompetitionHomePage() {
     const result = narrativeTeamResults.get(stat.teamId);
     return result === 'WIN' || result === 'POSTPONED';
   });
-  const doomedPickedTeams = latestNarrativeStats.filter((stat) => narrativeTeamResults.get(stat.teamId) === 'LOSS');
+  const losingPickedTeams = latestNarrativeStats.filter((stat) => narrativeTeamResults.get(stat.teamId) === 'LOSS');
   const totalResolvedPicks = latestNarrativeStats.reduce((sum, stat) => sum + stat.pickCount, 0);
   const survivingResolvedPicks = survivingPickedTeams.reduce((sum, stat) => sum + stat.pickCount, 0);
   const computedWeeklySurvivalRate = totalResolvedPicks > 0
@@ -817,6 +817,8 @@ export default function CompetitionHomePage() {
   const weeklyEliminatedCount = narrativeWeekInProgress
     ? (gwEliminatedFromSelections || (weeklyPickedCount > 0 ? Math.max(weeklyPickedCount - weeklyAdvancedCount, 0) : 0))
     : (gwEliminatedThisWeek ?? (weeklyPickedCount > 0 ? Math.max(weeklyPickedCount - weeklyAdvancedCount, 0) : 0));
+  const biggestCasualty = weeklyEliminatedCount > 0 ? losingPickedTeam : null;
+  const doomedPickedTeams = weeklyEliminatedCount > 0 ? losingPickedTeams : [];
   const weekSelectionsForChanges = latestNarrativeSelections?.selections ?? latestCompletedSelections?.selections ?? [];
   const lifelinesPlayedThisWeek = weekSelectionsForChanges.filter((selection) => selection.useLifeline).length;
   const baseEliminatedCount = Math.max((comp.participantCount ?? 0) - (comp.activeCount ?? 0), 0);
@@ -1246,6 +1248,9 @@ export default function CompetitionHomePage() {
       : participant?.lifelineUsed
         ? 'border-amber-400/30 bg-amber-500/10 text-amber-100'
         : 'border-emerald-400/30 bg-emerald-500/10 text-emerald-100';
+  // Keep the skeleton short-lived: fixtures define the narrative structure.
+  // Pick stats and selections can fill in without blocking the whole pulse area.
+  const narrativeFirstLoad = fixturesLoading;
 
   const reminderPanel = showReminderSetup ? (
     <section className="card p-4 sm:p-5">
@@ -1908,6 +1913,10 @@ export default function CompetitionHomePage() {
             className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4 backdrop-blur-sm"
             style={comp.clubPrimaryColor ? { borderLeftColor: comp.clubPrimaryColor, borderLeftWidth: '3px' } : undefined}
           >
+            {narrativeFirstLoad ? (
+              <CompetitionPulseSkeleton />
+            ) : (
+              <>
             <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-200/80">
               {comp.clubLogoUrl && (
                 <img src={comp.clubLogoUrl} alt="" className="h-6 w-6 rounded-md object-cover border border-white/20" />
@@ -1948,9 +1957,11 @@ export default function CompetitionHomePage() {
                 </span>
               )}
             </div>
+              </>
+            )}
           </div>
           <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-            {spotlightCards.map((card) => (
+            {narrativeFirstLoad ? <CompetitionSpotlightSkeleton /> : spotlightCards.map((card) => (
               <NarrativeCard
                 key={card.eyebrow}
                 eyebrow={card.eyebrow}
@@ -2002,6 +2013,10 @@ export default function CompetitionHomePage() {
       </section>
 
       <section className="rounded-[1.35rem] border border-white/10 bg-white/[0.03] px-4 py-4 sm:px-5">
+        {narrativeFirstLoad ? (
+          <CompetitionSnapshotSkeleton />
+        ) : (
+          <>
         <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-200">What Changed This Gameweek</div>
         <h2 className="mt-1 text-lg font-semibold text-white">
           {narrativeWeekLabel ?? 'Latest gameweek'} snapshot
@@ -2028,6 +2043,8 @@ export default function CompetitionHomePage() {
             <div className="mt-1 text-base font-bold text-emerald-300">{effectiveActiveCount}</div>
           </div>
         </div>
+          </>
+        )}
       </section>
 
       {stateBanner && (
@@ -2384,7 +2401,11 @@ export default function CompetitionHomePage() {
                     )}
 
                     {/* ── Fixture rows — collapsible ── */}
-                    {!isCollapsed && (
+                    {!isCollapsed && (() => {
+                      const eliminatedBeforeThisGw = isEliminated && participant?.eliminatedWeek != null && wn > participant.eliminatedWeek;
+                      const lifelineUnavailable = isEliminated || eliminatedBeforeThisGw;
+                      const lifelineDisabled = lifelineUnavailable || isLocked || gwStatus !== 'UPCOMING' || Boolean(participant?.lifelineUsed);
+                      return (
                       <div id={`gw-${wn}-fixtures`} className="space-y-2 mt-4">
                         {comp.lifelineEnabled && isParticipant && !isWinner && (
                           <div className="rounded-lg border border-cyan-500/25 bg-cyan-500/10 px-3 py-2 text-xs sm:text-sm">
@@ -2392,13 +2413,17 @@ export default function CompetitionHomePage() {
                               <p className="text-cyan-200">
                                 Lifeline already used{participant.lifelineUsedWeek ? ` in Gameweek ${participant.lifelineUsedWeek}` : ''}.
                               </p>
+                            ) : lifelineUnavailable ? (
+                              <p className="text-cyan-200/80">
+                                Lifeline unavailable because this entry is eliminated.
+                              </p>
                             ) : (
-                              <label className="inline-flex items-center gap-2 text-cyan-100">
+                              <label className={clsx('inline-flex items-center gap-2 text-cyan-100', lifelineDisabled && 'opacity-60')}>
                                 <input
                                   type="checkbox"
-                                  className="h-4 w-4 rounded border-cyan-400/40 bg-transparent"
+                                  className="h-4 w-4 rounded border-cyan-400/40 bg-transparent disabled:cursor-not-allowed"
                                   checked={lifelineForGwId === gwId}
-                                  disabled={isLocked || gwStatus !== 'UPCOMING'}
+                                  disabled={lifelineDisabled}
                                   onChange={(e) => setLifelineForGwId(e.target.checked ? gwId : null)}
                                 />
                                 Use lifeline for this gameweek
@@ -2414,7 +2439,7 @@ export default function CompetitionHomePage() {
                           </div>
                         )}
                         {/* Show message if user was eliminated before this gameweek (only for non-completed gameweeks) */}
-                        {isEliminated && participant?.eliminatedWeek != null && wn > participant.eliminatedWeek && gwStatus !== 'COMPLETED' && (
+                        {eliminatedBeforeThisGw && gwStatus !== 'COMPLETED' && (
                           <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm">
                             <p className="text-red-400 font-medium">
                               ⚠️ {selectedEntryLabel ?? 'This entry'} was eliminated in Gameweek {participant.eliminatedWeek} and cannot make picks for this gameweek.
@@ -2446,7 +2471,7 @@ export default function CompetitionHomePage() {
                             return (
                               <div
                                 key={f.id}
-                                className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-lg bg-surface-700/50 px-3 py-2 sm:gap-3 sm:px-4 sm:py-2.5 lg:gap-4"
+                                className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-2xl bg-surface-700/55 px-3 py-4 sm:rounded-lg sm:gap-3 sm:px-4 sm:py-2.5 lg:gap-4"
                               >
                                 <TeamButton
                                   name={f.homeTeamName}
@@ -2461,14 +2486,14 @@ export default function CompetitionHomePage() {
                                   accentColor={comp.clubSecondaryColor}
                                   onClick={() => handlePick(gwId, f.homeTeamId, lockAt)}
                                 />
-                                <div className="flex flex-col items-center justify-center min-w-[80px] sm:min-w-[80px] lg:min-w-[96px] px-1">
+                                <div className="flex flex-col items-center justify-center min-w-[58px] px-1 sm:min-w-[80px] lg:min-w-[96px]">
                                 {f.status === 'FINISHED' ? (
-                                  <span className="font-bold text-white text-xs sm:text-sm lg:text-base">{f.scoreHome} - {f.scoreAway}</span>
+                                  <span className="font-black text-white text-2xl leading-none sm:text-sm sm:font-bold lg:text-base">{f.scoreHome} - {f.scoreAway}</span>
                                 ) : f.status === 'POSTPONED' ? (
                                   <span className="badge-yellow text-xs">PP</span>
                                 ) : f.status === 'IN_PLAY' ? (
                                   <>
-                                    <span className="font-bold text-white text-xs sm:text-sm lg:text-base">
+                                    <span className="font-black text-white text-2xl leading-none sm:text-sm sm:font-bold lg:text-base">
                                       {f.scoreHome != null && f.scoreAway != null ? `${f.scoreHome} - ${f.scoreAway}` : 'LIVE'}
                                     </span>
                                     <span className="text-green-400 text-[10px] font-bold animate-pulse uppercase tracking-[0.16em] lg:text-xs">
@@ -2499,7 +2524,8 @@ export default function CompetitionHomePage() {
                             );
                           })}
                       </div>
-                    )}
+                      );
+                    })()}
                   </div>
                 );
               })}
@@ -2883,34 +2909,38 @@ function TeamButton({
         name
       }
       className={clsx(
-        'flex h-full flex-col justify-center gap-0.5 rounded-lg px-1.5 sm:px-3 lg:px-4 py-0.5 sm:py-0.5 w-full min-w-0 transition-all min-h-[28px] sm:min-h-[30px] lg:min-h-[32px]',
-        align === 'right' ? 'items-end text-right' : 'items-start text-left',
+        'flex h-full flex-col justify-center gap-0.5 rounded-xl px-2 py-2.5 sm:rounded-lg sm:px-3 lg:px-4 sm:py-0.5 w-full min-w-0 transition-all min-h-[74px] sm:min-h-[30px] lg:min-h-[32px]',
+        align === 'right' ? 'items-center sm:items-end sm:text-right' : 'items-center sm:items-start sm:text-left',
         isMyPick && 'bg-brand-600/85 border-2 border-brand-300 text-white font-bold shadow-md shadow-brand-900/25',
         isUsed && !isMyPick && 'bg-transparent text-amber-300 cursor-not-allowed',
         isReserved && !isUsed && !isMyPick && 'bg-transparent text-cyan-300',
-        isClickable && !isMyPick && 'bg-surface-600/50 border border-gray-600 hover:border-gray-500 hover:bg-white/[0.04] text-gray-200 cursor-pointer font-medium',
+        isClickable && !isMyPick && 'bg-transparent sm:bg-surface-600/50 sm:border sm:border-gray-600 hover:border-gray-500 hover:bg-white/[0.04] text-gray-200 cursor-pointer font-medium',
         !isClickable && !isUsed && !isMyPick && 'bg-transparent text-gray-400 cursor-default font-medium',
       )}
       aria-pressed={isMyPick}
       aria-label={`Pick ${name}`}
     >
-      {/* Team name row */}
-      {/* Mobile: centered within each box */}
-      <div className={clsx('flex sm:hidden w-full items-center gap-1', align === 'right' ? 'justify-end' : 'justify-start')}>
-        <span className={clsx('font-bold text-xs', isMyPick ? 'text-white' : isUsed ? 'line-through' : '')}>
-          {shortName}
-        </span>
-        {showStatusPill && (
-          <span
-            className={clsx(
-              'inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em]',
-              isMyPick ? 'bg-white/18 text-white' : 'bg-amber-500/20 text-amber-200',
-              isReserved && !isUsed && !isMyPick && 'bg-cyan-500/20 text-cyan-200',
-            )}
-          >
-            {statusPillLabel}
+      {/* Mobile: app-style centered team column */}
+      <div className="flex sm:hidden w-full flex-col items-center justify-center text-center gap-1">
+        <div className={clsx('flex items-center justify-center gap-1.5', align === 'right' ? 'flex-row-reverse' : 'flex-row')}>
+          <span className={clsx('font-black text-base leading-tight', isMyPick ? 'text-white' : isUsed ? 'line-through text-amber-200' : '')}>
+            {shortName}
           </span>
-        )}
+          {showStatusPill && (
+            <span
+              className={clsx(
+                'inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.08em]',
+                isMyPick ? 'bg-white/18 text-white' : 'bg-amber-500/20 text-amber-200',
+                isReserved && !isUsed && !isMyPick && 'bg-cyan-500/20 text-cyan-200',
+              )}
+            >
+              {statusPillLabel}
+            </span>
+          )}
+        </div>
+        <span className={clsx('max-w-[7.5rem] truncate text-xs leading-tight text-gray-400', isMyPick && 'text-white/70', isUsed && !isMyPick && 'text-amber-200/75 line-through')}>
+          {name}
+        </span>
       </div>
       {/* Desktop */}
       {pickStat ? (
@@ -2971,12 +3001,12 @@ function TeamButton({
       )}
       {/* Pick stat bar — shown after gameweek locks */}
       {pickStat || risk ? (
-        <div className="w-full mt-1.5 min-h-[20px]">
-          <div className={clsx('flex w-full gap-1.5 flex-wrap', align === 'right' ? 'justify-end' : 'justify-start')}>
+        <div className="w-full mt-2 min-h-[24px] sm:mt-1.5 sm:min-h-[20px]">
+          <div className={clsx('flex w-full gap-1.5 flex-wrap justify-center', align === 'right' ? 'sm:justify-end' : 'sm:justify-start')}>
             {risk && (
               <div
                 className={clsx(
-                  'inline-flex max-w-full items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap overflow-hidden',
+                  'hidden sm:inline-flex max-w-full items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap overflow-hidden',
                   risk.label === 'Safe' && 'bg-green-500/20 text-green-200',
                   risk.label === 'Balanced' && 'bg-yellow-500/20 text-yellow-200',
                   risk.label === 'Differential' && 'bg-cyan-500/20 text-cyan-200',
@@ -2989,13 +3019,9 @@ function TeamButton({
                     : 'Risk based on current market odds and crowd data'
                 }
               >
-                <span className="sm:hidden truncate">{riskLabelTextMobile(risk)}</span>
-                <span className="hidden sm:inline truncate">{riskLabelText(risk)}</span>
+                <span className="truncate">{riskLabelText(risk)}</span>
                 {risk.source === 'fallback' && (
-                  <>
-                    <span className="sm:hidden font-normal opacity-70 truncate">· no odds</span>
-                    <span className="hidden sm:inline font-normal opacity-70 truncate">· no odds yet</span>
-                  </>
+                  <span className="font-normal opacity-70 truncate">· no odds yet</span>
                 )}
                 {risk.source !== 'fallback' && risk.lowConfidence && (
                   <span className="font-normal opacity-70 truncate">· estimate</span>
@@ -3005,13 +3031,13 @@ function TeamButton({
             {pickStat && (
               <div
                 className={clsx(
-                  'inline-flex max-w-full items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap overflow-hidden',
-                  isMyPick ? 'bg-white/16 text-white/90' : 'bg-white/8 text-gray-300',
+                  'inline-flex w-full max-w-[8rem] items-center justify-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-black whitespace-nowrap sm:w-auto sm:max-w-full sm:justify-start sm:text-[9px] sm:font-semibold sm:px-1.5 sm:py-0.5',
+                  isMyPick ? 'bg-white/18 text-white' : 'bg-white/10 text-gray-200',
                 )}
                 style={accentColor && !isMyPick ? { border: `1px solid ${accentColor}44`, color: '#cbd5e1' } : undefined}
               >
-                <span className="truncate">{pickStat.percentage}%</span>
-                <span className={clsx('font-normal whitespace-nowrap truncate', isMyPick ? 'text-white/60' : 'text-gray-400')}>
+                <span>{pickStat.percentage}%</span>
+                <span className={clsx('font-semibold whitespace-nowrap', isMyPick ? 'text-white/75' : 'text-gray-300')}>
                   · {pickStat.pickCount} {pickStat.pickCount === 1 ? 'player' : 'players'}
                 </span>
               </div>
@@ -3022,6 +3048,55 @@ function TeamButton({
         <div className="w-full mt-1.5 min-h-[20px]" />
       )}
     </button>
+  );
+}
+
+
+function CompetitionPulseSkeleton() {
+  return (
+    <div className="animate-pulse">
+      <div className="flex items-center gap-2">
+        <div className="h-6 w-6 rounded-md bg-white/10" />
+        <div className="h-3 w-40 rounded bg-white/10" />
+        <div className="h-3 w-20 rounded bg-white/10" />
+      </div>
+      <div className="mt-4 h-8 w-4/5 rounded bg-white/10" />
+      <div className="mt-3 h-4 w-full rounded bg-white/10" />
+      <div className="mt-2 h-4 w-3/4 rounded bg-white/10" />
+      <div className="mt-4 flex flex-wrap gap-2">
+        <div className="h-8 w-28 rounded-full bg-white/10" />
+        <div className="h-8 w-32 rounded-full bg-white/10" />
+        <div className="h-8 w-40 rounded-full bg-white/10" />
+      </div>
+    </div>
+  );
+}
+
+function CompetitionSpotlightSkeleton() {
+  return <>{[0, 1, 2].map((item) => (
+    <div key={item} className="animate-pulse rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+      <div className="h-3 w-28 rounded bg-white/10" />
+      <div className="mt-3 h-5 w-2/3 rounded bg-white/10" />
+      <div className="mt-3 h-4 w-full rounded bg-white/10" />
+      <div className="mt-2 h-4 w-4/5 rounded bg-white/10" />
+    </div>
+  ))}</>;
+}
+
+function CompetitionSnapshotSkeleton() {
+  return (
+    <div className="animate-pulse">
+      <div className="h-3 w-44 rounded bg-white/10" />
+      <div className="mt-2 h-5 w-56 rounded bg-white/10" />
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        {[0, 1, 2, 3].map((item) => (
+          <div key={item} className="rounded-xl border border-white/10 bg-black/15 px-3 py-3">
+            <div className="h-3 w-24 rounded bg-white/10" />
+            <div className="mt-2 h-5 w-16 rounded bg-white/10" />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
