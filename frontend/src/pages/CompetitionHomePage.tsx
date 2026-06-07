@@ -395,6 +395,8 @@ export default function CompetitionHomePage() {
       setLifelineForGwId(null);
       // Refresh in background to get the real server state
       queryClient.invalidateQueries({ queryKey: ['myStatus', compId, selectedEntryId] });
+      queryClient.invalidateQueries({ queryKey: ['competitions', 'my', 'details'] });
+      queryClient.invalidateQueries({ queryKey: ['competitions', 'upcoming'] });
     },
     onError: (err: any, _vars, context) => {
       // Roll back to previous state on error

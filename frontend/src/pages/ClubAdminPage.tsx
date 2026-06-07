@@ -265,6 +265,10 @@ export default function ClubAdminPage() {
     onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to save branding'),
   });
 
+  const hexColorPattern = /^#[0-9a-fA-F]{6}$/;
+  const brandingPreviewPrimary = hexColorPattern.test(brandingPrimary) ? brandingPrimary : '#6366f1';
+  const brandingPreviewSecondary = hexColorPattern.test(brandingSecondary) ? brandingSecondary : '#a5b4fc';
+
   const startStripeConnectMutation = useMutation({
     mutationFn: () => api.post('/club-admin/my-club/stripe/connect/start'),
     onSuccess: (response) => {
@@ -551,6 +555,9 @@ export default function ClubAdminPage() {
                 </span>
               </div>
             </div>
+            <div className="rounded-lg border border-sky-400/20 bg-sky-500/10 px-3 py-2 text-xs text-sky-100/90">
+              Stripe shows the exact processing fee after a payment succeeds, under the payment's balance transaction. The checkout screen in this app shows an estimate before payment so entrants know the expected charge/net amount upfront.
+            </div>
           </>
         )}
       </div>
@@ -728,6 +735,44 @@ export default function ClubAdminPage() {
                 {brandingLogoUrl && (
                   <button onClick={() => setBrandingLogoUrl('')} className="text-xs text-gray-500 hover:text-gray-300 shrink-0">✕ Remove</button>
                 )}
+              </div>
+            </div>
+            <div
+              className="overflow-hidden rounded-2xl border p-3"
+              style={{
+                borderColor: `${brandingPreviewPrimary}66`,
+                background: `linear-gradient(135deg, ${brandingPreviewPrimary}14, rgba(15,23,42,0.78) 46%, ${brandingPreviewSecondary}12)`,
+              }}
+            >
+              <div className="flex items-center gap-3">
+                {brandingLogoUrl ? (
+                  <img src={brandingLogoUrl} alt="Live branding logo preview" className="h-11 w-11 rounded-xl border border-white/20 object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                ) : (
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl border bg-surface-900 text-[10px] font-black uppercase" style={{ borderColor: `${brandingPreviewPrimary}66`, color: brandingPreviewPrimary }}>
+                    Logo
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em]" style={{ color: brandingPreviewPrimary }}>Live preview</p>
+                  <p className="mt-0.5 truncate text-base font-black text-white">{myClub?.name ?? 'Your Club'}</p>
+                </div>
+              </div>
+              <div className="mt-3 rounded-2xl border p-3" style={{ borderColor: `${brandingPreviewSecondary}55`, backgroundColor: `${brandingPreviewSecondary}20` }}>
+                <p className="text-lg font-black text-white">Sample Competition</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <span className="rounded-full border px-2.5 py-1 text-[10px] font-black tracking-wide" style={{ borderColor: `${brandingPreviewPrimary}66`, color: brandingPreviewPrimary }}>ACTIVE</span>
+                  <span className="rounded-full border px-2.5 py-1 text-[10px] font-black tracking-wide" style={{ borderColor: `${brandingPreviewSecondary}66`, color: brandingPreviewSecondary }}>PUBLIC</span>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div className="rounded-xl border border-white/10 bg-white/[0.04] p-2">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Players</p>
+                    <p className="mt-1 text-lg font-black text-white">42</p>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-white/[0.04] p-2">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Prize</p>
+                    <p className="mt-1 text-lg font-black" style={{ color: brandingPreviewPrimary }}>€200</p>
+                  </div>
+                </div>
               </div>
             </div>
             <button

@@ -108,8 +108,8 @@ stripe:
   webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
   platform-fee-bps: ${STRIPE_PLATFORM_FEE_BPS:0}
   connect:
-    return-url: ${STRIPE_CONNECT_RETURN_URL:http://localhost:5173/club-admin}
-    refresh-url: ${STRIPE_CONNECT_REFRESH_URL:http://localhost:5173/club-admin}
+    return-url: ${STRIPE_CONNECT_RETURN_URL:https://runlastmanstanding.com/stripe-connect/return}
+    refresh-url: ${STRIPE_CONNECT_REFRESH_URL:https://runlastmanstanding.com/stripe-connect/return}
 
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:5173}

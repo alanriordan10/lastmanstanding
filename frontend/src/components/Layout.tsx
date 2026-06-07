@@ -8,6 +8,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const canAccessClubAdmin = isClubAdmin || isAdmin;
 
   const handleLogout = () => {
     logout();
@@ -53,7 +54,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           {/* Mobile nav */}
           <div className="w-full sm:hidden">
             <div className="grid grid-cols-4 gap-1">
-              {isClubAdmin ? (
+              {canAccessClubAdmin ? (
                 <Link to="/club-admin" className={`${navClass(location.pathname.startsWith('/club-admin'))} w-full`} aria-label="Club Admin">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 shrink-0">
                     <path d="M4 20h16v-2H4v2Zm2-3h3v-6H6v6Zm4 0h4V7h-4v10Zm5 0h3v-9h-3v9ZM4 10l8-6 8 6v2H4v-2Z" />
@@ -116,7 +117,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <span className="sm:hidden">Admin</span>
               </Link>
             )}
-            {isClubAdmin && (
+            {canAccessClubAdmin && (
               <Link to="/club-admin" className={`${navClass(location.pathname.startsWith('/club-admin'))} sm:whitespace-nowrap`} aria-label="Club Admin">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 shrink-0">
                   <path d="M4 20h16v-2H4v2Zm2-3h3v-6H6v6Zm4 0h4V7h-4v10Zm5 0h3v-9h-3v9ZM4 10l8-6 8 6v2H4v-2Z" />

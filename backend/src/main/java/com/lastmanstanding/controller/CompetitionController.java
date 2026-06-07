@@ -192,16 +192,18 @@ public class CompetitionController {
         Map<Long, String> winners  = batchWinners(compIds);
         Map<Long, java.time.LocalDate> firstGwDates = batchFirstGameweekDates(compIds);
         Map<Long, String> paymentStates = paymentStatesForUser(userDetails.getId(), participants);
+        Map<Long, Boolean> pickRequired = pickRequiredForParticipants(participants, paymentStates);
 
         return participants.stream().map(cp -> {
             Competition c = cp.getCompetition();
             long[] cnt = counts.getOrDefault(c.getId(), new long[]{0, 0});
+            String paymentState = paymentStates.getOrDefault(c.getId(), "NOT_REQUIRED");
             return new MyCompetitionResponse(
                     CompetitionResponse.from(c, (int) cnt[0], (int) cnt[1],
                             winners.get(c.getId()), firstGwDates.get(c.getId())),
                     cp.getId(),
                     cp.getEntryNumber(),
-                    cp.getStatus().name(), paymentStates.getOrDefault(c.getId(), "NOT_REQUIRED"), cp.getEliminatedWeek(), cp.getJoinedAt()
+                    cp.getStatus().name(), paymentState, pickRequired.getOrDefault(cp.getId(), false), cp.getEliminatedWeek(), cp.getJoinedAt()
             );
         }).toList();
     }
@@ -351,6 +353,41 @@ public class CompetitionController {
         List<Payment.PaymentStatus> statuses = paymentRepository.findStatusesByUserAndCompetition(
                 participant.getUser().getId(), participant.getCompetition().getId());
         return derivePaymentState(participant.getCompetition(), statuses);
+    }
+
+    private Map<Long, Boolean> pickRequiredForParticipants(List<CompetitionParticipant> participants, Map<Long, String> paymentStates) {
+        if (participants.isEmpty()) return Map.of();
+
+        List<CompetitionParticipant> candidates = participants.stream()
+                .filter(cp -> cp.getStatus() == ParticipantStatus.ACTIVE)
+                .filter(cp -> cp.getCompetition().getStatus() != CompetitionStatus.COMPLETED)
+                .filter(cp -> !"AWAITING_PAYMENT".equals(paymentStates.getOrDefault(cp.getCompetition().getId(), "NOT_REQUIRED")))
+                .toList();
+        if (candidates.isEmpty()) return Map.of();
+
+        List<Long> competitionIds = candidates.stream()
+                .map(cp -> cp.getCompetition().getId())
+                .distinct()
+                .toList();
+        Map<Long, Gameweek> nextPickableByCompetition = new java.util.HashMap<>();
+        gameweekRepository.findPickableGameweeksByCompetitionIds(competitionIds, java.time.LocalDateTime.now()).forEach(g ->
+                nextPickableByCompetition.putIfAbsent(g.getCompetition().getId(), g));
+        if (nextPickableByCompetition.isEmpty()) return Map.of();
+
+        List<Long> participantIds = candidates.stream().map(CompetitionParticipant::getId).toList();
+        List<Long> gameweekIds = nextPickableByCompetition.values().stream().map(Gameweek::getId).distinct().toList();
+        java.util.Set<String> existingPicks = pickRepository.findParticipantGameweekPickPairs(participantIds, gameweekIds).stream()
+                .map(row -> ((Number) row[0]).longValue() + ":" + ((Number) row[1]).longValue())
+                .collect(java.util.stream.Collectors.toSet());
+
+        Map<Long, Boolean> required = new java.util.HashMap<>();
+        for (CompetitionParticipant cp : candidates) {
+            Gameweek nextGameweek = nextPickableByCompetition.get(cp.getCompetition().getId());
+            if (nextGameweek != null) {
+                required.put(cp.getId(), !existingPicks.contains(cp.getId() + ":" + nextGameweek.getId()));
+            }
+        }
+        return required;
     }
 
     private String derivePaymentState(Competition competition, List<Payment.PaymentStatus> statuses) {

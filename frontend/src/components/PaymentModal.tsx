@@ -63,6 +63,7 @@ function CheckoutForm({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  const entryFeeCents = Math.round(competition.entryFee * 100);
   const chargeAmount = feeBreakdown ? (feeBreakdown.amountCents / 100).toFixed(2) : competition.entryFee.toFixed(2);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -138,16 +139,24 @@ function CheckoutForm({
               {feeBreakdown.feePassedToParticipant ? (
                 <>
                   <div className="flex justify-between text-gray-300">
-                    <span>Entry fee (organiser receives)</span>
-                    <span>€{competition.entryFee.toFixed(2)}</span>
+                    <span>Entry fee</span>
+                    <span>{fmt(entryFeeCents)}</span>
                   </div>
                   <div className="flex justify-between text-gray-400">
-                    <span>Stripe processing fee <span className="text-gray-500">(passed to you)</span></span>
-                    <span>+ {fmt(feeBreakdown.amountCents - competition.entryFee * 100)}</span>
+                    <span>Stripe fee <span className="text-gray-500">(est.)</span></span>
+                    <span>+ {fmt(feeBreakdown.processingCents)}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-400">
+                    <span>Tax on fee <span className="text-gray-500">(est.)</span></span>
+                    <span>+ {fmt(feeBreakdown.taxCents)}</span>
                   </div>
                   <div className="flex justify-between font-semibold text-gray-200 border-t border-gray-700/60 pt-1.5 mt-1.5">
                     <span>You are charged</span>
                     <span className="text-brand-400">{fmt(feeBreakdown.amountCents)}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-500">
+                    <span>Estimated organiser net</span>
+                    <span>{fmt(feeBreakdown.netCents)}</span>
                   </div>
                 </>
               ) : (

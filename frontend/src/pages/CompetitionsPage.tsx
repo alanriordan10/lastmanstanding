@@ -1,8 +1,8 @@
-import { useQuery, useMutation, useQueryClient, useQueries } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useRef, useEffect, useCallback, useMemo, type CSSProperties } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import api from '../api';
-import type { Competition, Club, MyCompetition, GameweekResponse, PickResponse } from '../types';
+import type { Competition, Club, MyCompetition } from '../types';
 import { useAuth } from '../context/AuthContext';
 import type { AxiosError } from 'axios';
 import toast from 'react-hot-toast';
@@ -87,16 +87,6 @@ function fixtureSourceLabel(comp: Competition): string {
   return (comp.fixtureCompetitionCode ?? 'PL') === 'WC' ? 'World Cup' : 'Premier League';
 }
 
-function isPickLockSoon(comp: Competition, withinHours = 24): boolean {
-  const source = comp.firstGameweekDate ?? comp.startDate;
-  if (!source) return false;
-  const parsed = parseDate(source);
-  if (!parsed) return false;
-  const lockAt = parsed.getTime();
-  const msUntilLock = lockAt - Date.now();
-  return msUntilLock > 0 && msUntilLock <= withinHours * 60 * 60 * 1000;
-}
-
 function getCompetitionActionHint(comp: Competition, mine?: MyCompetition, requiresPick = false): string | null {
   if (!mine) return null;
   if (mine.paymentState === 'AWAITING_PAYMENT') {
@@ -104,7 +94,7 @@ function getCompetitionActionHint(comp: Competition, mine?: MyCompetition, requi
       ? 'Action needed: pay the organiser to activate your entry.'
       : 'Action needed: complete payment to confirm your entry.';
   }
-  if (comp.status === 'UPCOMING' && (mine.myStatus === 'ACTIVE' || mine.myStatus === 'WINNER') && isPickLockSoon(comp) && requiresPick) {
+  if (requiresPick) {
     return 'Action needed: review your pick before the gameweek locks.';
   }
   return null;
@@ -423,36 +413,7 @@ export default function CompetitionsPage() {
     return myComps.filter((mc) => mc.competition.name.toLowerCase().includes(q) || mc.competition.clubName?.toLowerCase().includes(q));
   }, [myComps, search]);
 
-  const upcomingMineCandidates = myComps.filter(
-    (mc) => mc.competition.status === 'UPCOMING' && (mc.myStatus === 'ACTIVE' || mc.myStatus === 'WINNER')
-  );
-  const upcomingMinePickChecks = useQueries({
-    queries: upcomingMineCandidates.map((mc) => ({
-      queryKey: ['competition', mc.competition.id, 'mine-needs-action-pick-check'],
-      queryFn: async () => {
-        const currentGw = await api.get<GameweekResponse>(`/competitions/${mc.competition.id}/gameweeks/current`).then((r) => r.data);
-        if (!currentGw || currentGw.status !== 'UPCOMING') {
-          return { competitionId: mc.competition.id, requiresPick: false };
-        }
-        try {
-          await api.get<PickResponse>(`/competitions/${mc.competition.id}/gameweeks/${currentGw.id}/my-pick`);
-          return { competitionId: mc.competition.id, requiresPick: false };
-        } catch {
-          return { competitionId: mc.competition.id, requiresPick: true };
-        }
-      },
-      staleTime: 30_000,
-    })),
-  });
-  const requiresPickByCompetitionId = new Map<number, boolean>();
-  upcomingMinePickChecks.forEach((q) => {
-    if (q.data) requiresPickByCompetitionId.set(q.data.competitionId, q.data.requiresPick);
-  });
-  const hasPickDueAction = (mc: MyCompetition) =>
-    mc.competition.status === 'UPCOMING' &&
-    (mc.myStatus === 'ACTIVE' || mc.myStatus === 'WINNER') &&
-    isPickLockSoon(mc.competition) &&
-    requiresPickByCompetitionId.get(mc.competition.id) === true;
+  const hasPickDueAction = useCallback((mc: MyCompetition) => mc.pickRequired === true, []);
 
   const filteredMine = useMemo(() => {
     if (mineFilter === 'ALL') return searchedMine;
@@ -469,7 +430,7 @@ export default function CompetitionsPage() {
       if (mineFilter === 'ELIMINATED') return mc.competition.status !== 'COMPLETED' && mc.myStatus === 'ELIMINATED';
       return mc.competition.status === 'ACTIVE' && (mc.myStatus === 'ACTIVE' || mc.myStatus === 'WINNER');
     });
-  }, [searchedMine, mineFilter, requiresPickByCompetitionId]);
+  }, [searchedMine, mineFilter, hasPickDueAction]);
 
   const filteredPast = useMemo(() => {
     let list = pastCompetitions ?? [];
@@ -487,7 +448,7 @@ export default function CompetitionsPage() {
       return false;
     }
     return mc.paymentState === 'AWAITING_PAYMENT' || hasPickDueAction(mc);
-  }, [requiresPickByCompetitionId]);
+  }, [hasPickDueAction]);
   const mineNeedsActionCount = useMemo(
     () => searchedMine.filter((mc) => isMineNeedsAction(mc)),
     [searchedMine, isMineNeedsAction]

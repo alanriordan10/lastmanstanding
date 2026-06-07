@@ -367,6 +367,7 @@ public final class CompetitionDtos {
             Integer entryNumber,
             String myStatus,
             String paymentState,
+            Boolean pickRequired,
             Integer eliminatedWeek,
             LocalDateTime joinedAt
     ) {}

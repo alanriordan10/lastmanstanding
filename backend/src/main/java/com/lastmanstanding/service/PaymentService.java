@@ -203,13 +203,9 @@ public class PaymentService {
 
         long entryFeeCents = comp.getEntryFee().multiply(BigDecimal.valueOf(100)).longValue();
 
-        long chargeAmountCents;
-        if (comp.isPassFeeToParticipant()) {
-            double grossed = (entryFeeCents + 25.0) / (1.0 - 0.015);
-            chargeAmountCents = (long) Math.ceil(grossed);
-        } else {
-            chargeAmountCents = entryFeeCents;
-        }
+        long chargeAmountCents = comp.isPassFeeToParticipant()
+                ? grossUpChargeAmountCents(entryFeeCents)
+                : entryFeeCents;
 
         FeeEstimate fees = estimateFees(chargeAmountCents);
         long applicationFeeAmountCents = Math.round(chargeAmountCents * (stripePlatformFeeBps / 10000.0));
@@ -418,6 +414,18 @@ public class PaymentService {
         long totalFeeCents = processingCents + taxCents;
         long netCents = chargeAmountCents - totalFeeCents;
         return new FeeEstimate(processingCents, taxCents, totalFeeCents, netCents);
+    }
+
+    /**
+     * Grosses up the customer charge so the estimated net amount covers the entry fee.
+     * Uses cent-by-cent iteration to account for Stripe/VAT rounding at small amounts.
+     */
+    public static long grossUpChargeAmountCents(long entryFeeCents) {
+        long chargeAmountCents = entryFeeCents;
+        while (estimateFees(chargeAmountCents).netCents() < entryFeeCents) {
+            chargeAmountCents++;
+        }
+        return chargeAmountCents;
     }
 
     public record FeeEstimate(long processingCents, long taxCents, long totalFeeCents, long netCents) {}

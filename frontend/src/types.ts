@@ -87,6 +87,7 @@ export interface MyCompetition {
   entryNumber?: number;
   myStatus: 'ACTIVE' | 'ELIMINATED' | 'WINNER';
   paymentState?: 'NOT_REQUIRED' | 'AWAITING_PAYMENT' | 'PAID';
+  pickRequired?: boolean;
   eliminatedWeek: number | null;
   joinedAt: string;
 }
