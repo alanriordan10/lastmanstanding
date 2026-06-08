@@ -1049,7 +1049,10 @@ export default function CompetitionHomePage() {
       return;
     }
     if (isPast(parseDate(lockAt))) return;
-    pickMutation.mutate({ gwId, teamId, useLifeline: lifelineForGwId === gwId });
+    const useLifeline = lifelineForGwId === gwId;
+    const currentPick = pickByGwId.get(gwId);
+    if (currentPick?.teamId === teamId && Boolean(currentPick.useLifeline) === useLifeline) return;
+    pickMutation.mutate({ gwId, teamId, useLifeline });
   };
 
   let actionTone: 'brand' | 'warning' | 'danger' | 'success' = 'brand';
