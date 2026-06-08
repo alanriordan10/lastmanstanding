@@ -517,7 +517,10 @@ export default function CompetitionsPage() {
 
   const submitJoinCode = () => {
     const normalized = joinCodeInput.trim().toUpperCase();
-    if (!normalized) return;
+    if (!normalized) {
+      toast.error('Enter an invite code first.');
+      return;
+    }
     const next = new URLSearchParams(searchParams);
     next.set('code', normalized);
     next.delete('join');
@@ -603,28 +606,38 @@ export default function CompetitionsPage() {
             </div>
 
             {viewMode === 'available' && (
-              <div className="flex w-full flex-col gap-2 sm:ml-auto sm:w-auto sm:flex-row sm:items-center">
-                <div className="flex w-full items-center gap-2 rounded-xl border border-brand-500/20 bg-brand-500/[0.07] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:min-w-[17rem]">
-                  <input
-                    type="text"
-                    value={joinCodeInput}
-                    onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        submitJoinCode();
-                      }
-                    }}
-                    placeholder="Enter join code"
-                    className="min-w-0 flex-1 bg-transparent px-2 py-1 text-xs text-gray-100 outline-none placeholder:text-gray-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={submitJoinCode}
-                    className="rounded-lg bg-gradient-to-r from-brand-500 to-cyan-400 px-2.5 py-1.5 text-xs font-semibold text-slate-950 transition hover:from-brand-400 hover:to-cyan-300"
-                  >
-                    Unlock
-                  </button>
+              <div className="flex w-full flex-col gap-3 sm:ml-auto sm:w-[26rem]">
+                <div className="rounded-2xl border border-brand-500/25 bg-brand-500/[0.07] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                  <div className="mb-2 flex items-start gap-3">
+                    <div className="grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-brand-400/40 bg-brand-400/15 text-sm font-black text-brand-200">#</div>
+                    <div>
+                      <p className="text-sm font-black text-white">Join a private competition</p>
+                      <p className="mt-1 text-xs leading-5 text-gray-400">Enter the invite code from your organiser. If payment is required, you will continue from the competition page.</p>
+                    </div>
+                  </div>
+                  <div className="flex w-full items-center gap-2 rounded-xl border border-brand-500/25 bg-surface-950/60 p-1.5">
+                    <input
+                      type="text"
+                      value={joinCodeInput}
+                      onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase().replace(/\s/g, ''))}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          submitJoinCode();
+                        }
+                      }}
+                      placeholder="INVITE CODE"
+                      className="min-w-0 flex-1 bg-transparent px-2 py-1.5 text-xs font-bold tracking-[0.14em] text-gray-100 outline-none placeholder:text-gray-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={submitJoinCode}
+                      disabled={!joinCodeInput.trim() || joinCodeLoading}
+                      className="rounded-lg bg-gradient-to-r from-brand-500 to-cyan-400 px-3 py-2 text-xs font-black text-slate-950 transition hover:from-brand-400 hover:to-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {joinCodeLoading ? 'Checking...' : 'Join'}
+                    </button>
+                  </div>
                 </div>
                 <button
                   type="button"
@@ -924,7 +937,7 @@ export default function CompetitionsPage() {
                   : 'border-gray-700/60 bg-surface-800/70 text-gray-300'
               }`}>
                 {joinCodeCompetition
-                  ? `Invite unlocked: ${joinCodeCompetition.name}`
+                  ? `Invite found: ${joinCodeCompetition.name}. Select Join on the competition card below${joinCodeCompetition.paymentMode === 'STRIPE' && joinCodeCompetition.entryFee > 0 ? ' and continue to payment' : ''}.`
                   : joinCodeStatus === 401 || joinCodeStatus === 403
                   ? `That invite is being blocked by authentication.`
                   : joinCodeStatus && joinCodeStatus >= 500
