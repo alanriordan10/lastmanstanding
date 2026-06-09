@@ -39,9 +39,7 @@ export default function LoginPage() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_16%_20%,rgba(37,99,235,0.16),transparent_34rem),linear-gradient(170deg,#070f22_0%,#0a1731_56%,#0a1730_100%)] px-4 py-10">
-      <Link to="/faq" className="absolute right-4 top-4 z-10 rounded-lg border border-white/10 bg-white/[0.05] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-gray-200 transition hover:bg-white/[0.1] hover:text-white">
-        FAQ
-      </Link>
+      
       <SeoMeta
         title="Sign In | Last Man Standing"
         description="Sign in to manage picks, view results, and run football survivor pool competitions."
@@ -144,6 +142,13 @@ export default function LoginPage() {
           <Link to="/register-club" className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-brand-300/35 bg-brand-500/15 px-4 py-3 text-sm font-black text-brand-100 transition hover:bg-brand-500/25 hover:text-white">
             Start a club
           </Link>
+        </div>
+
+        <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs text-gray-500">
+          <Link to="/faq" className="hover:text-gray-300">FAQ</Link>
+          <Link to="/privacy" className="hover:text-gray-300">Privacy</Link>
+          <Link to="/terms" className="hover:text-gray-300">Terms</Link>
+          <Link to="/account-deletion" className="hover:text-gray-300">Delete Account</Link>
         </div>
         </div>
       </div>

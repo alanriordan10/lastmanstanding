@@ -55,6 +55,7 @@ public interface FixtureRepository extends JpaRepository<Fixture, Long> {
             "JOIN FETCH f.importedHomeTeam " +
             "JOIN FETCH f.importedAwayTeam " +
             "JOIN FETCH f.gameweek gw " +
+            "JOIN FETCH gw.competition " +
             "WHERE f.importedKickoffAt >= :from " +
             "AND f.importedKickoffAt <= :to " +
             "AND gw.status IN (" +

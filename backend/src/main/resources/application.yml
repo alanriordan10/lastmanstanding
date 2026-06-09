@@ -93,6 +93,9 @@ odds:
   api-key: ${ODDS_API_KEY:}
   base-url: ${ODDS_BASE_URL:https://api.the-odds-api.com/v4}
   sport: ${ODDS_SPORT:soccer_epl}
+  sports:
+    pl: ${ODDS_SPORT_PL:soccer_epl}
+    wc: ${ODDS_SPORT_WC:soccer_fifa_world_cup}
   regions: ${ODDS_REGIONS:uk}
   markets: ${ODDS_MARKETS:h2h}
   odds-format: ${ODDS_FORMAT:decimal}

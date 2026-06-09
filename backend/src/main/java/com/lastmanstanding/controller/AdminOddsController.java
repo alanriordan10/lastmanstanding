@@ -34,7 +34,7 @@ public class AdminOddsController {
         if (gameweekIds.isEmpty()) {
             return new FixtureOddsSyncService.OddsDebugResponse(true, true, "No gameweeks found for competition", List.of());
         }
-        List<Fixture> fixtures = fixtureRepository.findByGameweekIdIn(gameweekIds);
+        List<Fixture> fixtures = fixtureRepository.findByGameweekIdInFetchAll(gameweekIds);
         return fixtureOddsSyncService.debugFixtures(fixtures);
     }
 

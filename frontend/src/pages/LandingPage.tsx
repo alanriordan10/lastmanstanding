@@ -206,6 +206,12 @@ export default function LandingPage() {
         </div>
         <div className="mb-2">
           <Link to="/faq" className="text-gray-400 hover:text-white transition-colors">FAQ</Link>
+          <span className="text-gray-700">·</span>
+          <Link to="/privacy" className="text-gray-400 hover:text-white transition-colors">Privacy</Link>
+          <span className="text-gray-700">·</span>
+          <Link to="/terms" className="text-gray-400 hover:text-white transition-colors">Terms</Link>
+          <span className="text-gray-700">·</span>
+          <Link to="/account-deletion" className="text-gray-400 hover:text-white transition-colors">Delete Account</Link>
         </div>
         <p>Premier League survival game · © {new Date().getFullYear()}</p>
       </footer>

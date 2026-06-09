@@ -64,11 +64,16 @@ public class OddsApiClient {
     }
 
     public List<OddsEvent> fetchOdds(LocalDateTime from, LocalDateTime to) {
+        return fetchOdds(sport, from, to);
+    }
+
+    public List<OddsEvent> fetchOdds(String sportKey, LocalDateTime from, LocalDateTime to) {
         if (!isConfigured()) {
             return List.of();
         }
+        String resolvedSport = sportKey == null || sportKey.isBlank() ? sport : sportKey.trim();
 
-        String url = baseUrl + "/sports/" + enc(sport) + "/odds"
+        String url = baseUrl + "/sports/" + enc(resolvedSport) + "/odds"
                 + "?apiKey=" + enc(apiKey)
                 + "&regions=" + enc(regions)
                 + "&markets=" + enc(markets)

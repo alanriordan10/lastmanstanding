@@ -22,6 +22,9 @@ const SurvivorTablePage = lazy(() => import('./pages/SurvivorTablePage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const ContactPage = lazy(() => import('./pages/ContactPage'));
 const FaqPage = lazy(() => import('./pages/FaqPage'));
+const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
+const TermsPage = lazy(() => import('./pages/TermsPage'));
+const AccountDeletionPage = lazy(() => import('./pages/AccountDeletionPage'));
 const StripeConnectReturnPage = lazy(() => import('./pages/StripeConnectReturnPage'));
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -93,6 +96,9 @@ export default function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/faq" element={<FaqPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/account-deletion" element={<AccountDeletionPage />} />
         <Route path="/stripe-connect/return" element={<StripeConnectReturnPage />} />
         <Route path="/invite/:code" element={<InviteRedirect />} />
         <Route

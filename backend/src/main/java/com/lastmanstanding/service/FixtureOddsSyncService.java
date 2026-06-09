@@ -40,6 +40,12 @@ public class FixtureOddsSyncService {
     @Value("${odds.sync.to-days:14}")
     private int toDays;
 
+    @Value("${odds.sports.pl:soccer_epl}")
+    private String premierLeagueSport;
+
+    @Value("${odds.sports.wc:soccer_fifa_world_cup}")
+    private String worldCupSport;
+
     public FixtureOddsSyncService(OddsApiClient oddsApiClient, FixtureRepository fixtureRepository) {
         this.oddsApiClient = oddsApiClient;
         this.fixtureRepository = fixtureRepository;
@@ -59,31 +65,38 @@ public class FixtureOddsSyncService {
             return 0;
         }
 
-        List<OddsApiClient.OddsEvent> oddsEvents = oddsApiClient.fetchOdds(from, to);
-        if (oddsEvents.isEmpty()) {
-            return 0;
-        }
-
         int updated = 0;
-        for (Fixture fixture : candidates) {
-            Optional<OddsApiClient.OddsEvent> match = findBestEventForFixture(fixture, oddsEvents);
-            if (match.isEmpty()) {
-                continue;
-            }
-            ConsensusOdds consensus = toConsensusOdds(match.get());
-            if (consensus == null) {
+        Map<String, List<Fixture>> candidatesBySport = candidates.stream()
+                .collect(Collectors.groupingBy(this::oddsSportForFixture, java.util.LinkedHashMap::new, Collectors.toList()));
+
+        for (Map.Entry<String, List<Fixture>> entry : candidatesBySport.entrySet()) {
+            String sportKey = entry.getKey();
+            List<OddsApiClient.OddsEvent> oddsEvents = oddsApiClient.fetchOdds(sportKey, from, to);
+            if (oddsEvents.isEmpty()) {
+                log.debug("Odds sync returned no events for sport {}", sportKey);
                 continue;
             }
 
-            fixture.setOddsHomeWin(consensus.homeWin);
-            fixture.setOddsDraw(consensus.draw);
-            fixture.setOddsAwayWin(consensus.awayWin);
-            fixture.setOddsImpliedHome(consensus.impliedHome);
-            fixture.setOddsImpliedDraw(consensus.impliedDraw);
-            fixture.setOddsImpliedAway(consensus.impliedAway);
-            fixture.setOddsSource("the-odds-api");
-            fixture.setOddsUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
-            updated++;
+            for (Fixture fixture : entry.getValue()) {
+                Optional<OddsApiClient.OddsEvent> match = findBestEventForFixture(fixture, oddsEvents);
+                if (match.isEmpty()) {
+                    continue;
+                }
+                ConsensusOdds consensus = toConsensusOdds(match.get());
+                if (consensus == null) {
+                    continue;
+                }
+
+                fixture.setOddsHomeWin(consensus.homeWin);
+                fixture.setOddsDraw(consensus.draw);
+                fixture.setOddsAwayWin(consensus.awayWin);
+                fixture.setOddsImpliedHome(consensus.impliedHome);
+                fixture.setOddsImpliedDraw(consensus.impliedDraw);
+                fixture.setOddsImpliedAway(consensus.impliedAway);
+                fixture.setOddsSource("the-odds-api:" + sportKey);
+                fixture.setOddsUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
+                updated++;
+            }
         }
 
         if (updated > 0) {
@@ -116,12 +129,28 @@ public class FixtureOddsSyncService {
                 .orElse(LocalDateTime.now(ZoneOffset.UTC))
                 .plusDays(1);
 
-        List<OddsApiClient.OddsEvent> oddsEvents = oddsApiClient.fetchOdds(from, to);
+        Map<String, List<Fixture>> fixturesBySport = fixtures.stream()
+                .collect(Collectors.groupingBy(this::oddsSportForFixture, java.util.LinkedHashMap::new, Collectors.toList()));
         List<OddsDebugRow> rows = new ArrayList<>();
-        for (Fixture fixture : fixtures) {
-            rows.add(debugRowForFixture(fixture, oddsEvents));
+        for (Map.Entry<String, List<Fixture>> entry : fixturesBySport.entrySet()) {
+            List<OddsApiClient.OddsEvent> oddsEvents = oddsApiClient.fetchOdds(entry.getKey(), from, to);
+            for (Fixture fixture : entry.getValue()) {
+                rows.add(debugRowForFixture(fixture, oddsEvents));
+            }
         }
         return new OddsDebugResponse(true, true, null, rows);
+    }
+
+    private String oddsSportForFixture(Fixture fixture) {
+        String competitionCode = Optional.ofNullable(fixture.getGameweek())
+                .map(gw -> gw.getCompetition())
+                .map(comp -> comp.getFixtureCompetitionCode())
+                .orElse("PL");
+        return switch (competitionCode == null ? "PL" : competitionCode.trim().toUpperCase(Locale.ROOT)) {
+            case "WC" -> worldCupSport;
+            case "PL" -> premierLeagueSport;
+            default -> premierLeagueSport;
+        };
     }
 
     private Optional<OddsApiClient.OddsEvent> findBestEventForFixture(Fixture fixture, List<OddsApiClient.OddsEvent> events) {
@@ -158,7 +187,7 @@ public class FixtureOddsSyncService {
                     "no_event_available",
                     null,
                     null,
-                    null
+                    "No odds events returned for this fixture group"
             );
         }
 
@@ -183,7 +212,7 @@ public class FixtureOddsSyncService {
                     "name_mismatch",
                     null,
                     null,
-                    null
+                    eventSummary(oddsEvents)
             );
         }
 
@@ -205,7 +234,7 @@ public class FixtureOddsSyncService {
                     "kickoff_too_far",
                     nearest == null ? null : nearest.eventId(),
                     nearest == null ? null : nearest.commenceAt(),
-                    null
+                    nearest == null ? null : nearest.homeTeam() + " vs " + nearest.awayTeam() + " @ " + nearest.commenceAt()
             );
         }
 
@@ -249,6 +278,20 @@ public class FixtureOddsSyncService {
                 best.commenceAt(),
                 null
         );
+    }
+
+    private static String eventSummary(List<OddsApiClient.OddsEvent> events) {
+        if (events == null || events.isEmpty()) {
+            return "No odds events returned";
+        }
+        String summary = events.stream()
+                .limit(12)
+                .map(e -> e.homeTeam() + " vs " + e.awayTeam() + " @ " + e.commenceAt())
+                .collect(Collectors.joining(" | "));
+        if (events.size() > 12) {
+            summary += " | ... +" + (events.size() - 12) + " more";
+        }
+        return summary;
     }
 
     private static boolean teamsMatch(String a, String b) {
@@ -302,7 +345,65 @@ public class FixtureOddsSyncService {
         aliases.put("burnley", "burnley");
         aliases.put("astonvilla", "astonvilla");
         aliases.put("brentford", "brentford");
+
+        addAliases(aliases, "argentina", "Argentina", "ARG");
+        addAliases(aliases, "australia", "Australia", "AUS");
+        addAliases(aliases, "austria", "Austria", "AUT");
+        addAliases(aliases, "belgium", "Belgium", "BEL");
+        addAliases(aliases, "bosniaherzegovina", "Bosnia-Herzegovina", "Bosnia and Herzegovina", "BIH");
+        addAliases(aliases, "brazil", "Brazil", "BRA");
+        addAliases(aliases, "canada", "Canada", "CAN");
+        addAliases(aliases, "chile", "Chile", "CHI", "CHL");
+        addAliases(aliases, "colombia", "Colombia", "COL");
+        addAliases(aliases, "congodr", "Congo DR", "DR Congo", "Democratic Republic of Congo", "Congo Democratic Republic", "COD", "DRC");
+        addAliases(aliases, "croatia", "Croatia", "CRO", "HRV");
+        addAliases(aliases, "czechia", "Czechia", "Czech Republic", "Czech Rep", "CZE");
+        addAliases(aliases, "denmark", "Denmark", "DEN");
+        addAliases(aliases, "ecuador", "Ecuador", "ECU");
+        addAliases(aliases, "egypt", "Egypt", "EGY");
+        addAliases(aliases, "england", "England", "ENG");
+        addAliases(aliases, "france", "France", "FRA");
+        addAliases(aliases, "germany", "Germany", "GER", "DEU");
+        addAliases(aliases, "ghana", "Ghana", "GHA");
+        addAliases(aliases, "iran", "Iran", "IRN");
+        addAliases(aliases, "italy", "Italy", "ITA");
+        addAliases(aliases, "ivorycoast", "Ivory Coast", "Cote dIvoire", "Côte dIvoire", "CIV");
+        addAliases(aliases, "japan", "Japan", "JPN");
+        addAliases(aliases, "mexico", "Mexico", "MEX");
+        addAliases(aliases, "morocco", "Morocco", "MAR");
+        addAliases(aliases, "netherlands", "Netherlands", "Holland", "NED", "NLD");
+        addAliases(aliases, "newzealand", "New Zealand", "NZL");
+        addAliases(aliases, "nigeria", "Nigeria", "NGA");
+        addAliases(aliases, "norway", "Norway", "NOR");
+        addAliases(aliases, "paraguay", "Paraguay", "PAR", "PRY");
+        addAliases(aliases, "peru", "Peru", "PER");
+        addAliases(aliases, "poland", "Poland", "POL");
+        addAliases(aliases, "portugal", "Portugal", "POR");
+        addAliases(aliases, "qatar", "Qatar", "QAT");
+        addAliases(aliases, "saudiarabia", "Saudi Arabia", "KSA", "SAU");
+        addAliases(aliases, "scotland", "Scotland", "SCO");
+        addAliases(aliases, "senegal", "Senegal", "SEN");
+        addAliases(aliases, "serbia", "Serbia", "SRB");
+        addAliases(aliases, "southafrica", "South Africa", "RSA", "ZAF");
+        addAliases(aliases, "southkorea", "South Korea", "Korea Republic", "Republic of Korea", "Korea", "KOR");
+        addAliases(aliases, "spain", "Spain", "ESP");
+        addAliases(aliases, "sweden", "Sweden", "SWE");
+        addAliases(aliases, "switzerland", "Switzerland", "SUI", "CHE");
+        addAliases(aliases, "tunisia", "Tunisia", "TUN");
+        addAliases(aliases, "turkey", "Turkey", "Turkiye", "Türkiye", "TUR");
+        addAliases(aliases, "ukraine", "Ukraine", "UKR");
+        addAliases(aliases, "unitedstates", "United States", "United States of America", "USA", "USMNT");
+        addAliases(aliases, "uruguay", "Uruguay", "URU");
+        addAliases(aliases, "wales", "Wales", "WAL");
+
         return aliases;
+    }
+
+    private static void addAliases(Map<String, String> aliases, String canonical, String... names) {
+        aliases.put(normalizeTeamName(canonical), canonical);
+        for (String name : names) {
+            aliases.put(normalizeTeamName(name), canonical);
+        }
     }
 
     private static ConsensusOdds toConsensusOdds(OddsApiClient.OddsEvent event) {
