@@ -273,10 +273,19 @@ export default function CompetitionsPage() {
     ? Number(joinParam)
     : joinCodeCompetition?.id ?? null;
 
+  const clearInviteState = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('code');
+    next.delete('join');
+    setSearchParams(next, { replace: true });
+    setJoinCodeInput('');
+  };
+
   const joinMutation = useMutation({
-    mutationFn: (id: number) => api.post(`/competitions/${id}/join`),
-    onSuccess: (_, id) => {
-      const comp = competitions?.find(c => c.id === id);
+    mutationFn: (comp: Competition) => api.post(`/competitions/${comp.id}/join`),
+    onSuccess: (_, comp) => {
+      clearInviteState();
+      setViewMode('mine');
       if (comp?.paymentMode === 'MANUAL') {
         setRecentJoinSuccess({ name: comp.name, payment: 'MANUAL' });
         toast(
@@ -284,7 +293,7 @@ export default function CompetitionsPage() {
           { icon: '💸', duration: 8000 }
         );
       } else {
-        setRecentJoinSuccess({ name: comp?.name ?? 'competition', payment: 'FREE' });
+        setRecentJoinSuccess({ name: comp.name ?? 'competition', payment: 'FREE' });
         toast.success('Joined competition!');
       }
       queryClient.invalidateQueries({ queryKey: ['competitions'] });
@@ -297,7 +306,7 @@ export default function CompetitionsPage() {
       setPayingComp(comp);
     } else {
       // FREE or MANUAL — join directly
-      joinMutation.mutate(comp.id);
+      joinMutation.mutate(comp);
     }
   };
 
@@ -929,23 +938,68 @@ export default function CompetitionsPage() {
         ) : (
           <div className="space-y-4">
             {!!joinCodeParam && (
-            <div className={`rounded-2xl border px-3 py-2.5 text-xs sm:text-sm ${
-                joinCodeCompetition
-                  ? 'border-brand-500/30 bg-brand-500/10 text-brand-100'
-                  : joinCodeError
-                  ? 'border-red-500/30 bg-red-500/10 text-red-200'
-                  : 'border-gray-700/60 bg-surface-800/70 text-gray-300'
-              }`}>
-                {joinCodeCompetition
-                  ? `Invite found: ${joinCodeCompetition.name}. Select Join on the competition card below${joinCodeCompetition.paymentMode === 'STRIPE' && joinCodeCompetition.entryFee > 0 ? ' and continue to payment' : ''}.`
-                  : joinCodeStatus === 401 || joinCodeStatus === 403
-                  ? `That invite is being blocked by authentication.`
-                  : joinCodeStatus && joinCodeStatus >= 500
-                  ? `Invite lookup failed on the server (${joinCodeStatus}).`
-                  : (joinCodeError || (joinCodeFetched && !joinCodeLoading))
-                  ? `Invite code ${joinCodeParam} was not found.`
-                  : `Checking invite code ${joinCodeParam}…`}
-              </div>
+              joinCodeCompetition ? (
+                <div className="rounded-[1.35rem] border border-brand-500/30 bg-brand-500/10 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <div className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-200">Invite preview</div>
+                      <h3 className="mt-1 text-lg font-black text-white">{joinCodeCompetition.name}</h3>
+                      <p className="mt-1 text-sm text-gray-300">
+                        {joinCodeCompetition.status} · {joinCodeCompetition.participantCount ?? 0} players · {joinCodeCompetition.entryFee > 0 ? `€${joinCodeCompetition.entryFee}` : 'Free'}
+                      </p>
+                      <p className="mt-1 text-xs text-gray-400">
+                        {joinCodeCompetition.paymentMode === 'STRIPE' && joinCodeCompetition.entryFee > 0
+                          ? 'Online payment is required before your entry is confirmed.'
+                          : joinCodeCompetition.paymentMode === 'MANUAL' && joinCodeCompetition.entryFee > 0
+                          ? 'You will be registered and the organiser will confirm payment.'
+                          : 'No payment is required for this competition.'}
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-2 sm:min-w-[11rem]">
+                      <button
+                        type="button"
+                        onClick={() => handleJoin(joinCodeCompetition)}
+                        disabled={joinMutation.isPending || joinedSet.has(joinCodeCompetition.id)}
+                        className="rounded-xl bg-gradient-to-r from-brand-500 to-cyan-400 px-4 py-2.5 text-sm font-black text-slate-950 transition hover:from-brand-400 hover:to-cyan-300 disabled:cursor-not-allowed disabled:opacity-55"
+                      >
+                        {joinedSet.has(joinCodeCompetition.id)
+                          ? 'Already joined'
+                          : joinMutation.isPending
+                          ? 'Joining...'
+                          : joinCodeCompetition.paymentMode === 'STRIPE' && joinCodeCompetition.entryFee > 0
+                          ? 'Continue to payment'
+                          : 'Join competition'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = new URLSearchParams(searchParams);
+                          next.delete('code');
+                          setSearchParams(next, { replace: true });
+                          clearInviteState();
+                        }}
+                        className="text-xs font-bold text-gray-400 underline-offset-2 hover:text-white hover:underline"
+                      >
+                        Clear invite
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className={`rounded-2xl border px-3 py-2.5 text-xs sm:text-sm ${
+                  joinCodeError
+                    ? 'border-red-500/30 bg-red-500/10 text-red-200'
+                    : 'border-gray-700/60 bg-surface-800/70 text-gray-300'
+                }`}>
+                  {joinCodeStatus === 401 || joinCodeStatus === 403
+                    ? `That invite is being blocked by authentication.`
+                    : joinCodeStatus && joinCodeStatus >= 500
+                    ? `Invite lookup failed on the server (${joinCodeStatus}).`
+                    : (joinCodeError || (joinCodeFetched && !joinCodeLoading))
+                    ? `Invite code ${joinCodeParam} was not found.`
+                    : `Checking invite code ${joinCodeParam}…`}
+                </div>
+              )
             )}
             {listView ? (
               <div className="space-y-5">
@@ -1098,6 +1152,8 @@ export default function CompetitionsPage() {
           competition={payingComp}
           onSuccess={() => {
             setRecentJoinSuccess({ name: payingComp.name, payment: 'PAID' });
+            clearInviteState();
+            setViewMode('mine');
             setPayingComp(null);
             toast.success(`Payment complete. Joined ${payingComp.name}!`);
             queryClient.invalidateQueries({ queryKey: ['competitions'] });
