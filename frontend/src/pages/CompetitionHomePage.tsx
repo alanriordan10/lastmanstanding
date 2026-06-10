@@ -22,12 +22,16 @@ interface PickStat {
 }
 
 type RiskLabel = 'Safe' | 'Balanced' | 'Differential';
+type GameweekDisplayMode = 'cards' | 'route';
 
 interface TeamRisk {
   label: RiskLabel;
   score: number;
   lowConfidence: boolean;
   source: 'odds' | 'crowd' | 'fallback';
+  marketChance?: number | null;
+  pickShare?: number | null;
+  explanation: string;
 }
 
 function riskLabelText(risk: TeamRisk): string {
@@ -40,6 +44,20 @@ function riskLabelTextMobile(risk: TeamRisk): string {
   if (risk.label === 'Safe') return 'Low';
   if (risk.label === 'Balanced') return 'Medium';
   return 'High';
+}
+
+function buildRiskExplanation(label: RiskLabel, hasOdds: boolean, marketChance?: number | null, pickShare?: number | null): string {
+  const marketText = marketChance != null ? `Market gives this pick about ${marketChance}% to win.` : null;
+  const crowdText = pickShare != null ? `${pickShare}% of players are on this team.` : null;
+  const labelText = label === 'Safe'
+    ? 'Safer profile: market strength is doing most of the work.'
+    : label === 'Balanced'
+      ? 'Balanced profile: playable, but not a free pass.'
+      : 'Differential profile: higher upside if the crowd avoids it, but more knockout risk.';
+  if (marketText && crowdText) return `${labelText} ${marketText} ${crowdText}`;
+  if (marketText) return `${labelText} ${marketText}`;
+  if (crowdText) return `${labelText} No live odds yet, so this uses pick share. ${crowdText}`;
+  return hasOdds ? labelText : 'Limited data: waiting for odds or crowd data.';
 }
 
 function parseDate(value: string | number[]): Date {
@@ -104,16 +122,6 @@ function impliedFromDecimalOdds(home?: number | null, draw?: number | null, away
 }
 
 function calculateTeamRisk(fixture: Fixture, side: 'home' | 'away', pickStat?: PickStat): TeamRisk | null {
-  // Risk guidance is only useful before lock; hide once the gameweek is locked/live/completed.
-  if (fixture.gameweekStatus !== 'UPCOMING') {
-    return null;
-  }
-
-  // Keep risk hidden for resolved fixture states.
-  if (fixture.status === 'FINISHED' || fixture.status === 'POSTPONED' || fixture.status === 'CANCELLED') {
-    return null;
-  }
-
   const implied = side === 'home' ? fixture.oddsImpliedHome : fixture.oddsImpliedAway;
   const impliedFromOdds = impliedFromDecimalOdds(fixture.oddsHomeWin, fixture.oddsDraw, fixture.oddsAwayWin);
   const pRaw = implied ?? (side === 'home' ? impliedFromOdds?.home ?? NaN : impliedFromOdds?.away ?? NaN);
@@ -126,6 +134,9 @@ function calculateTeamRisk(fixture: Fixture, side: 'home' | 'away', pickStat?: P
       score: 50,
       lowConfidence: true,
       source: 'fallback',
+      marketChance: null,
+      pickShare: null,
+      explanation: buildRiskExplanation('Balanced', false),
     };
   }
 
@@ -139,12 +150,17 @@ function calculateTeamRisk(fixture: Fixture, side: 'home' | 'away', pickStat?: P
   if (combinedRisk == null) return null;
 
   const rounded = Math.round(combinedRisk);
+  const marketChance = Number.isFinite(p) ? Math.round(p * 100) : null;
+  const pickShare = pickStat?.percentage ?? null;
   const label: RiskLabel = rounded <= 33 ? 'Safe' : rounded <= 66 ? 'Balanced' : 'Differential';
   return {
     label,
     score: rounded,
     lowConfidence: !hasOdds,
     source: hasOdds ? 'odds' : 'crowd',
+    marketChance,
+    pickShare,
+    explanation: buildRiskExplanation(label, hasOdds, marketChance, pickShare),
   };
 }
 
@@ -185,6 +201,7 @@ export default function CompetitionHomePage() {
   const [mobileReminderOpen, setMobileReminderOpen] = useState(false);
   const [selectedEntryId, setSelectedEntryId] = useState<number | null>(null);
   const [lifelineForGwId, setLifelineForGwId] = useState<number | null>(null);
+  const [gameweekDisplayMode, setGameweekDisplayMode] = useState<GameweekDisplayMode>('cards');
 
   // Close share dropdown on outside click
   useEffect(() => {
@@ -207,6 +224,18 @@ export default function CompetitionHomePage() {
   useEffect(() => {
     window.localStorage.setItem('lms.sidebarCollapsed', String(sidebarCollapsed));
   }, [sidebarCollapsed]);
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem('lms.web.gameweekDisplayMode');
+    if (stored === 'cards' || stored === 'route') {
+      setGameweekDisplayMode(stored);
+    }
+  }, []);
+
+  const updateGameweekDisplayMode = (mode: GameweekDisplayMode) => {
+    setGameweekDisplayMode(mode);
+    window.localStorage.setItem('lms.web.gameweekDisplayMode', mode);
+  };
 
   const { data: comp, isLoading: compLoading } = useQuery<Competition>({
     queryKey: ['competition', compId],
@@ -2248,6 +2277,29 @@ export default function CompetitionHomePage() {
             </div>
           ) : (
             <div className="space-y-4">
+              <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-surface-800/70 p-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-200">Preference</div>
+                  <div className="mt-1 text-sm font-black text-white">Gameweek display</div>
+                </div>
+                <div className="inline-flex rounded-2xl border border-slate-700 bg-slate-950/80 p-1">
+                  {(['cards', 'route'] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => updateGameweekDisplayMode(mode)}
+                      className={clsx(
+                        'rounded-xl px-4 py-2 text-xs font-black transition',
+                        gameweekDisplayMode === mode
+                          ? 'border border-brand-300/50 bg-brand-500/25 text-brand-100 shadow-sm shadow-brand-950/30'
+                          : 'text-slate-400 hover:text-slate-200'
+                      )}
+                    >
+                      {mode === 'cards' ? 'Cards' : 'My Route'}
+                    </button>
+                  ))}
+                </div>
+              </div>
               {sortedWeeks.map((wn) => {
                 const gwData = fixturesByWeek.get(wn)!;
                 const gwId = gwData.gwId;
@@ -2259,6 +2311,9 @@ export default function CompetitionHomePage() {
                 const isCompleted = gwStatus === 'COMPLETED' || gwFixtures.every(f => f.status === 'FINISHED' || f.status === 'POSTPONED' || f.status === 'CANCELLED');
                 const isCollapsed = collapsedWeeks.has(wn);
                 const myPickForGw = pickByGwId.get(gwId);
+                const fixtureCount = gwFixtures.length;
+                const resolvedFixtureCount = gwFixtures.filter((f) => f.status === 'FINISHED' || f.status === 'POSTPONED' || f.status === 'CANCELLED').length;
+                const routeMode = gameweekDisplayMode === 'route';
 
                 return (
                   <div
@@ -2381,6 +2436,19 @@ export default function CompetitionHomePage() {
                       </div>
                     </button>
 
+                    {routeMode && (
+                      <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-black">
+                        <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-slate-400">{fixtureCount} fixtures</span>
+                        <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-slate-400">{resolvedFixtureCount}/{fixtureCount} resolved</span>
+                        {myPickForGw ? (
+                          <span className="rounded-full border border-brand-400/30 bg-brand-500/15 px-2.5 py-1 text-brand-100">Pick: {myPickForGw.teamShortName}</span>
+                        ) : (
+                          <span className="rounded-full border border-yellow-400/30 bg-yellow-500/15 px-2.5 py-1 text-yellow-200">No pick</span>
+                        )}
+                        {lifelineForGwId === gwId ? <span className="rounded-full border border-cyan-400/30 bg-cyan-500/15 px-2.5 py-1 text-cyan-100">Lifeline</span> : null}
+                      </div>
+                    )}
+
                     {/* Selections/Results links on mobile when expanded */}
                     {!isCollapsed && isLocked && (
                       <div className="mt-2 sm:hidden flex gap-3">
@@ -2451,7 +2519,17 @@ export default function CompetitionHomePage() {
                             </p>
                           </div>
                         )}
-                        {gwFixtures
+                        {routeMode ? (
+                          <MyRoutePanel
+                            teams={uniqueTeamsForFixtures(gwFixtures, (teamId) => pickStatsByGwId.get(gwId)?.find((s) => s.teamId === teamId))}
+                            currentPick={myPickForGw ?? null}
+                            consumedTeamIds={consumedTeamIds}
+                            canPick={isParticipant && !isEliminated && !isWinner && !(awaitingPayment && strictManualPayment) && !isLocked && !(isEliminated && participant?.eliminatedWeek != null && wn > participant.eliminatedWeek)}
+                            saving={pickMutation.isPending}
+                            lifelineChecked={lifelineForGwId === gwId}
+                            onPick={(team) => handlePick(gwId, team.teamId, lockAt)}
+                          />
+                        ) : gwFixtures
                           .sort((a, b) => parseDate(a.kickoffAt).getTime() - parseDate(b.kickoffAt).getTime())
                           .map((f) => {
                             // Check if user can pick for THIS specific gameweek
@@ -2473,13 +2551,15 @@ export default function CompetitionHomePage() {
                             const homeRisk = calculateTeamRisk(f, 'home', homeStat);
                             const awayRisk = calculateTeamRisk(f, 'away', awayStat);
 
+                            const pickedRisk = homeIsMyPick ? homeRisk : awayIsMyPick ? awayRisk : null;
+                            const pickedStat = homeIsMyPick ? homeStat : awayIsMyPick ? awayStat : undefined;
+                            const pickedTeamName = homeIsMyPick ? f.homeTeamName : awayIsMyPick ? f.awayTeamName : null;
+
                             return (
-                              <div
-                                key={f.id}
-                                className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-2xl bg-surface-700/55 px-3 py-4 sm:rounded-lg sm:gap-3 sm:px-4 sm:py-2.5 lg:gap-4"
-                              >
-                                <TeamButton
-                                  name={f.homeTeamName}
+                              <div key={f.id} className="space-y-0">
+                                <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-2xl bg-surface-700/55 px-3 py-4 sm:rounded-lg sm:gap-3 sm:px-4 sm:py-2.5 lg:gap-4">
+                                  <TeamButton
+                                    name={f.homeTeamName}
                                   shortName={f.homeTeamShortName}
                                   isMyPick={homeIsMyPick}
                                   isUsed={homeUsed}
@@ -2491,7 +2571,7 @@ export default function CompetitionHomePage() {
                                   accentColor={comp.clubSecondaryColor}
                                   onClick={() => handlePick(gwId, f.homeTeamId, lockAt)}
                                 />
-                                <div className="flex flex-col items-center justify-center min-w-[58px] px-1 sm:min-w-[80px] lg:min-w-[96px]">
+                                  <div className="flex flex-col items-center justify-center min-w-[58px] px-1 sm:min-w-[80px] lg:min-w-[96px]">
                                 {f.status === 'FINISHED' ? (
                                   <span className="font-black text-white text-2xl leading-none sm:text-sm sm:font-bold lg:text-base">{f.scoreHome} - {f.scoreAway}</span>
                                 ) : f.status === 'POSTPONED' ? (
@@ -2512,8 +2592,8 @@ export default function CompetitionHomePage() {
                                   </>
                                 )}
                                 </div>
-                                <TeamButton
-                                  name={f.awayTeamName}
+                                  <TeamButton
+                                    name={f.awayTeamName}
                                   shortName={f.awayTeamShortName}
                                   isMyPick={awayIsMyPick}
                                   isUsed={awayUsed}
@@ -2524,7 +2604,9 @@ export default function CompetitionHomePage() {
                                   risk={awayRisk}
                                   accentColor={comp.clubSecondaryColor}
                                   onClick={() => handlePick(gwId, f.awayTeamId, lockAt)}
-                                />
+                                  />
+                                </div>
+                                {pickedRisk && pickedTeamName ? <PickInsightPanel teamName={pickedTeamName} risk={pickedRisk} pickStat={pickedStat} /> : null}
                               </div>
                             );
                           })}
@@ -2893,6 +2975,191 @@ function InsightPanel({
   );
 }
 
+function PickInsightPanel({ teamName, risk, pickStat }: { teamName: string; risk: TeamRisk; pickStat?: PickStat }) {
+  return (
+    <div className="mx-1 -mt-1 rounded-b-2xl border border-t-0 border-sky-300/20 bg-sky-950/30 px-4 pb-3 pt-3 shadow-inner shadow-sky-950/20 sm:mx-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sky-200">Why this pick?</p>
+        <span className={clsx(
+          'rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em]',
+          risk.label === 'Safe' && 'bg-green-500/20 text-green-100',
+          risk.label === 'Balanced' && 'bg-yellow-500/20 text-yellow-100',
+          risk.label === 'Differential' && 'bg-cyan-500/20 text-cyan-100',
+        )}>{riskLabelText(risk)}</span>
+      </div>
+      <h4 className="mt-2 truncate text-sm font-black text-white">{teamName}</h4>
+      <p className="mt-1 text-xs leading-5 text-slate-300">{risk.explanation}</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {risk.marketChance != null ? <InsightMetric value={`${risk.marketChance}%`} label="market win" /> : null}
+        {pickStat ? <InsightMetric value={`${pickStat.percentage}%`} label={`${pickStat.pickCount} picked`} /> : null}
+        <InsightMetric value={String(risk.score)} label="risk score" />
+      </div>
+    </div>
+  );
+}
+
+function InsightMetric({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="rounded-full bg-white/10 px-3 py-1.5">
+      <span className="text-xs font-black text-white">{value}</span>
+      <span className="ml-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">{label}</span>
+    </div>
+  );
+}
+
+
+type RouteTeam = {
+  teamId: number;
+  teamName: string;
+  teamShortName: string;
+  opponentShortName: string;
+  opponentName: string;
+  venueLabel: string;
+  risk?: TeamRisk | null;
+};
+
+type RouteCurrentPick = {
+  teamId: number;
+  teamName: string;
+  teamShortName: string;
+  outcome: string;
+  useLifeline?: boolean;
+} | null;
+
+function uniqueTeamsForFixtures(fixtures: Fixture[], getPickStat: (teamId: number, teamShortName: string, teamName: string) => PickStat | null | undefined): RouteTeam[] {
+  const map = new Map<number, RouteTeam>();
+  for (const fixture of fixtures) {
+    const homeStat = getPickStat(fixture.homeTeamId, fixture.homeTeamShortName, fixture.homeTeamName);
+    const awayStat = getPickStat(fixture.awayTeamId, fixture.awayTeamShortName, fixture.awayTeamName);
+    map.set(fixture.homeTeamId, {
+      teamId: fixture.homeTeamId,
+      teamName: fixture.homeTeamName,
+      teamShortName: fixture.homeTeamShortName,
+      opponentShortName: fixture.awayTeamShortName,
+      opponentName: fixture.awayTeamName,
+      venueLabel: 'vs',
+      risk: calculateTeamRisk(fixture, 'home', homeStat ?? undefined),
+    });
+    map.set(fixture.awayTeamId, {
+      teamId: fixture.awayTeamId,
+      teamName: fixture.awayTeamName,
+      teamShortName: fixture.awayTeamShortName,
+      opponentShortName: fixture.homeTeamShortName,
+      opponentName: fixture.homeTeamName,
+      venueLabel: '@',
+      risk: calculateTeamRisk(fixture, 'away', awayStat ?? undefined),
+    });
+  }
+  return [...map.values()].sort((a, b) => a.teamShortName.localeCompare(b.teamShortName));
+}
+
+function MyRoutePanel({
+  teams,
+  currentPick,
+  consumedTeamIds,
+  canPick,
+  saving,
+  lifelineChecked,
+  onPick,
+}: {
+  teams: RouteTeam[];
+  currentPick: RouteCurrentPick;
+  consumedTeamIds: Set<number>;
+  canPick: boolean;
+  saving: boolean;
+  lifelineChecked: boolean;
+  onPick: (team: RouteTeam) => void;
+}) {
+  const currentPickFixture = currentPick ? teams.find((team) => team.teamId === currentPick.teamId) : null;
+  const usedTeams = teams.filter((team) => consumedTeamIds.has(team.teamId) && team.teamId !== currentPick?.teamId);
+  const availableTeams = teams.filter((team) => !consumedTeamIds.has(team.teamId) || team.teamId === currentPick?.teamId);
+
+  return (
+    <div className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 sm:p-4">
+      <div className="rounded-2xl border border-sky-300/25 bg-sky-500/10 p-4">
+        <div className="text-[10px] font-black uppercase tracking-[0.22em] text-sky-200">Your route</div>
+        {currentPick ? (
+          <>
+            <div className="mt-2 text-3xl font-black text-white">{currentPick.teamShortName}</div>
+            <div className="mt-1 text-sm font-bold text-slate-300">
+              {currentPick.teamName}{currentPick.outcome && currentPick.outcome !== 'PENDING' ? ` · ${currentPick.outcome.replace(/_/g, ' ')}` : ''}
+            </div>
+            {currentPickFixture ? (
+              <div className="mt-2 text-xs font-black text-sky-200">
+                {currentPickFixture.venueLabel} {currentPickFixture.opponentShortName} · {currentPickFixture.opponentName}
+              </div>
+            ) : null}
+            {currentPickFixture?.risk ? (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <span className={clsx(
+                  'rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em]',
+                  currentPickFixture.risk.label === 'Safe' && 'bg-green-500/20 text-green-100',
+                  currentPickFixture.risk.label === 'Balanced' && 'bg-yellow-500/20 text-yellow-100',
+                  currentPickFixture.risk.label === 'Differential' && 'bg-cyan-500/20 text-cyan-100',
+                )}>{riskLabelText(currentPickFixture.risk)}</span>
+                {currentPickFixture.risk.marketChance != null ? <span className="rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-bold text-slate-200">{currentPickFixture.risk.marketChance}% market</span> : null}
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <div className="mt-2 text-lg font-black text-yellow-200">No pick yet</div>
+            <div className="mt-1 text-sm text-slate-300">{canPick ? 'Choose from the available teams below.' : 'No pick can be made for this gameweek.'}</div>
+          </>
+        )}
+        {lifelineChecked ? <div className="mt-3 inline-flex rounded-full bg-cyan-500/20 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-cyan-100">Lifeline selected</div> : null}
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+          <div className="text-xl font-black text-white">{availableTeams.length}</div>
+          <div className="mt-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">Available here</div>
+        </div>
+        <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+          <div className="text-xl font-black text-white">{usedTeams.length}</div>
+          <div className="mt-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">Already used</div>
+        </div>
+      </div>
+
+      {usedTeams.length > 0 ? (
+        <div className="mt-4">
+          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-300">Used before</div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {usedTeams.map((team) => <span key={team.teamId} className="rounded-full border border-yellow-400/30 bg-yellow-500/10 px-3 py-1.5 text-xs font-black text-yellow-200 line-through">{team.teamShortName}</span>)}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="mt-4">
+        <div className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-300">Available teams this gameweek</div>
+        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+          {availableTeams.map((team) => {
+            const picked = currentPick?.teamId === team.teamId;
+            const disabled = (!canPick || saving) && !picked;
+            return (
+              <button
+                key={team.teamId}
+                type="button"
+                disabled={disabled}
+                onClick={() => onPick(team)}
+                className={clsx(
+                  'min-w-0 rounded-xl border px-3 py-2 text-left transition',
+                  picked ? 'border-sky-200 bg-sky-600 text-white shadow-md shadow-sky-950/30' : 'border-slate-700 bg-slate-800/80 text-slate-100 hover:border-slate-500',
+                  disabled && 'cursor-not-allowed opacity-55'
+                )}
+              >
+                <div className="text-sm font-black">{team.teamShortName}</div>
+                <div className={clsx('mt-1 truncate text-[10px] font-bold', picked ? 'text-white/85' : 'text-slate-400')}>{picked ? 'Picked' : `${team.venueLabel} ${team.opponentShortName}`}</div>
+                {team.risk ? <div className={clsx('mt-1 text-[10px] font-black', picked ? 'text-white' : 'text-sky-200')}>{team.risk.label}</div> : null}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TeamButton({
   name, shortName, isMyPick, isUsed, isReserved, isClickable, align, pickStat, risk, accentColor, onClick,
 }: {
@@ -3011,7 +3278,7 @@ function TeamButton({
             {risk && (
               <div
                 className={clsx(
-                  'hidden sm:inline-flex max-w-full items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap overflow-hidden',
+                  'inline-flex max-w-full items-center gap-1 rounded-full px-2 py-1 text-[10px] font-black whitespace-nowrap overflow-hidden sm:px-1.5 sm:py-0.5 sm:text-[9px] sm:font-semibold',
                   risk.label === 'Safe' && 'bg-green-500/20 text-green-200',
                   risk.label === 'Balanced' && 'bg-yellow-500/20 text-yellow-200',
                   risk.label === 'Differential' && 'bg-cyan-500/20 text-cyan-200',

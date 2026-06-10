@@ -23,6 +23,11 @@ interface GameweekMeta {
 }
 
 const PAGE_SIZE = 25;
+const isGameweekRevealed = (status?: string | null) => String(status ?? '').toUpperCase() !== 'UPCOMING';
+const isResolvedOutcome = (outcome?: string | null) => {
+  const normalized = String(outcome ?? '').toUpperCase();
+  return normalized !== '' && normalized !== 'PENDING';
+};
 
 export default function SurvivorTablePage() {
   const { id } = useParams<{ id: string }>();
@@ -241,10 +246,14 @@ export default function SurvivorTablePage() {
                 <div className="card py-8 text-center text-gray-400">No participants found</div>
               ) : paginated.map((row) => {
                 const isOpen = expandedRows.has(row.participantId);
-                const latestPick = [...gameweeks]
+                const latestVisiblePick = [...gameweeks]
                   .reverse()
                   .map((gw) => ({ gw, pick: row.picks[gw.weekNumber] }))
-                  .find((item) => item.pick != null);
+                  .find((item) => isGameweekRevealed(item.gw.status) && item.pick != null);
+                const latestResolvedPick = [...gameweeks]
+                  .reverse()
+                  .map((gw) => ({ gw, pick: row.picks[gw.weekNumber] }))
+                  .find((item) => isGameweekRevealed(item.gw.status) && item.pick != null && isResolvedOutcome(item.pick.outcome));
                 return (
                   <div key={row.participantId} className="rounded-xl border border-white/10 bg-white/[0.03]">
                     <button
@@ -257,7 +266,7 @@ export default function SurvivorTablePage() {
                         <p className="text-xs text-gray-400">
                           {row.status}
                           {row.status === 'ELIMINATED' && row.eliminatedWeek ? ` · GW${row.eliminatedWeek}` : ''}
-                          {latestPick?.pick ? ` · ${latestPick.pick.teamShortName}` : ''}
+                          {latestVisiblePick?.pick ? ` · ${latestVisiblePick.pick.teamShortName}` : ''}
                         </p>
                       </div>
                       <span className="text-gray-500 text-xs">{isOpen ? '▲' : '▼'}</span>
@@ -272,7 +281,7 @@ export default function SurvivorTablePage() {
                             </span>
                           </p>
                         )}
-                        <p>Last resolved pick: <span className="text-gray-100">{latestPick?.pick ? `${latestPick.pick.teamShortName} (${latestPick.pick.outcome})` : '—'}</span></p>
+                        <p>Last resolved pick: <span className="text-gray-100">{latestResolvedPick?.pick ? `${latestResolvedPick.pick.teamShortName} (${latestResolvedPick.pick.outcome})` : '—'}</span></p>
                       </div>
                     )}
                   </div>
