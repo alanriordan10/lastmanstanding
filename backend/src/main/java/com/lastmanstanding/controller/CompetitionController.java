@@ -561,7 +561,25 @@ public class CompetitionController {
         return data;
     }
 
+    private boolean isGameweekRevealed(Gameweek gw) {
+        return gw != null && gw.getStatus() != GameweekStatus.UPCOMING;
+    }
+
     private GameweekSelectionsData buildSelectionsData(Long id, Long gwId, Gameweek gw) {
+        if (!isGameweekRevealed(gw)) {
+            int activeAtStart = (int) participantRepository.countActiveAtStartForWeek(id, gw.getWeekNumber());
+            int eliminatedThisWeek = (int) participantRepository.countEliminatedInWeek(id, gw.getWeekNumber());
+            int advancedThisWeek = Math.max(activeAtStart - eliminatedThisWeek, 0);
+            return new GameweekSelectionsData(
+                    List.of(),
+                    gw.isByeGranted(),
+                    gw.getWeekNumber(),
+                    activeAtStart,
+                    advancedThisWeek,
+                    eliminatedThisWeek
+            );
+        }
+
         // Fetch picks with user+team eagerly to avoid N+1 (200 users = 400 lazy queries otherwise)
         List<Pick> picks = pickService.getGameweekSelectionsFetch(id, gwId);
 
@@ -698,7 +716,7 @@ public class CompetitionController {
 
             for (Gameweek gw : gameweeks) {
                 Pick pick = userPicks.get(gw.getWeekNumber());
-                if (pick != null) {
+                if (pick != null && isGameweekRevealed(gw)) {
                     PickResult pr = resultMap.get(pick.getId());
                     String outcome = pr != null ? pr.getOutcome().name() : "PENDING";
                     if ("PENDING".equals(outcome)) {
