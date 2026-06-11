@@ -57,6 +57,7 @@ public class GameweekProcessingService {
     private final FixtureSyncService fixtureSyncService;
     private final GameweekEmailService gameweekEmailService;
     private final WebPushService webPushService;
+    private final CompetitionCacheService competitionCacheService;
 
     public GameweekProcessingService(GameweekRepository gameweekRepository,
                                      FixtureRepository fixtureRepository,
@@ -68,7 +69,8 @@ public class GameweekProcessingService {
                                      CompetitionRepository competitionRepository,
                                      FixtureSyncService fixtureSyncService,
                                      GameweekEmailService gameweekEmailService,
-                                     WebPushService webPushService) {
+                                     WebPushService webPushService,
+                                     CompetitionCacheService competitionCacheService) {
         this.gameweekRepository = gameweekRepository;
         this.fixtureRepository = fixtureRepository;
         this.pickRepository = pickRepository;
@@ -80,6 +82,7 @@ public class GameweekProcessingService {
         this.fixtureSyncService = fixtureSyncService;
         this.gameweekEmailService = gameweekEmailService;
         this.webPushService = webPushService;
+        this.competitionCacheService = competitionCacheService;
     }
 
     /**
@@ -163,6 +166,7 @@ public class GameweekProcessingService {
 
         gw.setStatus(GameweekStatus.LOCKED);
         gameweekRepository.save(gw);
+        competitionCacheService.evictCompetition(comp.getId());
         log.info("Locked gameweek {} for competition {}", gw.getWeekNumber(), comp.getId());
     }
 
@@ -549,6 +553,7 @@ public class GameweekProcessingService {
                     gw.getWeekNumber(), comp.getId(), e.getMessage());
         }
 
+        competitionCacheService.evictCompetition(comp.getId());
         log.info("Processed results for GW{} in competition {}", gw.getWeekNumber(), comp.getId());
     }
 

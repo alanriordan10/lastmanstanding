@@ -5,6 +5,7 @@ import com.lastmanstanding.entity.*;
 import com.lastmanstanding.repository.*;
 import com.lastmanstanding.security.UserDetailsImpl;
 import com.lastmanstanding.service.CompetitionService;
+import com.lastmanstanding.service.CompetitionCacheService;
 import com.lastmanstanding.service.FixtureSyncService;
 import com.lastmanstanding.service.GameweekEmailService;
 import com.lastmanstanding.service.PaymentService;
@@ -47,6 +48,7 @@ public class ClubAdminController {
     private final AuditLogRepository auditLogRepository;
     private final WebPushService webPushService;
     private final GameweekEmailService gameweekEmailService;
+    private final CompetitionCacheService competitionCacheService;
 
     public ClubAdminController(ClubRepository clubRepository,
                                CompetitionRepository competitionRepository,
@@ -59,7 +61,8 @@ public class ClubAdminController {
                                PaymentService paymentService,
                                AuditLogRepository auditLogRepository,
                                WebPushService webPushService,
-                               GameweekEmailService gameweekEmailService) {
+                               GameweekEmailService gameweekEmailService,
+                               CompetitionCacheService competitionCacheService) {
         this.clubRepository = clubRepository;
         this.competitionRepository = competitionRepository;
         this.participantRepository = participantRepository;
@@ -72,6 +75,7 @@ public class ClubAdminController {
         this.auditLogRepository = auditLogRepository;
         this.webPushService = webPushService;
         this.gameweekEmailService = gameweekEmailService;
+        this.competitionCacheService = competitionCacheService;
     }
 
     // ── My Club ──────────────────────────────────────────────────────────
@@ -499,6 +503,8 @@ public class ClubAdminController {
                 "requested=" + targetIds.size() + ", created=" + created + ", alreadyPaid=" + alreadyPaid + ", invalid=" + invalid,
                 "BULK_MARK_PAID");
 
+        competitionCacheService.evictCompetition(compId);
+        competitionCacheService.evictCompetition(compId);
         return ResponseEntity.ok(Map.of(
                 "requested", targetIds.size(),
                 "created", created,
@@ -704,6 +710,7 @@ public class ClubAdminController {
         // Mark competition as completed
         comp.setStatus(CompetitionStatus.COMPLETED);
         competitionRepository.save(comp);
+        competitionCacheService.evictCompetition(compId);
 
         log.info("Club admin manually declared {} as winner of competition {}",
                 winner.getUser().getUsername(), compId);
@@ -724,6 +731,7 @@ public class ClubAdminController {
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Competition not found"));
         int count = fixtureSyncService.syncForCompetition(comp);
+        competitionCacheService.evictCompetition(id);
         logAudit(userDetails, "Competition", id, "fixturesAdded", null, String.valueOf(count), "SYNC_FIXTURES");
         return ResponseEntity.ok(Map.of(
                 "competitionId", id,

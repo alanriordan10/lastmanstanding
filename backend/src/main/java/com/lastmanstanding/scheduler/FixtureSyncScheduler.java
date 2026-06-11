@@ -16,8 +16,11 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 
 @Component
 public class FixtureSyncScheduler {
@@ -49,7 +52,7 @@ public class FixtureSyncScheduler {
     @Scheduled(fixedRate = 300_000)
     public void syncFixtures() {
         try {
-            if (footballDataProvider.isPresent() && footballDataProvider.get().hasLiveMatchesNow()) {
+            if (footballDataProvider.isPresent() && hasTrackedLiveMatches(footballDataProvider.get())) {
                 log.debug("Skipping standard fixture sync because live sync cadence is active.");
                 return;
             }
@@ -68,7 +71,7 @@ public class FixtureSyncScheduler {
     @Scheduled(fixedRate = 60_000)
     public void syncLiveFixtures() {
         try {
-            if (footballDataProvider.isEmpty() || !footballDataProvider.get().hasLiveMatchesNow()) {
+            if (footballDataProvider.isEmpty() || !hasTrackedLiveMatches(footballDataProvider.get())) {
                 return;
             }
             if (!fixtureSyncService.trySyncFixturesAndResults()) {
@@ -77,6 +80,32 @@ public class FixtureSyncScheduler {
         } catch (Exception e) {
             log.error("Live fixture sync failed: {}", e.getMessage());
         }
+    }
+
+    private boolean hasTrackedLiveMatches(FootballDataProvider provider) {
+        Set<String> sourceCodes = activeFixtureSourceCodes();
+        for (String sourceCode : sourceCodes) {
+            if (provider.hasLiveMatchesNow(sourceCode)) {
+                log.debug("Live fixture sync active for source {}", sourceCode);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private Set<String> activeFixtureSourceCodes() {
+        List<Competition> competitions = competitionRepository.findByStatusInOrderByStartDateAsc(
+                List.of(CompetitionStatus.UPCOMING, CompetitionStatus.ACTIVE));
+        Set<String> sourceCodes = new LinkedHashSet<>();
+        for (Competition competition : competitions) {
+            sourceCodes.add(normalizeFixtureSourceCode(competition.getFixtureCompetitionCode()));
+        }
+        return sourceCodes;
+    }
+
+    private String normalizeFixtureSourceCode(String sourceCode) {
+        if (sourceCode == null || sourceCode.isBlank()) return "PL";
+        return sourceCode.trim().toUpperCase(Locale.ROOT);
     }
 
     /** Odds sync cadence is configurable to balance freshness and API quota usage. */

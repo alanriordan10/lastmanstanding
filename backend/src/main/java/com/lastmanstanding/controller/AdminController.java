@@ -18,6 +18,7 @@ import com.lastmanstanding.security.UserDetailsImpl;
 import com.lastmanstanding.service.AdminService;
 import com.lastmanstanding.service.AdminService.FixtureOverrideRequest;
 import com.lastmanstanding.service.CompetitionService;
+import com.lastmanstanding.service.CompetitionCacheService;
 import com.lastmanstanding.service.GameweekProcessingService;
 import com.lastmanstanding.service.TestDataGenerator;
 import jakarta.validation.Valid;
@@ -66,6 +67,7 @@ public class AdminController {
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PushSubscriptionRepository pushSubscriptionRepository;
     private final MobilePushTokenRepository mobilePushTokenRepository;
+    private final CompetitionCacheService competitionCacheService;
 
     public AdminController(AdminService adminService,
                            CompetitionService competitionService,
@@ -85,7 +87,8 @@ public class AdminController {
                            AuditLogRepository auditLogRepository,
                            PasswordResetTokenRepository passwordResetTokenRepository,
                            PushSubscriptionRepository pushSubscriptionRepository,
-                           MobilePushTokenRepository mobilePushTokenRepository) {
+                           MobilePushTokenRepository mobilePushTokenRepository,
+                           CompetitionCacheService competitionCacheService) {
         this.adminService = adminService;
         this.competitionService = competitionService;
         this.clubRepository = clubRepository;
@@ -105,6 +108,7 @@ public class AdminController {
         this.passwordResetTokenRepository = passwordResetTokenRepository;
         this.pushSubscriptionRepository = pushSubscriptionRepository;
         this.mobilePushTokenRepository = mobilePushTokenRepository;
+        this.competitionCacheService = competitionCacheService;
     }
 
     // ── Clubs ───────────────────────────────────────────────────────────
@@ -427,6 +431,7 @@ public class AdminController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Competition not found"));
         logAudit(userDetails, "Competition", comp.getId(), "name", comp.getName(), null, "DELETE");
         competitionService.deleteCompetition(id);
+        competitionCacheService.evictCompetition(id);
         return ResponseEntity.noContent().build();
     }
 
@@ -489,6 +494,7 @@ public class AdminController {
         Competition comp = competitionRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Competition not found"));
         int count = fixtureSyncService.syncForCompetition(comp);
+        competitionCacheService.evictCompetition(comp.getId());
         logAudit(userDetails, "Competition", comp.getId(), "fixturesAdded", null, String.valueOf(count), "SYNC_FIXTURES");
         return ResponseEntity.ok(Map.of(
                 "competitionId", id,
@@ -886,6 +892,7 @@ public class AdminController {
 
         // 3. Process results asynchronously — returns immediately so the UI doesn't time out
         boolean skipAutoComplete = request.skipAutoComplete() != null && request.skipAutoComplete();
+        competitionCacheService.evictCompetition(compId);
         gameweekProcessingService.processGameweekResultsAsync(gwId, skipAutoComplete);
 
         logAudit(userDetails, "Gameweek", gwId, "competitionId", null, String.valueOf(compId), "SIMULATE_RESULTS");

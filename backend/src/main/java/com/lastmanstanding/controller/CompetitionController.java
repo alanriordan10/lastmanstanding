@@ -7,6 +7,7 @@ import com.lastmanstanding.repository.*;
 import com.lastmanstanding.security.UserDetailsImpl;
 import com.lastmanstanding.service.CompetitionService;
 import com.lastmanstanding.service.PickService;
+import com.lastmanstanding.service.CompetitionCacheService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
@@ -51,6 +52,7 @@ public class CompetitionController {
     private final ClubRepository clubRepository;
     private final PaymentRepository paymentRepository;
     private final CacheManager cacheManager;
+    private final CompetitionCacheService competitionCacheService;
     private final ObjectMapper objectMapper;
 
     @Autowired
@@ -66,6 +68,7 @@ public class CompetitionController {
                                  ClubRepository clubRepository,
                                  PaymentRepository paymentRepository,
                                  CacheManager cacheManager,
+                                 CompetitionCacheService competitionCacheService,
                                  ObjectMapper objectMapper) {
         this.competitionService = competitionService;
         this.pickService = pickService;
@@ -79,6 +82,7 @@ public class CompetitionController {
         this.clubRepository = clubRepository;
         this.paymentRepository = paymentRepository;
         this.cacheManager = cacheManager;
+        this.competitionCacheService = competitionCacheService;
         this.objectMapper = objectMapper;
     }
 
@@ -96,7 +100,11 @@ public class CompetitionController {
         this(competitionService, pickService, competitionRepository, gameweekRepository, fixtureRepository,
                 pickRepository, pickResultRepository, participantRepository, teamRepository, clubRepository,
                 paymentRepository, new ConcurrentMapCacheManager(
-                        CacheConfig.SURVIVOR_TABLE_CACHE, CacheConfig.GAMEWEEK_SELECTIONS_CACHE),
+                        CacheConfig.SURVIVOR_TABLE_CACHE, CacheConfig.GAMEWEEK_SELECTIONS_CACHE,
+                        CacheConfig.PICK_STATS_CACHE, CacheConfig.FIXTURES_CACHE),
+                new CompetitionCacheService(new ConcurrentMapCacheManager(
+                        CacheConfig.SURVIVOR_TABLE_CACHE, CacheConfig.GAMEWEEK_SELECTIONS_CACHE,
+                        CacheConfig.PICK_STATS_CACHE, CacheConfig.FIXTURES_CACHE)),
                 new ObjectMapper());
     }
 
@@ -276,6 +284,7 @@ public class CompetitionController {
     public ResponseEntity<ParticipantResponse> join(@PathVariable Long id,
                                                     @AuthenticationPrincipal UserDetailsImpl userDetails) {
         CompetitionParticipant cp = competitionService.joinCompetition(id, userDetails.getId());
+        competitionCacheService.evictCompetition(id);
         return ResponseEntity.status(HttpStatus.CREATED).body(ParticipantResponse.from(cp));
     }
 
@@ -433,7 +442,28 @@ public class CompetitionController {
             gameweeks = gameweeks.subList(0, weeks);
         }
 
+        boolean hasInProgress = gameweeks.stream().anyMatch(gw -> gw.getStatus() == GameweekStatus.IN_PROGRESS);
+        String key = id + ":all:" + weeks;
+        if (!hasInProgress) {
+            Cache cache = cacheManager.getCache(CacheConfig.FIXTURES_CACHE);
+            if (cache != null) {
+                @SuppressWarnings("unchecked")
+                List<FixtureResponse> cached = cache.get(key, List.class);
+                if (cached != null) return cached;
+            }
+        }
+
+        List<FixtureResponse> response = buildFixtureResponses(gameweeks);
+        if (!hasInProgress) {
+            Cache cache = cacheManager.getCache(CacheConfig.FIXTURES_CACHE);
+            if (cache != null) cache.put(key, response);
+        }
+        return response;
+    }
+
+    private List<FixtureResponse> buildFixtureResponses(List<Gameweek> gameweeks) {
         List<Long> gwIds = gameweeks.stream().map(Gameweek::getId).toList();
+        if (gwIds.isEmpty()) return List.of();
         List<Fixture> fixtures = fixtureRepository.findByGameweekIdInFetchAll(gwIds);
 
         // Deduplicate: if the same two teams appear more than once in a gameweek
@@ -463,7 +493,17 @@ public class CompetitionController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Gameweek does not belong to this competition");
         }
 
-        return fixtureRepository.findByGameweekIdFetchAll(gwId).stream()
+        String key = id + ":gw:" + gwId;
+        if (gw.getStatus() != GameweekStatus.IN_PROGRESS) {
+            Cache cache = cacheManager.getCache(CacheConfig.FIXTURES_CACHE);
+            if (cache != null) {
+                @SuppressWarnings("unchecked")
+                List<FixtureResponse> cached = cache.get(key, List.class);
+                if (cached != null) return cached;
+            }
+        }
+
+        List<FixtureResponse> response = fixtureRepository.findByGameweekIdFetchAll(gwId).stream()
                 .collect(Collectors.groupingBy(
                         f -> Math.min(f.getEffectiveHomeTeam().getId(), f.getEffectiveAwayTeam().getId()) + "-" +
                              Math.max(f.getEffectiveHomeTeam().getId(), f.getEffectiveAwayTeam().getId()),
@@ -475,6 +515,11 @@ public class CompetitionController {
                 .sorted(Comparator.comparing(Fixture::getEffectiveKickoffAt))
                 .map(FixtureResponse::from)
                 .toList();
+        if (gw.getStatus() != GameweekStatus.IN_PROGRESS) {
+            Cache cache = cacheManager.getCache(CacheConfig.FIXTURES_CACHE);
+            if (cache != null) cache.put(key, response);
+        }
+        return response;
     }
 
     // ── Picks ───────────────────────────────────────────────────────────
@@ -503,6 +548,7 @@ public class CompetitionController {
             );
         }
         Pick pick = pickService.makePick(id, gwId, request.teamId(), userDetails.getId(), request.entryId(), request.useLifeline());
+        competitionCacheService.evictCompetition(id);
         return ResponseEntity.ok(PickResponse.from(pick));
     }
 

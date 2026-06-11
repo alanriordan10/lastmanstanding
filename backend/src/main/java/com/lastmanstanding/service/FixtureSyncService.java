@@ -40,6 +40,7 @@ public class FixtureSyncService {
     private final CompetitionRepository competitionRepository;
     private final FixtureMutationLockService fixtureMutationLockService;
     private final TransactionTemplate transactionTemplate;
+    private final CompetitionCacheService competitionCacheService;
 
     public FixtureSyncService(FixtureProvider fixtureProvider,
                               TeamRepository teamRepository,
@@ -48,6 +49,7 @@ public class FixtureSyncService {
                               CompetitionRepository competitionRepository,
                               FixtureMutationLockService fixtureMutationLockService,
                               TransactionTemplate transactionTemplate,
+                              CompetitionCacheService competitionCacheService,
                               @Value("${fixture.sync.from-days:2}") int incrementalFromDays,
                               @Value("${fixture.sync.to-days:10}") int incrementalToDays,
                               @Value("${fixture.sync.world-cup-max-fixtures-per-gameweek:10}") int worldCupMaxFixturesPerGameweek,
@@ -60,6 +62,7 @@ public class FixtureSyncService {
         this.competitionRepository = competitionRepository;
         this.fixtureMutationLockService = fixtureMutationLockService;
         this.transactionTemplate = transactionTemplate;
+        this.competitionCacheService = competitionCacheService;
         this.incrementalFromDays = Math.max(0, incrementalFromDays);
         this.incrementalToDays = Math.max(1, incrementalToDays);
         this.worldCupMaxFixturesPerGameweek = Math.max(1, worldCupMaxFixturesPerGameweek);
@@ -290,10 +293,15 @@ public class FixtureSyncService {
 
         // ── Pre-load ALL fixtures for this competition in ONE query ───────────────
         List<Long> gwIds = existingGameweeks.stream().map(Gameweek::getId).toList();
-        Map<String, Fixture> existingFixtureByExtId = gwIds.isEmpty()
-                ? new HashMap<>()
-                : fixtureRepository.findByGameweekIdIn(gwIds).stream()
-                        .collect(Collectors.toMap(Fixture::getExternalFixtureId, f -> f, (a, b) -> a));
+        List<Fixture> existingFixtures = gwIds.isEmpty()
+                ? List.of()
+                : fixtureRepository.findByGameweekIdIn(gwIds);
+        Map<String, Fixture> existingFixtureByExtId = existingFixtures.stream()
+                .filter(f -> f.getExternalFixtureId() != null)
+                .collect(Collectors.toMap(Fixture::getExternalFixtureId, f -> f, (a, b) -> a));
+        Map<String, Fixture> existingFixtureBySignature = existingFixtures.stream()
+                .filter(f -> fixtureSignature(f) != null)
+                .collect(Collectors.toMap(this::fixtureSignature, f -> f, (a, b) -> a));
 
         // Filter eligible fixtures.
         // Started weeks must still be updated if the fixture already belongs to this competition,
@@ -302,7 +310,8 @@ public class FixtureSyncService {
                 .filter(pf -> comp.getStartDate() == null
                         || !pf.kickoffAt().toLocalDate().isBefore(comp.getStartDate()))
                 .filter(pf -> !weeksTooEarly.contains(pf.weekNumber()))
-                .filter(pf -> !startedWeeks.contains(pf.weekNumber()) || existingFixtureByExtId.containsKey(pf.externalFixtureId()))
+                .filter(pf -> !startedWeeks.contains(pf.weekNumber())
+                        || findExistingFixture(pf, existingFixtureByExtId, existingFixtureBySignature) != null)
                 .sorted(Comparator.comparingInt(ProviderFixture::weekNumber)
                         .thenComparing(ProviderFixture::kickoffAt))
                 .toList();
@@ -352,7 +361,7 @@ public class FixtureSyncService {
 
         Map<String, Integer> fixtureToCompGw = new HashMap<>();
         for (ProviderFixture pf : eligible) {
-            Fixture existing = existingFixtureByExtId.get(pf.externalFixtureId());
+            Fixture existing = findExistingFixture(pf, existingFixtureByExtId, existingFixtureBySignature);
             if (existing != null) {
                 fixtureToCompGw.put(pf.externalFixtureId(), existing.getGameweek().getWeekNumber());
             }
@@ -363,7 +372,7 @@ public class FixtureSyncService {
             final int minFixturesPerGameweek = Math.min(worldCupMinFixturesPerGameweek, maxFixturesPerGameweek);
             List<ProviderFixture> fixturesToChunk = preserveWorldCupExistingAssignments
                     ? eligible.stream()
-                            .filter(pf -> !existingFixtureByExtId.containsKey(pf.externalFixtureId()))
+                            .filter(pf -> findExistingFixture(pf, existingFixtureByExtId, existingFixtureBySignature) == null)
                             .toList()
                     : eligible;
 
@@ -567,7 +576,7 @@ public class FixtureSyncService {
                 }
             }
 
-            Fixture existing = existingFixtureByExtId.get(pf.externalFixtureId());
+            Fixture existing = findExistingFixture(pf, existingFixtureByExtId, existingFixtureBySignature);
             if (existing != null) {
                 boolean existingGameweekCanMove = existing.getGameweek() == null
                         || existing.getGameweek().getStatus() == GameweekStatus.UPCOMING;
@@ -575,6 +584,7 @@ public class FixtureSyncService {
                         && (existing.getGameweek() == null || !existing.getGameweek().getId().equals(gw.getId()))) {
                     existing.setGameweek(gw);
                 }
+                existing.setExternalFixtureId(pf.externalFixtureId());
                 existing.setImportedHomeTeam(homeTeam);
                 existing.setImportedAwayTeam(awayTeam);
                 existing.setImportedKickoffAt(pf.kickoffAt());
@@ -596,6 +606,11 @@ public class FixtureSyncService {
                 }
                 existing.setLastSyncedAt(LocalDateTime.now());
                 fixturesToSave.add(existing);
+                existingFixtureByExtId.put(pf.externalFixtureId(), existing);
+                String signature = providerFixtureSignature(pf);
+                if (signature != null) {
+                    existingFixtureBySignature.put(signature, existing);
+                }
             } else {
                 Fixture f = new Fixture(gw, pf.externalFixtureId(), homeTeam, awayTeam, pf.kickoffAt(), status);
                 f.setImportedScoreHome(pf.scoreHome());
@@ -614,6 +629,10 @@ public class FixtureSyncService {
                 f.setLastSyncedAt(LocalDateTime.now());
                 fixturesToSave.add(f);
                 existingFixtureByExtId.put(pf.externalFixtureId(), f); // prevent duplicate insert
+                String signature = providerFixtureSignature(pf);
+                if (signature != null) {
+                    existingFixtureBySignature.put(signature, f);
+                }
             }
         }
 
@@ -623,12 +642,50 @@ public class FixtureSyncService {
             rebalancePersistedWorldCupGameweeks(comp);
         }
         long newCount = fixturesToSave.stream().filter(f -> f.getId() == null).count();
+        if (!fixturesToSave.isEmpty()) {
+            competitionCacheService.evictCompetition(comp.getId());
+        }
         if (newCount > 0) {
             log.info("Synced {} fixtures for competition '{}' ({} new)", fixturesToSave.size(), comp.getName(), newCount);
         } else {
             log.debug("Synced {} fixtures for competition '{}' ({} new)", fixturesToSave.size(), comp.getName(), newCount);
         }
         return fixturesToSave.size();
+    }
+
+    private Fixture findExistingFixture(ProviderFixture pf,
+                                        Map<String, Fixture> existingFixtureByExtId,
+                                        Map<String, Fixture> existingFixtureBySignature) {
+        Fixture byExternalId = existingFixtureByExtId.get(pf.externalFixtureId());
+        if (byExternalId != null) {
+            return byExternalId;
+        }
+        String signature = providerFixtureSignature(pf);
+        return signature == null ? null : existingFixtureBySignature.get(signature);
+    }
+
+    private String providerFixtureSignature(ProviderFixture pf) {
+        return fixtureSignature(pf.homeTeamExternalId(), pf.awayTeamExternalId(), pf.kickoffAt());
+    }
+
+    private String fixtureSignature(Fixture fixture) {
+        if (fixture.getImportedHomeTeam() == null || fixture.getImportedAwayTeam() == null) {
+            return null;
+        }
+        return fixtureSignature(
+                fixture.getImportedHomeTeam().getExternalTeamId(),
+                fixture.getImportedAwayTeam().getExternalTeamId(),
+                fixture.getImportedKickoffAt());
+    }
+
+    private String fixtureSignature(String homeTeamExternalId, String awayTeamExternalId, LocalDateTime kickoffAt) {
+        if (homeTeamExternalId == null || awayTeamExternalId == null || kickoffAt == null) {
+            return null;
+        }
+        String first = homeTeamExternalId.compareTo(awayTeamExternalId) <= 0 ? homeTeamExternalId : awayTeamExternalId;
+        String second = homeTeamExternalId.compareTo(awayTeamExternalId) <= 0 ? awayTeamExternalId : homeTeamExternalId;
+        LocalDateTime kickoffMinute = kickoffAt.withSecond(0).withNano(0);
+        return first + "|" + second + "|" + kickoffMinute;
     }
 
     private void rebalancePersistedWorldCupGameweeks(Competition comp) {

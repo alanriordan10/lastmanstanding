@@ -45,6 +45,7 @@ public class PaymentService {
     private final UserRepository userRepository;
     private final ClubRepository clubRepository;
     private final CompetitionService competitionService;
+    private final CompetitionCacheService competitionCacheService;
 
     @Value("${stripe.secret-key:}")
     private String stripeSecretKey;
@@ -68,12 +69,14 @@ public class PaymentService {
                           CompetitionRepository competitionRepository,
                           UserRepository userRepository,
                           ClubRepository clubRepository,
-                          CompetitionService competitionService) {
+                          CompetitionService competitionService,
+                          CompetitionCacheService competitionCacheService) {
         this.paymentRepository = paymentRepository;
         this.competitionRepository = competitionRepository;
         this.userRepository = userRepository;
         this.clubRepository = clubRepository;
         this.competitionService = competitionService;
+        this.competitionCacheService = competitionCacheService;
     }
 
     public String getPublishableKey() {
@@ -291,6 +294,7 @@ public class PaymentService {
             } else {
                 tryJoinCompetition(payment.getCompetition().getId(), userId);
             }
+            competitionCacheService.evictCompetition(payment.getCompetition().getId());
 
         } catch (ResponseStatusException e) {
             throw e;
@@ -346,6 +350,7 @@ public class PaymentService {
             markPaymentSucceeded(payment, intent, true);
             paymentRepository.save(payment);
             tryJoinCompetition(payment.getCompetition().getId(), payment.getUser().getId());
+            competitionCacheService.evictCompetition(payment.getCompetition().getId());
         });
     }
 
@@ -364,6 +369,7 @@ public class PaymentService {
         paymentRepository.findByStripePaymentIntentId(paymentIntentId).ifPresent(payment -> {
             payment.setStatus(Payment.PaymentStatus.REFUNDED);
             paymentRepository.save(payment);
+            competitionCacheService.evictCompetition(payment.getCompetition().getId());
         });
     }
 

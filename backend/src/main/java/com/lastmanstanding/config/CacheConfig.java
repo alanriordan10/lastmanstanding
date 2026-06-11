@@ -14,6 +14,7 @@ public class CacheConfig {
     public static final String SURVIVOR_TABLE_CACHE = "survivorTableCache";
     public static final String GAMEWEEK_SELECTIONS_CACHE = "gameweekSelectionsCache";
     public static final String PICK_STATS_CACHE = "pickStatsCache";
+    public static final String FIXTURES_CACHE = "fixturesCache";
     public static final String TEAM_BY_ID_CACHE = "teamByIdCache";
 
     @Bean
@@ -22,15 +23,19 @@ public class CacheConfig {
         manager.setCaches(java.util.List.of(
                 new CaffeineCache(SURVIVOR_TABLE_CACHE, Caffeine.newBuilder()
                         .maximumSize(500)
-                        .expireAfterWrite(Duration.ofSeconds(20))
+                        .expireAfterWrite(Duration.ofMinutes(5))
                         .build()),
                 new CaffeineCache(GAMEWEEK_SELECTIONS_CACHE, Caffeine.newBuilder()
                         .maximumSize(1000)
-                        .expireAfterWrite(Duration.ofSeconds(20))
+                        .expireAfterWrite(Duration.ofMinutes(10))
                         .build()),
                 new CaffeineCache(PICK_STATS_CACHE, Caffeine.newBuilder()
                         .maximumSize(1000)
-                        .expireAfterWrite(Duration.ofSeconds(30))
+                        .expireAfterWrite(Duration.ofMinutes(10))
+                        .build()),
+                new CaffeineCache(FIXTURES_CACHE, Caffeine.newBuilder()
+                        .maximumSize(1000)
+                        .expireAfterWrite(Duration.ofMinutes(10))
                         .build()),
                 new CaffeineCache(TEAM_BY_ID_CACHE, Caffeine.newBuilder()
                         .maximumSize(500)
