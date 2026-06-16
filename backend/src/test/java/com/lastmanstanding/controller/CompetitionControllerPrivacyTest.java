@@ -1,6 +1,5 @@
 package com.lastmanstanding.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lastmanstanding.dto.CompetitionDtos.GameweekSelectionsData;
 import com.lastmanstanding.dto.CompetitionDtos.SurvivorTableResponse;
 import com.lastmanstanding.entity.*;
@@ -19,7 +18,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
@@ -93,9 +91,7 @@ class CompetitionControllerPrivacyTest {
                 participantRepository,
                 teamRepository,
                 clubRepository,
-                paymentRepository,
-                new ConcurrentMapCacheManager("survivorTable", "gameweekSelections"),
-                new ObjectMapper()
+                paymentRepository
         );
     }
 
