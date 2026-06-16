@@ -12,6 +12,7 @@ export default function OAuth2CallbackPage() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const { loginWithToken } = useAuth();
+  const returnTo = params.get('returnTo');
 
   useEffect(() => {
     const token = params.get('token');
@@ -37,14 +38,14 @@ export default function OAuth2CallbackPage() {
         // Use hard navigation so AuthProvider re-reads localStorage on mount
         // This avoids the race condition where ProtectedRoute sees user=null
         // before React state has updated from loginWithToken
-        window.location.href = '/competitions';
+        window.location.href = returnTo || '/competitions';
       })
       .catch((err: unknown) => {
         console.error('OAuth2 callback error:', err);
         toast.error('Failed to complete sign in. Please try again.');
-        navigate('/login', { replace: true });
+        navigate(returnTo ? `/login?returnTo=${encodeURIComponent(returnTo)}` : '/login', { replace: true });
       });
-  }, [params, navigate, loginWithToken]);
+  }, [params, navigate, loginWithToken, returnTo]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface-900">

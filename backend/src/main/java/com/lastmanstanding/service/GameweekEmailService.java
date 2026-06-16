@@ -339,13 +339,16 @@ public class GameweekEmailService {
             attempted++;
             try {
                 String pickUrl = frontendUrl + "/competitions/" + comp.getId();
+                String missedPickConsequence = comp.getMissedPickMode() == MissedPickMode.AUTO_ASSIGN
+                        ? "If you don't pick before it locks, an automatic selection will be made for you."
+                        : "If you don't pick before it locks, your entry will be eliminated.";
                 String subject = "⏰ Reminder: Make your pick for " + comp.getName() + " — GW" + gw.getWeekNumber();
                 String body = """
                         <html><body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;background:#0f0f1a;color:#e2e8f0;">
                           <h2 style="color:#818cf8;">⚠️ Pick Reminder</h2>
                           <p>Hi <strong>%s</strong>,</p>
                           <p>You haven't made your pick for <strong>%s — Gameweek %d</strong> yet.</p>
-                          <p>The deadline is approaching. If you don't pick before it locks, an automatic selection will be made for you.</p>
+                          <p>The deadline is approaching. %s</p>
                           <p style="margin:24px 0;">
                             <a href="%s" style="background:#6366f1;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">
                               Make My Pick Now →
@@ -353,7 +356,7 @@ public class GameweekEmailService {
                           </p>
                           <p style="color:#64748b;font-size:12px;">You're receiving this because you opted in to email notifications. Manage preferences in your profile.</p>
                         </body></html>
-                        """.formatted(user.getUsername(), comp.getName(), gw.getWeekNumber(), pickUrl);
+                        """.formatted(user.getUsername(), comp.getName(), gw.getWeekNumber(), missedPickConsequence, pickUrl);
 
                 MimeMessage message = mailSender.createMimeMessage();
                 MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");

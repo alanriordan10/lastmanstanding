@@ -26,6 +26,7 @@ import java.util.Set;
 public class FixtureSyncScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(FixtureSyncScheduler.class);
+    private static final int MIN_UPCOMING_BUFFER = 3;
 
     private final FixtureSyncService fixtureSyncService;
     private final GameweekProcessingService gameweekProcessingService;
@@ -134,6 +135,50 @@ public class FixtureSyncScheduler {
             }
         } catch (Exception e) {
             log.error("Daily full sync failed: {}", e.getMessage());
+        }
+    }
+
+
+    /**
+     * Low-frequency top-up for future gameweeks.
+     *
+     * The normal 5-minute sync keeps nearby fixtures/results fresh, but it uses a tight
+     * date window. This job uses the wider competition-specific sync only when a
+     * competition is running low on future UPCOMING gameweeks.
+     */
+    @Scheduled(cron = "${fixture.buffer.sync-cron:0 17 */6 * * *}")
+    public void maintainFutureGameweekBuffer() {
+        try {
+            List<Competition> comps = competitionRepository
+                    .findByStatusInOrderByStartDateAsc(List.of(CompetitionStatus.UPCOMING, CompetitionStatus.ACTIVE));
+
+            for (Competition comp : comps) {
+                try {
+                    long upcomingCount = gameweekRepository.findByCompetitionIdOrderByWeekNumberAsc(comp.getId()).stream()
+                            .filter(gw -> gw.getStatus() == GameweekStatus.UPCOMING)
+                            .count();
+
+                    if (upcomingCount >= MIN_UPCOMING_BUFFER) {
+                        log.debug("Competition {} has {} upcoming gameweek(s); buffer is healthy.",
+                                comp.getId(), upcomingCount);
+                        continue;
+                    }
+
+                    log.info("Competition {} has only {} upcoming gameweek(s); topping up future fixtures.",
+                            comp.getId(), upcomingCount);
+                    int synced = fixtureSyncService.syncForCompetition(comp);
+                    log.info("Future fixture buffer sync for competition {} processed {} fixture(s).",
+                            comp.getId(), synced);
+                    if (synced == 0) {
+                        log.info("Competition {} future fixture buffer unchanged; provider returned no eligible future fixtures.",
+                                comp.getId());
+                    }
+                } catch (Exception e) {
+                    log.warn("Future fixture buffer sync failed for competition {}: {}", comp.getId(), e.getMessage());
+                }
+            }
+        } catch (Exception e) {
+            log.error("Future fixture buffer maintenance failed: {}", e.getMessage());
         }
     }
 

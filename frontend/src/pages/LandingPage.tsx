@@ -86,10 +86,10 @@ export default function LandingPage() {
             <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-200/75">Survivor pool</span>
           </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <Link to="/login" className="text-sm text-gray-400 hover:text-white transition-colors">Sign in</Link>
-          <Link to="/register-club" className="btn-primary text-sm px-4 py-2">
-            Register Your Club
+          <Link to="/create-club" className="btn-primary text-sm px-4 py-2">
+            Create Club
           </Link>
         </div>
       </nav>
@@ -116,18 +116,31 @@ export default function LandingPage() {
             lifelines, payments, reminders, and results in one place.
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+          <div className="grid gap-3 pt-4 sm:grid-cols-2">
             <Link
-              to="/register-club"
-              className="btn-primary text-base px-8 py-3 rounded-xl shadow-lg shadow-brand-600/20 hover:shadow-brand-600/40 transition-shadow"
+              to="/create-club"
+              className="rounded-2xl border border-brand-300/35 bg-brand-500/15 px-5 py-4 text-left transition hover:bg-brand-500/25"
             >
-              🏠 Register Your Club — Free
+              <span className="block text-[11px] font-black uppercase tracking-[0.18em] text-brand-200">Already have an account?</span>
+              <span className="mt-1 block text-lg font-black text-white">Sign in & create a club</span>
+              <span className="mt-1 block text-sm text-gray-300">Use your existing account and add club admin tools.</span>
             </Link>
             <Link
-              to="/login"
-              className="px-8 py-3 rounded-xl border border-gray-600 text-gray-300 hover:border-gray-400 hover:text-white transition-colors text-base"
+              to="/register-club"
+              className="rounded-2xl border border-white/10 bg-white/[0.05] px-5 py-4 text-left transition hover:bg-white/[0.09]"
             >
-              Sign in to play →
+              <span className="block text-[11px] font-black uppercase tracking-[0.18em] text-gray-400">New club admin?</span>
+              <span className="mt-1 block text-lg font-black text-white">Create account & club</span>
+              <span className="mt-1 block text-sm text-gray-300">Set up your login and club together.</span>
+            </Link>
+          </div>
+
+          <div className="flex justify-center pt-1">
+            <Link
+              to="/login"
+              className="px-5 py-2 text-sm text-gray-400 transition hover:text-white"
+            >
+              Just playing? Sign in to enter competitions
             </Link>
           </div>
 
@@ -189,12 +202,20 @@ export default function LandingPage() {
           <p className="text-gray-400">
             Whether it's your pub, GAA club, workplace or WhatsApp group — set up your Last Man Standing competition in minutes.
           </p>
-          <Link
-            to="/register-club"
-            className="inline-flex btn-primary text-base px-10 py-3 rounded-xl"
-          >
-            🏠 Get Started Free
-          </Link>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Link
+              to="/create-club"
+              className="inline-flex justify-center btn-primary text-base px-8 py-3 rounded-xl"
+            >
+              Sign in & create club
+            </Link>
+            <Link
+              to="/register-club"
+              className="inline-flex justify-center rounded-xl border border-gray-600 px-8 py-3 text-base text-gray-300 transition hover:border-gray-400 hover:text-white"
+            >
+              Create account & club
+            </Link>
+          </div>
         </div>
       </section>
 

@@ -2310,7 +2310,10 @@ export default function CompetitionHomePage() {
                 const isLocked = gwStatus === 'LOCKED' || gwStatus === 'IN_PROGRESS' || gwStatus === 'COMPLETED' || isPast(parseDate(lockAt));
                 const isCompleted = gwStatus === 'COMPLETED' || gwFixtures.every(f => f.status === 'FINISHED' || f.status === 'POSTPONED' || f.status === 'CANCELLED');
                 const isCollapsed = collapsedWeeks.has(wn);
-                const myPickForGw = pickByGwId.get(gwId);
+                const savedPickForGw = pickByGwId.get(gwId);
+                const myPickForGw = savedPickForGw
+                  ? { ...savedPickForGw, outcome: effectivePickOutcome({ ...savedPickForGw, gameweekId: gwId }) }
+                  : undefined;
                 const fixtureCount = gwFixtures.length;
                 const resolvedFixtureCount = gwFixtures.filter((f) => f.status === 'FINISHED' || f.status === 'POSTPONED' || f.status === 'CANCELLED').length;
                 const routeMode = gameweekDisplayMode === 'route';
@@ -2347,30 +2350,14 @@ export default function CompetitionHomePage() {
                               Locks {formatDistanceToNow(parseDate(lockAt), { addSuffix: true })}
                             </span>
                           )}
-                          {/* Desktop collapsed summary */}
-                          {isCollapsed && myPickForGw && (
-                            <span className="hidden sm:inline text-sm text-gray-400 truncate">
-                              — <span className={clsx('font-semibold', {
-                                'text-green-400': myPickForGw.outcome === 'ADVANCE',
-                                'text-red-400': myPickForGw.outcome === 'ELIMINATED',
-                                'text-yellow-400': myPickForGw.outcome === 'POSTPONED_ADVANCE',
-                                'text-brand-400': myPickForGw.outcome === 'PENDING',
-                              })}>
-                                {myPickForGw.teamShortName}
-                              </span>
-                              {myPickForGw.outcome !== 'PENDING' && (
-                                <span className="ml-1"><OutcomeBadge outcome={myPickForGw.outcome} /></span>
-                              )}
-                            </span>
-                          )}
                           {isCollapsed && !myPickForGw && isParticipant && !isEliminated && !isWinner && !isLocked && (
                             <span className="hidden sm:inline text-xs text-yellow-400 italic">— no pick yet</span>
                           )}
                         </div>
 
-                        {isCollapsed && myPickForGw && (
-                          <div className="sm:hidden mt-1 text-xs text-gray-400">
-                            Selected:{' '}
+                        {myPickForGw && (
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-gray-400 sm:text-sm">
+                            <span>{isCollapsed ? 'Selected:' : 'Your pick:'}</span>
                             <span className={clsx('font-semibold', {
                               'text-green-400': myPickForGw.outcome === 'ADVANCE',
                               'text-red-400': myPickForGw.outcome === 'ELIMINATED',
@@ -2379,6 +2366,7 @@ export default function CompetitionHomePage() {
                             })}>
                               {myPickForGw.teamShortName}
                             </span>
+                            {myPickForGw.outcome !== 'PENDING' && <OutcomeBadge outcome={myPickForGw.outcome} />}
                           </div>
                         )}
                         {isCollapsed && !myPickForGw && isParticipant && !isEliminated && !isWinner && !isLocked && (
@@ -2386,20 +2374,6 @@ export default function CompetitionHomePage() {
                         )}
                       </div>
                       <div className="flex flex-wrap items-center gap-2 sm:gap-3 ml-2">
-                        {!isCollapsed && myPickForGw && (
-                          <span className="text-sm text-gray-300 hidden sm:inline">
-                            Your pick:{' '}
-                            <span className={clsx('font-bold', {
-                              'text-green-400': myPickForGw.outcome === 'ADVANCE',
-                              'text-red-400': myPickForGw.outcome === 'ELIMINATED',
-                              'text-yellow-400': myPickForGw.outcome === 'POSTPONED_ADVANCE',
-                              'text-brand-400': myPickForGw.outcome === 'PENDING',
-                            })}>{myPickForGw.teamShortName}</span>
-                            {myPickForGw.outcome !== 'PENDING' && (
-                              <span className="ml-1"><OutcomeBadge outcome={myPickForGw.outcome} /></span>
-                            )}
-                          </span>
-                        )}
                         {!isCollapsed && isLocked && (
                           <div className="flex flex-wrap items-center gap-2">
                             <Link

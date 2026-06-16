@@ -13,6 +13,7 @@ import com.lastmanstanding.repository.PasswordResetTokenRepository;
 import com.lastmanstanding.repository.UserRepository;
 import com.lastmanstanding.security.JwtService;
 import com.lastmanstanding.service.GameweekEmailService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -88,6 +89,11 @@ public class AuthController {
         String clubName
     ) {}
 
+    public record CreateClubRequest(
+            @NotBlank String clubName,
+            String clubDescription
+    ) {}
+
     public record UsernameAvailabilityResponse(boolean available, String message) {}
     public record EmailAvailabilityResponse(boolean available, String message) {}
 
@@ -95,35 +101,34 @@ public class AuthController {
     @Transactional
     public ResponseEntity<RegisterClubResponse> registerClub(
             @Valid @RequestBody RegisterClubRequest request) {
-
-        String normalizedUsername = normalizeUsername(request.username());
-        String normalizedEmail = request.email().trim();
-        if (userRepository.existsByEmail(normalizedEmail)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email is already in use");
-        }
-        if (userRepository.existsByUsernameIgnoreCase(normalizedUsername)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Username is already taken");
-        }
-        if (clubRepository.existsByName(request.clubName())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "A club with that name already exists");
-        }
-
-        // Create the user as CLUB_ADMIN
-        User user = new User(
-                normalizedEmail,
-                normalizedUsername,
-                passwordEncoder.encode(request.password()),
-                Role.CLUB_ADMIN);
-        user = userRepository.save(user);
-
-        // Create the club and assign this user as admin
-        Club club = new Club(request.clubName(), request.clubDescription(), user);
-        club.setClubAdmin(user);
-        club = clubRepository.save(club);
-
-        AuthResponse auth = buildAuthResponse(user);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new RegisterClubResponse(auth, club.getId(), club.getName()));
+                .body(createClubAndBuildResponse(
+                        request.clubName(),
+                        request.clubDescription(),
+                        request.username(),
+                        request.email(),
+                        request.password(),
+                        null));
+    }
+
+    @PostMapping("/create-club")
+    @Transactional
+    public ResponseEntity<RegisterClubResponse> createClub(
+            @Valid @RequestBody CreateClubRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            HttpServletRequest httpRequest) {
+        Long existingUserId = userDetails != null ? userDetails.getId() : resolveUserIdFromBearerToken(httpRequest);
+        if (existingUserId == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
+        }
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(createClubAndBuildResponse(
+                        request.clubName(),
+                        request.clubDescription(),
+                        null,
+                        null,
+                        null,
+                        existingUserId));
     }
 
     // ── Sign-up ─────────────────────────────────────────────────────────
@@ -181,6 +186,80 @@ public class AuthController {
 
     private static boolean containsUsernameWhitespace(String username) {
         return username.chars().anyMatch(Character::isWhitespace);
+    }
+
+    private Long resolveUserIdFromBearerToken(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return null;
+        }
+        String token = authHeader.substring(7);
+        if (!jwtService.isTokenValid(token)) {
+            return null;
+        }
+        try {
+            return jwtService.extractUserId(token);
+        } catch (RuntimeException ex) {
+            return null;
+        }
+    }
+
+    private RegisterClubResponse createClubAndBuildResponse(
+            String clubName,
+            String clubDescription,
+            String username,
+            String email,
+            String password,
+            Long existingUserId) {
+        String trimmedClubName = clubName == null ? null : clubName.trim();
+        if (trimmedClubName == null || trimmedClubName.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Club name is required");
+        }
+        if (clubRepository.existsByName(trimmedClubName)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "A club with that name already exists");
+        }
+
+        User user;
+        if (existingUserId != null) {
+            user = userRepository.findById(existingUserId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+            if (!clubRepository.findByClubAdminId(user.getId()).isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "You already manage a club");
+            }
+            if (user.getRole() == Role.USER) {
+                user.setRole(Role.CLUB_ADMIN);
+                user = userRepository.save(user);
+            }
+        } else {
+            String normalizedUsername = normalizeUsername(username);
+            String normalizedEmail = email == null ? null : email.trim();
+            if (normalizedEmail == null || normalizedEmail.isBlank()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email is required");
+            }
+            if (password == null || password.isBlank()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password is required");
+            }
+            if (userRepository.existsByEmail(normalizedEmail)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Email is already in use");
+            }
+            if (userRepository.existsByUsernameIgnoreCase(normalizedUsername)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Username is already taken");
+            }
+
+            user = new User(
+                    normalizedEmail,
+                    normalizedUsername,
+                    passwordEncoder.encode(password),
+                    Role.CLUB_ADMIN);
+            user = userRepository.save(user);
+        }
+
+        Club club = new Club(trimmedClubName, clubDescription, user);
+        club.setClubAdmin(user);
+        club = clubRepository.save(club);
+
+        AuthResponse auth = buildAuthResponse(user);
+        return new RegisterClubResponse(auth, club.getId(), club.getName());
     }
 
     // ── Login ───────────────────────────────────────────────────────────

@@ -3,7 +3,7 @@ interface SocialAuthButtonsProps {
 }
 
 const apiBaseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8080';
-const GOOGLE_OAUTH_PATH = '/oauth2/authorization/google';
+const GOOGLE_OAUTH_PATH = '/oauth2/google';
 
 const providers = [
   {
@@ -28,7 +28,9 @@ export default function SocialAuthButtons({ mode }: SocialAuthButtonsProps) {
 
   const handleClick = (providerName: string) => {
     const base = apiBaseUrl.replace(/\/+$/, '');
-    window.location.href = `${base}${GOOGLE_OAUTH_PATH}`;
+    const returnTo = new URLSearchParams(window.location.search).get('returnTo');
+    const query = returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : '';
+    window.location.href = `${base}${GOOGLE_OAUTH_PATH}${query}`;
   };
 
   return (

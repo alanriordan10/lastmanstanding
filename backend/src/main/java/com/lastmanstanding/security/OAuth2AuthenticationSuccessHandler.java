@@ -98,19 +98,29 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
     }
 
     private UriComponentsBuilder callbackBuilder(HttpServletRequest request) {
-        boolean mobileClient = Optional.ofNullable(request.getSession(false))
-                .map((session) -> {
-                    Object client = session.getAttribute(OAuth2StartController.OAUTH_CLIENT_SESSION_KEY);
-                    session.removeAttribute(OAuth2StartController.OAUTH_CLIENT_SESSION_KEY);
+        var session = request.getSession(false);
+        boolean mobileClient = Optional.ofNullable(session)
+                .map((currentSession) -> {
+                    Object client = currentSession.getAttribute(OAuth2StartController.OAUTH_CLIENT_SESSION_KEY);
+                    currentSession.removeAttribute(OAuth2StartController.OAUTH_CLIENT_SESSION_KEY);
                     return OAuth2StartController.MOBILE_CLIENT.equals(client);
                 })
                 .orElse(false);
+        String returnTo = Optional.ofNullable(session)
+                .map((currentSession) -> {
+                    Object value = currentSession.getAttribute(OAuth2StartController.OAUTH_RETURN_TO_SESSION_KEY);
+                    currentSession.removeAttribute(OAuth2StartController.OAUTH_RETURN_TO_SESSION_KEY);
+                    return value instanceof String text && text.startsWith("/") ? text : null;
+                })
+                .orElse(null);
 
-        if (mobileClient) {
-            return UriComponentsBuilder.fromUriString(mobileOauthCallbackUrl);
+        UriComponentsBuilder builder = mobileClient
+                ? UriComponentsBuilder.fromUriString(mobileOauthCallbackUrl)
+                : UriComponentsBuilder.fromHttpUrl(frontendUrl).path("/oauth2/callback");
+        if (returnTo != null) {
+            builder.queryParam("returnTo", returnTo);
         }
-
-        return UriComponentsBuilder.fromHttpUrl(frontendUrl).path("/oauth2/callback");
+        return builder;
     }
 
     private User updateOauthProfile(

@@ -31,8 +31,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
-        // These /auth endpoints require authentication — don't skip JWT processing for them
-        if (path.equals("/auth/me") || path.equals("/auth/email-preferences") || path.equals("/auth/delete-token")) {
+        // These routes require authentication — don't skip JWT processing for them
+        if (path.equals("/auth/me")
+                || path.equals("/auth/email-preferences")
+                || path.equals("/auth/delete-token")
+                || path.equals("/auth/create-club")) {
             return false;
         }
         if (path.startsWith("/oauth2") || path.startsWith("/login/oauth2")) {

@@ -9,6 +9,8 @@ export default function LoginPage() {
   const { login, user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const returnTo = searchParams.get('returnTo');
+  const hideClubCta = returnTo === '/create-club' || returnTo === encodeURIComponent('/create-club');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -22,14 +24,14 @@ export default function LoginPage() {
     }
   }, [searchParams]);
 
-  if (user) return <Navigate to="/competitions" replace />;
+  if (user) return <Navigate to={returnTo || '/competitions'} replace />;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
       await login(email, password);
-      navigate('/competitions');
+      navigate(returnTo || '/competitions');
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Invalid credentials');
     } finally {
@@ -131,28 +133,23 @@ export default function LoginPage() {
           </Link>
         </p>
 
-        <div className="rounded-[1.4rem] border border-brand-300/25 bg-[linear-gradient(145deg,rgba(14,165,233,0.14),rgba(15,23,42,0.9))] p-5 shadow-[0_18px_42px_rgba(2,6,23,0.34)]">
-          <div className="inline-flex rounded-full border border-brand-300/25 bg-brand-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-brand-100">
-            Running a club?
+        {!hideClubCta ? (
+          <div className="rounded-[1.4rem] border border-brand-300/25 bg-[linear-gradient(145deg,rgba(14,165,233,0.14),rgba(15,23,42,0.9))] p-5 shadow-[0_18px_42px_rgba(2,6,23,0.34)]">
+            <div className="inline-flex rounded-full border border-brand-300/25 bg-brand-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-brand-100">
+              Running a club?
+            </div>
+            <h2 className="mt-3 text-xl font-black tracking-tight text-white">Create your club</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-300">
+              Use your existing account to create a club, launch competitions, invite members, and manage payments from one admin area.
+            </p>
+            <Link to="/create-club" className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-brand-300/35 bg-brand-500/15 px-4 py-3 text-sm font-black text-brand-100 transition hover:bg-brand-500/25 hover:text-white">
+              Create club
+            </Link>
           </div>
-          <h2 className="mt-3 text-xl font-black tracking-tight text-white">Create a club account</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-300">
-            Set up your club, create competitions, invite members, and manage payments from one admin area.
-          </p>
-          <Link to="/register-club" className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-brand-300/35 bg-brand-500/15 px-4 py-3 text-sm font-black text-brand-100 transition hover:bg-brand-500/25 hover:text-white">
-            Start a club
-          </Link>
-        </div>
-
-        <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs text-gray-500">
-          <Link to="/faq" className="hover:text-gray-300">FAQ</Link>
-          <Link to="/privacy" className="hover:text-gray-300">Privacy</Link>
-          <Link to="/terms" className="hover:text-gray-300">Terms</Link>
-          <Link to="/account-deletion" className="hover:text-gray-300">Delete Account</Link>
-        </div>
-        </div>
+        ) : null}
       </div>
     </div>
+  </div>
   );
 }
 
