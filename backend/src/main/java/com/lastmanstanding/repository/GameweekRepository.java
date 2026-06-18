@@ -39,4 +39,28 @@ public interface GameweekRepository extends JpaRepository<Gameweek, Long> {
     /** Find UPCOMING gameweeks locking between now and :cutoff that haven't had a reminder sent */
     @Query("SELECT g FROM Gameweek g WHERE g.status = com.lastmanstanding.entity.GameweekStatus.UPCOMING AND g.reminderSent = false AND g.lockAt > :now AND g.lockAt <= :cutoff")
     List<Gameweek> findGameweeksNeedingReminder(@Param("now") java.time.LocalDateTime now, @Param("cutoff") java.time.LocalDateTime cutoff);
+
+    /**
+     * Only gameweeks that can require scheduled processing.
+     * Fetching the competition here avoids scanning every completed gameweek and
+     * avoids a lazy competition lookup for each returned row.
+     */
+    @Query("""
+            SELECT g
+            FROM Gameweek g
+            JOIN FETCH g.competition c
+            WHERE c.status IN (
+                com.lastmanstanding.entity.CompetitionStatus.UPCOMING,
+                com.lastmanstanding.entity.CompetitionStatus.ACTIVE
+            )
+            AND (
+                (g.status = com.lastmanstanding.entity.GameweekStatus.UPCOMING AND g.lockAt <= :now)
+                OR g.status IN (
+                    com.lastmanstanding.entity.GameweekStatus.LOCKED,
+                    com.lastmanstanding.entity.GameweekStatus.IN_PROGRESS
+                )
+            )
+            ORDER BY g.lockAt ASC, g.weekNumber ASC
+            """)
+    List<Gameweek> findGameweeksNeedingProcessing(@Param("now") java.time.LocalDateTime now);
 }

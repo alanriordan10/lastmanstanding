@@ -52,7 +52,7 @@ export default function SurvivorTablePage() {
     refetchInterval: (query) => {
       const data = query.state.data as { gameweeks: GameweekMeta[]; rows: SurvivorRow[] } | undefined;
       const hasLiveWeek = data?.gameweeks?.some((gw) => gw.status === 'IN_PROGRESS');
-      return hasLiveWeek ? 60_000 : 300_000;
+      return hasLiveWeek ? 300_000 : false;
     },
   });
 

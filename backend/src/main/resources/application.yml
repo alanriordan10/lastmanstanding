@@ -70,13 +70,19 @@ jwt:
 
 fixture:
   provider: ${FIXTURE_PROVIDER:football-data}
-  sync-cron: "0 */15 * * * *"
+  live-sync:
+    interval-ms: ${FIXTURE_LIVE_SYNC_INTERVAL_MS:300000}
   sync:
+    interval-ms: ${FIXTURE_SYNC_INTERVAL_MS:900000}
     from-days: ${FIXTURE_SYNC_FROM_DAYS:2}
     to-days: ${FIXTURE_SYNC_TO_DAYS:10}
     world-cup-max-fixtures-per-gameweek: ${FIXTURE_SYNC_WORLD_CUP_MAX_FIXTURES_PER_GAMEWEEK:10}
     world-cup-min-fixtures-per-gameweek: ${FIXTURE_SYNC_WORLD_CUP_MIN_FIXTURES_PER_GAMEWEEK:6}
     split-zone: ${FIXTURE_SYNC_SPLIT_ZONE:Europe/Dublin}
+
+gameweek:
+  processing:
+    interval-ms: ${GAMEWEEK_PROCESSING_INTERVAL_MS:300000}
 
 football-data:
   api-key: ${FOOTBALL_DATA_API_KEY:c565137f0689452ca211e2ae468c8693}
@@ -101,6 +107,7 @@ odds:
   odds-format: ${ODDS_FORMAT:decimal}
   date-format: ${ODDS_DATE_FORMAT:iso}
   sync-cron: "${ODDS_SYNC_CRON:0 */20 * * * *}"
+  quota-backoff-hours: ${ODDS_QUOTA_BACKOFF_HOURS:24}
   sync:
     from-days: ${ODDS_SYNC_FROM_DAYS:0}
     to-days: ${ODDS_SYNC_TO_DAYS:14}
@@ -128,6 +135,10 @@ app:
 
 server:
   port: ${PORT:8080}
+  compression:
+    enabled: true
+    min-response-size: 1024
+    mime-types: application/json,application/problem+json,text/html,text/plain,text/css,application/javascript
 
 management:
   endpoints:

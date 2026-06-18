@@ -53,7 +53,7 @@ public class FixtureOddsSyncService {
 
     @Transactional
     public int syncOdds() {
-        if (!oddsEnabled || !oddsApiClient.isConfigured()) {
+        if (!oddsEnabled || !oddsApiClient.isConfigured() || oddsApiClient.isQuotaBlocked()) {
             return 0;
         }
 

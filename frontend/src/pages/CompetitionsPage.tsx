@@ -106,39 +106,6 @@ function getMyCompetitionKey(mc: MyCompetition): string {
   return `comp-${mc.competition.id}-joined-${mc.joinedAt}`;
 }
 
-interface SurvivorTableProgressResponse {
-  gameweeks: Array<{ weekNumber: number; status: string }>;
-  rows: Array<{
-    userId: number;
-    status: 'ACTIVE' | 'ELIMINATED' | 'WINNER';
-    picks: Record<number, { outcome: string } | null>;
-  }>;
-}
-
-function deriveLiveActiveCount(data: SurvivorTableProgressResponse | undefined): number | null {
-  if (!data) return null;
-  const relevantWeeks = new Set(
-    data.gameweeks
-      .filter((gw) => gw.status === 'IN_PROGRESS' || gw.status === 'COMPLETED')
-      .map((gw) => gw.weekNumber)
-  );
-
-  // Prefer outcome-driven liveness so list cards stay in sync with live competition processing.
-  if (relevantWeeks.size > 0) {
-    const eliminatedFromOutcomes = data.rows.reduce((count, row) => {
-      const eliminated = Object.entries(row.picks ?? {}).some(([week, pick]) => {
-        const weekNumber = Number(week);
-        if (!relevantWeeks.has(weekNumber) || !pick?.outcome) return false;
-        return String(pick.outcome).toUpperCase().includes('ELIMINATED');
-      });
-      return count + (eliminated ? 1 : 0);
-    }, 0);
-    return Math.max(data.rows.length - eliminatedFromOutcomes, 0);
-  }
-
-  return data.rows.filter((row) => row.status === 'ACTIVE' || row.status === 'WINNER').length;
-}
-
 export default function CompetitionsPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -224,12 +191,20 @@ export default function CompetitionsPage() {
       return api.get(`/competitions/upcoming${params}`).then((r) => Array.isArray(r.data) ? r.data : []);
     },
     staleTime: 30_000,
+    refetchInterval: (query) => {
+      const rows = query.state.data as Competition[] | undefined;
+      return rows?.some((competition) => competition.status === 'ACTIVE') ? 300_000 : false;
+    },
   });
 
   const { data: myCompetitionsData, isLoading: myLoading, error: myError, isFetching: myFetching } = useQuery<MyCompetition[]>({
     queryKey: ['competitions', 'my', 'details'],
     queryFn: () => api.get('/competitions/my/details').then((r) => Array.isArray(r.data) ? r.data : []),
     staleTime: 30_000,
+    refetchInterval: (query) => {
+      const rows = query.state.data as MyCompetition[] | undefined;
+      return rows?.some((row) => row.competition.status === 'ACTIVE') ? 300_000 : false;
+    },
   });
 
   const { data: joinedIds } = useQuery<number[]>({
@@ -1437,19 +1412,7 @@ function CompetitionCard({ comp, joined, onJoin, isPending, actionHint, isHighli
   const prizePool = comp.prizePool ?? 0;
   const clubAccent = comp.clubPrimaryColor ?? null;
   const clubSupport = comp.clubSecondaryColor ?? comp.clubPrimaryColor ?? null;
-  const { data: liveProgress } = useQuery<SurvivorTableProgressResponse>({
-    queryKey: ['survivor-table-progress', comp.id],
-    queryFn: () => api.get(`/competitions/${comp.id}/survivor-table`).then((r) => r.data),
-    enabled: comp.status === 'ACTIVE',
-    staleTime: 30_000,
-    refetchInterval: (query) => {
-      const data = query.state.data as SurvivorTableProgressResponse | undefined;
-      const hasInProgress = data?.gameweeks?.some((gw) => gw.status === 'IN_PROGRESS');
-      return hasInProgress ? 60_000 : 300_000;
-    },
-  });
-  const liveActiveCount = deriveLiveActiveCount(liveProgress);
-  const effectiveActiveCount = liveActiveCount ?? comp.activeCount ?? comp.participantCount;
+  const effectiveActiveCount = comp.activeCount ?? comp.participantCount;
   const maxEntries = comp.maxEntriesPerUser ?? 1;
 
   return (
@@ -1629,19 +1592,7 @@ function MyCompetitionCard({ myComp, actionHint }: { myComp: MyCompetition; acti
   const paymentState = myComp.paymentState;
   const eliminatedWeek = myComp.eliminatedWeek;
   const clubSupport = comp.clubSecondaryColor ?? comp.clubPrimaryColor ?? null;
-  const { data: liveProgress } = useQuery<SurvivorTableProgressResponse>({
-    queryKey: ['survivor-table-progress', comp.id],
-    queryFn: () => api.get(`/competitions/${comp.id}/survivor-table`).then((r) => r.data),
-    enabled: comp.status === 'ACTIVE',
-    staleTime: 30_000,
-    refetchInterval: (query) => {
-      const data = query.state.data as SurvivorTableProgressResponse | undefined;
-      const hasInProgress = data?.gameweeks?.some((gw) => gw.status === 'IN_PROGRESS');
-      return hasInProgress ? 60_000 : 300_000;
-    },
-  });
-  const liveActiveCount = deriveLiveActiveCount(liveProgress);
-  const effectiveActiveCount = liveActiveCount ?? comp.activeCount ?? comp.participantCount;
+  const effectiveActiveCount = comp.activeCount ?? comp.participantCount;
   const urgencyDueSoon = useMemo(() => {
     if (myStatus !== 'ACTIVE' || comp.status !== 'UPCOMING') return false;
     const source = comp.firstGameweekDate ?? comp.startDate;
@@ -1779,19 +1730,7 @@ function MyCompetitionRow({
   onToggleExpand: () => void;
 }) {
   const comp = myComp.competition;
-  const { data: liveProgress } = useQuery<SurvivorTableProgressResponse>({
-    queryKey: ['survivor-table-progress', comp.id],
-    queryFn: () => api.get(`/competitions/${comp.id}/survivor-table`).then((r) => r.data),
-    enabled: comp.status === 'ACTIVE',
-    staleTime: 30_000,
-    refetchInterval: (query) => {
-      const data = query.state.data as SurvivorTableProgressResponse | undefined;
-      const hasInProgress = data?.gameweeks?.some((gw) => gw.status === 'IN_PROGRESS');
-      return hasInProgress ? 60_000 : 300_000;
-    },
-  });
-  const liveActiveCount = deriveLiveActiveCount(liveProgress);
-  const effectiveActiveCount = liveActiveCount ?? comp.activeCount ?? comp.participantCount ?? 0;
+  const effectiveActiveCount = comp.activeCount ?? comp.participantCount ?? 0;
   const isFinished = comp.status === 'COMPLETED';
   const isAwaitingPayment = myComp.paymentState === 'AWAITING_PAYMENT';
   const startLabel = comp.firstGameweekDate

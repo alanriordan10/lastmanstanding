@@ -121,7 +121,9 @@ function impliedFromDecimalOdds(home?: number | null, draw?: number | null, away
   };
 }
 
-function calculateTeamRisk(fixture: Fixture, side: 'home' | 'away', pickStat?: PickStat): TeamRisk | null {
+function calculateTeamRisk(fixture: Fixture, side: 'home' | 'away', pickStat?: PickStat, gameweekStatus?: string): TeamRisk | null {
+  if (gameweekStatus !== 'UPCOMING') return null;
+  if (fixture.status === 'FINISHED' || fixture.status === 'POSTPONED' || fixture.status === 'CANCELLED') return null;
   const implied = side === 'home' ? fixture.oddsImpliedHome : fixture.oddsImpliedAway;
   const impliedFromOdds = impliedFromDecimalOdds(fixture.oddsHomeWin, fixture.oddsDraw, fixture.oddsAwayWin);
   const pRaw = implied ?? (side === 'home' ? impliedFromOdds?.home ?? NaN : impliedFromOdds?.away ?? NaN);
@@ -241,7 +243,7 @@ export default function CompetitionHomePage() {
     queryKey: ['competition', compId],
     queryFn: () => api.get(`/competitions/${compId}`).then((r) => r.data),
     staleTime: 30_000,
-    refetchInterval: () => hasPendingResultProcessing(queryClient.getQueryData<Fixture[]>(['fixtures', compId])) ? 3_000 : false,
+    refetchInterval: () => hasPendingResultProcessing(queryClient.getQueryData<Fixture[]>(['fixtures', compId])) ? 300_000 : false,
   });
 
   const { data: myEntries = [] } = useQuery<Participant[]>({
@@ -269,7 +271,7 @@ export default function CompetitionHomePage() {
     }).then((r) => r.data),
     retry: false,
     staleTime: 30_000,
-    refetchInterval: () => hasPendingResultProcessing(queryClient.getQueryData<Fixture[]>(['fixtures', compId])) ? 3_000 : false,
+    refetchInterval: () => hasPendingResultProcessing(queryClient.getQueryData<Fixture[]>(['fixtures', compId])) ? 300_000 : false,
   });
 
   const { data: fixtures, isLoading: fixturesLoading } = useQuery<Fixture[]>({
@@ -281,11 +283,11 @@ export default function CompetitionHomePage() {
     refetchInterval: (query) => {
       const data = query.state.data as Fixture[] | undefined;
       if (comp?.status === 'UPCOMING' && (!data || data.length === 0)) {
-        return 3_000;
+        return 15_000;
       }
       const live = data?.some((f) => f.status === 'IN_PLAY');
       if (live) {
-        return 60_000;
+        return 300_000;
       }
       const inProgress = data?.some((f) => f.gameweekStatus === 'IN_PROGRESS');
       return inProgress ? 300_000 : false;
@@ -334,7 +336,7 @@ export default function CompetitionHomePage() {
     refetchInterval: (query) => {
       const data = query.state.data as GameweekSelectionsData | undefined;
       const hasPending = data?.selections?.some((s) => s.outcome === 'PENDING');
-      return hasPending ? 60_000 : false;
+      return hasPending ? 300_000 : false;
     },
   });
 
@@ -2495,7 +2497,7 @@ export default function CompetitionHomePage() {
                         )}
                         {routeMode ? (
                           <MyRoutePanel
-                            teams={uniqueTeamsForFixtures(gwFixtures, (teamId) => pickStatsByGwId.get(gwId)?.find((s) => s.teamId === teamId))}
+                            teams={uniqueTeamsForFixtures(gwFixtures, gwStatus, (teamId) => pickStatsByGwId.get(gwId)?.find((s) => s.teamId === teamId))}
                             currentPick={myPickForGw ?? null}
                             consumedTeamIds={consumedTeamIds}
                             canPick={isParticipant && !isEliminated && !isWinner && !(awaitingPayment && strictManualPayment) && !isLocked && !(isEliminated && participant?.eliminatedWeek != null && wn > participant.eliminatedWeek)}
@@ -2522,8 +2524,8 @@ export default function CompetitionHomePage() {
                             const gwStats = pickStatsByGwId.get(gwId);
                             const homeStat = gwStats?.find(s => s.teamId === f.homeTeamId);
                             const awayStat = gwStats?.find(s => s.teamId === f.awayTeamId);
-                            const homeRisk = calculateTeamRisk(f, 'home', homeStat);
-                            const awayRisk = calculateTeamRisk(f, 'away', awayStat);
+                            const homeRisk = calculateTeamRisk(f, 'home', homeStat, gwStatus);
+                            const awayRisk = calculateTeamRisk(f, 'away', awayStat, gwStatus);
 
                             const pickedRisk = homeIsMyPick ? homeRisk : awayIsMyPick ? awayRisk : null;
                             const pickedStat = homeIsMyPick ? homeStat : awayIsMyPick ? awayStat : undefined;
@@ -3000,7 +3002,7 @@ type RouteCurrentPick = {
   useLifeline?: boolean;
 } | null;
 
-function uniqueTeamsForFixtures(fixtures: Fixture[], getPickStat: (teamId: number, teamShortName: string, teamName: string) => PickStat | null | undefined): RouteTeam[] {
+function uniqueTeamsForFixtures(fixtures: Fixture[], gameweekStatus: string, getPickStat: (teamId: number, teamShortName: string, teamName: string) => PickStat | null | undefined): RouteTeam[] {
   const map = new Map<number, RouteTeam>();
   for (const fixture of fixtures) {
     const homeStat = getPickStat(fixture.homeTeamId, fixture.homeTeamShortName, fixture.homeTeamName);
@@ -3012,7 +3014,7 @@ function uniqueTeamsForFixtures(fixtures: Fixture[], getPickStat: (teamId: numbe
       opponentShortName: fixture.awayTeamShortName,
       opponentName: fixture.awayTeamName,
       venueLabel: 'vs',
-      risk: calculateTeamRisk(fixture, 'home', homeStat ?? undefined),
+      risk: calculateTeamRisk(fixture, 'home', homeStat ?? undefined, gameweekStatus),
     });
     map.set(fixture.awayTeamId, {
       teamId: fixture.awayTeamId,
@@ -3021,7 +3023,7 @@ function uniqueTeamsForFixtures(fixtures: Fixture[], getPickStat: (teamId: numbe
       opponentShortName: fixture.homeTeamShortName,
       opponentName: fixture.homeTeamName,
       venueLabel: '@',
-      risk: calculateTeamRisk(fixture, 'away', awayStat ?? undefined),
+      risk: calculateTeamRisk(fixture, 'away', awayStat ?? undefined, gameweekStatus),
     });
   }
   return [...map.values()].sort((a, b) => a.teamShortName.localeCompare(b.teamShortName));

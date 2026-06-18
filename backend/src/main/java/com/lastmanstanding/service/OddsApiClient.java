@@ -16,6 +16,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -59,6 +60,11 @@ public class OddsApiClient {
     @Value("${odds.date-format:iso}")
     private String dateFormat;
 
+    @Value("${odds.quota-backoff-hours:24}")
+    private long quotaBackoffHours;
+
+    private volatile Instant quotaBlockedUntil;
+
     public boolean isConfigured() {
         return apiKey != null && !apiKey.isBlank();
     }
@@ -69,6 +75,10 @@ public class OddsApiClient {
 
     public List<OddsEvent> fetchOdds(String sportKey, LocalDateTime from, LocalDateTime to) {
         if (!isConfigured()) {
+            return List.of();
+        }
+        if (isQuotaBlocked()) {
+            log.debug("Skipping Odds API request because usage quota is paused until {}", quotaBlockedUntil);
             return List.of();
         }
         String resolvedSport = sportKey == null || sportKey.isBlank() ? sport : sportKey.trim();
@@ -90,7 +100,12 @@ public class OddsApiClient {
                     .build();
             HttpResponse<String> res = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
             if (res.statusCode() < 200 || res.statusCode() >= 300) {
-                log.warn("Odds API returned {}: {}", res.statusCode(), trimBody(res.body()));
+                if (isUsageQuotaExhausted(res.statusCode(), res.body())) {
+                    quotaBlockedUntil = Instant.now().plus(Duration.ofHours(Math.max(1, quotaBackoffHours)));
+                    log.warn("Odds API usage quota has been reached; pausing odds requests until {}", quotaBlockedUntil);
+                } else {
+                    log.warn("Odds API returned {}: {}", res.statusCode(), trimBody(res.body()));
+                }
                 return List.of();
             }
 
@@ -108,6 +123,19 @@ public class OddsApiClient {
             log.warn("Failed to fetch odds: {}", e.getMessage());
             return List.of();
         }
+    }
+
+    public boolean isQuotaBlocked() {
+        Instant blockedUntil = quotaBlockedUntil;
+        if (blockedUntil == null) return false;
+        if (Instant.now().isBefore(blockedUntil)) return true;
+        quotaBlockedUntil = null;
+        return false;
+    }
+
+    private static boolean isUsageQuotaExhausted(int statusCode, String body) {
+        if (statusCode != 401 && statusCode != 429) return false;
+        return body != null && (body.contains("OUT_OF_USAGE_CREDITS") || body.contains("Usage quota has been reached"));
     }
 
     private static String enc(String v) {

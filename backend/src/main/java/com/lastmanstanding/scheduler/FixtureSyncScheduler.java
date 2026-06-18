@@ -49,8 +49,8 @@ public class FixtureSyncScheduler {
         this.footballDataProvider = footballDataProvider;
     }
 
-    /** Runs every 5 minutes. Cache TTLs handle whether a real API call is made. */
-    @Scheduled(fixedRate = 300_000)
+    /** Runs every 15 minutes by default. Cache TTLs handle whether a real API call is made. */
+    @Scheduled(fixedDelayString = "${fixture.sync.interval-ms:900000}")
     public void syncFixtures() {
         try {
             if (footballDataProvider.isPresent() && hasTrackedLiveMatches(footballDataProvider.get())) {
@@ -66,10 +66,10 @@ public class FixtureSyncScheduler {
     }
 
     /**
-     * Runs every minute, but only when the upstream provider reports live matches.
-     * This keeps live scores fresher without pushing normal traffic near the API limit.
+     * Runs every five minutes by default, but only when the upstream provider reports live matches.
+     * This is frequent enough for near-live scores while keeping provider and database traffic low.
      */
-    @Scheduled(fixedRate = 60_000)
+    @Scheduled(fixedDelayString = "${fixture.live-sync.interval-ms:300000}")
     public void syncLiveFixtures() {
         try {
             if (footballDataProvider.isEmpty() || !hasTrackedLiveMatches(footballDataProvider.get())) {
@@ -182,44 +182,24 @@ public class FixtureSyncScheduler {
         }
     }
 
-    /** Process gameweek locks and results every 2 minutes. */
-    @Scheduled(fixedRate = 120_000)
+    /**
+     * Process only gameweeks that are due to lock or awaiting results.
+     * Five minutes is sufficient for this application and avoids repeatedly
+     * scanning every completed gameweek in every active competition.
+     */
+    @Scheduled(fixedDelayString = "${gameweek.processing.interval-ms:300000}")
     public void processGameweeks() {
-        // Auto-activate UPCOMING competitions whose first gameweek has locked
-        List<Competition> upcomingComps = competitionRepository
-                .findByStatusInOrderByStartDateAsc(List.of(CompetitionStatus.UPCOMING));
-        for (Competition comp : upcomingComps) {
-            List<Gameweek> gwList = gameweekRepository.findByCompetitionIdOrderByWeekNumberAsc(comp.getId());
-            if (!gwList.isEmpty()) {
-                Gameweek firstGw = gwList.get(0);
-                if (firstGw.getLockAt() != null && LocalDateTime.now().isAfter(firstGw.getLockAt())) {
-                    comp.setStatus(CompetitionStatus.ACTIVE);
-                    competitionRepository.save(comp);
-                    log.info("Auto-activated competition {} — first GW locked at {}", comp.getId(), firstGw.getLockAt());
+        List<Gameweek> gameweeks = gameweekRepository.findGameweeksNeedingProcessing(LocalDateTime.now());
+        for (Gameweek gw : gameweeks) {
+            try {
+                if (gw.getStatus() == GameweekStatus.UPCOMING) {
+                    gameweekProcessingService.lockGameweek(gw.getId());
+                } else {
+                    gameweekProcessingService.processGameweekResults(gw.getId());
                 }
-            }
-        }
-
-        // Lock + process results for UPCOMING and ACTIVE competitions
-        List<Competition> comps = competitionRepository
-                .findByStatusInOrderByStartDateAsc(List.of(CompetitionStatus.UPCOMING, CompetitionStatus.ACTIVE));
-
-        for (Competition comp : comps) {
-            List<Gameweek> gameweeks = gameweekRepository.findByCompetitionIdOrderByWeekNumberAsc(comp.getId());
-            for (Gameweek gw : gameweeks) {
-                try {
-                    if (gw.getStatus() == GameweekStatus.UPCOMING &&
-                            LocalDateTime.now().isAfter(gw.getLockAt())) {
-                        gameweekProcessingService.lockGameweek(gw.getId());
-                    }
-                    if (comp.getStatus() == CompetitionStatus.ACTIVE &&
-                            (gw.getStatus() == GameweekStatus.LOCKED ||
-                             gw.getStatus() == GameweekStatus.IN_PROGRESS)) {
-                        gameweekProcessingService.processGameweekResults(gw.getId());
-                    }
-                } catch (Exception e) {
-                    log.error("Error processing GW{} for competition {}", gw.getWeekNumber(), comp.getId(), e);
-                }
+            } catch (Exception e) {
+                log.error("Error processing GW{} for competition {}",
+                        gw.getWeekNumber(), gw.getCompetition().getId(), e);
             }
         }
     }
