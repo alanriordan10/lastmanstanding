@@ -24,6 +24,11 @@ public interface PickResultRepository extends JpaRepository<PickResult, Long> {
     List<PickResult> findByCompetitionIdAndGameweekId(@Param("competitionId") Long competitionId, @Param("gameweekId") Long gameweekId);
 
     @Modifying
+    
+    @Query("UPDATE PickResult pr SET pr.outcome = com.lastmanstanding.entity.PickOutcome.PENDING, pr.resolvedAt = null WHERE pr.pick.competition.id = :competitionId AND pr.pick.gameweek.id = :gameweekId")
+    int resetForGameweek(@Param("competitionId") Long competitionId, @Param("gameweekId") Long gameweekId);
+
+    @Modifying
     @Query("DELETE FROM PickResult pr WHERE pr.pick.id IN (SELECT p.id FROM Pick p WHERE p.competition.id = :competitionId AND p.user.id = :userId)")
     void deleteByCompetitionIdAndUserId(@Param("competitionId") Long competitionId, @Param("userId") Long userId);
 

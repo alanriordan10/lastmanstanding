@@ -18,6 +18,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
@@ -101,11 +103,31 @@ class CompetitionControllerPrivacyTest {
         when(participantRepository.countActiveAtStartForWeek(competition.getId(), upcomingWeek.getWeekNumber())).thenReturn(1L);
         when(participantRepository.countEliminatedInWeek(competition.getId(), upcomingWeek.getWeekNumber())).thenReturn(0L);
 
-        GameweekSelectionsData data = controller.getSelections(competition.getId(), upcomingWeek.getId());
+        GameweekSelectionsData data = controller.getSelections(competition.getId(), upcomingWeek.getId(), request).getBody();
 
         assertThat(data.selections()).isEmpty();
         assertThat(data.weekNumber()).isEqualTo(1);
         verifyNoInteractions(pickService);
+    }
+
+
+    @Test
+    void selectionsReturnNotModifiedWhenEtagMatches() {
+        when(gameweekRepository.findById(upcomingWeek.getId())).thenReturn(Optional.of(upcomingWeek));
+        when(participantRepository.countActiveAtStartForWeek(competition.getId(), upcomingWeek.getWeekNumber())).thenReturn(1L);
+        when(participantRepository.countEliminatedInWeek(competition.getId(), upcomingWeek.getWeekNumber())).thenReturn(0L);
+        when(request.getHeader("If-None-Match")).thenReturn(null);
+
+        ResponseEntity<GameweekSelectionsData> initial = controller.getSelections(
+                competition.getId(), upcomingWeek.getId(), request);
+        String etag = initial.getHeaders().getETag();
+        when(request.getHeader("If-None-Match")).thenReturn(etag);
+
+        ResponseEntity<GameweekSelectionsData> unchanged = controller.getSelections(
+                competition.getId(), upcomingWeek.getId(), request);
+
+        assertThat(unchanged.getStatusCode()).isEqualTo(HttpStatus.NOT_MODIFIED);
+        assertThat(unchanged.getBody()).isNull();
     }
 
     @Test

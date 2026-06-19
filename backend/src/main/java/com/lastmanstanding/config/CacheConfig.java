@@ -15,6 +15,7 @@ public class CacheConfig {
     public static final String GAMEWEEK_SELECTIONS_CACHE = "gameweekSelectionsCache";
     public static final String PICK_STATS_CACHE = "pickStatsCache";
     public static final String FIXTURES_CACHE = "fixturesCache";
+    public static final String COMPETITION_DETAILS_CACHE = "competitionDetailsCache";
     public static final String TEAM_BY_ID_CACHE = "teamByIdCache";
 
     @Bean
@@ -35,6 +36,10 @@ public class CacheConfig {
                         .build()),
                 new CaffeineCache(FIXTURES_CACHE, Caffeine.newBuilder()
                         .maximumSize(1000)
+                        .expireAfterWrite(Duration.ofMinutes(10))
+                        .build()),
+                new CaffeineCache(COMPETITION_DETAILS_CACHE, Caffeine.newBuilder()
+                        .maximumSize(500)
                         .expireAfterWrite(Duration.ofMinutes(10))
                         .build()),
                 new CaffeineCache(TEAM_BY_ID_CACHE, Caffeine.newBuilder()

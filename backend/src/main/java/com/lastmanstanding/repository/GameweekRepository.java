@@ -28,6 +28,9 @@ public interface GameweekRepository extends JpaRepository<Gameweek, Long> {
     @Query("SELECT g FROM Gameweek g WHERE g.competition.id = :competitionId AND g.status IN (com.lastmanstanding.entity.GameweekStatus.UPCOMING, com.lastmanstanding.entity.GameweekStatus.LOCKED, com.lastmanstanding.entity.GameweekStatus.IN_PROGRESS) ORDER BY g.weekNumber ASC LIMIT :limit")
     List<Gameweek> findNextUpcomingGameweeks(@Param("competitionId") Long competitionId, @Param("limit") int limit);
 
+    @Query("SELECT g FROM Gameweek g WHERE g.competition.id = :competitionId AND g.weekNumber > :weekNumber ORDER BY g.weekNumber ASC")
+    List<Gameweek> findAfterWeek(@Param("competitionId") Long competitionId, @Param("weekNumber") int weekNumber);
+
     @org.springframework.data.jpa.repository.Modifying
     @Query("DELETE FROM Gameweek g WHERE g.competition.id = :competitionId")
     void deleteByCompetitionId(@Param("competitionId") Long competitionId);

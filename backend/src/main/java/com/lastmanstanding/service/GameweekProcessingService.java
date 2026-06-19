@@ -27,9 +27,11 @@ import com.lastmanstanding.repository.PickResultRepository;
 import com.lastmanstanding.repository.TeamRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -227,6 +229,66 @@ public class GameweekProcessingService {
                 log.info("Missed pick — eliminated user {}", cp.getUser().getUsername());
             }
         }
+    }
+
+    /**
+     * Reset a resolved gameweek so corrected fixture scores can be processed again.
+     * Corrections are refused once a later gameweek has started because replaying
+     * downstream eliminations without an event ledger would be unsafe.
+     */
+    
+    @Transactional
+    public void prepareGameweekCorrection(Long competitionId, Long gameweekId) {
+        Gameweek gw = gameweekRepository.findById(gameweekId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Gameweek not found"));
+        if (!gw.getCompetition().getId().equals(competitionId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Gameweek does not belong to this competition");
+        }
+        if (gw.getStatus() != GameweekStatus.COMPLETED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only a completed gameweek needs correction reprocessing");
+        }
+
+        boolean laterWeekStarted = gameweekRepository.findAfterWeek(competitionId, gw.getWeekNumber()).stream()
+                .anyMatch(later -> later.getStatus() != GameweekStatus.UPCOMING);
+        if (laterWeekStarted) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Cannot automatically correct this gameweek because a later gameweek has already started");
+        }
+
+        Competition comp = competitionRepository.findById(competitionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Competition not found"));
+        List<CompetitionParticipant> participants = participantRepository.findByCompetitionId(competitionId);
+        List<CompetitionParticipant> changed = new ArrayList<>();
+        for (CompetitionParticipant participant : participants) {
+            boolean updated = false;
+            if (participant.getEliminatedWeek() != null
+                    && participant.getEliminatedWeek() == gw.getWeekNumber()) {
+                participant.setStatus(ParticipantStatus.ACTIVE);
+                participant.setEliminatedWeek(null);
+                updated = true;
+            } else if (participant.getStatus() == ParticipantStatus.WINNER) {
+                participant.setStatus(ParticipantStatus.ACTIVE);
+                updated = true;
+            }
+            if (participant.getLifelineUsedWeek() != null
+                    && participant.getLifelineUsedWeek() == gw.getWeekNumber()) {
+                participant.setLifelineUsed(false);
+                participant.setLifelineUsedWeek(null);
+                updated = true;
+            }
+            if (updated) changed.add(participant);
+        }
+        if (!changed.isEmpty()) participantRepository.saveAll(changed);
+
+        pickResultRepository.resetForGameweek(competitionId, gameweekId);
+        gw.setStatus(GameweekStatus.IN_PROGRESS);
+        gw.setByeGranted(false);
+        gameweekRepository.save(gw);
+        comp.setStatus(CompetitionStatus.ACTIVE);
+        competitionRepository.save(comp);
+        competitionCacheService.evictCompetition(competitionId);
+        log.info("Prepared GW{} in competition {} for corrected result processing; restored {} participant(s)",
+                gw.getWeekNumber(), competitionId, changed.size());
     }
 
     /**

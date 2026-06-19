@@ -20,6 +20,7 @@ public class CompetitionCacheService {
         evictByPrefix(CacheConfig.GAMEWEEK_SELECTIONS_CACHE, competitionId + ":");
         evictByPrefix(CacheConfig.PICK_STATS_CACHE, competitionId + ":");
         evictByPrefix(CacheConfig.FIXTURES_CACHE, competitionId + ":");
+        evictExact(CacheConfig.COMPETITION_DETAILS_CACHE, competitionId.toString());
     }
 
     public void evictAllCompetitionViews() {
@@ -27,6 +28,7 @@ public class CompetitionCacheService {
         clear(CacheConfig.GAMEWEEK_SELECTIONS_CACHE);
         clear(CacheConfig.PICK_STATS_CACHE);
         clear(CacheConfig.FIXTURES_CACHE);
+        clear(CacheConfig.COMPETITION_DETAILS_CACHE);
     }
 
     private void evictExact(String cacheName, String key) {

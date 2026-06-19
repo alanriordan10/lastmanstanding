@@ -22,6 +22,7 @@ import java.util.stream.Collectors;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -101,10 +102,12 @@ public class CompetitionController {
                 pickRepository, pickResultRepository, participantRepository, teamRepository, clubRepository,
                 paymentRepository, new ConcurrentMapCacheManager(
                         CacheConfig.SURVIVOR_TABLE_CACHE, CacheConfig.GAMEWEEK_SELECTIONS_CACHE,
-                        CacheConfig.PICK_STATS_CACHE, CacheConfig.FIXTURES_CACHE),
+                        CacheConfig.PICK_STATS_CACHE, CacheConfig.FIXTURES_CACHE,
+                        CacheConfig.COMPETITION_DETAILS_CACHE),
                 new CompetitionCacheService(new ConcurrentMapCacheManager(
                         CacheConfig.SURVIVOR_TABLE_CACHE, CacheConfig.GAMEWEEK_SELECTIONS_CACHE,
-                        CacheConfig.PICK_STATS_CACHE, CacheConfig.FIXTURES_CACHE)),
+                        CacheConfig.PICK_STATS_CACHE, CacheConfig.FIXTURES_CACHE,
+                        CacheConfig.COMPETITION_DETAILS_CACHE)),
                 new ObjectMapper());
     }
 
@@ -217,11 +220,21 @@ public class CompetitionController {
     }
 
     @GetMapping("/{id}")
-    public CompetitionResponse getCompetition(@PathVariable Long id) {
+    public ResponseEntity<CompetitionResponse> getCompetition(@PathVariable Long id, HttpServletRequest request) {
+        Cache cache = cacheManager.getCache(CacheConfig.COMPETITION_DETAILS_CACHE);
+        if (cache != null) {
+            CompetitionResponse cached = cache.get(id.toString(), CompetitionResponse.class);
+            if (cached != null) {
+                return conditionalResponse(cached, request, "COMPLETED".equals(cached.status()));
+            }
+        }
+
         Competition c = competitionService.getCompetition(id);
         long[] cnt = batchParticipantCounts().getOrDefault(c.getId(), new long[]{0, 0});
-        return CompetitionResponse.from(c, (int) cnt[0], (int) cnt[1],
+        CompetitionResponse response = CompetitionResponse.from(c, (int) cnt[0], (int) cnt[1],
                 batchWinners().get(c.getId()), firstGameweekDate(c.getId()));
+        if (cache != null) cache.put(id.toString(), response);
+        return conditionalResponse(response, request, c.getStatus() == CompetitionStatus.COMPLETED);
     }
 
     // ── Batch helpers — each does ONE query ─────────────────────────────
@@ -434,8 +447,9 @@ public class CompetitionController {
     }
 
     @GetMapping("/{id}/fixtures")
-    public List<FixtureResponse> getFixtures(@PathVariable Long id,
-                                             @RequestParam(defaultValue = "99") int weeks) {
+    public ResponseEntity<List<FixtureResponse>> getFixtures(@PathVariable Long id,
+                                                             @RequestParam(defaultValue = "99") int weeks,
+                                                             HttpServletRequest request) {
         List<Gameweek> gameweeks = gameweekRepository.findByCompetitionIdOrderByWeekNumberAsc(id);
 
         if (weeks < gameweeks.size()) {
@@ -449,7 +463,7 @@ public class CompetitionController {
             if (cache != null) {
                 @SuppressWarnings("unchecked")
                 List<FixtureResponse> cached = cache.get(key, List.class);
-                if (cached != null) return cached;
+                if (cached != null) return conditionalResponse(cached, request, false);
             }
         }
 
@@ -458,7 +472,7 @@ public class CompetitionController {
             Cache cache = cacheManager.getCache(CacheConfig.FIXTURES_CACHE);
             if (cache != null) cache.put(key, response);
         }
-        return response;
+        return conditionalResponse(response, request, false);
     }
 
     private List<FixtureResponse> buildFixtureResponses(List<Gameweek> gameweeks) {
@@ -486,7 +500,8 @@ public class CompetitionController {
     }
 
     @GetMapping("/{id}/gameweeks/{gwId}/fixtures")
-    public List<FixtureResponse> getFixturesForGameweek(@PathVariable Long id, @PathVariable Long gwId) {
+    public ResponseEntity<List<FixtureResponse>> getFixturesForGameweek(@PathVariable Long id, @PathVariable Long gwId,
+                                                                        HttpServletRequest request) {
         Gameweek gw = gameweekRepository.findById(gwId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Gameweek not found"));
         if (!gw.getCompetition().getId().equals(id)) {
@@ -499,7 +514,8 @@ public class CompetitionController {
             if (cache != null) {
                 @SuppressWarnings("unchecked")
                 List<FixtureResponse> cached = cache.get(key, List.class);
-                if (cached != null) return cached;
+                if (cached != null) return conditionalResponse(cached, request,
+                        gw.getCompetition().getStatus() == CompetitionStatus.COMPLETED);
             }
         }
 
@@ -519,7 +535,8 @@ public class CompetitionController {
             Cache cache = cacheManager.getCache(CacheConfig.FIXTURES_CACHE);
             if (cache != null) cache.put(key, response);
         }
-        return response;
+        return conditionalResponse(response, request,
+                gw.getCompetition().getStatus() == CompetitionStatus.COMPLETED);
     }
 
     // ── Picks ───────────────────────────────────────────────────────────
@@ -586,25 +603,28 @@ public class CompetitionController {
     // ── Reveal ──────────────────────────────────────────────────────────
 
     @GetMapping("/{id}/gameweeks/{gwId}/selections")
-    public GameweekSelectionsData getSelections(@PathVariable Long id, @PathVariable Long gwId) {
+    public ResponseEntity<GameweekSelectionsData> getSelections(@PathVariable Long id, @PathVariable Long gwId,
+                                                                 HttpServletRequest request) {
         Gameweek gw = gameweekRepository.findById(gwId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Gameweek not found"));
         if (gw.getStatus() == GameweekStatus.IN_PROGRESS) {
-            return buildSelectionsData(id, gwId, gw);
+            return conditionalResponse(buildSelectionsData(id, gwId, gw), request, false);
         }
         String key = id + ":" + gwId;
         Cache cache = cacheManager.getCache(CacheConfig.GAMEWEEK_SELECTIONS_CACHE);
         if (cache != null) {
             GameweekSelectionsData cached = cache.get(key, GameweekSelectionsData.class);
             if (cached != null) {
-                return cached;
+                return conditionalResponse(cached, request,
+                        gw.getCompetition().getStatus() == CompetitionStatus.COMPLETED);
             }
         }
         GameweekSelectionsData data = buildSelectionsData(id, gwId, gw);
         if (cache != null) {
             cache.put(key, data);
         }
-        return data;
+        return conditionalResponse(data, request,
+                gw.getCompetition().getStatus() == CompetitionStatus.COMPLETED);
     }
 
     private boolean isGameweekRevealed(Gameweek gw) {
@@ -701,6 +721,7 @@ public class CompetitionController {
 
     @GetMapping("/{id}/survivor-table")
     public ResponseEntity<SurvivorTableResponse> getSurvivorTable(@PathVariable Long id, HttpServletRequest request) {
+        boolean archive = false;
         List<Gameweek> gameweeks = gameweekRepository.findByCompetitionIdOrderByWeekNumberAsc(id);
         boolean hasInProgress = gameweeks.stream().anyMatch(gw -> gw.getStatus() == GameweekStatus.IN_PROGRESS);
         if (!hasInProgress) {
@@ -709,10 +730,7 @@ public class CompetitionController {
             if (cache != null) {
                 CachedSurvivorTable cached = cache.get(key, CachedSurvivorTable.class);
                 if (cached != null) {
-                    if (etagMatches(request, cached.etag())) {
-                        return ResponseEntity.status(HttpStatus.NOT_MODIFIED).eTag(cached.etag()).build();
-                    }
-                    return ResponseEntity.ok().eTag(cached.etag()).body(cached.response());
+                    return conditionalResponse(cached.response(), request, archive);
                 }
             }
             SurvivorTableResponse response = buildSurvivorTable(id, gameweeks);
@@ -720,17 +738,11 @@ public class CompetitionController {
             if (cache != null) {
                 cache.put(key, new CachedSurvivorTable(response, etag));
             }
-            if (etagMatches(request, etag)) {
-                return ResponseEntity.status(HttpStatus.NOT_MODIFIED).eTag(etag).build();
-            }
-            return ResponseEntity.ok().eTag(etag).body(response);
+            return conditionalResponse(response, request, archive);
         }
         SurvivorTableResponse response = buildSurvivorTable(id, gameweeks);
         String etag = buildEtag(response);
-        if (etagMatches(request, etag)) {
-            return ResponseEntity.status(HttpStatus.NOT_MODIFIED).eTag(etag).build();
-        }
-        return ResponseEntity.ok().eTag(etag).body(response);
+        return conditionalResponse(response, request, archive);
     }
 
     private SurvivorTableResponse buildSurvivorTable(Long id, List<Gameweek> gameweeks) {
@@ -793,6 +805,26 @@ public class CompetitionController {
         }).toList();
 
         return new SurvivorTableResponse(gwMetas, rows);
+    }
+
+    private CacheControl responseCacheControl(boolean completedArchive) {
+        // Always revalidate so manual refreshes see administrative corrections.
+        // Completed archives still avoid automatic requests through client stale-time policy.
+        return CacheControl.noCache().cachePrivate();
+    }
+
+    private <T> ResponseEntity<T> conditionalResponse(T value, HttpServletRequest request, boolean completedArchive) {
+        String etag = buildEtag(value);
+        if (etagMatches(request, etag)) {
+            return ResponseEntity.status(HttpStatus.NOT_MODIFIED)
+                    .eTag(etag)
+                    .cacheControl(responseCacheControl(completedArchive))
+                    .build();
+        }
+        return ResponseEntity.ok()
+                .eTag(etag)
+                .cacheControl(responseCacheControl(completedArchive))
+                .body(value);
     }
 
     private String buildEtag(Object value) {
@@ -867,7 +899,8 @@ public class CompetitionController {
     public record PickStatDto(Long teamId, String teamName, String teamShortName, int pickCount, int totalPicks, double percentage) {}
 
     @GetMapping("/{compId}/gameweeks/{gwId}/pick-stats")
-    public List<PickStatDto> getPickStats(@PathVariable Long compId, @PathVariable Long gwId) {
+    public ResponseEntity<List<PickStatDto>> getPickStats(@PathVariable Long compId, @PathVariable Long gwId,
+                                                          HttpServletRequest request) {
         Gameweek gw = gameweekRepository.findById(gwId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Gameweek not found"));
         // Only reveal stats once the gameweek is locked (picks are finalised)
@@ -881,16 +914,18 @@ public class CompetitionController {
                 @SuppressWarnings("unchecked")
                 List<PickStatDto> cached = cache.get(key, List.class);
                 if (cached != null) {
-                    return cached;
+                    return conditionalResponse(cached, request,
+                            gw.getCompetition().getStatus() == CompetitionStatus.COMPLETED);
                 }
             }
             List<PickStatDto> computed = buildPickStats(compId, gwId);
             if (cache != null) {
                 cache.put(key, computed);
             }
-            return computed;
+            return conditionalResponse(computed, request,
+                    gw.getCompetition().getStatus() == CompetitionStatus.COMPLETED);
         }
-        return buildPickStats(compId, gwId);
+        return conditionalResponse(buildPickStats(compId, gwId), request, false);
     }
 
     private List<PickStatDto> buildPickStats(Long compId, Long gwId) {

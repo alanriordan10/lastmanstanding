@@ -906,6 +906,57 @@ public class AdminController {
         ));
     }
 
+    /**
+     * Correct provider data for the latest completed gameweek and recalculate outcomes.
+     */
+    @PostMapping("/competitions/{compId}/gameweeks/{gwId}/correct")
+    public ResponseEntity<SimulateResponse> correctGameweek(
+            @PathVariable Long compId,
+            @PathVariable Long gwId,
+            @RequestBody SimulateRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+
+        Gameweek gw = gameweekRepository.findById(gwId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Gameweek not found"));
+        if (!gw.getCompetition().getId().equals(compId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Gameweek does not belong to this competition");
+        }
+        if (request.fixtures() == null || request.fixtures().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Set at least one corrected fixture result");
+        }
+
+        List<Fixture> fixturesToSave = new ArrayList<>();
+        for (Map.Entry<Long, FixtureResultInput> entry : request.fixtures().entrySet()) {
+            Fixture fixture = fixtureRepository.findById(entry.getKey())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Fixture " + entry.getKey() + " not found"));
+            if (!fixture.getGameweek().getId().equals(gwId)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Fixture does not belong to the selected gameweek");
+            }
+            FixtureResultInput result = entry.getValue();
+            if (result.scoreHome() != null && result.scoreHome() < 0
+                    || result.scoreAway() != null && result.scoreAway() < 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Scores cannot be negative");
+            }
+            if (result.status() != null) fixture.setOverrideStatus(result.status());
+            if (result.scoreHome() != null) fixture.setOverrideScoreHome(result.scoreHome());
+            if (result.scoreAway() != null) fixture.setOverrideScoreAway(result.scoreAway());
+            fixturesToSave.add(fixture);
+        }
+        fixtureRepository.saveAll(fixturesToSave);
+
+        gameweekProcessingService.prepareGameweekCorrection(compId, gwId);
+        competitionCacheService.evictCompetition(compId);
+        gameweekProcessingService.processGameweekResultsAsync(gwId, false);
+        logAudit(userDetails, "Gameweek", gwId, "competitionId", String.valueOf(compId),
+                String.valueOf(compId), "CORRECT_RESULTS");
+
+        return ResponseEntity.accepted().body(new SimulateResponse(
+                gwId, "PROCESSING",
+                "Corrected scores saved. Participant outcomes are being recalculated.",
+                "ACTIVE", -1
+        ));
+    }
+
     // ── Get gameweeks for a competition (for simulate UI) ────────────────
 
     @GetMapping("/competitions/{compId}/gameweeks")
