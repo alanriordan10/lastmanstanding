@@ -45,6 +45,10 @@ public interface FixtureRepository extends JpaRepository<Fixture, Long> {
     void deleteByGameweekId(@Param("gameweekId") Long gameweekId);
 
     @Modifying
+    @Query("DELETE FROM Fixture f WHERE f.gameweek.id IN :gameweekIds")
+    void deleteByGameweekIds(@Param("gameweekIds") List<Long> gameweekIds);
+
+    @Modifying
     @Query("DELETE FROM Fixture f WHERE f.gameweek.id IN (SELECT g.id FROM Gameweek g WHERE g.competition.id = :competitionId)")
     void deleteByCompetitionId(@Param("competitionId") Long competitionId);
 

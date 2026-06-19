@@ -33,6 +33,11 @@ class GameweekProcessingServiceTest {
     @Mock private CompetitionParticipantRepository participantRepository;
     @Mock private TeamRepository teamRepository;
     @Mock private CompetitionRepository competitionRepository;
+    @Mock private PaymentRepository paymentRepository;
+    @Mock private FixtureSyncService fixtureSyncService;
+    @Mock private GameweekEmailService gameweekEmailService;
+    @Mock private WebPushService webPushService;
+    @Mock private CompetitionCacheService competitionCacheService;
 
     @InjectMocks
     private GameweekProcessingService service;
@@ -72,6 +77,21 @@ class GameweekProcessingServiceTest {
         cp2.setId(101L);
         cp3 = new CompetitionParticipant(competition, user3, ParticipantStatus.ACTIVE);
         cp3.setId(102L);
+    }
+
+
+    void cleanupUnusedFutureGameweeks_removesOnlyUpcomingDependencies() {
+        when(gameweekRepository.findIdsByCompetitionIdAndStatus(1L, GameweekStatus.UPCOMING))
+                .thenReturn(List.of(20L, 21L));
+
+        int removed = service.cleanupUnusedFutureGameweeks(1L);
+
+        assertThat(removed).isEqualTo(2);
+        verify(pickResultRepository).deleteByGameweekIds(List.of(20L, 21L));
+        verify(pickRepository).deleteByGameweekIds(List.of(20L, 21L));
+        verify(fixtureRepository).deleteByGameweekIds(List.of(20L, 21L));
+        verify(gameweekRepository).deleteByIds(List.of(20L, 21L));
+        verify(competitionCacheService).evictCompetition(1L);
     }
 
     // ═══════════════════════════════════════════════════════════════════

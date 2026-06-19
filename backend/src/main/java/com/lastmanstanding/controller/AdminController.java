@@ -634,6 +634,7 @@ public class AdminController {
         // Mark competition as completed
         comp.setStatus(CompetitionStatus.COMPLETED);
         competitionRepository.save(comp);
+        gameweekProcessingService.cleanupUnusedFutureGameweeks(compId);
 
         log.info("Admin manually declared {} as winner of competition {}", winner.getUser().getUsername(), compId);
         logAudit(userDetails, "Competition", compId, "winnerParticipantId", null, String.valueOf(participantId), "DECLARE_WINNER");

@@ -518,16 +518,16 @@ public class GameweekProcessingService {
         gw.setStatus(GameweekStatus.COMPLETED);
         gameweekRepository.save(gw);
 
-        // ── Auto-buffer: ensure there are always enough upcoming gameweeks ──────────
-        // After a gameweek completes, sync the next batch of fixtures from the provider
-        // if fewer than MIN_UPCOMING_BUFFER weeks are still UPCOMING.
-        ensureUpcomingBuffer(comp);
-
-        // Check if competition should be completed (1 or fewer active participants)
+        // Complete before buffering. A completed competition must not fetch or retain
+        // gameweeks that can never be played.
         if (!skipAutoComplete) {
             checkCompetitionCompletion(comp);
         } else {
             log.info("Skipped auto-completion check for competition {} (testing mode)", comp.getId());
+        }
+
+        if (comp.getStatus() != CompetitionStatus.COMPLETED) {
+            ensureUpcomingBuffer(comp);
         }
 
         // Result notifications are external side effects. Never let them roll back result processing,
@@ -586,7 +586,30 @@ public class GameweekProcessingService {
             } else {
                 log.info("Competition {} completed with no remaining participants", comp.getId());
             }
+
+            cleanupUnusedFutureGameweeks(comp.getId());
         }
+    }
+
+    /**
+     * Remove gameweeks that can never be played after competition completion.
+     * Completed history remains available; only UPCOMING weeks and their dependent
+     * reserved picks, results and fixtures are deleted.
+     */
+    @Transactional
+    public int cleanupUnusedFutureGameweeks(Long competitionId) {
+        List<Long> gameweekIds = gameweekRepository.findIdsByCompetitionIdAndStatus(
+                competitionId, GameweekStatus.UPCOMING);
+        if (gameweekIds.isEmpty()) return 0;
+
+        pickResultRepository.deleteByGameweekIds(gameweekIds);
+        pickRepository.deleteByGameweekIds(gameweekIds);
+        fixtureRepository.deleteByGameweekIds(gameweekIds);
+        gameweekRepository.deleteByIds(gameweekIds);
+        competitionCacheService.evictCompetition(competitionId);
+        log.info("Removed {} unused future gameweek(s) from completed competition {}",
+                gameweekIds.size(), competitionId);
+        return gameweekIds.size();
     }
 
     /**

@@ -8,6 +8,7 @@ import com.lastmanstanding.service.CompetitionService;
 import com.lastmanstanding.service.CompetitionCacheService;
 import com.lastmanstanding.service.FixtureSyncService;
 import com.lastmanstanding.service.GameweekEmailService;
+import com.lastmanstanding.service.GameweekProcessingService;
 import com.lastmanstanding.service.PaymentService;
 import com.lastmanstanding.service.WebPushService;
 import jakarta.validation.Valid;
@@ -48,6 +49,7 @@ public class ClubAdminController {
     private final AuditLogRepository auditLogRepository;
     private final WebPushService webPushService;
     private final GameweekEmailService gameweekEmailService;
+    private final GameweekProcessingService gameweekProcessingService;
     private final CompetitionCacheService competitionCacheService;
 
     public ClubAdminController(ClubRepository clubRepository,
@@ -62,6 +64,7 @@ public class ClubAdminController {
                                AuditLogRepository auditLogRepository,
                                WebPushService webPushService,
                                GameweekEmailService gameweekEmailService,
+                               GameweekProcessingService gameweekProcessingService,
                                CompetitionCacheService competitionCacheService) {
         this.clubRepository = clubRepository;
         this.competitionRepository = competitionRepository;
@@ -75,6 +78,7 @@ public class ClubAdminController {
         this.auditLogRepository = auditLogRepository;
         this.webPushService = webPushService;
         this.gameweekEmailService = gameweekEmailService;
+        this.gameweekProcessingService = gameweekProcessingService;
         this.competitionCacheService = competitionCacheService;
     }
 
@@ -710,6 +714,7 @@ public class ClubAdminController {
         // Mark competition as completed
         comp.setStatus(CompetitionStatus.COMPLETED);
         competitionRepository.save(comp);
+        gameweekProcessingService.cleanupUnusedFutureGameweeks(compId);
         competitionCacheService.evictCompetition(compId);
 
         log.info("Club admin manually declared {} as winner of competition {}",

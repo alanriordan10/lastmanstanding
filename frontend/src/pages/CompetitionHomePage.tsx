@@ -468,7 +468,7 @@ export default function CompetitionHomePage() {
 
   // Compute next lock date from fixtures (needed for useCountdown hook which must be before early returns)
   const nextLockDateForHook = useMemo(() => {
-    if (!fixtures || fixtures.length === 0) return null;
+    if (comp?.status === 'COMPLETED' || !fixtures || fixtures.length === 0) return null;
     const sortedByWeek = [...new Set(fixtures.map(f => f.weekNumber))].sort((a, b) => a - b);
     for (const wn of sortedByWeek) {
       const f = fixtures.find(fx => fx.weekNumber === wn);
@@ -479,7 +479,7 @@ export default function CompetitionHomePage() {
       }
     }
     return null;
-  }, [fixtures]);
+  }, [comp?.status, fixtures]);
 
   // Hook must be called unconditionally — before any early returns
   const countdown = useCountdown(nextLockDateForHook);
@@ -2166,7 +2166,7 @@ export default function CompetitionHomePage() {
               )}
             />
           )}
-          {isParticipant && !isEliminated && !isWinner && myStatus.picks.length === 0 && (
+          {comp.status !== 'COMPLETED' && isParticipant && !isEliminated && !isWinner && myStatus.picks.length === 0 && (
             <section className="card p-4 sm:p-5 hidden lg:block">
               <h2 className="text-lg font-semibold text-gray-100">Your first pick</h2>
               <p className="mt-2 text-sm text-gray-300">

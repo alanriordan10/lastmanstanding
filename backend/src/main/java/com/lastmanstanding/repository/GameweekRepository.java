@@ -16,6 +16,10 @@ public interface GameweekRepository extends JpaRepository<Gameweek, Long> {
     @Query("SELECT g.id FROM Gameweek g WHERE g.competition.id = :competitionId ORDER BY g.weekNumber ASC")
     List<Long> findIdsByCompetitionIdOrderByWeekNumberAsc(@Param("competitionId") Long competitionId);
 
+    @Query("SELECT g.id FROM Gameweek g WHERE g.competition.id = :competitionId AND g.status = :status")
+    List<Long> findIdsByCompetitionIdAndStatus(@Param("competitionId") Long competitionId,
+                                                @Param("status") com.lastmanstanding.entity.GameweekStatus status);
+
     Optional<Gameweek> findByCompetitionIdAndWeekNumber(Long competitionId, Integer weekNumber);
 
     @Query("SELECT g FROM Gameweek g WHERE g.competition.id = :competitionId AND g.status <> com.lastmanstanding.entity.GameweekStatus.COMPLETED ORDER BY g.weekNumber ASC LIMIT 1")
@@ -27,6 +31,10 @@ public interface GameweekRepository extends JpaRepository<Gameweek, Long> {
     @org.springframework.data.jpa.repository.Modifying
     @Query("DELETE FROM Gameweek g WHERE g.competition.id = :competitionId")
     void deleteByCompetitionId(@Param("competitionId") Long competitionId);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("DELETE FROM Gameweek g WHERE g.id IN :gameweekIds")
+    void deleteByIds(@Param("gameweekIds") List<Long> gameweekIds);
 
     /** Returns [competitionId, startsAt] for the first non-completed gameweek per competition — avoids N+1 */
     @Query("SELECT g.competition.id, MIN(g.startsAt) FROM Gameweek g WHERE g.competition.id IN :competitionIds AND g.status IN (com.lastmanstanding.entity.GameweekStatus.UPCOMING, com.lastmanstanding.entity.GameweekStatus.LOCKED, com.lastmanstanding.entity.GameweekStatus.IN_PROGRESS) GROUP BY g.competition.id")
