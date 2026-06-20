@@ -42,6 +42,9 @@ export default function ClubAdminPage() {
   const [editingComp, setEditingComp] = useState<Competition | null>(null);
   const [managingComp, setManagingComp] = useState<Competition | null>(null);
   const [deletingComp, setDeletingComp] = useState<Competition | null>(null);
+  const [announcingComp, setAnnouncingComp] = useState<Competition | null>(null);
+  const [announcementTitle, setAnnouncementTitle] = useState('');
+  const [announcementMessage, setAnnouncementMessage] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [entryFee, setEntryFee] = useState('0');
@@ -93,6 +96,21 @@ export default function ClubAdminPage() {
     queryFn: () => api.get('/club-admin/my-club/stripe/connect/status').then((r) => r.data),
     enabled: !!myClub,
     staleTime: 0,
+  });
+
+  const announcementMutation = useMutation({
+    mutationFn: () => api.post(`/club-admin/competitions/${announcingComp?.id}/announcements`, {
+      title: announcementTitle.trim(),
+      message: announcementMessage.trim(),
+    }),
+    onSuccess: () => {
+      toast.success(`Announcement sent to ${announcingComp?.name ?? 'competition'} participants`);
+      setAnnouncingComp(null);
+      setAnnouncementTitle('');
+      setAnnouncementMessage('');
+      queryClient.invalidateQueries({ queryKey: ['announcements'] });
+    },
+    onError: (error: any) => toast.error(error.response?.data?.message ?? 'Could not send announcement'),
   });
 
   const resetCompetitionForm = () => {
@@ -1271,6 +1289,16 @@ export default function ClubAdminPage() {
                             {managingComp?.id === comp.id ? 'Close ▲' : 'Participants ▼'}
                           </button>
                           <button
+                            onClick={() => {
+                              setAnnouncingComp(comp);
+                              setAnnouncementTitle('');
+                              setAnnouncementMessage('');
+                            }}
+                            className="text-xs px-3 py-1.5 rounded-lg border border-amber-400/20 bg-amber-500/10 text-amber-200 transition hover:bg-amber-500/20"
+                          >
+                            Announce
+                          </button>
+                          <button
                             onClick={() => setDeletingComp(comp)}
                             disabled={deleteMutation.isPending}
                             className="text-xs px-3 py-1.5 rounded-lg bg-red-600/20 hover:bg-red-600/40 text-red-400 transition"
@@ -1315,6 +1343,39 @@ export default function ClubAdminPage() {
           </div>
         );
       })()}
+
+      {announcingComp && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-3 backdrop-blur-sm sm:items-center">
+          <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-surface-900 p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-amber-300">Competition announcement</p>
+                <h2 className="mt-1 text-xl font-black text-white">Message {announcingComp.name}</h2>
+                <p className="mt-1 text-sm text-gray-400">Saved in participants’ inboxes and sent by push when enabled.</p>
+              </div>
+              <button type="button" onClick={() => setAnnouncingComp(null)} className="rounded-full border border-white/10 px-3 py-1.5 text-gray-300">×</button>
+            </div>
+            <div className="mt-5 space-y-4">
+              <label className="block">
+                <span className="text-xs font-semibold text-gray-300">Title</span>
+                <input value={announcementTitle} onChange={(event) => setAnnouncementTitle(event.target.value)} maxLength={120} placeholder="Fixture update" className="input mt-1 w-full" />
+                <span className="mt-1 block text-right text-[11px] text-gray-500">{announcementTitle.length}/120</span>
+              </label>
+              <label className="block">
+                <span className="text-xs font-semibold text-gray-300">Message</span>
+                <textarea value={announcementMessage} onChange={(event) => setAnnouncementMessage(event.target.value)} maxLength={2000} rows={5} placeholder="Tell participants what they need to know…" className="input mt-1 w-full resize-none" />
+                <span className="mt-1 block text-right text-[11px] text-gray-500">{announcementMessage.length}/2000</span>
+              </label>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setAnnouncingComp(null)} className="btn-secondary flex-1">Cancel</button>
+                <button type="button" onClick={() => announcementMutation.mutate()} disabled={announcementMutation.isPending || !announcementTitle.trim() || !announcementMessage.trim()} className="btn-primary flex-1 disabled:opacity-40">
+                  {announcementMutation.isPending ? 'Sending…' : 'Send announcement'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Competition Dialog */}
       <ConfirmDialog

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lastmanstanding.entity.Competition;
 import com.lastmanstanding.entity.CompetitionParticipant;
+import com.lastmanstanding.entity.CompetitionAnnouncement;
 import com.lastmanstanding.entity.Gameweek;
 import com.lastmanstanding.entity.MobilePushToken;
 import com.lastmanstanding.entity.ParticipantStatus;
@@ -25,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -189,6 +191,31 @@ public class WebPushService {
             }
 
             sendToMobileTokens(cp.getUser().getId(), title, body, url, tag);
+        }
+    }
+
+    @Async("notificationExecutor")
+    @Transactional
+    public void sendCompetitionAnnouncement(Competition comp, CompetitionAnnouncement announcement, List<User> recipients) {
+        String title = comp.getName() + ": " + announcement.getTitle();
+        String body = announcement.getMessage();
+        String url = frontendUrl + "/competitions/" + comp.getId();
+        String tag = "competition-announcement-" + announcement.getId();
+
+        for (User user : recipients) {
+            if (!user.isNotificationCompetitionAnnouncements()) continue;
+            if (isConfigured()) {
+                List<PushSubscription> subscriptions = pushSubscriptionRepository.findByUserId(user.getId());
+                if (!subscriptions.isEmpty()) {
+                    sendToSubscriptions(subscriptions, Map.of(
+                            "title", title,
+                            "body", body,
+                            "url", url,
+                            "tag", tag
+                    ));
+                }
+            }
+            sendToMobileTokens(user.getId(), title, body, url, tag);
         }
     }
 

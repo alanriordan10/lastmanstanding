@@ -6,6 +6,7 @@ import com.lastmanstanding.repository.*;
 import com.lastmanstanding.security.UserDetailsImpl;
 import com.lastmanstanding.service.CompetitionService;
 import com.lastmanstanding.service.CompetitionCacheService;
+import com.lastmanstanding.service.CompetitionAnnouncementService;
 import com.lastmanstanding.service.FixtureSyncService;
 import com.lastmanstanding.service.GameweekEmailService;
 import com.lastmanstanding.service.GameweekProcessingService;
@@ -51,6 +52,7 @@ public class ClubAdminController {
     private final GameweekEmailService gameweekEmailService;
     private final GameweekProcessingService gameweekProcessingService;
     private final CompetitionCacheService competitionCacheService;
+    private final CompetitionAnnouncementService competitionAnnouncementService;
 
     public ClubAdminController(ClubRepository clubRepository,
                                CompetitionRepository competitionRepository,
@@ -65,7 +67,8 @@ public class ClubAdminController {
                                WebPushService webPushService,
                                GameweekEmailService gameweekEmailService,
                                GameweekProcessingService gameweekProcessingService,
-                               CompetitionCacheService competitionCacheService) {
+                               CompetitionCacheService competitionCacheService,
+                               CompetitionAnnouncementService competitionAnnouncementService) {
         this.clubRepository = clubRepository;
         this.competitionRepository = competitionRepository;
         this.participantRepository = participantRepository;
@@ -80,6 +83,7 @@ public class ClubAdminController {
         this.gameweekEmailService = gameweekEmailService;
         this.gameweekProcessingService = gameweekProcessingService;
         this.competitionCacheService = competitionCacheService;
+        this.competitionAnnouncementService = competitionAnnouncementService;
     }
 
     // ── My Club ──────────────────────────────────────────────────────────
@@ -809,6 +813,31 @@ public class ClubAdminController {
                 }
                 logAudit(userDetails, "CompetitionParticipant", cp.getId(), "userId", null, String.valueOf(user.getId()), "ADD_PARTICIPANT");
         return ResponseEntity.status(HttpStatus.CREATED).body(ParticipantResponse.from(cp));
+    }
+
+    public record AnnouncementRequest(String title, String message) {}
+
+    @PostMapping("/competitions/{competitionId}/announcements")
+    public ResponseEntity<CompetitionAnnouncementService.AnnouncementResponse> createAnnouncement(
+            @PathVariable Long competitionId,
+            @RequestBody AnnouncementRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        Club club = resolveClub(userDetails);
+        assertOwnsCompetition(competitionId, club);
+        CompetitionAnnouncementService.AnnouncementResponse response = competitionAnnouncementService.create(
+                competitionId, userDetails.getId(), request.title(), request.message());
+        logAudit(userDetails, "CompetitionAnnouncement", response.id(), "competitionId", null,
+                String.valueOf(competitionId), "SEND_ANNOUNCEMENT");
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @GetMapping("/competitions/{competitionId}/announcements")
+    public List<CompetitionAnnouncementService.AnnouncementResponse> getAnnouncements(
+            @PathVariable Long competitionId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        Club club = resolveClub(userDetails);
+        assertOwnsCompetition(competitionId, club);
+        return competitionAnnouncementService.getForCompetition(competitionId);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────

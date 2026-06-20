@@ -6,6 +6,7 @@ import com.lastmanstanding.repository.MobilePushTokenRepository;
 import com.lastmanstanding.repository.UserRepository;
 import com.lastmanstanding.security.UserDetailsImpl;
 import com.lastmanstanding.service.WebPushService;
+import com.lastmanstanding.service.CompetitionAnnouncementService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -14,6 +15,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -26,13 +30,16 @@ public class NotificationController {
     private final WebPushService webPushService;
     private final MobilePushTokenRepository mobilePushTokenRepository;
     private final UserRepository userRepository;
+    private final CompetitionAnnouncementService competitionAnnouncementService;
 
     public NotificationController(WebPushService webPushService,
                                   MobilePushTokenRepository mobilePushTokenRepository,
-                                  UserRepository userRepository) {
+                                  UserRepository userRepository,
+                                  CompetitionAnnouncementService competitionAnnouncementService) {
         this.webPushService = webPushService;
         this.mobilePushTokenRepository = mobilePushTokenRepository;
         this.userRepository = userRepository;
+        this.competitionAnnouncementService = competitionAnnouncementService;
     }
 
     public record SubscriptionKeys(
@@ -51,6 +58,20 @@ public class NotificationController {
     ) {}
 
     public record MobileUnregisterRequest(String token) {}
+
+    @GetMapping("/announcements")
+    public java.util.List<CompetitionAnnouncementService.AnnouncementResponse> announcements(
+            @AuthenticationPrincipal UserDetailsImpl principal) {
+        return competitionAnnouncementService.getForUser(principal.getId());
+    }
+
+    @PutMapping("/announcements/{announcementId}/read")
+    public ResponseEntity<Void> markAnnouncementRead(
+            @PathVariable Long announcementId,
+            @AuthenticationPrincipal UserDetailsImpl principal) {
+        competitionAnnouncementService.markRead(announcementId, principal.getId());
+        return ResponseEntity.noContent().build();
+    }
 
     @PostMapping("/subscribe")
     public ResponseEntity<Void> subscribe(

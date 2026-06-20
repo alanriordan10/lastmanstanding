@@ -106,6 +106,18 @@ function getMyCompetitionKey(mc: MyCompetition): string {
   return `comp-${mc.competition.id}-joined-${mc.joinedAt}`;
 }
 
+type CompetitionAnnouncement = {
+  id: number;
+  competitionId: number;
+  competitionName: string;
+  clubName?: string | null;
+  title: string;
+  message: string;
+  createdByUsername: string;
+  createdAt: string | number[];
+  read: boolean;
+};
+
 export default function CompetitionsPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -206,6 +218,26 @@ export default function CompetitionsPage() {
       return rows?.some((row) => row.competition.status === 'ACTIVE') ? 300_000 : false;
     },
   });
+
+  const { data: announcements = [] } = useQuery<CompetitionAnnouncement[]>({
+    queryKey: ['announcements'],
+    queryFn: () => api.get('/notifications/announcements').then((response) => Array.isArray(response.data) ? response.data : []),
+    enabled: !!user,
+    staleTime: 60_000,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+  });
+
+  const markAnnouncementRead = useMutation({
+    mutationFn: (announcementId: number) => api.put(`/notifications/announcements/${announcementId}/read`),
+    onSuccess: (_, announcementId) => {
+      queryClient.setQueryData<CompetitionAnnouncement[]>(['announcements'], (current = []) =>
+        current.map((item) => item.id === announcementId ? { ...item, read: true } : item));
+    },
+    onError: () => toast.error('Could not dismiss announcement'),
+  });
+
+  const unreadAnnouncements = announcements.filter((announcement) => !announcement.read);
 
   const { data: joinedIds } = useQuery<number[]>({
     queryKey: ['competitions', 'my'],
@@ -538,6 +570,33 @@ export default function CompetitionsPage() {
           </div>
         </div>
       </div>
+
+      {unreadAnnouncements.length > 0 && (
+        <section className="rounded-2xl border border-amber-400/20 bg-[linear-gradient(135deg,rgba(120,53,15,0.18),rgba(15,23,42,0.88))] p-4 shadow-[0_20px_45px_rgba(2,6,23,0.32)]">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300">From your organisers</p>
+              <h2 className="mt-1 text-lg font-black text-white">Announcements</h2>
+            </div>
+            <span className="rounded-full border border-amber-300/20 bg-amber-400/10 px-2.5 py-1 text-xs font-bold text-amber-200">{unreadAnnouncements.length} new</span>
+          </div>
+          <div className="mt-3 space-y-2">
+            {unreadAnnouncements.slice(0, 5).map((announcement) => (
+              <article key={announcement.id} className="rounded-xl border border-white/10 bg-black/15 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <Link to={`/competitions/${announcement.competitionId}`} className="min-w-0 flex-1 text-left">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-200">{announcement.competitionName}</p>
+                    <h3 className="mt-1 font-bold text-white">{announcement.title}</h3>
+                    <p className="mt-1 whitespace-pre-wrap text-sm leading-5 text-gray-300">{announcement.message}</p>
+                    <p className="mt-2 text-[11px] text-gray-500">{announcement.createdByUsername} · {formatDateSafe(announcement.createdAt, 'MMM d, HH:mm')}</p>
+                  </Link>
+                  <button type="button" onClick={() => markAnnouncementRead.mutate(announcement.id)} disabled={markAnnouncementRead.isPending} className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-gray-300 hover:bg-white/5">Dismiss</button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ── Navigation + controls ── */}
       <div className="rounded-2xl border border-white/10 bg-[linear-gradient(135deg,rgba(30,41,59,0.72),rgba(15,23,42,0.8))] p-3 shadow-[0_24px_55px_rgba(2,6,23,0.38)] sm:p-4">
