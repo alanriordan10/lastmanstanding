@@ -2278,6 +2278,16 @@ function SimulateTab() {
 
   const selectedGameweek = gameweeks?.find((gw) => gw.id === Number(selectedGwId));
   const selectedCompetition = competitions?.find((c) => c.id === Number(selectedCompId));
+  const isCorrectionMode = selectedGameweek?.status === 'COMPLETED';
+
+  const loadExistingResults = (gameweek?: GameweekWithFixtures) => {
+    if (!gameweek || gameweek.status !== 'COMPLETED') return {};
+    return Object.fromEntries(gameweek.fixtures.map((fixture) => [fixture.id, {
+      status: fixture.status || 'FINISHED',
+      scoreHome: fixture.scoreHome == null ? '' : String(fixture.scoreHome),
+      scoreAway: fixture.scoreAway == null ? '' : String(fixture.scoreAway),
+    }]));
+  };
 
   const simulateMutation = useMutation({
     mutationFn: () => {
@@ -2291,14 +2301,15 @@ function SimulateTab() {
           };
         }
       });
-      return api.post(`/admin/competitions/${selectedCompId}/gameweeks/${selectedGwId}/simulate`, { 
+      const endpoint = isCorrectionMode ? 'correct' : 'simulate';
+      return api.post(`/admin/competitions/${selectedCompId}/gameweeks/${selectedGwId}/${endpoint}`, {
         fixtures: payload,
         skipAutoComplete: skipAutoComplete
       });
     },
     onMutate: () => {
       window.dispatchEvent(new CustomEvent('admin-status', {
-        detail: { tone: 'info', message: 'Processing gameweek simulation...' },
+        detail: { tone: 'info', message: isCorrectionMode ? 'Reprocessing corrected gameweek result...' : 'Processing gameweek simulation...' },
       }));
     },
     onSuccess: (response) => {
@@ -2315,7 +2326,7 @@ function SimulateTab() {
               toast.success(`Gameweek ${data.gameweekId} processing complete! Status: ${gw.status}` +
                 (gw.activeParticipants !== undefined ? ` — ${gw.activeParticipants} active remaining.` : ''), { duration: 5000 });
               window.dispatchEvent(new CustomEvent('admin-status', {
-                detail: { tone: 'ok', message: 'Processing complete' },
+                detail: { tone: 'ok', message: isCorrectionMode ? 'Correction complete' : 'Processing complete' },
               }));
               queryClient.invalidateQueries({ queryKey: ['admin', 'gameweeks', selectedCompId] });
               queryClient.invalidateQueries({ queryKey: ['admin', 'participants'] });
@@ -2328,7 +2339,9 @@ function SimulateTab() {
         // Safety — stop polling after 2 minutes
         setTimeout(() => clearInterval(poll), 120_000);
       } else {
-        let message = `Gameweek ${data.gameweekId} processed! Status: ${data.newStatus}.`;
+        let message = isCorrectionMode
+          ? `Gameweek ${selectedGameweek?.weekNumber ?? data.gameweekId} corrected and recalculated.`
+          : `Gameweek ${data.gameweekId} processed! Status: ${data.newStatus}.`;
         if (data.competitionStatus) message += ` Competition: ${data.competitionStatus}.`;
         if (data.activeParticipants !== undefined && data.activeParticipants >= 0) {
           message += ` ${data.activeParticipants} active participant${data.activeParticipants !== 1 ? 's' : ''} remaining.`;
@@ -2346,9 +2359,9 @@ function SimulateTab() {
     },
     onError: (err: any) => {
       window.dispatchEvent(new CustomEvent('admin-status', {
-        detail: { tone: 'error', message: 'Simulation failed' },
+        detail: { tone: 'error', message: isCorrectionMode ? 'Correction failed' : 'Simulation failed' },
       }));
-      toast.error(err.response?.data?.message || 'Simulation failed');
+      toast.error(err.response?.data?.message || (isCorrectionMode ? 'Correction failed' : 'Simulation failed'));
     },
   });
 
@@ -2418,7 +2431,9 @@ function SimulateTab() {
     selectedGameweek.fixtures.forEach(randomiseFixture);
   };
 
-  const handleClearAll = () => setFixtureResults({});
+  const handleClearAll = () => setFixtureResults(
+    isCorrectionMode ? loadExistingResults(selectedGameweek) : {},
+  );
 
   // Randomise all then immediately submit
   const bulkMutation = useMutation({
@@ -2441,7 +2456,7 @@ function SimulateTab() {
     },
     onMutate: () => {
       window.dispatchEvent(new CustomEvent('admin-status', {
-        detail: { tone: 'info', message: 'Processing gameweek simulation...' },
+        detail: { tone: 'info', message: isCorrectionMode ? 'Reprocessing corrected gameweek result...' : 'Processing gameweek simulation...' },
       }));
     },
     onSuccess: (response) => {
@@ -2481,8 +2496,8 @@ function SimulateTab() {
     <div className="space-y-6">
       <SectionIntro
         eyebrow="Scenario testing"
-        title="Simulate Gameweek Results"
-        description="Stress-test eliminations, byes, and downstream status changes before real match results arrive."
+        title="Manage Gameweek Results"
+        description="Simulate unresolved rounds or correct provider scores for the latest completed gameweek."
       />
 
       <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-xs text-gray-300">
@@ -2538,7 +2553,8 @@ function SimulateTab() {
               value={selectedGwId}
               onChange={(next) => {
                 setSelectedGwId(next);
-                setFixtureResults({});
+                const nextGameweek = gameweeks?.find((gw) => gw.id === Number(next));
+                setFixtureResults(loadExistingResults(nextGameweek));
               }}
               options={[
                 { value: '', label: 'Choose a gameweek…' },
@@ -2557,30 +2573,34 @@ function SimulateTab() {
         <div className="card space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h3 className="font-semibold text-gray-200">
-              3. Set Fixture Results for GW{selectedGameweek.weekNumber}
+              3. {isCorrectionMode ? 'Correct' : 'Set'} Fixture Results for GW{selectedGameweek.weekNumber}
             </h3>
             <div className="flex flex-wrap items-center gap-2">
-              <button
-                onClick={handleRandomiseAll}
-                className="btn-secondary w-full sm:w-auto text-xs"
-                title="Randomly generate results for all fixtures"
-              >
-                🎲 Randomise All
-              </button>
-              <button
-                onClick={() => bulkMutation.mutate()}
-                disabled={bulkMutation.isPending || !selectedGwId}
-                className="btn-primary w-full sm:w-auto text-xs disabled:opacity-40"
-                title="Randomise all fixtures and immediately process results"
-              >
-                {bulkMutation.isPending ? '⏳ Processing…' : '⚡ Randomise & Process All'}
-              </button>
+              {!isCorrectionMode && (
+                <>
+                  <button
+                    onClick={handleRandomiseAll}
+                    className="btn-secondary w-full sm:w-auto text-xs"
+                    title="Randomly generate results for all fixtures"
+                  >
+                    🎲 Randomise All
+                  </button>
+                  <button
+                    onClick={() => bulkMutation.mutate()}
+                    disabled={bulkMutation.isPending || !selectedGwId}
+                    className="btn-primary w-full sm:w-auto text-xs disabled:opacity-40"
+                    title="Randomise all fixtures and immediately process results"
+                  >
+                    {bulkMutation.isPending ? '⏳ Processing…' : '⚡ Randomise & Process All'}
+                  </button>
+                </>
+              )}
               <button
                 onClick={handleClearAll}
                 className="text-xs px-3 py-1.5 rounded border border-white/10 text-gray-300 hover:bg-white/[0.04] transition w-full sm:w-auto"
                 title="Clear all results"
               >
-                ✕ Clear All
+                {isCorrectionMode ? 'Reset Changes' : '✕ Clear All'}
               </button>
               <span className={`text-xs px-2 py-1 rounded ${
                 selectedGameweek.status === 'COMPLETED' ? 'bg-green-600/20 text-green-400' :
@@ -2592,6 +2612,13 @@ function SimulateTab() {
               </span>
             </div>
           </div>
+
+          {isCorrectionMode && (
+            <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 text-sm text-yellow-100">
+              Correcting this completed gameweek recalculates its picks, eliminations, winner and lifeline usage.
+              It is allowed only while no later gameweek has started.
+            </div>
+          )}
 
           {selectedGameweek.fixtures.length === 0 ? (
             <p className="text-gray-400 text-sm">No fixtures in this gameweek.</p>
@@ -2713,7 +2740,7 @@ function SimulateTab() {
           {selectedGameweek.fixtures.length > 0 && (
             <div className="pt-4 border-t border-gray-700 space-y-4">
               {/* Warning about auto-completion */}
-              {selectedCompetition && selectedCompetition.participantCount > 1 && (
+              {!isCorrectionMode && selectedCompetition && selectedCompetition.participantCount > 1 && (
                 <div className="bg-yellow-600/10 border border-yellow-600/30 rounded-lg p-3">
                   <div className="flex items-start gap-2">
                     <span className="text-yellow-400 text-lg">⚠️</span>
@@ -2734,22 +2761,24 @@ function SimulateTab() {
                 </div>
               )}
 
-              {/* Skip auto-complete checkbox for testing */}
-              <label className="flex items-start gap-3 text-sm text-gray-300 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={skipAutoComplete}
-                  onChange={(e) => setSkipAutoComplete(e.target.checked)}
-                  className="mt-0.5 rounded border-gray-600 text-brand-500 focus:ring-brand-500 focus:ring-offset-surface-800"
-                />
-                <div>
-                  <span className="font-medium">Skip auto-complete (for testing multiple gameweeks)</span>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    When checked, the competition won't auto-complete even if only 1 participant remains. 
-                    Use this to test multiple gameweeks in sequence.
-                  </p>
-                </div>
-              </label>
+              {/* Skip auto-complete is only meaningful for simulated results. */}
+              {!isCorrectionMode && (
+                <label className="flex items-start gap-3 text-sm text-gray-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={skipAutoComplete}
+                    onChange={(e) => setSkipAutoComplete(e.target.checked)}
+                    className="mt-0.5 rounded border-gray-600 text-brand-500 focus:ring-brand-500 focus:ring-offset-surface-800"
+                  />
+                  <div>
+                    <span className="font-medium">Skip auto-complete (for testing multiple gameweeks)</span>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      When checked, the competition won't auto-complete even if only 1 participant remains.
+                      Use this to test multiple gameweeks in sequence.
+                    </p>
+                  </div>
+                </label>
+              )}
 
               <button
                 onClick={() => simulateMutation.mutate()}
@@ -2762,7 +2791,7 @@ function SimulateTab() {
                     Processing…
                   </span>
                 ) : (
-                  `Process Results & Eliminate Participants`
+                  isCorrectionMode ? `Save Correction & Reprocess Gameweek` : `Process Results & Eliminate Participants`
                 )}
               </button>
 

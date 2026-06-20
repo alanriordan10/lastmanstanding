@@ -45,6 +45,7 @@ export default function GameweekResultsPage() {
   const { data: comp } = useQuery<Competition>({
     queryKey: ['competition', compId],
     queryFn: () => api.get(`/competitions/${compId}`).then((r) => r.data),
+    staleTime: (query) => (query.state.data as Competition | undefined)?.status === 'COMPLETED' ? Infinity : 30_000,
   });
 
   const { data: selectionsData, isLoading: selectionsLoading, error: selectionsError } = useQuery<GameweekSelectionsData>({
@@ -56,6 +57,7 @@ export default function GameweekResultsPage() {
       }
       return r.data;
     }),
+    staleTime: comp?.status === 'COMPLETED' ? Infinity : 30_000,
   });
 
   const { data: fixtures } = useQuery<Fixture[]>({
@@ -63,6 +65,7 @@ export default function GameweekResultsPage() {
     queryFn: () => api.get(`/competitions/${compId}/gameweeks/${gameweekId}/fixtures`).then((r) =>
       Array.isArray(r.data) ? r.data : []
     ),
+    staleTime: comp?.status === 'COMPLETED' ? Infinity : 30_000,
   });
 
   // Reset to page 1 when filters change (must be declared before any early returns)

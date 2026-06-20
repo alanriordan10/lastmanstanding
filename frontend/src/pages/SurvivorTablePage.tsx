@@ -42,14 +42,15 @@ export default function SurvivorTablePage() {
   const { data: comp } = useQuery<Competition>({
     queryKey: ['competition', compId],
     queryFn: () => api.get(`/competitions/${compId}`).then((r) => r.data),
-    staleTime: 30_000,
+    staleTime: (query) => (query.state.data as Competition | undefined)?.status === 'COMPLETED' ? Infinity : 30_000,
   });
 
   const { data: tableData, isLoading } = useQuery<{ gameweeks: GameweekMeta[]; rows: SurvivorRow[] }>({
     queryKey: ['survivor-table', compId],
     queryFn: () => api.get(`/competitions/${compId}/survivor-table`).then((r) => r.data),
-    staleTime: 30_000,
+    staleTime: comp?.status === 'COMPLETED' ? Infinity : 30_000,
     refetchInterval: (query) => {
+      if (comp?.status === 'COMPLETED') return false;
       const data = query.state.data as { gameweeks: GameweekMeta[]; rows: SurvivorRow[] } | undefined;
       const hasLiveWeek = data?.gameweeks?.some((gw) => gw.status === 'IN_PROGRESS');
       return hasLiveWeek ? 300_000 : false;

@@ -910,6 +910,7 @@ public class AdminController {
      * Correct provider data for the latest completed gameweek and recalculate outcomes.
      */
     @PostMapping("/competitions/{compId}/gameweeks/{gwId}/correct")
+    @Transactional
     public ResponseEntity<SimulateResponse> correctGameweek(
             @PathVariable Long compId,
             @PathVariable Long gwId,
@@ -946,14 +947,18 @@ public class AdminController {
 
         gameweekProcessingService.prepareGameweekCorrection(compId, gwId);
         competitionCacheService.evictCompetition(compId);
-        gameweekProcessingService.processGameweekResultsAsync(gwId, false);
+        gameweekProcessingService.processGameweekResults(gwId, false);
         logAudit(userDetails, "Gameweek", gwId, "competitionId", String.valueOf(compId),
                 String.valueOf(compId), "CORRECT_RESULTS");
 
-        return ResponseEntity.accepted().body(new SimulateResponse(
-                gwId, "PROCESSING",
-                "Corrected scores saved. Participant outcomes are being recalculated.",
-                "ACTIVE", -1
+        Gameweek corrected = gameweekRepository.findById(gwId).orElseThrow();
+        Competition correctedCompetition = corrected.getCompetition();
+        int activeParticipants = (int) participantRepository.countByCompetitionIdAndStatus(
+                compId, ParticipantStatus.ACTIVE);
+        return ResponseEntity.ok(new SimulateResponse(
+                gwId, corrected.getStatus().name(),
+                "Corrected scores saved and participant outcomes recalculated.",
+                correctedCompetition.getStatus().name(), activeParticipants
         ));
     }
 

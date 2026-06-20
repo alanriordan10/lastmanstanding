@@ -236,7 +236,6 @@ public class GameweekProcessingService {
      * Corrections are refused once a later gameweek has started because replaying
      * downstream eliminations without an event ledger would be unsafe.
      */
-    
     @Transactional
     public void prepareGameweekCorrection(Long competitionId, Long gameweekId) {
         Gameweek gw = gameweekRepository.findById(gameweekId)

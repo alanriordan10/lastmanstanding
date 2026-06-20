@@ -242,15 +242,19 @@ export default function CompetitionHomePage() {
   const { data: comp, isLoading: compLoading } = useQuery<Competition>({
     queryKey: ['competition', compId],
     queryFn: () => api.get(`/competitions/${compId}`).then((r) => r.data),
-    staleTime: 30_000,
-    refetchInterval: () => hasPendingResultProcessing(queryClient.getQueryData<Fixture[]>(['fixtures', compId])) ? 300_000 : false,
+    staleTime: (query) => (query.state.data as Competition | undefined)?.status === 'COMPLETED' ? Infinity : 30_000,
+    refetchInterval: (query) => {
+      const competition = query.state.data as Competition | undefined;
+      if (competition?.status === 'COMPLETED') return false;
+      return hasPendingResultProcessing(queryClient.getQueryData<Fixture[]>(['fixtures', compId])) ? 300_000 : false;
+    },
   });
 
   const { data: myEntries = [] } = useQuery<Participant[]>({
     queryKey: ['myEntries', compId],
     queryFn: () => api.get(`/competitions/${compId}/my-entries`).then((r) => Array.isArray(r.data) ? r.data : []),
     retry: false,
-    staleTime: 30_000,
+    staleTime: comp?.status === 'COMPLETED' ? Infinity : 30_000,
   });
 
   useEffect(() => {
@@ -270,17 +274,20 @@ export default function CompetitionHomePage() {
       params: selectedEntryId ? { entryId: selectedEntryId } : undefined,
     }).then((r) => r.data),
     retry: false,
-    staleTime: 30_000,
-    refetchInterval: () => hasPendingResultProcessing(queryClient.getQueryData<Fixture[]>(['fixtures', compId])) ? 300_000 : false,
+    staleTime: comp?.status === 'COMPLETED' ? Infinity : 30_000,
+    refetchInterval: () => comp?.status === 'COMPLETED'
+      ? false
+      : hasPendingResultProcessing(queryClient.getQueryData<Fixture[]>(['fixtures', compId])) ? 300_000 : false,
   });
 
   const { data: fixtures, isLoading: fixturesLoading } = useQuery<Fixture[]>({
     queryKey: ['fixtures', compId],
     queryFn: () => api.get(`/competitions/${compId}/fixtures?weeks=99`).then((r) => r.data),
-    staleTime: 30_000,
+    staleTime: comp?.status === 'COMPLETED' ? Infinity : 30_000,
     // Keep polling for newly created upcoming competitions until fixtures appear,
     // then fall back to low-frequency polling only while a gameweek is live.
     refetchInterval: (query) => {
+      if (comp?.status === 'COMPLETED') return false;
       const data = query.state.data as Fixture[] | undefined;
       if (comp?.status === 'UPCOMING' && (!data || data.length === 0)) {
         return 15_000;
@@ -325,15 +332,16 @@ export default function CompetitionHomePage() {
     queryKey: ['gameweekSelections', compId, latestCompletedGwId],
     queryFn: () => api.get(`/competitions/${compId}/gameweeks/${latestCompletedGwId}/selections`).then((r) => r.data),
     enabled: !!latestCompletedGwId,
-    staleTime: 30_000,
+    staleTime: comp?.status === 'COMPLETED' ? Infinity : 30_000,
   });
 
   const { data: latestNarrativeSelections } = useQuery<GameweekSelectionsData>({
     queryKey: ['gameweekSelections', compId, latestNarrativeGwId],
     queryFn: () => api.get(`/competitions/${compId}/gameweeks/${latestNarrativeGwId}/selections`).then((r) => r.data),
     enabled: !!latestNarrativeGwId,
-    staleTime: 30_000,
+    staleTime: comp?.status === 'COMPLETED' ? Infinity : 30_000,
     refetchInterval: (query) => {
+      if (comp?.status === 'COMPLETED') return false;
       const data = query.state.data as GameweekSelectionsData | undefined;
       const hasPending = data?.selections?.some((s) => s.outcome === 'PENDING');
       return hasPending ? 300_000 : false;
@@ -590,7 +598,7 @@ export default function CompetitionHomePage() {
           if (Array.isArray(r.data)) return { selections: r.data, byeGranted: false, weekNumber: 0 };
           return r.data;
         }),
-      staleTime: 30_000,
+      staleTime: comp?.status === 'COMPLETED' ? Infinity : 30_000,
     });
     void queryClient.prefetchQuery({
       queryKey: ['gameweekSelections', compId, gwId],
@@ -599,12 +607,12 @@ export default function CompetitionHomePage() {
           if (Array.isArray(r.data)) return { selections: r.data, byeGranted: false, weekNumber: 0 };
           return r.data;
         }),
-      staleTime: 30_000,
+      staleTime: comp?.status === 'COMPLETED' ? Infinity : 30_000,
     });
     void queryClient.prefetchQuery({
       queryKey: ['fixtures', compId, gwId],
       queryFn: () => api.get(`/competitions/${compId}/gameweeks/${gwId}/fixtures`).then((r) => (Array.isArray(r.data) ? r.data : [])),
-      staleTime: 30_000,
+      staleTime: comp?.status === 'COMPLETED' ? Infinity : 30_000,
     });
   };
 
@@ -867,7 +875,7 @@ export default function CompetitionHomePage() {
   ).length ?? 0;
   const narrativePendingFixtureCount = Math.max(narrativeFixtureCount - narrativeResolvedFixtureCount, 0);
 
-  const hasWinner = comp.status === 'COMPLETED'
+  const hasWinner = comp?.status === 'COMPLETED'
     || (comp.activeCount === 1 && (comp.participantCount ?? 0) > 1);
   const copyVariantSeed = Number(comp.id ?? 0) + (pulseLatestWeek?.weekNumber ?? latestNarrativeWeek?.weekNumber ?? 0);
   const pickCopyVariant = (options: string[], offset: number) => options[(Math.abs(copyVariantSeed + offset) % options.length)];

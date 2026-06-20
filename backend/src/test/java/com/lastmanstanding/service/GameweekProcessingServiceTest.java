@@ -11,6 +11,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
@@ -92,6 +93,78 @@ class GameweekProcessingServiceTest {
         verify(fixtureRepository).deleteByGameweekIds(List.of(20L, 21L));
         verify(gameweekRepository).deleteByIds(List.of(20L, 21L));
         verify(competitionCacheService).evictCompetition(1L);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // RESULT CORRECTION
+    // ═══════════════════════════════════════════════════════════════════
+
+    @Nested
+    @DisplayName("Prepare Gameweek Correction")
+    class PrepareCorrection {
+
+        @Test
+        @DisplayName("Restores current-week outcomes before corrected results are replayed")
+        void restoresCurrentWeekState() {
+            gameweek.setStatus(GameweekStatus.COMPLETED);
+            competition.setStatus(CompetitionStatus.COMPLETED);
+
+            cp1.setStatus(ParticipantStatus.ELIMINATED);
+            cp1.setEliminatedWeek(1);
+            cp1.setLifelineUsed(true);
+            cp1.setLifelineUsedWeek(1);
+            cp2.setStatus(ParticipantStatus.WINNER);
+
+            Gameweek future = new Gameweek(competition, 2,
+                    LocalDateTime.of(2026, 4, 10, 23, 0),
+                    LocalDateTime.of(2026, 4, 11, 15, 0),
+                    LocalDateTime.of(2026, 4, 13, 22, 0),
+                    GameweekStatus.UPCOMING);
+
+            when(gameweekRepository.findById(10L)).thenReturn(Optional.of(gameweek));
+            when(gameweekRepository.findAfterWeek(1L, 1)).thenReturn(List.of(future));
+            when(competitionRepository.findById(1L)).thenReturn(Optional.of(competition));
+            when(participantRepository.findByCompetitionId(1L)).thenReturn(List.of(cp1, cp2, cp3));
+
+            service.prepareGameweekCorrection(1L, 10L);
+
+            assertThat(cp1.getStatus()).isEqualTo(ParticipantStatus.ACTIVE);
+            assertThat(cp1.getEliminatedWeek()).isNull();
+            assertThat(cp1.isLifelineUsed()).isFalse();
+            assertThat(cp1.getLifelineUsedWeek()).isNull();
+            assertThat(cp2.getStatus()).isEqualTo(ParticipantStatus.ACTIVE);
+            assertThat(gameweek.getStatus()).isEqualTo(GameweekStatus.IN_PROGRESS);
+            assertThat(competition.getStatus()).isEqualTo(CompetitionStatus.ACTIVE);
+            verify(participantRepository).saveAll(any());
+            verify(pickResultRepository).resetForGameweek(1L, 10L);
+            verify(gameweekRepository).save(gameweek);
+            verify(competitionRepository).save(competition);
+            verify(competitionCacheService).evictCompetition(1L);
+        }
+
+        @Test
+        @DisplayName("Rejects correction after a later gameweek has started")
+        void rejectsWhenLaterGameweekStarted() {
+            gameweek.setStatus(GameweekStatus.COMPLETED);
+            Gameweek later = new Gameweek(competition, 2,
+                    LocalDateTime.of(2026, 4, 10, 23, 0),
+                    LocalDateTime.of(2026, 4, 11, 15, 0),
+                    LocalDateTime.of(2026, 4, 13, 22, 0),
+                    GameweekStatus.LOCKED);
+
+            when(gameweekRepository.findById(10L)).thenReturn(Optional.of(gameweek));
+            when(gameweekRepository.findAfterWeek(1L, 1)).thenReturn(List.of(later));
+
+            ResponseStatusException error = catchThrowableOfType(
+                    () -> service.prepareGameweekCorrection(1L, 10L),
+                    ResponseStatusException.class);
+
+            assertThat(error.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+            verifyNoInteractions(pickResultRepository);
+            verify(participantRepository, never()).saveAll(any());
+            verify(gameweekRepository, never()).save(any(Gameweek.class));
+            verify(competitionRepository, never()).save(any(Competition.class));
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════

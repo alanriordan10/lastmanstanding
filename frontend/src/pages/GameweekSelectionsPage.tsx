@@ -2,7 +2,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect, useMemo } from 'react';
 import api from '../api';
-import type { GameweekSelection, GameweekSelectionsData, GameweekResponse } from '../types';
+import type { Competition, GameweekSelection, GameweekSelectionsData, GameweekResponse } from '../types';
 import clsx from 'clsx';
 
 export default function GameweekSelectionsPage() {
@@ -17,6 +17,12 @@ export default function GameweekSelectionsPage() {
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'RESOLVED' | 'LIVE'>('ALL');
   const itemsPerPage = 50;
 
+  const { data: comp } = useQuery<Competition>({
+    queryKey: ['competition', compId],
+    queryFn: () => api.get(`/competitions/${compId}`).then((r) => r.data),
+    staleTime: (query) => (query.state.data as Competition | undefined)?.status === 'COMPLETED' ? Infinity : 30_000,
+  });
+
   const { data: selectionsData, isLoading, error } = useQuery<GameweekSelectionsData>({
     queryKey: ['selections', compId, gameweekId],
     queryFn: () =>
@@ -27,9 +33,11 @@ export default function GameweekSelectionsPage() {
         return r.data;
       }),
     retry: false,
+    staleTime: comp?.status === 'COMPLETED' ? Infinity : 30_000,
     // Poll every 5 minutes only if at least one pick is still pending (game in play).
     // Once all picks are resolved there is nothing left to update.
     refetchInterval: (query) => {
+      if (comp?.status === 'COMPLETED') return false;
       const data = query.state.data as GameweekSelectionsData | undefined;
       const hasInPlay = data?.selections?.some((s) => s.outcome === 'PENDING');
       return hasInPlay ? 5 * 60 * 1000 : false;
