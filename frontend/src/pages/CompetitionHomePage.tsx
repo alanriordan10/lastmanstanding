@@ -1805,7 +1805,7 @@ export default function CompetitionHomePage() {
           />
         )}
         <div className="absolute inset-y-0 right-0 hidden w-1/3 bg-[linear-gradient(180deg,transparent,rgba(255,255,255,0.02),transparent)] lg:block" />
-        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="relative flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-2xl">
             <Link to="/competitions" className="mb-3 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-brand-200/85 transition hover:text-white">
               <span>←</span> Competition lobby
@@ -1848,9 +1848,20 @@ export default function CompetitionHomePage() {
               <span className={clsx('rounded-full border px-3 py-1.5', lifelineStatusToneClass)}>
                 {lifelineStatusLabel}
               </span>
+              <Link
+                to={`/competitions/${compId}/survivor-table`}
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-white transition hover:bg-white/15"
+                style={comp.clubSecondaryColor ? {
+                  borderColor: `${comp.clubSecondaryColor}44`,
+                  backgroundColor: `${comp.clubSecondaryColor}12`,
+                  color: comp.clubSecondaryColor,
+                } : undefined}
+              >
+                📊 Survivor Table
+              </Link>
             </div>
           </div>
-          <div className="flex gap-2 flex-wrap items-start lg:flex-col lg:items-end">
+          <div className="flex w-full flex-col gap-2 items-stretch sm:flex-row sm:flex-wrap lg:w-auto lg:flex-col lg:items-end">
           {/* Logo inline in this column on desktop */}
           {comp.clubLogoUrl && (
             <img
@@ -1861,10 +1872,10 @@ export default function CompetitionHomePage() {
           )}
           {/* Share / Invite */}
           {canInvite && (
-          <div className="relative" data-share-menu>
+          <div className="relative w-full sm:w-auto" data-share-menu>
             <button
               onClick={() => setShareOpen((v) => !v)}
-              className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white transition border border-white/20"
+              className="inline-flex w-full items-center justify-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white transition border border-white/20 sm:w-auto sm:py-1.5"
               style={comp.clubPrimaryColor ? {
                 borderColor: `${comp.clubPrimaryColor}44`,
                 backgroundColor: `${comp.clubPrimaryColor}14`,
@@ -1938,18 +1949,6 @@ export default function CompetitionHomePage() {
             )}
           </div>
           )}
-          {/* Survivor Table */}
-          <Link
-            to={`/competitions/${compId}/survivor-table`}
-            className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white transition border border-white/20"
-            style={comp.clubSecondaryColor ? {
-              borderColor: `${comp.clubSecondaryColor}44`,
-              backgroundColor: `${comp.clubSecondaryColor}12`,
-              color: comp.clubSecondaryColor,
-            } : undefined}
-          >
-            📊 Survivor Table
-          </Link>
         </div>
         </div>
         <div className="relative mt-6 grid gap-3 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)]">
