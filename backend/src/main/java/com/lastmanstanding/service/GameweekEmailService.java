@@ -33,8 +33,8 @@ public class GameweekEmailService {
     @Value("${app.mail-enabled:false}")
     private boolean mailEnabled;
 
-    @Value("${app.frontend-url:http://localhost:5173}")
-    private String frontendUrl;
+    @Value("${app.public-url:https://runlastmanstanding.com}")
+    private String publicAppUrl;
 
     public GameweekEmailService(JavaMailSender mailSender,
                                 UserRepository userRepository,
@@ -106,7 +106,7 @@ public class GameweekEmailService {
                       <p>You can now make your pick.</p>
                       <p><a href="%s/competitions/%d">Open competition</a></p>
                     </body></html>
-                    """.formatted(comp.getName(), frontendUrl, comp.getId());
+                    """.formatted(comp.getName(), publicAppUrl, comp.getId());
 
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
@@ -175,7 +175,7 @@ public class GameweekEmailService {
                   </p>
                 </body></html>
                 """.formatted(gw.getWeekNumber(), comp.getName(), resultLine, statusLine,
-                statsSection, frontendUrl, comp.getId(), frontendUrl);
+                statsSection, publicAppUrl, comp.getId(), publicAppUrl);
 
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
@@ -338,7 +338,7 @@ public class GameweekEmailService {
             if (user == null || !user.isNotificationPickReminders()) continue;
             attempted++;
             try {
-                String pickUrl = frontendUrl + "/competitions/" + comp.getId();
+                String pickUrl = publicAppUrl + "/competitions/" + comp.getId();
                 String missedPickConsequence = comp.getMissedPickMode() == MissedPickMode.AUTO_ASSIGN
                         ? "If you don't pick before it locks, an automatic selection will be made for you."
                         : "If you don't pick before it locks, your entry will be eliminated.";

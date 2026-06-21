@@ -16,7 +16,9 @@ services:
       - key: JWT_SECRET
         sync: false
       - key: FRONTEND_URL
-        sync: false
+        value: https://runlastmanstanding.com
+      - key: PUBLIC_APP_URL
+        value: https://runlastmanstanding.com
       - key: FOOTBALL_DATA_API_KEY
         sync: false
       - key: STRIPE_SECRET_KEY

@@ -833,6 +833,7 @@ export default function CompetitionHomePage() {
   const latestSelections = latestNarrativeSelections?.selections ?? latestCompletedSelections?.selections ?? [];
   const resolvedSelections = latestSelections.filter((sel) => sel.outcome !== 'PENDING');
   const gwPickedCount = resolvedSelections.length;
+  const gwPendingSelectionCount = Math.max(latestSelections.length - resolvedSelections.length, 0);
   const gwAdvancedCount = resolvedSelections.filter((sel) => sel.outcome === 'ADVANCE' || sel.outcome === 'POSTPONED_ADVANCE').length;
   const gwEliminatedFromSelections = resolvedSelections.filter((sel) => sel.outcome === 'ELIMINATED').length;
   const gwSurvivalFromSelections = gwPickedCount > 0
@@ -977,26 +978,32 @@ export default function CompetitionHomePage() {
       `${biggestCasualty.teamShortName} was the pick that hurt most, and ${effectiveActiveCount} entr${effectiveActiveCount === 1 ? 'y is' : 'ies are'} still alive.`,
     ], 105);
   } else if (latestNarrativeWeek && weeklySurvivalRate != null && weeklySurvivalRate < 50) {
-    storylineTitle = narrativeWeekInProgress && narrativeWeekLabel ? `${narrativeWeekLabel} is chaos` : `${narrativeWeekLabel} was chaos`;
-    storylineBody = pickCopyVariant([
-      `${weeklyEliminatedCount} players went out in the latest week. Only ${weeklySurvivalRate}% survived the round.`,
-      `Eliminations hit hard this round: ${weeklyEliminatedCount} exits and a ${weeklySurvivalRate}% survival rate.`,
-      `The round was severe, with ${weeklyEliminatedCount} knocked out and just ${weeklySurvivalRate}% getting through.`,
-    ], 105);
+    storylineTitle = narrativeWeekInProgress && narrativeWeekLabel ? `${narrativeWeekLabel} has early damage` : `${narrativeWeekLabel} was chaos`;
+    storylineBody = narrativeWeekInProgress
+      ? `${weeklyEliminatedCount} ${weeklyEliminatedCount === 1 ? 'entry has' : 'entries have'} been eliminated from resolved picks so far. ${narrativePendingFixtureCount} fixture${narrativePendingFixtureCount === 1 ? '' : 's'} and ${gwPendingSelectionCount} pick${gwPendingSelectionCount === 1 ? '' : 's'} remain unresolved.`
+      : pickCopyVariant([
+          `${weeklyEliminatedCount} players went out in the latest week. Only ${weeklySurvivalRate}% survived the round.`,
+          `Eliminations hit hard this round: ${weeklyEliminatedCount} exits and a ${weeklySurvivalRate}% survival rate.`,
+          `The round was severe, with ${weeklyEliminatedCount} knocked out and just ${weeklySurvivalRate}% getting through.`,
+        ], 105);
   } else if (latestNarrativeWeek && weeklySurvivalRate != null && weeklySurvivalRate >= 50 && weeklySurvivalRate <= 70) {
-    storylineTitle = narrativeWeekInProgress && narrativeWeekLabel ? `${narrativeWeekLabel} is tightening the race` : `${narrativeWeekLabel} tightened the race`;
-    storylineBody = pickCopyVariant([
-      `Survival dipped to ${weeklySurvivalRate}%. The middle of the pack is starting to thin out.`,
-      `${weeklySurvivalRate}% survived the round, and the mid-pack is beginning to break up.`,
-      `A ${weeklySurvivalRate}% survival week has started to separate the pack.`,
-    ], 106);
+    storylineTitle = narrativeWeekInProgress && narrativeWeekLabel ? `${narrativeWeekLabel} is taking shape` : `${narrativeWeekLabel} tightened the race`;
+    storylineBody = narrativeWeekInProgress
+      ? `${weeklyAdvancedCount} advanced and ${weeklyEliminatedCount} went out from the picks resolved so far. The remaining fixtures can still change the round.`
+      : pickCopyVariant([
+          `Survival dipped to ${weeklySurvivalRate}%. The middle of the pack is starting to thin out.`,
+          `${weeklySurvivalRate}% survived the round, and the mid-pack is beginning to break up.`,
+          `A ${weeklySurvivalRate}% survival week has started to separate the pack.`,
+        ], 106);
   } else if (latestNarrativeWeek && weeklySurvivalRate != null && weeklySurvivalRate >= 85) {
     storylineTitle = narrativeWeekInProgress && narrativeWeekLabel ? `${narrativeWeekLabel} is steady so far` : `${narrativeWeekLabel} was steady`;
-    storylineBody = pickCopyVariant([
-      `${weeklySurvivalRate}% made it through. The real shakeups are still ahead.`,
-      `${weeklySurvivalRate}% advanced, so the major swings are likely still to come.`,
-      `Most of the field survived (${weeklySurvivalRate}%), with bigger pressure points still ahead.`,
-    ], 107);
+    storylineBody = narrativeWeekInProgress
+      ? `${weeklyAdvancedCount} of ${weeklyPickedCount} resolved picks have advanced so far. ${narrativePendingFixtureCount} fixture${narrativePendingFixtureCount === 1 ? '' : 's'} remain unresolved.`
+      : pickCopyVariant([
+          `${weeklySurvivalRate}% made it through. The real shakeups are still ahead.`,
+          `${weeklySurvivalRate}% advanced, so the major swings are likely still to come.`,
+          `Most of the field survived (${weeklySurvivalRate}%), with bigger pressure points still ahead.`,
+        ], 107);
   } else if (latestNarrativeWeek && doomedPickedTeams.length === 0 && survivingPickedTeams.length > 0) {
     storylineTitle = narrativeWeekInProgress && narrativeWeekLabel ? `${narrativeWeekLabel} is sparing the field` : `${narrativeWeekLabel} spared the field`;
     storylineBody = pickCopyVariant([
@@ -1985,9 +1992,9 @@ export default function CompetitionHomePage() {
               </span>
               {weeklySurvivalRate != null && (
                 <span className="rounded-full border border-white/10 bg-black/15 px-3 py-1.5 text-xs font-medium text-gray-200">
-                  <span className="block">GW survival {weeklySurvivalRate}%</span>
+                  <span className="block">{narrativeWeekInProgress ? `Resolved picks: ${weeklySurvivalRate}% advanced` : `GW survival ${weeklySurvivalRate}%`}</span>
                   {weeklyPickedCount > 0 && (
-                    <span className="block text-gray-400">{weeklyAdvancedCount} adv · {weeklyEliminatedCount} out</span>
+                    <span className="block text-gray-400">{weeklyAdvancedCount} adv · {weeklyEliminatedCount} out{narrativeWeekInProgress && gwPendingSelectionCount > 0 ? ` · ${gwPendingSelectionCount} pending` : ''}</span>
                   )}
                   {narrativeWeekInProgress && narrativeFixtureCount > 0 && (
                     <span className="block text-gray-500">{narrativeResolvedFixtureCount} fixtures resolved · {narrativePendingFixtureCount} to play</span>
