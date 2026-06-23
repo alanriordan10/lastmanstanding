@@ -47,6 +47,15 @@ public class PickService {
         if (!gw.getCompetition().getId().equals(competitionId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Gameweek does not belong to this competition");
         }
+        if (gw.getCompetition().isPaused()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Competition is paused — picks cannot be changed");
+        }
+        if (gw.isVoided()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This gameweek was voided — picks cannot be made");
+        }
+        if (gw.getStatus() != GameweekStatus.UPCOMING) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This gameweek is no longer open for picks");
+        }
 
         // Check lock time
         if (LocalDateTime.now().isAfter(gw.getLockAt())) {
@@ -85,6 +94,13 @@ public class PickService {
 
         // Check team has a fixture this gameweek
         List<Fixture> gwFixtures = fixtureRepository.findByGameweekId(gameweekId);
+        boolean fixturesResolved = !gwFixtures.isEmpty() && gwFixtures.stream().allMatch(f ->
+                f.getEffectiveStatus() == FixtureStatus.FINISHED
+                        || f.getEffectiveStatus() == FixtureStatus.POSTPONED
+                        || f.getEffectiveStatus() == FixtureStatus.CANCELLED);
+        if (fixturesResolved) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This gameweek has already been resolved — picks cannot be made");
+        }
         boolean teamHasFixture = gwFixtures.stream().anyMatch(f ->
                 f.getEffectiveHomeTeam().getId().equals(teamId) ||
                         f.getEffectiveAwayTeam().getId().equals(teamId));

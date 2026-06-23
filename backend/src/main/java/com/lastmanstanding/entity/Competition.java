@@ -78,6 +78,15 @@ public class Competition {
     @Column(name = "fixture_competition_code", nullable = false, length = 16)
     private String fixtureCompetitionCode = "PL";
 
+    @Column(name = "paused", nullable = false)
+    private boolean paused = false;
+
+    @Column(name = "pause_reason", length = 500)
+    private String pauseReason;
+
+    @Column(name = "paused_at")
+    private LocalDateTime pausedAt;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by", nullable = false)
     private User createdBy;
@@ -233,6 +242,30 @@ public class Competition {
 
     public void setFixtureCompetitionCode(String fixtureCompetitionCode) {
         this.fixtureCompetitionCode = fixtureCompetitionCode;
+    }
+
+    public boolean isPaused() {
+        return paused;
+    }
+
+    public void setPaused(boolean paused) {
+        this.paused = paused;
+    }
+
+    public String getPauseReason() {
+        return pauseReason;
+    }
+
+    public void setPauseReason(String pauseReason) {
+        this.pauseReason = pauseReason;
+    }
+
+    public LocalDateTime getPausedAt() {
+        return pausedAt;
+    }
+
+    public void setPausedAt(LocalDateTime pausedAt) {
+        this.pausedAt = pausedAt;
     }
 
     public User getCreatedBy() {

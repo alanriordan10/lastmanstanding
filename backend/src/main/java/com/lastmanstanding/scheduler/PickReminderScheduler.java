@@ -53,7 +53,7 @@ public class PickReminderScheduler {
 
         for (Gameweek gw : gameweeks) {
             Competition comp = competitionRepository.findById(gw.getCompetition().getId()).orElse(null);
-            if (comp == null) continue;
+            if (comp == null || comp.isPaused()) continue;
             try {
                 GameweekEmailService.ReminderSendResult emailResult = gameweekEmailService.sendPickReminderEmails(comp, gw);
                 webPushService.sendPickReminderNotifications(comp, gw);

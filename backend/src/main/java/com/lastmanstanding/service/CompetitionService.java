@@ -91,6 +91,9 @@ public class CompetitionService {
         Competition comp = competitionRepository.findById(competitionId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Competition not found"));
 
+        if (comp.isPaused()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Competition is paused — joining is temporarily unavailable");
+        }
         if (comp.getStatus() != CompetitionStatus.UPCOMING) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Competition has already started");
         }
@@ -134,6 +137,29 @@ public class CompetitionService {
 
     public List<CompetitionParticipant> getParticipants(Long competitionId) {
         return participantRepository.findByCompetitionId(competitionId);
+    }
+
+    public int ensureFixturesForCompetition(Long competitionId) {
+        Competition competition = competitionRepository.findById(competitionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Competition not found"));
+        if (competition.getStatus() == CompetitionStatus.COMPLETED) {
+            return 0;
+        }
+
+        List<Gameweek> gameweeks = gameweekRepository.findByCompetitionIdOrderByWeekNumberAsc(competitionId);
+        boolean missingFixtures = gameweeks.isEmpty();
+        if (!missingFixtures) {
+            List<Long> gameweekIds = gameweeks.stream().map(Gameweek::getId).toList();
+            missingFixtures = fixtureRepository.findByGameweekIdIn(gameweekIds).isEmpty();
+        }
+
+        if (!missingFixtures) {
+            return 0;
+        }
+
+        int synced = fixtureSyncService.syncForCompetition(competition);
+        log.info("Ensured fixtures for competition '{}' ({} fixture(s) synced)", competition.getName(), synced);
+        return synced;
     }
 
     // ── Admin ────────────────────────────────────────────────────────────

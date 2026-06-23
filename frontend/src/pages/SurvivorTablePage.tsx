@@ -20,6 +20,8 @@ interface GameweekMeta {
   id: number;
   weekNumber: number;
   status: string;
+  voided?: boolean;
+  voidReason?: string | null;
 }
 
 const PAGE_SIZE = 25;
@@ -311,6 +313,7 @@ export default function SurvivorTablePage() {
                     <th key={gw.id} className="py-3 px-3 font-semibold text-gray-300 text-center min-w-[80px]">
                       <div>GW{gw.weekNumber}</div>
                       <div className={`text-[10px] font-normal mt-0.5 ${
+                        gw.status === 'VOIDED' ? 'text-brand-400' :
                         gw.status === 'COMPLETED' ? 'text-green-500' :
                         gw.status === 'IN_PROGRESS' ? 'text-yellow-400' :
                         gw.status === 'LOCKED' ? 'text-blue-400' : 'text-gray-500'
@@ -369,6 +372,9 @@ export default function SurvivorTablePage() {
                         );
                       }
                       if (!pick) {
+                        if (gw.status === 'VOIDED') {
+                          return <td key={gw.id} className="py-3 px-3 text-center"><span className="text-brand-300 text-xs font-semibold">void</span></td>;
+                        }
                         const eliminatedBefore = row.eliminatedWeek !== null && gw.weekNumber > row.eliminatedWeek;
                         return (
                           <td key={gw.id} className="py-3 px-3 text-center">

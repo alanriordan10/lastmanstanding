@@ -179,6 +179,9 @@ public class PaymentService {
         Competition comp = competitionRepository.findById(competitionId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Competition not found"));
 
+        if (comp.isPaused()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Competition is paused — payments are temporarily unavailable");
+        }
         if (comp.getStatus() != CompetitionStatus.UPCOMING) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Competition has already started");
         }

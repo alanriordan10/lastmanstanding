@@ -11,6 +11,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -39,6 +40,7 @@ class GameweekProcessingServiceTest {
     @Mock private GameweekEmailService gameweekEmailService;
     @Mock private WebPushService webPushService;
     @Mock private CompetitionCacheService competitionCacheService;
+    @Mock private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private GameweekProcessingService service;

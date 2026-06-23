@@ -11,37 +11,77 @@
 
 ---
 
-## 🚀 Quick Start (3 terminals)
+## 🚀 Local Development with PostgreSQL
 
-### Terminal 1 — Start MySQL
+The local profile uses a Docker PostgreSQL database and is isolated from the
+production Supabase credentials in `.env`.
+
+### One-time native PostgreSQL setup
+
+Ubuntu already provides PostgreSQL on `localhost:5432`. Create the development
+role and database once:
+
 ```bash
-cd /Users/alan.riordan@optum.com/projects/LastManStanding
-docker compose up mysql -d
+cd /home/alan/IdeaProjects/LastManStanding
+./scripts/setup-local-postgres.sh
 ```
 
-Wait ~10 seconds for MySQL to be healthy, then verify:
+The script asks for your sudo password because PostgreSQL role/database creation
+requires the local `postgres` administrator.
+
+### Terminal 1 — Backend
+
 ```bash
-docker exec lms-mysql mysqladmin ping -h localhost
+./scripts/run-local-backend.sh
 ```
 
-### Terminal 2 — Start Backend (Spring Boot)
-```bash
-cd /Users/alan.riordan@optum.com/projects/LastManStanding/backend
-mvn spring-boot:run
-```
+This command:
 
-Wait for the line: `Started LastManStandingApplication` (takes ~15-30s).  
-Backend runs at **http://localhost:8080**
+- verifies the native PostgreSQL database on `localhost:5432`;
+- runs all Flyway migrations;
+- starts Spring Boot with the `local` profile on `http://localhost:8080`;
+- uses the mock fixture provider and disables mail, odds and performance logging.
 
-### Terminal 3 — Start Frontend (Vite + React)
+### Terminal 2 — Frontend
+
 ```bash
-cd /Users/alan.riordan@optum.com/projects/LastManStanding/frontend
+cd /home/alan/IdeaProjects/LastManStanding/frontend
+npm install
 npm run dev
 ```
 
-Frontend runs at **http://localhost:5173**
+The existing `frontend/.env` points to `http://localhost:8080`. Open
+`http://localhost:5173` in your browser.
 
----
+### Database connection
+
+| Setting | Default |
+|---|---|
+| Host | `localhost` |
+| Port | `5432` |
+| Database | `lastmanstanding` |
+| Username | `lmsuser` |
+| Password | `lmspassword` |
+
+Override defaults with `LOCAL_DB_PORT`, `LOCAL_DB_NAME`,
+`LOCAL_DB_USERNAME`, or `LOCAL_DB_PASSWORD`.
+
+Useful commands:
+
+```bash
+./scripts/setup-local-postgres.sh       # one-time native setup
+PGPASSWORD=lmspassword psql -h localhost -U lmsuser -d lastmanstanding
+./scripts/start-local-db.sh          # optional Docker database on port 5433
+./scripts/stop-local-db.sh
+docker compose down                 # keep database data
+docker compose down -v              # delete the local database and start clean
+```
+
+To run the full application in Docker instead:
+
+```bash
+docker compose --profile app up --build
+```
 
 ## 🎮 First-Time Setup
 
@@ -58,10 +98,10 @@ curl -s -X POST http://localhost:8080/auth/signup \
   -d '{"email":"admin@lms.com","username":"admin","password":"admin1234"}'
 ```
 
-Then **manually promote to ADMIN** in MySQL:
+Then **manually promote to ADMIN** in PostgreSQL:
 ```bash
-docker exec -it lms-mysql mysql -u lmsuser -plmspassword lastmanstanding \
-  -e "UPDATE users SET role='ADMIN' WHERE email='admin@lms.com';"
+docker compose exec postgres psql -U lmsuser -d lastmanstanding \
+  -c "UPDATE users SET role='ADMIN' WHERE email='admin@lms.com';"
 ```
 
 ### 2. Log in as admin and trigger sync
@@ -101,7 +141,7 @@ Go to **http://localhost:5173** in your browser:
 ## 🛑 Stopping
 
 ```bash
-# Stop MySQL
+# Stop PostgreSQL and other Docker services
 docker compose down
 
 # Stop backend/frontend: Ctrl+C in each terminal
@@ -113,7 +153,7 @@ docker compose down
 
 ```
 LastManStanding/
-├── docker-compose.yml          # MySQL + Backend + Frontend containers
+├── docker-compose.yml          # PostgreSQL + optional Backend/Frontend containers
 ├── start-dev.sh                # One-command startup script
 │
 ├── backend/                    # Spring Boot REST API

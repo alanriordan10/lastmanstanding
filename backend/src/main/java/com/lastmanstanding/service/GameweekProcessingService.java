@@ -27,6 +27,7 @@ import com.lastmanstanding.repository.PickResultRepository;
 import com.lastmanstanding.repository.TeamRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -45,8 +46,6 @@ import java.util.stream.Collectors;
 public class GameweekProcessingService {
 
     private static final Logger log = LoggerFactory.getLogger(GameweekProcessingService.class);
-    /** Keep at least this many UPCOMING gameweeks ahead at all times */
-    private static final int MIN_UPCOMING_BUFFER = 3;
 
     private final GameweekRepository gameweekRepository;
     private final FixtureRepository fixtureRepository;
@@ -56,10 +55,8 @@ public class GameweekProcessingService {
     private final TeamRepository teamRepository;
     private final PaymentRepository paymentRepository;
     private final CompetitionRepository competitionRepository;
-    private final FixtureSyncService fixtureSyncService;
-    private final GameweekEmailService gameweekEmailService;
-    private final WebPushService webPushService;
     private final CompetitionCacheService competitionCacheService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public GameweekProcessingService(GameweekRepository gameweekRepository,
                                      FixtureRepository fixtureRepository,
@@ -69,10 +66,8 @@ public class GameweekProcessingService {
                                      TeamRepository teamRepository,
                                      PaymentRepository paymentRepository,
                                      CompetitionRepository competitionRepository,
-                                     FixtureSyncService fixtureSyncService,
-                                     GameweekEmailService gameweekEmailService,
-                                     WebPushService webPushService,
-                                     CompetitionCacheService competitionCacheService) {
+                                     CompetitionCacheService competitionCacheService,
+                                     ApplicationEventPublisher eventPublisher) {
         this.gameweekRepository = gameweekRepository;
         this.fixtureRepository = fixtureRepository;
         this.pickRepository = pickRepository;
@@ -81,10 +76,8 @@ public class GameweekProcessingService {
         this.teamRepository = teamRepository;
         this.paymentRepository = paymentRepository;
         this.competitionRepository = competitionRepository;
-        this.fixtureSyncService = fixtureSyncService;
-        this.gameweekEmailService = gameweekEmailService;
-        this.webPushService = webPushService;
         this.competitionCacheService = competitionCacheService;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -95,6 +88,7 @@ public class GameweekProcessingService {
         // Re-fetch inside transaction so all lazy proxies (Competition etc.) are in session
         Gameweek gw = gameweekRepository.findById(gameweekId).orElseThrow();
         if (gw.getStatus() != GameweekStatus.UPCOMING) return;
+        if (gw.getCompetition().isPaused()) return;
         if (LocalDateTime.now().isBefore(gw.getLockAt())) return;
         doLockGameweek(gw);
     }
@@ -107,6 +101,7 @@ public class GameweekProcessingService {
     public void forceLockGameweek(Long gameweekId) {
         Gameweek gw = gameweekRepository.findById(gameweekId).orElseThrow();
         if (gw.getStatus() != GameweekStatus.UPCOMING) return;
+        if (gw.getCompetition().isPaused()) return;
         doLockGameweek(gw);
     }
 
@@ -320,6 +315,34 @@ public class GameweekProcessingService {
     }
 
     /**
+     * Void a gameweek while the competition is paused. Used by simulation/testing and
+     * resume handling so no paused-round result can eliminate or consume teams.
+     */
+    @Transactional
+    public void voidPausedGameweek(Long gameweekId) {
+        Gameweek gw = gameweekRepository.findById(gameweekId).orElseThrow();
+        Competition comp = competitionRepository.findById(gw.getCompetition().getId()).orElseThrow();
+        if (!comp.isPaused()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Competition is not paused");
+        }
+        if (gw.getStatus() == GameweekStatus.COMPLETED && gw.isVoided()) {
+            competitionCacheService.evictCompetition(comp.getId());
+            return;
+        }
+
+        pickResultRepository.deleteByGameweekIds(List.of(gw.getId()));
+        pickRepository.deleteByGameweekIds(List.of(gw.getId()));
+
+        gw.setStatus(GameweekStatus.COMPLETED);
+        gw.setByeGranted(true);
+        gw.setVoided(true);
+        gw.setVoidReason("Competition was paused when this gameweek was processed. All active entries advance.");
+        gameweekRepository.save(gw);
+        competitionCacheService.evictCompetition(comp.getId());
+        log.info("Voided GW{} for paused competition {}. No eliminations applied.", gw.getWeekNumber(), comp.getId());
+    }
+
+    /**
      * Process results for a completed gameweek.
      * @param skipAutoComplete if true, won't auto-complete the competition even if only 1 participant remains (for testing)
      */
@@ -330,6 +353,7 @@ public class GameweekProcessingService {
         if (gw.getStatus() != GameweekStatus.LOCKED && gw.getStatus() != GameweekStatus.IN_PROGRESS) return;
 
         Competition comp = competitionRepository.findById(gw.getCompetition().getId()).orElseThrow();
+        if (comp.isPaused()) return;
         List<Fixture> fixtures = fixtureRepository.findByGameweekId(gw.getId());
 
         // Check if all fixtures are finished or postponed
@@ -587,35 +611,10 @@ public class GameweekProcessingService {
             log.info("Skipped auto-completion check for competition {} (testing mode)", comp.getId());
         }
 
-        if (comp.getStatus() != CompetitionStatus.COMPLETED) {
-            ensureUpcomingBuffer(comp);
-        }
-
-        // Result notifications are external side effects. Never let them roll back result processing,
-        // and only send emails once per gameweek even if processing is retried.
-        if (!gw.isResultsEmailSent()) {
-            try {
-                gameweekEmailService.sendGameweekResultEmails(comp, gw);
-                gw.setResultsEmailSent(true);
-                gameweekRepository.save(gw);
-            } catch (Exception e) {
-                log.warn("Failed to send result emails for GW{} competition {}: {}",
-                        gw.getWeekNumber(), comp.getId(), e.getMessage());
-            }
-        } else {
-            log.info("Skipping GW{} result emails for competition {} because they were already sent",
-                    gw.getWeekNumber(), comp.getId());
-        }
-
-        try {
-            webPushService.sendGameweekResultNotifications(comp, gw);
-        } catch (Throwable e) {
-            log.warn("Failed to send web push result notifications for GW{} competition {}: {}",
-                    gw.getWeekNumber(), comp.getId(), e.getMessage());
-        }
-
         competitionCacheService.evictCompetition(comp.getId());
-        log.info("Processed results for GW{} in competition {}", gw.getWeekNumber(), comp.getId());
+        eventPublisher.publishEvent(new GameweekResultsFinalizedEvent(comp.getId(), gw.getId()));
+        log.info("Finalized results for GW{} in competition {}; post-processing queued",
+                gw.getWeekNumber(), comp.getId());
     }
 
     private void eliminateParticipant(CompetitionParticipant cp, Gameweek gw) {
@@ -671,33 +670,6 @@ public class GameweekProcessingService {
         log.info("Removed {} unused future gameweek(s) from completed competition {}",
                 gameweekIds.size(), competitionId);
         return gameweekIds.size();
-    }
-
-    /**
-     * Ensure there are always at least MIN_UPCOMING_BUFFER gameweeks ahead.
-     * Called after each gameweek completes so new fixtures are pulled from the provider
-     * automatically — no manual sync needed.
-     */
-    private void ensureUpcomingBuffer(Competition comp) {
-        if (comp.getStatus() == CompetitionStatus.COMPLETED) return;
-
-        List<Gameweek> allGws = gameweekRepository.findByCompetitionIdOrderByWeekNumberAsc(comp.getId());
-        long upcomingCount = allGws.stream()
-                .filter(g -> g.getStatus() == GameweekStatus.UPCOMING).count();
-
-        if (upcomingCount < MIN_UPCOMING_BUFFER) {
-            log.info("Competition {} has only {} upcoming gameweek(s) — syncing next fixtures",
-                    comp.getId(), upcomingCount);
-            try {
-                int added = fixtureSyncService.syncForCompetition(comp);
-                log.info("Auto-buffered {} new fixture(s) for competition {}", added, comp.getId());
-                if (added == 0) {
-                    log.info("Competition {} — provider has no further fixtures available yet.", comp.getId());
-                }
-            } catch (Exception e) {
-                log.warn("Could not auto-buffer fixtures for competition {}: {}", comp.getId(), e.getMessage());
-            }
-        }
     }
 
     private enum FixtureOutcome {

@@ -45,6 +45,9 @@ export default function ClubAdminPage() {
   const [announcingComp, setAnnouncingComp] = useState<Competition | null>(null);
   const [announcementTitle, setAnnouncementTitle] = useState('');
   const [announcementMessage, setAnnouncementMessage] = useState('');
+  const [pausingComp, setPausingComp] = useState<Competition | null>(null);
+  const [resumingComp, setResumingComp] = useState<Competition | null>(null);
+  const [pauseReason, setPauseReason] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [entryFee, setEntryFee] = useState('0');
@@ -96,6 +99,29 @@ export default function ClubAdminPage() {
     queryFn: () => api.get('/club-admin/my-club/stripe/connect/status').then((r) => r.data),
     enabled: !!myClub,
     staleTime: 0,
+  });
+
+  const pauseMutation = useMutation({
+    mutationFn: () => api.post(`/club-admin/competitions/${pausingComp?.id}/pause`, { reason: pauseReason.trim() }),
+    onSuccess: () => {
+      toast.success(`${pausingComp?.name ?? 'Competition'} paused`);
+      setPausingComp(null);
+      setPauseReason('');
+      queryClient.invalidateQueries({ queryKey: ['club-admin', 'competitions'] });
+      queryClient.invalidateQueries({ queryKey: ['competitions'] });
+    },
+    onError: (error: any) => toast.error(error.response?.data?.message ?? 'Could not pause competition'),
+  });
+
+  const resumeMutation = useMutation({
+    mutationFn: (competitionId: number) => api.post(`/club-admin/competitions/${competitionId}/resume`),
+    onSuccess: () => {
+      toast.success('Competition resumed. Original fixture and lock times remain unchanged.');
+      setResumingComp(null);
+      queryClient.invalidateQueries({ queryKey: ['club-admin', 'competitions'] });
+      queryClient.invalidateQueries({ queryKey: ['competitions'] });
+    },
+    onError: (error: any) => toast.error(error.response?.data?.message ?? 'Could not resume competition'),
   });
 
   const announcementMutation = useMutation({
@@ -1124,7 +1150,7 @@ export default function ClubAdminPage() {
             <button type="submit" disabled={createMutation.isPending || updateMutation.isPending} className="btn-primary w-full sm:w-auto">
               {editingComp
                 ? (updateMutation.isPending ? 'Saving…' : 'Save Changes')
-                : (createMutation.isPending ? 'Creating…' : 'Create Competition')}
+                : (createMutation.isPending ? 'Creating & syncing fixtures…' : 'Create Competition')}
             </button>
             <button type="button" onClick={resetCompetitionForm} className="btn-secondary w-full sm:w-auto">
               Cancel
@@ -1226,6 +1252,7 @@ export default function ClubAdminPage() {
                               comp.status === 'ACTIVE' ? 'badge-green' :
                               comp.status === 'UPCOMING' ? 'badge-blue' : 'badge-gray'
                             }>{comp.status}</span>
+                            {comp.paused && <span className="badge-yellow">Paused</span>}
                             {comp.visibility === 'PRIVATE'
                               ? <span className="badge-yellow">Private</span>
                               : <span className="badge-gray">Public</span>}
@@ -1236,6 +1263,11 @@ export default function ClubAdminPage() {
                           <span>{comp.participantCount} players ({comp.activeCount} active)</span>
                           {comp.entryFee > 0 && <span className="text-brand-400 font-semibold">€{comp.entryFee}</span>}
                         </div>
+                        {comp.paused && comp.pauseReason && (
+                          <div className="mt-2 rounded-lg border border-yellow-400/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-100">
+                            <span className="font-semibold">Paused:</span> {comp.pauseReason}
+                          </div>
+                        )}
                         {comp.visibility === 'PRIVATE' && comp.joinCode ? (
                           <div className="mt-2 inline-flex w-fit items-center gap-2 rounded-lg border border-brand-500/25 bg-brand-500/8 px-2.5 py-1 text-[11px] text-brand-200">
                             <span className="font-semibold uppercase tracking-[0.12em] text-brand-300">Invite code</span>
@@ -1288,6 +1320,22 @@ export default function ClubAdminPage() {
                           >
                             {managingComp?.id === comp.id ? 'Close ▲' : 'Participants ▼'}
                           </button>
+                          {comp.status !== 'COMPLETED' && (
+                            <button
+                              onClick={() => {
+                                if (comp.paused) {
+                                  setResumingComp(comp);
+                                } else {
+                                  setPausingComp(comp);
+                                  setPauseReason('');
+                                }
+                              }}
+                              disabled={resumeMutation.isPending}
+                              className="text-xs px-3 py-1.5 rounded-lg border border-yellow-400/20 bg-yellow-500/10 text-yellow-200 transition hover:bg-yellow-500/20 disabled:opacity-40"
+                            >
+                              {comp.paused ? 'Resume' : 'Pause'}
+                            </button>
+                          )}
                           <button
                             onClick={() => {
                               setAnnouncingComp(comp);
@@ -1343,6 +1391,45 @@ export default function ClubAdminPage() {
           </div>
         );
       })()}
+
+      <ConfirmDialog
+        isOpen={resumingComp !== null}
+        onClose={() => { if (!resumeMutation.isPending) setResumingComp(null); }}
+        onConfirm={() => { if (resumingComp) resumeMutation.mutate(resumingComp.id); }}
+        title={`Resume ${resumingComp?.name ?? 'competition'}?`}
+        message="Players will be able to join, pay and make picks again, provided the original gameweek lock time has not passed."
+        items={[
+          'Gameweek lock times remain fixed to the first fixture kickoff and will not change.',
+          'If a lock passed while paused, picks for that gameweek remain closed after resume.',
+          'Automatic processing, reminders and fixture syncing will restart.',
+        ]}
+        confirmText="Resume competition"
+        variant="success"
+        icon="▶"
+        isPending={resumeMutation.isPending}
+        irreversible={false}
+      />
+
+      {pausingComp && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-3 backdrop-blur-sm sm:items-center">
+          <div className="w-full max-w-lg rounded-3xl border border-yellow-400/20 bg-surface-900 p-5 shadow-2xl">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-yellow-300">Pause competition</p>
+            <h2 className="mt-1 text-xl font-black text-white">Pause {pausingComp.name}?</h2>
+            <p className="mt-2 text-sm leading-5 text-gray-400">Joining, payments, picks, reminders and automatic processing will stop. Fixture kickoff and gameweek lock times remain unchanged.</p>
+            <label className="mt-4 block">
+              <span className="text-xs font-semibold text-gray-300">Reason shown to participants</span>
+              <textarea value={pauseReason} onChange={(event) => setPauseReason(event.target.value)} maxLength={500} rows={4} placeholder="For example: Awaiting a corrected fixture result" className="input mt-1 w-full resize-none" />
+              <span className="mt-1 block text-right text-[11px] text-gray-500">{pauseReason.length}/500</span>
+            </label>
+            <div className="mt-4 flex gap-2">
+              <button type="button" onClick={() => setPausingComp(null)} className="btn-secondary flex-1">Cancel</button>
+              <button type="button" onClick={() => pauseMutation.mutate()} disabled={pauseMutation.isPending || !pauseReason.trim()} className="flex-1 rounded-xl border border-yellow-400/30 bg-yellow-500/15 px-4 py-2 text-sm font-bold text-yellow-100 disabled:opacity-40">
+                {pauseMutation.isPending ? 'Pausing…' : 'Pause competition'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {announcingComp && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-3 backdrop-blur-sm sm:items-center">

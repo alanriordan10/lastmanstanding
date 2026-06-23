@@ -50,6 +50,12 @@ public class Gameweek {
     @Column(name = "results_email_sent", nullable = false)
     private boolean resultsEmailSent = false;
 
+    @Column(name = "voided", nullable = false)
+    private boolean voided = false;
+
+    @Column(name = "void_reason", length = 500)
+    private String voidReason;
+
     public Gameweek() {
     }
 
@@ -142,5 +148,22 @@ public class Gameweek {
 
     public void setResultsEmailSent(boolean resultsEmailSent) {
         this.resultsEmailSent = resultsEmailSent;
+    }
+
+
+    public boolean isVoided() {
+        return voided;
+    }
+
+    public void setVoided(boolean voided) {
+        this.voided = voided;
+    }
+
+    public String getVoidReason() {
+        return voidReason;
+    }
+
+    public void setVoidReason(String voidReason) {
+        this.voidReason = voidReason;
     }
 }

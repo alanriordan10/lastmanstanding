@@ -451,6 +451,10 @@ public class CompetitionController {
                                                              @RequestParam(defaultValue = "99") int weeks,
                                                              HttpServletRequest request) {
         List<Gameweek> gameweeks = gameweekRepository.findByCompetitionIdOrderByWeekNumberAsc(id);
+        if (gameweeks.isEmpty()) {
+            competitionService.ensureFixturesForCompetition(id);
+            gameweeks = gameweekRepository.findByCompetitionIdOrderByWeekNumberAsc(id);
+        }
 
         if (weeks < gameweeks.size()) {
             gameweeks = gameweeks.subList(0, weeks);
@@ -463,12 +467,22 @@ public class CompetitionController {
             if (cache != null) {
                 @SuppressWarnings("unchecked")
                 List<FixtureResponse> cached = cache.get(key, List.class);
-                if (cached != null) return conditionalResponse(cached, request, false);
+                if (cached != null && !cached.isEmpty()) return conditionalResponse(cached, request, false);
+                if (cached != null) cache.evictIfPresent(key);
             }
         }
 
         List<FixtureResponse> response = buildFixtureResponses(gameweeks);
-        if (!hasInProgress) {
+        if (response.isEmpty()) {
+            competitionService.ensureFixturesForCompetition(id);
+            gameweeks = gameweekRepository.findByCompetitionIdOrderByWeekNumberAsc(id);
+            if (weeks < gameweeks.size()) {
+                gameweeks = gameweeks.subList(0, weeks);
+            }
+            hasInProgress = gameweeks.stream().anyMatch(gw -> gw.getStatus() == GameweekStatus.IN_PROGRESS);
+            response = buildFixtureResponses(gameweeks);
+        }
+        if (!hasInProgress && !response.isEmpty()) {
             Cache cache = cacheManager.getCache(CacheConfig.FIXTURES_CACHE);
             if (cache != null) cache.put(key, response);
         }
@@ -639,6 +653,8 @@ public class CompetitionController {
             return new GameweekSelectionsData(
                     List.of(),
                     gw.isByeGranted(),
+                    gw.isVoided(),
+                    gw.getVoidReason(),
                     gw.getWeekNumber(),
                     activeAtStart,
                     advancedThisWeek,
@@ -710,6 +726,8 @@ public class CompetitionController {
             return new GameweekSelectionsData(
                 selections,
                 gw.isByeGranted(),
+                gw.isVoided(),
+                gw.getVoidReason(),
                 gw.getWeekNumber(),
                 activeAtStart,
                 advancedThisWeek,
@@ -765,7 +783,12 @@ public class CompetitionController {
         }
 
         List<SurvivorGameweekMeta> gwMetas = gameweeks.stream()
-                .map(gw -> new SurvivorGameweekMeta(gw.getId(), gw.getWeekNumber(), gw.getStatus().name()))
+                .map(gw -> new SurvivorGameweekMeta(
+                        gw.getId(),
+                        gw.getWeekNumber(),
+                        gw.isVoided() ? "VOIDED" : gw.getStatus().name(),
+                        gw.isVoided(),
+                        gw.getVoidReason()))
                 .toList();
 
         List<SurvivorRow> rows = participants.stream().map(cp -> {

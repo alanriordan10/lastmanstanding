@@ -47,6 +47,9 @@ export interface Competition {
   visibility?: 'PUBLIC' | 'PRIVATE';
   joinCode?: string;
   status: string;
+  paused?: boolean;
+  pauseReason?: string | null;
+  pausedAt?: string | number[] | null;
   missedPickMode: string;
   postponedConsumesTeam: boolean;
   startDate: string;
@@ -140,6 +143,8 @@ export interface Fixture {
   hasOverride: boolean;
   gameweekLockAt: string;
   gameweekStatus: 'UPCOMING' | 'LOCKED' | 'IN_PROGRESS' | 'COMPLETED';
+  gameweekVoided?: boolean;
+  gameweekVoidReason?: string | null;
 }
 
 export interface PickResponse {
@@ -172,6 +177,8 @@ export interface GameweekSelection {
 export interface GameweekSelectionsData {
   selections: GameweekSelection[];
   byeGranted: boolean;
+  voided?: boolean;
+  voidReason?: string | null;
   weekNumber: number;
   activeAtStart?: number;
   advancedThisWeek?: number;

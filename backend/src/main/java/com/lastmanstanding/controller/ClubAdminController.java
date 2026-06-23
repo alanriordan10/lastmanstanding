@@ -7,6 +7,7 @@ import com.lastmanstanding.security.UserDetailsImpl;
 import com.lastmanstanding.service.CompetitionService;
 import com.lastmanstanding.service.CompetitionCacheService;
 import com.lastmanstanding.service.CompetitionAnnouncementService;
+import com.lastmanstanding.service.CompetitionPauseService;
 import com.lastmanstanding.service.FixtureSyncService;
 import com.lastmanstanding.service.GameweekEmailService;
 import com.lastmanstanding.service.GameweekProcessingService;
@@ -53,6 +54,7 @@ public class ClubAdminController {
     private final GameweekProcessingService gameweekProcessingService;
     private final CompetitionCacheService competitionCacheService;
     private final CompetitionAnnouncementService competitionAnnouncementService;
+    private final CompetitionPauseService competitionPauseService;
 
     public ClubAdminController(ClubRepository clubRepository,
                                CompetitionRepository competitionRepository,
@@ -68,7 +70,8 @@ public class ClubAdminController {
                                GameweekEmailService gameweekEmailService,
                                GameweekProcessingService gameweekProcessingService,
                                CompetitionCacheService competitionCacheService,
-                               CompetitionAnnouncementService competitionAnnouncementService) {
+                               CompetitionAnnouncementService competitionAnnouncementService,
+                               CompetitionPauseService competitionPauseService) {
         this.clubRepository = clubRepository;
         this.competitionRepository = competitionRepository;
         this.participantRepository = participantRepository;
@@ -84,6 +87,7 @@ public class ClubAdminController {
         this.gameweekProcessingService = gameweekProcessingService;
         this.competitionCacheService = competitionCacheService;
         this.competitionAnnouncementService = competitionAnnouncementService;
+        this.competitionPauseService = competitionPauseService;
     }
 
     // ── My Club ──────────────────────────────────────────────────────────
@@ -233,7 +237,8 @@ public class ClubAdminController {
                 request.maxEntriesPerUser(),
                 request.fixtureCompetitionCode(),
                 request.missedPickMode(), request.postponedConsumesTeam(), request.lifelineEnabled(), request.passFeeToParticipant(),
-                request.paymentMode(), request.manualPaymentPolicy(), request.visibility(), request.startDate(), userDetails.getId(), club.getId());
+                request.paymentMode(), request.manualPaymentPolicy(), request.visibility(), request.startDate(), userDetails.getId(), club.getId(), false);
+        syncInitialFixtures(c);
         logAudit(userDetails, "Competition", c.getId(), "name", null, c.getName(), "CREATE");
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(CompetitionResponse.from(c, 0, 0, null));
@@ -815,6 +820,32 @@ public class ClubAdminController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ParticipantResponse.from(cp));
     }
 
+    public record PauseCompetitionRequest(String reason) {}
+
+    @PostMapping("/competitions/{competitionId}/pause")
+    public ResponseEntity<Void> pauseCompetition(
+            @PathVariable Long competitionId,
+            @RequestBody PauseCompetitionRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        Club club = resolveClub(userDetails);
+        assertOwnsCompetition(competitionId, club);
+        Competition competition = competitionPauseService.pause(competitionId, request.reason());
+        logAudit(userDetails, "Competition", competitionId, "paused", "false", "true", "PAUSE");
+        logAudit(userDetails, "Competition", competitionId, "pauseReason", null, competition.getPauseReason(), "PAUSE_REASON");
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/competitions/{competitionId}/resume")
+    public ResponseEntity<Void> resumeCompetition(
+            @PathVariable Long competitionId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        Club club = resolveClub(userDetails);
+        assertOwnsCompetition(competitionId, club);
+        competitionPauseService.resume(competitionId);
+        logAudit(userDetails, "Competition", competitionId, "paused", "true", "false", "RESUME");
+        return ResponseEntity.noContent().build();
+    }
+
     public record AnnouncementRequest(String title, String message) {}
 
     @PostMapping("/competitions/{competitionId}/announcements")
@@ -861,7 +892,18 @@ public class ClubAdminController {
         }
     }
 
-        private void logAudit(UserDetailsImpl actor, String entityType, Long entityId,
+        private void syncInitialFixtures(Competition competition) {
+        try {
+            int fixtureCount = fixtureSyncService.syncForCompetition(competition);
+            competitionCacheService.evictCompetition(competition.getId());
+            log.info("Initial fixture sync added {} fixture(s) for competition {}", fixtureCount, competition.getId());
+        } catch (Exception e) {
+            log.warn("Competition {} was created but initial fixture sync failed: {}. Manual retry remains available.",
+                    competition.getId(), e.getMessage());
+        }
+    }
+
+    private void logAudit(UserDetailsImpl actor, String entityType, Long entityId,
                                                   String fieldName, String oldValue, String newValue, String action) {
                 if (entityId == null) {
                         entityId = 0L;

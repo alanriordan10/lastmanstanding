@@ -250,7 +250,8 @@ public class AdminController {
                 request.maxEntriesPerUser(),
                 request.fixtureCompetitionCode(),
                 request.missedPickMode(), request.postponedConsumesTeam(), request.lifelineEnabled(), request.passFeeToParticipant(),
-                request.paymentMode(), request.manualPaymentPolicy(), request.visibility(), request.startDate(), userDetails.getId(), request.clubId());
+                request.paymentMode(), request.manualPaymentPolicy(), request.visibility(), request.startDate(), userDetails.getId(), request.clubId(), false);
+        syncInitialFixtures(c);
         logAudit(userDetails, "Competition", c.getId(), "name", null, c.getName(), "CREATE");
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(CompetitionResponse.from(c, 0, 0, null));
@@ -872,19 +873,29 @@ public class AdminController {
         if (!gw.getCompetition().getId().equals(compId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Gameweek does not belong to this competition");
         }
+        boolean competitionPaused = gw.getCompetition().isPaused();
 
-        // 1. Apply fixture overrides in ONE batch save
-        List<Fixture> fixturesToSave = new ArrayList<>();
-        for (Map.Entry<Long, FixtureResultInput> entry : request.fixtures().entrySet()) {
-            Fixture fixture = fixtureRepository.findById(entry.getKey())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Fixture " + entry.getKey() + " not found"));
-            FixtureResultInput result = entry.getValue();
-            if (result.status()    != null) fixture.setOverrideStatus(result.status());
-            if (result.scoreHome() != null) fixture.setOverrideScoreHome(result.scoreHome());
-            if (result.scoreAway() != null) fixture.setOverrideScoreAway(result.scoreAway());
-            fixturesToSave.add(fixture);
+        if (request.fixtures() == null || request.fixtures().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Set at least one fixture result");
         }
-        fixtureRepository.saveAll(fixturesToSave); // single batch
+
+        // Load every submitted fixture in one query rather than one query per fixture.
+        applyFixtureOverrides(gwId, request.fixtures());
+
+        if (competitionPaused) {
+            gameweekProcessingService.voidPausedGameweek(gwId);
+            competitionCacheService.evictCompetition(compId);
+            logAudit(userDetails, "Gameweek", gwId, "competitionId", null, String.valueOf(compId), "SIMULATE_PAUSED_VOID");
+            Competition comp = competitionRepository.findById(compId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Competition not found"));
+            int activeParticipants = participantRepository.findByCompetitionIdAndStatus(compId, ParticipantStatus.ACTIVE).size();
+            return ResponseEntity.accepted().body(new SimulateResponse(
+                    gwId, "VOIDED",
+                    "Competition is paused. Fixture overrides were saved, but the gameweek was voided and no eliminations were applied.",
+                    comp.getStatus().name(),
+                    activeParticipants
+            ));
+        }
 
         // 2. Force-lock (own transaction — short-lived)
         if (gw.getStatus() == GameweekStatus.UPCOMING) {
@@ -922,28 +933,14 @@ public class AdminController {
         if (!gw.getCompetition().getId().equals(compId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Gameweek does not belong to this competition");
         }
+        if (gw.getCompetition().isPaused()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Resume the competition before correcting results");
+        }
         if (request.fixtures() == null || request.fixtures().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Set at least one corrected fixture result");
         }
 
-        List<Fixture> fixturesToSave = new ArrayList<>();
-        for (Map.Entry<Long, FixtureResultInput> entry : request.fixtures().entrySet()) {
-            Fixture fixture = fixtureRepository.findById(entry.getKey())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Fixture " + entry.getKey() + " not found"));
-            if (!fixture.getGameweek().getId().equals(gwId)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Fixture does not belong to the selected gameweek");
-            }
-            FixtureResultInput result = entry.getValue();
-            if (result.scoreHome() != null && result.scoreHome() < 0
-                    || result.scoreAway() != null && result.scoreAway() < 0) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Scores cannot be negative");
-            }
-            if (result.status() != null) fixture.setOverrideStatus(result.status());
-            if (result.scoreHome() != null) fixture.setOverrideScoreHome(result.scoreHome());
-            if (result.scoreAway() != null) fixture.setOverrideScoreAway(result.scoreAway());
-            fixturesToSave.add(fixture);
-        }
-        fixtureRepository.saveAll(fixturesToSave);
+        applyFixtureOverrides(gwId, request.fixtures());
 
         gameweekProcessingService.prepareGameweekCorrection(compId, gwId);
         competitionCacheService.evictCompetition(compId);
@@ -1021,6 +1018,17 @@ public class AdminController {
         return ResponseEntity.ok(new TestCleanupResponse(deleted, "Test users cleaned up"));
     }
 
+    private void syncInitialFixtures(Competition competition) {
+        try {
+            int fixtureCount = fixtureSyncService.syncForCompetition(competition);
+            competitionCacheService.evictCompetition(competition.getId());
+            log.info("Initial fixture sync added {} fixture(s) for competition {}", fixtureCount, competition.getId());
+        } catch (Exception e) {
+            log.warn("Competition {} was created but initial fixture sync failed: {}. Manual retry remains available.",
+                    competition.getId(), e.getMessage());
+        }
+    }
+
     private void logAudit(UserDetailsImpl actor,
                           String entityType,
                           Long entityId,
@@ -1042,6 +1050,36 @@ public class AdminController {
     }
 
     // ── Simulate DTOs ─────────────────────────────────────────────────
+
+    private void applyFixtureOverrides(Long gameweekId, Map<Long, FixtureResultInput> submittedResults) {
+        List<Fixture> fixtures = fixtureRepository.findAllById(submittedResults.keySet());
+        Map<Long, Fixture> fixturesById = fixtures.stream()
+                .collect(java.util.stream.Collectors.toMap(Fixture::getId, fixture -> fixture));
+
+        if (fixturesById.size() != submittedResults.size()) {
+            List<Long> missingIds = submittedResults.keySet().stream()
+                    .filter(id -> !fixturesById.containsKey(id))
+                    .toList();
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Fixture(s) not found: " + missingIds);
+        }
+
+        for (Map.Entry<Long, FixtureResultInput> entry : submittedResults.entrySet()) {
+            Fixture fixture = fixturesById.get(entry.getKey());
+            if (!fixture.getGameweek().getId().equals(gameweekId)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Fixture " + fixture.getId() + " does not belong to the selected gameweek");
+            }
+            FixtureResultInput result = entry.getValue();
+            if (result.scoreHome() != null && result.scoreHome() < 0
+                    || result.scoreAway() != null && result.scoreAway() < 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Scores cannot be negative");
+            }
+            if (result.status() != null) fixture.setOverrideStatus(result.status());
+            if (result.scoreHome() != null) fixture.setOverrideScoreHome(result.scoreHome());
+            if (result.scoreAway() != null) fixture.setOverrideScoreAway(result.scoreAway());
+        }
+        fixtureRepository.saveAll(fixtures);
+    }
 
     public record FixtureResultInput(FixtureStatus status, Integer scoreHome, Integer scoreAway) {}
     public record SimulateRequest(Map<Long, FixtureResultInput> fixtures, Boolean skipAutoComplete) {}

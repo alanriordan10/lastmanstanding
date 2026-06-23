@@ -126,6 +126,10 @@ public class FixtureSyncService {
      * Immediately populate fixtures for a single newly-created competition.
      */
     public int syncForCompetition(Competition competition) {
+        if (competition.isPaused()) {
+            log.info("Skipping fixture sync for paused competition {}", competition.getId());
+            return 0;
+        }
         LocalDate compStart = competition.getStartDate() != null
                 ? competition.getStartDate() : LocalDate.now();
         LocalDate from = compStart.minusDays(7);

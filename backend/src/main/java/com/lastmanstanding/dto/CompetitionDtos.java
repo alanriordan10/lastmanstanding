@@ -97,6 +97,9 @@ public final class CompetitionDtos {
             BigDecimal prizePool,
             Integer maxEntriesPerUser,
             String status,
+            boolean paused,
+            String pauseReason,
+            LocalDateTime pausedAt,
             String fixtureCompetitionCode,
             String missedPickMode,
             boolean postponedConsumesTeam,
@@ -130,6 +133,7 @@ public final class CompetitionDtos {
                     c.getId(), c.getName(), c.getDescription(), c.getEntryFee(), c.getPrizePool(),
                     c.getMaxEntriesPerUser(),
                     c.getStatus().name(),
+                    c.isPaused(), c.getPauseReason(), c.getPausedAt(),
                     c.getFixtureCompetitionCode(),
                     c.getMissedPickMode().name(),
                     c.isPostponedConsumesTeam(), c.isLifelineEnabled(), c.isPassFeeToParticipant(),
@@ -155,6 +159,7 @@ public final class CompetitionDtos {
                     c.getId(), c.getName(), c.getDescription(), c.getEntryFee(), c.getPrizePool(),
                     c.getMaxEntriesPerUser(),
                     c.getStatus().name(),
+                    c.isPaused(), c.getPauseReason(), c.getPausedAt(),
                     c.getFixtureCompetitionCode(),
                     c.getMissedPickMode().name(),
                     c.isPostponedConsumesTeam(), c.isLifelineEnabled(), c.isPassFeeToParticipant(),
@@ -261,7 +266,9 @@ public final class CompetitionDtos {
             LocalDateTime oddsUpdatedAt,
             boolean hasOverride,
             LocalDateTime gameweekLockAt,
-            String gameweekStatus
+            String gameweekStatus,
+            boolean gameweekVoided,
+            String gameweekVoidReason
     ) {
         public static FixtureResponse from(Fixture f) {
             Team home = f.getEffectiveHomeTeam();
@@ -280,7 +287,9 @@ public final class CompetitionDtos {
                     f.getOddsUpdatedAt(),
                     hasOverride,
                     f.getGameweek().getLockAt(),
-                    f.getGameweek().getStatus().name()
+                    f.getGameweek().getStatus().name(),
+                    f.getGameweek().isVoided(),
+                    f.getGameweek().getVoidReason()
             );
         }
     }
@@ -323,6 +332,8 @@ public final class CompetitionDtos {
     public record GameweekSelectionsData(
             List<GameweekSelectionResponse> selections,
             boolean byeGranted,
+            boolean voided,
+            String voidReason,
             Integer weekNumber,
             Integer activeAtStart,
             Integer advancedThisWeek,
@@ -372,7 +383,7 @@ public final class CompetitionDtos {
             LocalDateTime joinedAt
     ) {}
 
-    public record SurvivorGameweekMeta(Long id, int weekNumber, String status) {}
+    public record SurvivorGameweekMeta(Long id, int weekNumber, String status, boolean voided, String voidReason) {}
 
     public record SurvivorPickCell(String teamShortName, String outcome, String source, boolean useLifeline) {}
 
