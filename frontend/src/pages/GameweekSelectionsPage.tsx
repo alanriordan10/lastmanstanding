@@ -187,8 +187,20 @@ export default function GameweekSelectionsPage() {
         </div>
       )}
 
+      {selectionsData?.voided && (
+        <div className="card border-brand-500/30 bg-brand-500/10">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">⏭</span>
+            <div>
+              <h3 className="font-semibold text-brand-300">Gameweek Voided</h3>
+              <p className="mt-1 text-sm text-gray-300">{selectionsData.voidReason || 'The competition was paused when this gameweek locked.'} No one was eliminated, and picks from this gameweek do not consume a team or lifeline.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Bye Granted Banner */}
-      {byeGranted && (
+      {byeGranted && !selectionsData?.voided && (
         <div className="card bg-yellow-600/10 border-yellow-600/30">
           <div className="flex items-start gap-3">
             <span className="text-2xl">🎁</span>

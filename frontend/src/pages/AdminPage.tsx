@@ -2761,6 +2761,12 @@ function SimulateTab() {
                 </div>
               )}
 
+              {selectedCompetition?.paused && !isCorrectionMode && (
+                <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-3 text-sm text-yellow-100">
+                  This competition is paused. Processing these test results will save the fixture overrides, void this gameweek, and apply no eliminations.
+                </div>
+              )}
+
               {/* Skip auto-complete is only meaningful for simulated results. */}
               {!isCorrectionMode && (
                 <label className="flex items-start gap-3 text-sm text-gray-300 cursor-pointer">
@@ -2791,7 +2797,7 @@ function SimulateTab() {
                     Processing…
                   </span>
                 ) : (
-                  isCorrectionMode ? `Save Correction & Reprocess Gameweek` : `Process Results & Eliminate Participants`
+                  isCorrectionMode ? `Save Correction & Reprocess Gameweek` : selectedCompetition?.paused ? `Void Gameweek Without Eliminations` : `Process Results & Eliminate Participants`
                 )}
               </button>
 
