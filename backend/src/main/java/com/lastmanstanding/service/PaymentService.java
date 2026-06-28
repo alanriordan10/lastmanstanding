@@ -2,6 +2,7 @@ package com.lastmanstanding.service;
 
 import com.lastmanstanding.entity.Club;
 import com.lastmanstanding.entity.Competition;
+import com.lastmanstanding.entity.CompetitionParticipant;
 import com.lastmanstanding.entity.CompetitionStatus;
 import com.lastmanstanding.entity.Payment;
 import com.lastmanstanding.entity.PaymentMode;
@@ -200,9 +201,11 @@ public class PaymentService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-        if (paymentRepository.existsByUserIdAndCompetitionIdAndStatus(
-                userId, competitionId, Payment.PaymentStatus.SUCCEEDED)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Already paid for this competition");
+        int maxEntries = comp.getMaxEntriesPerUser() != null ? Math.max(1, comp.getMaxEntriesPerUser()) : 1;
+        long paidEntries = paymentRepository.countByUserIdAndCompetitionIdAndStatus(
+                userId, competitionId, Payment.PaymentStatus.SUCCEEDED);
+        if (paidEntries >= maxEntries) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Maximum paid entries reached for this competition");
         }
 
         Stripe.apiKey = stripeSecretKey;
@@ -289,14 +292,8 @@ public class PaymentService {
             }
 
             markPaymentSucceeded(payment, intent, false);
+            ensureParticipantForPayment(payment);
             paymentRepository.save(payment);
-
-            if (!paymentRepository.existsByUserIdAndCompetitionIdAndStatus(
-                    userId, payment.getCompetition().getId(), Payment.PaymentStatus.SUCCEEDED)) {
-                competitionService.joinCompetition(payment.getCompetition().getId(), userId);
-            } else {
-                tryJoinCompetition(payment.getCompetition().getId(), userId);
-            }
             competitionCacheService.evictCompetition(payment.getCompetition().getId());
 
         } catch (ResponseStatusException e) {
@@ -351,8 +348,8 @@ public class PaymentService {
     private void handlePaymentIntentSucceeded(PaymentIntent intent) {
         paymentRepository.findByStripePaymentIntentId(intent.getId()).ifPresent(payment -> {
             markPaymentSucceeded(payment, intent, true);
+            ensureParticipantForPayment(payment);
             paymentRepository.save(payment);
-            tryJoinCompetition(payment.getCompetition().getId(), payment.getUser().getId());
             competitionCacheService.evictCompetition(payment.getCompetition().getId());
         });
     }
@@ -374,6 +371,19 @@ public class PaymentService {
             paymentRepository.save(payment);
             competitionCacheService.evictCompetition(payment.getCompetition().getId());
         });
+    }
+
+
+    private CompetitionParticipant ensureParticipantForPayment(Payment payment) {
+        if (payment.getParticipant() != null) {
+            return payment.getParticipant();
+        }
+        CompetitionParticipant participant = competitionService.joinCompetition(
+                payment.getCompetition().getId(),
+                payment.getUser().getId()
+        );
+        payment.setParticipant(participant);
+        return participant;
     }
 
     private void markPaymentSucceeded(Payment payment, PaymentIntent intent, boolean webhookConfirmed) {

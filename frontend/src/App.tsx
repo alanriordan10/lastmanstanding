@@ -23,6 +23,7 @@ const SurvivorTablePage = lazy(() => import('./pages/SurvivorTablePage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const ContactPage = lazy(() => import('./pages/ContactPage'));
 const FaqPage = lazy(() => import('./pages/FaqPage'));
+const UserGuidePage = lazy(() => import('./pages/UserGuidePage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 const TermsPage = lazy(() => import('./pages/TermsPage'));
 const AccountDeletionPage = lazy(() => import('./pages/AccountDeletionPage'));
@@ -98,6 +99,7 @@ export default function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/faq" element={<FaqPage />} />
+        <Route path="/guide" element={<UserGuidePage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/account-deletion" element={<AccountDeletionPage />} />

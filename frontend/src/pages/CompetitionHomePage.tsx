@@ -11,6 +11,7 @@ import { useCountdown } from '../hooks/useCountdown';
 import { useAuth } from '../context/AuthContext';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { MetricCard, StatusPill } from '../components/ui-primitives';
+import PaymentModal from '../components/PaymentModal';
 
 interface PickStat {
   teamId: number;
@@ -204,6 +205,7 @@ export default function CompetitionHomePage() {
   const [selectedEntryId, setSelectedEntryId] = useState<number | null>(null);
   const [lifelineForGwId, setLifelineForGwId] = useState<number | null>(null);
   const [gameweekDisplayMode, setGameweekDisplayMode] = useState<GameweekDisplayMode>('cards');
+  const [payingComp, setPayingComp] = useState<Competition | null>(null);
 
   // Close share dropdown on outside click
   useEffect(() => {
@@ -549,6 +551,7 @@ export default function CompetitionHomePage() {
   const isWinner = participant?.status === 'WINNER';
   const canInvite = comp.status === 'UPCOMING';
   const paymentState = participant?.paymentState;
+  const requiresStripePayment = comp.paymentMode === 'STRIPE' && comp.entryFee > 0;
   const awaitingPayment = paymentState === 'AWAITING_PAYMENT';
   const strictManualPayment = comp.paymentMode === 'MANUAL' && comp.manualPaymentPolicy !== 'LENIENT';
   const joinPath = comp.joinCode
@@ -1428,7 +1431,7 @@ export default function CompetitionHomePage() {
               'Free to join. Enter now so you are ready when picks open.',
             ], 221),
         ctaLabel: 'Join competition',
-        ctaKind: 'link' as const,
+        ctaKind: requiresStripePayment ? 'payment' as const : 'link' as const,
       };
     }
     if (canAddAnotherEntry) {
@@ -1438,7 +1441,7 @@ export default function CompetitionHomePage() {
         title: additionalEntriesRemaining === 1 ? 'You can add one more entry' : `You can add ${additionalEntriesRemaining} more entries`,
         detail: `This competition allows up to ${maxEntriesPerUser} entries per user. Add another entry before lock to increase your coverage.`,
         ctaLabel: 'Add another entry',
-        ctaKind: 'link' as const,
+        ctaKind: requiresStripePayment ? 'payment' as const : 'link' as const,
       };
     }
     if (awaitingPayment && strictManualPayment) {
@@ -1894,17 +1897,6 @@ export default function CompetitionHomePage() {
               <span className={clsx('rounded-full border px-3 py-1.5', lifelineStatusToneClass)}>
                 {lifelineStatusLabel}
               </span>
-              <Link
-                to={`/competitions/${compId}/survivor-table`}
-                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-white transition hover:bg-white/15"
-                style={comp.clubSecondaryColor ? {
-                  borderColor: `${comp.clubSecondaryColor}44`,
-                  backgroundColor: `${comp.clubSecondaryColor}12`,
-                  color: comp.clubSecondaryColor,
-                } : undefined}
-              >
-                📊 Survivor Table
-              </Link>
             </div>
           </div>
           <div className="flex w-full flex-col gap-2 items-stretch sm:flex-row sm:flex-wrap lg:w-auto lg:flex-col lg:items-end">
@@ -2164,11 +2156,30 @@ export default function CompetitionHomePage() {
             </div>
             {stateBanner.ctaKind === 'link' ? (
               <Link to={joinPath} className="btn-primary w-full sm:w-auto">{stateBanner.ctaLabel}</Link>
+            ) : stateBanner.ctaKind === 'payment' ? (
+              <button type="button" onClick={() => setPayingComp(comp)} className="btn-primary w-full sm:w-auto">{stateBanner.ctaLabel}</button>
             ) : stateBanner.ctaKind === 'pick' ? (
               <button type="button" onClick={handleScrollToOpenWeek} className="btn-primary w-full sm:w-auto">{stateBanner.ctaLabel}</button>
             ) : null}
           </div>
         </section>
+      )}
+
+
+      {payingComp && (
+        <PaymentModal
+          competition={payingComp}
+          onSuccess={() => {
+            setPayingComp(null);
+            toast.success('Payment complete. Your entry has been added.');
+            queryClient.invalidateQueries({ queryKey: ['competition', compId] });
+            queryClient.invalidateQueries({ queryKey: ['myEntries', compId] });
+            queryClient.invalidateQueries({ queryKey: ['myStatus', compId] });
+            queryClient.invalidateQueries({ queryKey: ['competitions', 'my', 'details'] });
+            queryClient.invalidateQueries({ queryKey: ['competitions', 'upcoming'] });
+          }}
+          onClose={() => setPayingComp(null)}
+        />
       )}
 
       {resultsProcessing && (

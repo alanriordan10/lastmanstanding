@@ -1,5 +1,9 @@
 # Last Man Standing: Competition Management Guide
 
+> New comprehensive guide: [How to Use Last Man Standing](how-to-use-app-and-web.md).
+>
+> This older management guide is kept as a shorter operations reference. Use the comprehensive guide for user and club-admin onboarding.
+
 ## Audience
 - Players (regular users)
 - Club Admins

@@ -14,6 +14,7 @@ import java.util.Optional;
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
     Optional<Payment> findByStripePaymentIntentId(String intentId);
     boolean existsByUserIdAndCompetitionIdAndStatus(Long userId, Long competitionId, Payment.PaymentStatus status);
+    long countByUserIdAndCompetitionIdAndStatus(Long userId, Long competitionId, Payment.PaymentStatus status);
 
     @Query("SELECT p.user.id FROM Payment p WHERE p.competition.id = :competitionId AND p.status = 'SUCCEEDED'")
     List<Long> findPaidUserIdsByCompetitionId(Long competitionId);

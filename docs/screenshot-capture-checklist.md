@@ -70,3 +70,20 @@ Use this checklist while capturing visuals for `docs/competition-management-guid
 - [ ] Consistent spacing/cropping
 - [ ] Captions match the actual state shown
 - [ ] All referenced files exist in `docs/assets/screenshots/`
+
+
+## Generated Guide Mockups
+
+The comprehensive guide includes generated SVG mockups under `docs/assets/screenshots/`. These are useful for documentation previews and can be replaced with real app screenshots later.
+
+Current generated assets:
+
+- `guide-player-competitions.svg`
+- `guide-player-competition-detail.svg`
+- `guide-player-my-route.svg`
+- `guide-player-survivor-table.svg`
+- `guide-admin-dashboard.svg`
+- `guide-admin-create-competition.svg`
+- `guide-admin-participants-payments.svg`
+- `guide-admin-pause-announcements.svg`
+- `guide-admin-results.svg`

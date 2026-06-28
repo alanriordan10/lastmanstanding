@@ -132,6 +132,12 @@ export default function LoginPage() {
             Sign up
           </Link>
         </p>
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs font-semibold text-gray-500">
+          <Link to="/guide" className="hover:text-brand-300">User guide</Link>
+          <Link to="/faq" className="hover:text-brand-300">FAQ</Link>
+          <Link to="/privacy" className="hover:text-brand-300">Privacy</Link>
+          <Link to="/terms" className="hover:text-brand-300">Terms</Link>
+        </div>
 
         {!hideClubCta ? (
           <div className="rounded-[1.4rem] border border-brand-300/25 bg-[linear-gradient(145deg,rgba(14,165,233,0.14),rgba(15,23,42,0.9))] p-5 shadow-[0_18px_42px_rgba(2,6,23,0.34)]">

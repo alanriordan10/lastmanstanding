@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api';
 import toast from 'react-hot-toast';
 import { usePushNotifications } from '../hooks/usePushNotifications';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 export default function ProfilePage() {
   const { user, loginWithData, logout } = useAuth();
@@ -256,6 +256,24 @@ export default function ProfilePage() {
               />
             </button>
           </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-white/10 bg-surface-800/70 px-6 py-5 shadow-[0_20px_50px_rgba(2,6,23,0.34)]">
+        <h2 className="text-base font-semibold text-gray-100">Help</h2>
+        <p className="mt-1 text-sm leading-6 text-gray-400">
+          Learn how to join competitions, make picks, use lifelines, manage payments, and run a club.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Link to="/guide" className="rounded-lg border border-brand-300/30 bg-brand-500/15 px-4 py-2 text-sm font-medium text-brand-100 hover:bg-brand-500/25">
+            User Guide
+          </Link>
+          <Link to="/faq" className="rounded-lg border border-white/15 bg-surface-700 px-4 py-2 text-sm font-medium text-gray-200 hover:bg-surface-600">
+            FAQ
+          </Link>
+          <Link to="/contact" className="rounded-lg border border-white/15 bg-surface-700 px-4 py-2 text-sm font-medium text-gray-200 hover:bg-surface-600">
+            Contact Us
+          </Link>
         </div>
       </div>
 

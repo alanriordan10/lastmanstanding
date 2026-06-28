@@ -513,20 +513,28 @@ export default function ClubAdminPage() {
           </div>
         </button>
         {checklistOpen && (
-          <div className="grid gap-2 sm:grid-cols-2">
-            {onboardingSteps.map((step) => (
-              <div
-                key={step.label}
-                className={`rounded-lg border px-3 py-2 text-xs ${
-                  step.done
-                    ? 'border-green-400/25 bg-green-500/10 text-green-200'
-                    : 'border-amber-400/25 bg-amber-500/10 text-amber-200'
-                }`}
-              >
-                <span className="mr-1.5">{step.done ? '✓' : '•'}</span>{step.label}
-              </div>
-            ))}
-          </div>
+          <>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {onboardingSteps.map((step) => (
+                <div
+                  key={step.label}
+                  className={`rounded-lg border px-3 py-2 text-xs ${
+                    step.done
+                      ? 'border-green-400/25 bg-green-500/10 text-green-200'
+                      : 'border-amber-400/25 bg-amber-500/10 text-amber-200'
+                  }`}
+                >
+                  <span className="mr-1.5">{step.done ? '✓' : '•'}</span>{step.label}
+                </div>
+              ))}
+            </div>
+            <Link
+              to="/guide"
+              className="inline-flex w-full items-center justify-center rounded-lg border border-brand-300/25 bg-brand-500/10 px-3 py-2 text-xs font-semibold text-brand-100 transition hover:bg-brand-500/20 sm:w-auto"
+            >
+              Read club admin guide
+            </Link>
+          </>
         )}
       </div>
 

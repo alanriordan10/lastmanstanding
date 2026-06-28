@@ -157,6 +157,12 @@ export default function FaqPage() {
           <p className="mt-2 text-sm text-gray-300">
             Everything players and club admins ask about running football last man standing competitions.
           </p>
+          <Link
+            to="/guide"
+            className="mt-5 inline-flex rounded-xl border border-brand-300/30 bg-brand-500/15 px-4 py-2 text-sm font-bold text-brand-100 transition hover:bg-brand-500/25"
+          >
+            Open full user guide
+          </Link>
         </div>
 
         <div className="space-y-6">

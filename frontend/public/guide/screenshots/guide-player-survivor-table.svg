@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844">
+<rect width="390" height="844" fill="#07111f"/>
+<circle cx="340" cy="40" r="95" fill="#172554" opacity="0.35"/>
+<circle cx="48" cy="155" r="55" fill="#082f49" opacity="0.45"/>
+<rect x="22" y="28" width="48" height="48" rx="14" fill="#111827" stroke="#334155" stroke-width="2" opacity="1" />
+<text x="84" y="62" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="900" fill="#f8fafc" text-anchor="start" opacity="1">Survivor Table</text>
+<text x="84" y="86" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700" fill="#94a3b8" text-anchor="start" opacity="1">Standings, filters, and picks</text>
+<rect x="28" y="116" width="334" height="86" rx="24" fill="#151f31" stroke="#2b3a55" stroke-width="2" opacity="1" />
+<text x="52" y="154" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="900" fill="#f8fafc" text-anchor="start" opacity="1">Table View</text>
+<rect x="230" y="134" width="88" height="38" rx="19" fill="#052e1a" stroke="#16a34a" stroke-width="2" opacity="1" /><text x="274.0" y="159" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="900" fill="#bbf7d0" text-anchor="middle" opacity="1">Active</text>
+<rect x="28" y="226" width="334" height="54" rx="14" fill="#0b1220" stroke="#334155" stroke-width="2" opacity="1" />
+<text x="50" y="260" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="600" fill="#94a3b8" text-anchor="start" opacity="1">Search participant...</text>
+<rect x="28" y="310" width="334" height="78" rx="16" fill="#101827" stroke="#223047" stroke-width="2" opacity="1" />
+<text x="48" y="344" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="900" fill="#94a3b8" text-anchor="start" opacity="1">1</text>
+<text x="84" y="342" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="900" fill="#f8fafc" text-anchor="start" opacity="1">alan</text>
+<text x="84" y="368" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700" fill="#94a3b8" text-anchor="start" opacity="1">MEX -&gt; ESP -&gt;</text>
+<text x="332" y="353" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="900" fill="#22c55e" text-anchor="end" opacity="1">ACTIVE</text>
+<rect x="28" y="402" width="334" height="78" rx="16" fill="#101827" stroke="#223047" stroke-width="2" opacity="1" />
+<text x="48" y="436" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="900" fill="#94a3b8" text-anchor="start" opacity="1">2</text>
+<text x="84" y="434" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="900" fill="#f8fafc" text-anchor="start" opacity="1">mary</text>
+<text x="84" y="460" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700" fill="#94a3b8" text-anchor="start" opacity="1">RSA -&gt; FRA -&gt;</text>
+<text x="332" y="445" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="900" fill="#22c55e" text-anchor="end" opacity="1">ACTIVE</text>
+<rect x="28" y="494" width="334" height="78" rx="16" fill="#101827" stroke="#223047" stroke-width="2" opacity="1" />
+<text x="48" y="528" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="900" fill="#94a3b8" text-anchor="start" opacity="1">3</text>
+<text x="84" y="526" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="900" fill="#f8fafc" text-anchor="start" opacity="1">john</text>
+<text x="84" y="552" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700" fill="#94a3b8" text-anchor="start" opacity="1">KOR x</text>
+<text x="332" y="537" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="900" fill="#f87171" text-anchor="end" opacity="1">ELIM GW2</text>
+<rect x="28" y="586" width="334" height="78" rx="16" fill="#101827" stroke="#223047" stroke-width="2" opacity="1" />
+<text x="48" y="620" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="900" fill="#94a3b8" text-anchor="start" opacity="1">4</text>
+<text x="84" y="618" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="900" fill="#f8fafc" text-anchor="start" opacity="1">sarah</text>
+<text x="84" y="644" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700" fill="#94a3b8" text-anchor="start" opacity="1">CAN -&gt; GER</text>
+<text x="332" y="629" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="900" fill="#facc15" text-anchor="end" opacity="1">LIFELINE GW1</text>
+<rect x="44" y="706" width="132" height="48" rx="16" fill="#111827" stroke="#334155" stroke-width="2" opacity="1" /><text x="110.0" y="737" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="900" fill="#cbd5e1" text-anchor="middle" opacity="1">Previous</text>
+<rect x="214" y="706" width="132" height="48" rx="16" fill="#111827" stroke="#334155" stroke-width="2" opacity="1" /><text x="280.0" y="737" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="900" fill="#cbd5e1" text-anchor="middle" opacity="1">Next</text>
+</svg>

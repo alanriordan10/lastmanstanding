@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844">
+<rect width="390" height="844" fill="#07111f"/>
+<circle cx="340" cy="40" r="95" fill="#172554" opacity="0.35"/>
+<circle cx="48" cy="155" r="55" fill="#082f49" opacity="0.45"/>
+<rect x="22" y="28" width="48" height="48" rx="14" fill="#111827" stroke="#334155" stroke-width="2" opacity="1" />
+<text x="84" y="62" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="900" fill="#f8fafc" text-anchor="start" opacity="1">Pause &amp; Announce</text>
+<text x="84" y="86" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700" fill="#94a3b8" text-anchor="start" opacity="1">Control competition communication</text>
+<rect x="28" y="116" width="334" height="150" rx="24" fill="#151f31" stroke="#2b3a55" stroke-width="2" opacity="1" />
+<text x="52" y="156" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="900" fill="#f8fafc" text-anchor="start" opacity="1">Pause competition</text>
+<text x="52" y="188" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700" fill="#94a3b8" text-anchor="start" opacity="1">Stops joins, payments, picks, and automation.</text>
+<rect x="52" y="208" width="286" height="38" rx="12" fill="#0b1220" stroke="#334155" stroke-width="2" opacity="1" />
+<text x="68" y="233" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700" fill="#94a3b8" text-anchor="start" opacity="1">Reason: Fixture issue</text>
+<rect x="52" y="260" width="286" height="48" rx="16" fill="#3a2605" stroke="#f59e0b" stroke-width="2" opacity="1" /><text x="195.0" y="291" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="900" fill="#fde68a" text-anchor="middle" opacity="1">Pause Competition</text>
+<rect x="28" y="338" width="334" height="184" rx="24" fill="#151f31" stroke="#2b3a55" stroke-width="2" opacity="1" />
+<text x="52" y="378" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="900" fill="#f8fafc" text-anchor="start" opacity="1">Send announcement</text>
+<rect x="52" y="402" width="286" height="40" rx="12" fill="#0b1220" stroke="#334155" stroke-width="2" opacity="1" />
+<text x="68" y="428" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700" fill="#94a3b8" text-anchor="start" opacity="1">Title: Deadline reminder</text>
+<rect x="52" y="456" width="286" height="48" rx="12" fill="#0b1220" stroke="#334155" stroke-width="2" opacity="1" />
+<text x="68" y="486" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700" fill="#94a3b8" text-anchor="start" opacity="1">Message: Picks lock tonight.</text>
+<rect x="52" y="536" width="286" height="48" rx="16" fill="#12324a" stroke="#256b92" stroke-width="2" opacity="1" /><text x="195.0" y="567" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="900" fill="#bae6fd" text-anchor="middle" opacity="1">Send to Participants</text>
+<rect x="28" y="610" width="334" height="118" rx="24" fill="#171827" stroke="#7c3aed" stroke-width="2" opacity="1" />
+<text x="52" y="650" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="900" fill="#f8fafc" text-anchor="start" opacity="1">Users see announcements</text>
+<text x="52" y="682" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="700" fill="#cbd5e1" text-anchor="start" opacity="1">Displayed on Competitions with dismiss.</text>
+</svg>

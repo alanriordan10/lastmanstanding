@@ -372,9 +372,25 @@ public class CompetitionController {
     }
 
     private String paymentStateForParticipant(CompetitionParticipant participant) {
-        List<Payment.PaymentStatus> statuses = paymentRepository.findStatusesByUserAndCompetition(
-                participant.getUser().getId(), participant.getCompetition().getId());
-        return derivePaymentState(participant.getCompetition(), statuses);
+        Competition competition = participant.getCompetition();
+        if (competition.getPaymentMode() == null || competition.getPaymentMode() == PaymentMode.FREE) {
+            return "NOT_REQUIRED";
+        }
+
+        if (participant.getId() != null
+                && paymentRepository.findSucceededByCompetitionAndParticipant(competition.getId(), participant.getId()).isPresent()) {
+            return "PAID";
+        }
+
+        // Legacy Stripe/manual payments created before participant scoping had a null participant_id.
+        // Only use that fallback when the competition has no scoped paid participants, otherwise a
+        // single old user-level payment would incorrectly mark every entry as paid.
+        if (paymentRepository.findPaidParticipantIdsByCompetitionId(competition.getId()).isEmpty()
+                && paymentRepository.findSucceededByCompetitionAndUser(competition.getId(), participant.getUser().getId()).isPresent()) {
+            return "PAID";
+        }
+
+        return "AWAITING_PAYMENT";
     }
 
     private Map<Long, Boolean> pickRequiredForParticipants(List<CompetitionParticipant> participants, Map<Long, String> paymentStates) {
