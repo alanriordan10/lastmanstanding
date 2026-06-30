@@ -40,6 +40,12 @@ public class FixtureOddsSyncService {
     @Value("${odds.sync.to-days:14}")
     private int toDays;
 
+    @Value("${odds.sync.max-to-days:14}")
+    private int maxToDays;
+
+    @Value("${odds.sync.refresh-hours:24}")
+    private int refreshHours;
+
     @Value("${odds.sports.pl:soccer_epl}")
     private String premierLeagueSport;
 
@@ -57,10 +63,13 @@ public class FixtureOddsSyncService {
             return 0;
         }
 
-        LocalDateTime from = LocalDateTime.now(ZoneOffset.UTC).minusDays(Math.max(0, fromDays));
-        LocalDateTime to = LocalDateTime.now(ZoneOffset.UTC).plusDays(Math.max(1, toDays));
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        LocalDateTime from = now.minusDays(Math.max(0, fromDays));
+        int effectiveToDays = Math.min(Math.max(1, toDays), Math.max(1, maxToDays));
+        LocalDateTime to = now.plusDays(effectiveToDays);
+        LocalDateTime staleBefore = now.minusHours(Math.max(1, refreshHours));
 
-        List<Fixture> candidates = fixtureRepository.findOddsSyncCandidates(from, to);
+        List<Fixture> candidates = fixtureRepository.findOddsSyncCandidates(from, to, staleBefore);
         if (candidates.isEmpty()) {
             return 0;
         }

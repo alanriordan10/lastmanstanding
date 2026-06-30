@@ -79,6 +79,10 @@ public class FootballDataProvider implements FixtureProvider {
 
     private final Map<String, CacheEntry<?>> cache = new ConcurrentHashMap<>();
 
+    private static class RateLimitException extends RuntimeException {
+        RateLimitException(String message) { super(message); }
+    }
+
     @SuppressWarnings("unchecked")
     private <T> Optional<T> fromCache(String key) {
         CacheEntry<?> entry = cache.get(key);
@@ -126,12 +130,17 @@ public class FootballDataProvider implements FixtureProvider {
             Optional<List<ProviderFixture>> cached = fromCache(key);
             if (cached.isPresent()) return cached.get();
         }
-        List<ProviderFixture> fixtures = loadMatches(from, to, false, code);
-        if (hasLive) {
-            fixtures = mergeProviderFixtures(fixtures, loadLiveMatches(code));
+        try {
+            List<ProviderFixture> fixtures = loadMatches(from, to, false, code);
+            if (hasLive) {
+                fixtures = mergeProviderFixtures(fixtures, loadLiveMatches(code));
+            }
+            putCache(key, fixtures, ttl);
+            return fixtures;
+        } catch (RateLimitException e) {
+            log.warn("Using empty fixture response after rate limit for {} {} to {}; cache was not overwritten", code, from, to);
+            return List.of();
         }
-        putCache(key, fixtures, ttl);
-        return fixtures;
     }
 
     @Override
@@ -148,12 +157,17 @@ public class FootballDataProvider implements FixtureProvider {
             Optional<List<ProviderFixture>> cached = fromCache(key);
             if (cached.isPresent()) return cached.get();
         }
-        List<ProviderFixture> results = loadMatches(from, to, true, code);
-        if (hasLive) {
-            results = mergeProviderFixtures(results, loadLiveMatches(code));
+        try {
+            List<ProviderFixture> results = loadMatches(from, to, true, code);
+            if (hasLive) {
+                results = mergeProviderFixtures(results, loadLiveMatches(code));
+            }
+            putCache(key, results, hasLive ? liveStatusCacheTtl : resultsCacheTtl);
+            return results;
+        } catch (RateLimitException e) {
+            log.warn("Using empty result response after rate limit for {} {} to {}; cache was not overwritten", code, from, to);
+            return List.of();
         }
-        putCache(key, results, hasLive ? liveStatusCacheTtl : resultsCacheTtl);
-        return results;
     }
 
     // ── Private helpers ──────────────────────────────────────────────────
@@ -229,6 +243,8 @@ public class FootballDataProvider implements FixtureProvider {
                     .map(this::toProviderFixture)
                     .filter(Objects::nonNull)
                     .toList();
+        } catch (RateLimitException e) {
+            throw e;
         } catch (HttpConnectTimeoutException e) {
             log.error("Failed to connect to football-data.org matches endpoint within timeout for {} to {}: {}", from, to, e.getMessage());
             return List.of();
@@ -354,7 +370,7 @@ public class FootballDataProvider implements FixtureProvider {
 
         if (resp.statusCode() == 429) {
             log.warn("football-data.org rate limit hit (429). Will retry on next sync.");
-            return null;
+            throw new RateLimitException("football-data.org rate limit hit");
         }
         if (resp.statusCode() != 200) {
             log.error("football-data.org returned {} for {}: {}", resp.statusCode(), url, resp.body());

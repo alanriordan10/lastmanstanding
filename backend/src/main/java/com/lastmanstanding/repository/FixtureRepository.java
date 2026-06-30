@@ -62,9 +62,13 @@ public interface FixtureRepository extends JpaRepository<Fixture, Long> {
             "JOIN FETCH gw.competition " +
             "WHERE f.importedKickoffAt >= :from " +
             "AND f.importedKickoffAt <= :to " +
+            "AND (f.oddsUpdatedAt IS NULL OR f.oddsUpdatedAt < :staleBefore " +
+            "OR f.oddsHomeWin IS NULL OR f.oddsDraw IS NULL OR f.oddsAwayWin IS NULL) " +
             "AND gw.status IN (" +
             "com.lastmanstanding.entity.GameweekStatus.UPCOMING, " +
             "com.lastmanstanding.entity.GameweekStatus.LOCKED, " +
             "com.lastmanstanding.entity.GameweekStatus.IN_PROGRESS)")
-    List<Fixture> findOddsSyncCandidates(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+    List<Fixture> findOddsSyncCandidates(@Param("from") LocalDateTime from,
+                                         @Param("to") LocalDateTime to,
+                                         @Param("staleBefore") LocalDateTime staleBefore);
 }

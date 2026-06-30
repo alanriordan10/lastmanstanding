@@ -368,6 +368,34 @@ export default function CompetitionHomePage() {
   const { map: pickStatsByGwId, isLoading: pickStatsLoading } = usePickStatsMap(compId, lockedGwIds);
   const resultsProcessing = hasPendingResultProcessing(fixtures);
 
+  const joinMutation = useMutation({
+    mutationFn: () => api.post(`/competitions/${compId}/join`),
+    onSuccess: () => {
+      const competitionName = comp?.name ?? 'competition';
+      if (comp?.paymentMode === 'MANUAL') {
+        toast(`You've registered for ${competitionName}. Please pay the organiser directly.`, { icon: '💸', duration: 8000 });
+      } else {
+        toast.success('Joined competition!');
+      }
+      queryClient.invalidateQueries({ queryKey: ['competition', compId] });
+      queryClient.invalidateQueries({ queryKey: ['myEntries', compId] });
+      queryClient.invalidateQueries({ queryKey: ['myStatus', compId] });
+      queryClient.invalidateQueries({ queryKey: ['competitions', 'my', 'details'] });
+      queryClient.invalidateQueries({ queryKey: ['competitions', 'upcoming'] });
+      queryClient.invalidateQueries({ queryKey: ['competitions'] });
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to join competition'),
+  });
+
+  const handleDirectJoin = () => {
+    if (!comp) return;
+    if (requiresStripePayment) {
+      setPayingComp(comp);
+      return;
+    }
+    joinMutation.mutate();
+  };
+
   const pickMutation = useMutation({
     mutationFn: ({ gwId, teamId, useLifeline }: { gwId: number; teamId: number; useLifeline: boolean }) =>
       api.post(`/competitions/${compId}/gameweeks/${gwId}/pick`, {
@@ -1431,7 +1459,7 @@ export default function CompetitionHomePage() {
               'Free to join. Enter now so you are ready when picks open.',
             ], 221),
         ctaLabel: 'Join competition',
-        ctaKind: requiresStripePayment ? 'payment' as const : 'link' as const,
+        ctaKind: requiresStripePayment ? 'payment' as const : 'join' as const,
       };
     }
     if (canAddAnotherEntry) {
@@ -1441,7 +1469,7 @@ export default function CompetitionHomePage() {
         title: additionalEntriesRemaining === 1 ? 'You can add one more entry' : `You can add ${additionalEntriesRemaining} more entries`,
         detail: `This competition allows up to ${maxEntriesPerUser} entries per user. Add another entry before lock to increase your coverage.`,
         ctaLabel: 'Add another entry',
-        ctaKind: requiresStripePayment ? 'payment' as const : 'link' as const,
+        ctaKind: requiresStripePayment ? 'payment' as const : 'join' as const,
       };
     }
     if (awaitingPayment && strictManualPayment) {
@@ -2154,8 +2182,10 @@ export default function CompetitionHomePage() {
               <h2 className="mt-1 text-lg font-semibold text-white">{stateBanner.title}</h2>
               <p className="mt-1 text-sm text-gray-200">{stateBanner.detail}</p>
             </div>
-            {stateBanner.ctaKind === 'link' ? (
-              <Link to={joinPath} className="btn-primary w-full sm:w-auto">{stateBanner.ctaLabel}</Link>
+            {stateBanner.ctaKind === 'join' ? (
+              <button type="button" onClick={handleDirectJoin} disabled={joinMutation.isPending} className="btn-primary w-full sm:w-auto disabled:cursor-not-allowed disabled:opacity-60">
+                {joinMutation.isPending ? 'Joining...' : stateBanner.ctaLabel}
+              </button>
             ) : stateBanner.ctaKind === 'payment' ? (
               <button type="button" onClick={() => setPayingComp(comp)} className="btn-primary w-full sm:w-auto">{stateBanner.ctaLabel}</button>
             ) : stateBanner.ctaKind === 'pick' ? (
@@ -2229,9 +2259,14 @@ export default function CompetitionHomePage() {
               meta={sidebarMeta}
               accentColor={comp.clubPrimaryColor}
               cta={!isParticipant && comp.status === 'UPCOMING' ? (
-                <Link to={joinPath} className="btn-primary w-full sm:w-auto text-sm">
-                  Go to join flow
-                </Link>
+                <button
+                  type="button"
+                  onClick={handleDirectJoin}
+                  disabled={joinMutation.isPending}
+                  className="btn-primary w-full sm:w-auto text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {joinMutation.isPending ? 'Joining...' : requiresStripePayment ? `Pay €${comp.entryFee} & join` : 'Join competition'}
+                </button>
               ) : (
                 <Link
                   to={`/competitions/${compId}/survivor-table`}
@@ -2790,9 +2825,14 @@ export default function CompetitionHomePage() {
               meta={sidebarMeta}
               accentColor={comp.clubPrimaryColor}
               cta={!isParticipant && comp.status === 'UPCOMING' ? (
-                <Link to={joinPath} className="btn-primary w-full sm:w-auto text-sm">
-                  Go to join flow
-                </Link>
+                <button
+                  type="button"
+                  onClick={handleDirectJoin}
+                  disabled={joinMutation.isPending}
+                  className="btn-primary w-full sm:w-auto text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {joinMutation.isPending ? 'Joining...' : requiresStripePayment ? `Pay €${comp.entryFee} & join` : 'Join competition'}
+                </button>
               ) : (
                 <Link
                   to={`/competitions/${compId}/survivor-table`}

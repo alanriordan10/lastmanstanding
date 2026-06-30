@@ -138,7 +138,9 @@ public class FixtureSyncService {
         log.debug("syncForCompetition: competition='{}' fetchRange={} → {} compStart={}",
                 competition.getName(), from, to, compStart);
 
-        fixtureProvider.evictAll();
+        // Do not evict provider cache here. Creating many competitions with the same
+        // fixture source/date window should reuse cached provider responses instead
+        // of making one football-data.org request per competition.
         String competitionCode = normalizeCompetitionCode(competition.getFixtureCompetitionCode());
         List<ProviderTeam> teams = fixtureProvider.fetchTeams(competitionCode);
         List<ProviderFixture> fixtures = fixtureProvider.fetchFixtures(from, to, competitionCode);

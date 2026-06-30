@@ -106,11 +106,13 @@ odds:
   markets: ${ODDS_MARKETS:h2h}
   odds-format: ${ODDS_FORMAT:decimal}
   date-format: ${ODDS_DATE_FORMAT:iso}
-  sync-cron: "${ODDS_SYNC_CRON:0 */20 * * * *}"
+  sync-cron: "${ODDS_SYNC_CRON:0 0 */6 * * *}"
   quota-backoff-hours: ${ODDS_QUOTA_BACKOFF_HOURS:24}
   sync:
     from-days: ${ODDS_SYNC_FROM_DAYS:0}
     to-days: ${ODDS_SYNC_TO_DAYS:14}
+    max-to-days: ${ODDS_SYNC_MAX_TO_DAYS:14}
+    refresh-hours: ${ODDS_SYNC_REFRESH_HOURS:24}
 
 stripe:
   secret-key: ${STRIPE_SECRET_KEY:sk_test_your_stripe_secret_key_here}
