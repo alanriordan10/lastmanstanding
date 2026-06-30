@@ -63,6 +63,12 @@ public class PaymentService {
     @Value("${stripe.connect.refresh-url:}")
     private String stripeConnectRefreshUrl;
 
+    @Value("${stripe.platform-fee-enabled:false}")
+    private boolean stripePlatformFeeEnabled;
+
+    @Value("${stripe.platform-fee-percent:0}")
+    private double stripePlatformFeePercent;
+
     @Value("${stripe.platform-fee-bps:0}")
     private int stripePlatformFeeBps;
 
@@ -217,7 +223,8 @@ public class PaymentService {
                 : entryFeeCents;
 
         FeeEstimate fees = estimateFees(chargeAmountCents);
-        long applicationFeeAmountCents = Math.round(chargeAmountCents * (stripePlatformFeeBps / 10000.0));
+        long applicationFeeAmountCents = calculatePlatformFeeCents(chargeAmountCents);
+        long organiserNetCents = Math.max(0, fees.netCents() - applicationFeeAmountCents);
 
         try {
             PaymentIntentCreateParams.Builder paramsBuilder = PaymentIntentCreateParams.builder()
@@ -233,11 +240,12 @@ public class PaymentService {
                     .putMetadata("userEmail", user.getEmail());
 
             if (comp.getPaymentMode() == PaymentMode.STRIPE) {
-                paramsBuilder
-                        .setApplicationFeeAmount(applicationFeeAmountCents)
-                        .setTransferData(PaymentIntentCreateParams.TransferData.builder()
-                                .setDestination(comp.getStripeDestinationAccountId())
-                                .build());
+                if (applicationFeeAmountCents > 0) {
+                    paramsBuilder.setApplicationFeeAmount(applicationFeeAmountCents);
+                }
+                paramsBuilder.setTransferData(PaymentIntentCreateParams.TransferData.builder()
+                        .setDestination(comp.getStripeDestinationAccountId())
+                        .build());
             }
 
             PaymentIntent intent = PaymentIntent.create(paramsBuilder.build());
@@ -257,7 +265,11 @@ public class PaymentService {
                     fees.processingCents(),
                     fees.taxCents(),
                     fees.netCents(),
-                    comp.isPassFeeToParticipant()
+                    comp.isPassFeeToParticipant(),
+                    applicationFeeAmountCents > 0,
+                    effectivePlatformFeeBps(),
+                    applicationFeeAmountCents,
+                    organiserNetCents
             );
 
         } catch (StripeException e) {
@@ -423,6 +435,22 @@ public class PaymentService {
         }
     }
 
+    private long calculatePlatformFeeCents(long chargeAmountCents) {
+        int effectiveBps = effectivePlatformFeeBps();
+        if (!stripePlatformFeeEnabled || effectiveBps <= 0 || chargeAmountCents <= 0) {
+            return 0;
+        }
+        long fee = Math.round(chargeAmountCents * (effectiveBps / 10_000.0));
+        return Math.min(chargeAmountCents, Math.max(0, fee));
+    }
+
+    private int effectivePlatformFeeBps() {
+        if (stripePlatformFeePercent > 0) {
+            return Math.min(10_000, Math.max(0, (int) Math.round(stripePlatformFeePercent * 100)));
+        }
+        return Math.min(10_000, Math.max(0, stripePlatformFeeBps));
+    }
+
     /**
      * Estimates Stripe processing fees for a given charge amount in cents.
      * EU card rate: 1.5% + €0.25, plus 23% Irish VAT on the fee.
@@ -457,7 +485,11 @@ public class PaymentService {
             long estimatedProcessingFeeCents,
             long estimatedTaxCents,
             long estimatedNetCents,
-            boolean feePassedToParticipant
+            boolean feePassedToParticipant,
+            boolean platformFeeEnabled,
+            int platformFeeBps,
+            long platformFeeCents,
+            long estimatedOrganiserNetAfterPlatformFeeCents
     ) {}
 
     public record ConnectOnboardingResponse(String stripeAccountId, String onboardingUrl) {}

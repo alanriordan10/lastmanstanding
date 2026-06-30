@@ -42,6 +42,10 @@ type FeeBreakdown = {
   taxCents: number;
   netCents: number;
   feePassedToParticipant: boolean;
+  platformFeeEnabled: boolean;
+  platformFeeBps: number;
+  platformFeeCents: number;
+  organiserNetAfterPlatformFeeCents: number;
 };
 
 // ── Inner form (has access to Stripe hooks) ───────────────────────────
@@ -65,6 +69,7 @@ function CheckoutForm({
 
   const entryFeeCents = Math.round(competition.entryFee * 100);
   const chargeAmount = feeBreakdown ? (feeBreakdown.amountCents / 100).toFixed(2) : competition.entryFee.toFixed(2);
+  const platformFeePercent = feeBreakdown ? (feeBreakdown.platformFeeBps / 100).toFixed(2).replace(/\.00$/, '') : '0';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -150,13 +155,19 @@ function CheckoutForm({
                     <span>Tax on fee <span className="text-gray-500">(est.)</span></span>
                     <span>+ {fmt(feeBreakdown.taxCents)}</span>
                   </div>
+                  {feeBreakdown.platformFeeEnabled && feeBreakdown.platformFeeCents > 0 && (
+                    <div className="flex justify-between text-gray-400">
+                      <span>Platform fee ({platformFeePercent}%)</span>
+                      <span>− {fmt(feeBreakdown.platformFeeCents)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between font-semibold text-gray-200 border-t border-gray-700/60 pt-1.5 mt-1.5">
                     <span>You are charged</span>
                     <span className="text-brand-400">{fmt(feeBreakdown.amountCents)}</span>
                   </div>
                   <div className="flex justify-between text-gray-500">
                     <span>Estimated organiser net</span>
-                    <span>{fmt(feeBreakdown.netCents)}</span>
+                    <span>{fmt(feeBreakdown.organiserNetAfterPlatformFeeCents)}</span>
                   </div>
                 </>
               ) : (
@@ -173,9 +184,15 @@ function CheckoutForm({
                     <span>Tax on fee <span className="text-gray-500">(est.)</span></span>
                     <span>− {fmt(feeBreakdown.taxCents)}</span>
                   </div>
+                  {feeBreakdown.platformFeeEnabled && feeBreakdown.platformFeeCents > 0 && (
+                    <div className="flex justify-between text-gray-400">
+                      <span>Platform fee ({platformFeePercent}%)</span>
+                      <span>− {fmt(feeBreakdown.platformFeeCents)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between font-semibold text-gray-200 border-t border-gray-700/60 pt-1.5 mt-1.5">
                     <span>Organiser receives</span>
-                    <span className="text-green-400">{fmt(feeBreakdown.netCents)}</span>
+                    <span className="text-green-400">{fmt(feeBreakdown.organiserNetAfterPlatformFeeCents)}</span>
                   </div>
                 </>
               )}
@@ -271,6 +288,10 @@ export default function PaymentModal({ competition, onSuccess, onClose }: Paymen
           taxCents: intentRes.data.estimatedTaxCents,
           netCents: intentRes.data.estimatedNetCents,
           feePassedToParticipant: intentRes.data.feePassedToParticipant ?? false,
+          platformFeeEnabled: intentRes.data.platformFeeEnabled ?? false,
+          platformFeeBps: intentRes.data.platformFeeBps ?? 0,
+          platformFeeCents: intentRes.data.platformFeeCents ?? 0,
+          organiserNetAfterPlatformFeeCents: intentRes.data.estimatedOrganiserNetAfterPlatformFeeCents ?? intentRes.data.estimatedNetCents,
         });
       } catch (err: any) {
         setError(err.response?.data?.message ?? err.message ?? 'Failed to initialise payment');
