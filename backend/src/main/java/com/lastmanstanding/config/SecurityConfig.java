@@ -91,7 +91,7 @@ public class SecurityConfig {
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/club-admin/**").hasAnyRole("ADMIN", "CLUB_ADMIN")
-                        .requestMatchers("/payments/webhook").permitAll()
+                        .requestMatchers("/payments/webhook", "/payments/config").permitAll()
                         .requestMatchers("/payments/**").authenticated()
                         .anyRequest().authenticated())
                 .oauth2Login(oauth2 -> oauth2
