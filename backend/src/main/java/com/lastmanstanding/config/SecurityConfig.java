@@ -2,6 +2,8 @@ package com.lastmanstanding.config;
 
 import com.lastmanstanding.repository.UserRepository;
 import com.lastmanstanding.security.OAuth2AuthenticationSuccessHandler;
+import com.lastmanstanding.security.HttpCookieOAuth2AuthorizationRequestRepository;
+import com.lastmanstanding.security.OAuth2AuthenticationFailureRedirectHandler;
 import com.lastmanstanding.security.JwtAuthenticationFilter;
 import com.lastmanstanding.security.UserDetailsImpl;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,15 +38,21 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final UserRepository userRepository;
     private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
+    private final OAuth2AuthenticationFailureRedirectHandler oAuth2AuthenticationFailureRedirectHandler;
+    private final HttpCookieOAuth2AuthorizationRequestRepository oAuth2AuthorizationRequestRepository;
     private final String frontendUrl;
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
                           UserRepository userRepository,
                           OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler,
+                          OAuth2AuthenticationFailureRedirectHandler oAuth2AuthenticationFailureRedirectHandler,
+                          HttpCookieOAuth2AuthorizationRequestRepository oAuth2AuthorizationRequestRepository,
                           @Value("${app.frontend-url:http://localhost:5173}") String frontendUrl) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.userRepository = userRepository;
         this.oAuth2AuthenticationSuccessHandler = oAuth2AuthenticationSuccessHandler;
+        this.oAuth2AuthenticationFailureRedirectHandler = oAuth2AuthenticationFailureRedirectHandler;
+        this.oAuth2AuthorizationRequestRepository = oAuth2AuthorizationRequestRepository;
         this.frontendUrl = frontendUrl;
     }
 
@@ -87,7 +95,10 @@ public class SecurityConfig {
                         .requestMatchers("/payments/**").authenticated()
                         .anyRequest().authenticated())
                 .oauth2Login(oauth2 -> oauth2
-                        .successHandler(oAuth2AuthenticationSuccessHandler))
+                        .authorizationEndpoint(authorization -> authorization
+                                .authorizationRequestRepository(oAuth2AuthorizationRequestRepository))
+                        .successHandler(oAuth2AuthenticationSuccessHandler)
+                        .failureHandler(oAuth2AuthenticationFailureRedirectHandler))
                 .exceptionHandling(ex -> ex
                         // For API calls, return 401 instead of redirecting to OAuth provider.
                         .authenticationEntryPoint(new HttpStatusEntryPoint(org.springframework.http.HttpStatus.UNAUTHORIZED)))
