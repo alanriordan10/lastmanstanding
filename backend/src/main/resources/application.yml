@@ -58,10 +58,15 @@ spring:
           google:
             client-id: ${GOOGLE_CLIENT_ID:}
             client-secret: ${GOOGLE_CLIENT_SECRET:}
+            # Use OAuth2 user-info instead of OpenID ID-token validation. This avoids
+            # production failures when Google JWK cert retrieval is blocked upstream.
             scope:
-              - openid
               - profile
               - email
+        provider:
+          google:
+            user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
+            user-name-attribute: sub
 
 jwt:
   secret: ${JWT_SECRET:super-secret-jwt-key-change-in-production-min-256-bits-long!!}
