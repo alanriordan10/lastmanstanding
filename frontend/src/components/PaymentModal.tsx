@@ -69,7 +69,6 @@ function CheckoutForm({
 
   const entryFeeCents = Math.round(competition.entryFee * 100);
   const chargeAmount = feeBreakdown ? (feeBreakdown.amountCents / 100).toFixed(2) : competition.entryFee.toFixed(2);
-  const platformFeePercent = feeBreakdown ? (feeBreakdown.platformFeeBps / 100).toFixed(2).replace(/\.00$/, '') : '0';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -155,19 +154,9 @@ function CheckoutForm({
                     <span>Tax on fee <span className="text-gray-500">(est.)</span></span>
                     <span>+ {fmt(feeBreakdown.taxCents)}</span>
                   </div>
-                  {feeBreakdown.platformFeeEnabled && feeBreakdown.platformFeeCents > 0 && (
-                    <div className="flex justify-between text-gray-400">
-                      <span>Platform fee ({platformFeePercent}%)</span>
-                      <span>− {fmt(feeBreakdown.platformFeeCents)}</span>
-                    </div>
-                  )}
                   <div className="flex justify-between font-semibold text-gray-200 border-t border-gray-700/60 pt-1.5 mt-1.5">
                     <span>You are charged</span>
                     <span className="text-brand-400">{fmt(feeBreakdown.amountCents)}</span>
-                  </div>
-                  <div className="flex justify-between text-gray-500">
-                    <span>Estimated organiser net</span>
-                    <span>{fmt(feeBreakdown.organiserNetAfterPlatformFeeCents)}</span>
                   </div>
                 </>
               ) : (
@@ -176,28 +165,14 @@ function CheckoutForm({
                     <span>Entry amount</span>
                     <span>{fmt(feeBreakdown.amountCents)}</span>
                   </div>
-                  <div className="flex justify-between text-gray-400">
-                    <span>Stripe fee <span className="text-gray-500">(est.)</span></span>
-                    <span>− {fmt(feeBreakdown.processingCents)}</span>
-                  </div>
-                  <div className="flex justify-between text-gray-400">
-                    <span>Tax on fee <span className="text-gray-500">(est.)</span></span>
-                    <span>− {fmt(feeBreakdown.taxCents)}</span>
-                  </div>
-                  {feeBreakdown.platformFeeEnabled && feeBreakdown.platformFeeCents > 0 && (
-                    <div className="flex justify-between text-gray-400">
-                      <span>Platform fee ({platformFeePercent}%)</span>
-                      <span>− {fmt(feeBreakdown.platformFeeCents)}</span>
-                    </div>
-                  )}
                   <div className="flex justify-between font-semibold text-gray-200 border-t border-gray-700/60 pt-1.5 mt-1.5">
-                    <span>Organiser receives</span>
-                    <span className="text-green-400">{fmt(feeBreakdown.organiserNetAfterPlatformFeeCents)}</span>
+                    <span>You are charged</span>
+                    <span className="text-brand-400">{fmt(feeBreakdown.amountCents)}</span>
                   </div>
                 </>
               )}
             </div>
-            <p className="text-xs text-gray-500 italic">Estimates based on standard EU card rate. Actual fees vary by card type.</p>
+            {feeBreakdown.feePassedToParticipant ? <p className="text-xs text-gray-500 italic">Processing fee estimates may vary by card type.</p> : null}
           </>
         )}
       </div>
