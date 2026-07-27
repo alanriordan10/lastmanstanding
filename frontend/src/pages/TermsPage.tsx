@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import SeoMeta from '../components/SeoMeta';
 
-const UPDATED_AT = '9 June 2026';
+const UPDATED_AT = '27 July 2026';
 
 export default function TermsPage() {
   return (
@@ -23,7 +23,7 @@ export default function TermsPage() {
 
       <section className="card space-y-5 text-sm leading-6 text-gray-300">
         <p>
-          These terms apply when you use Last Man Standing to create, join, or manage football survivor competitions.
+          These terms apply when you use Last Man Standing to create, join, or manage football survivor competitions. Last Man Standing provides competition management software for clubs and private groups.
         </p>
 
         <TermsSection title="Competition Rules">
@@ -35,8 +35,14 @@ export default function TermsPage() {
           <p>Club admins are responsible for configuring competitions accurately, managing entries, confirming manual payments, and communicating local rules to participants.</p>
         </TermsSection>
 
-        <TermsSection title="Payments and Prizes">
-          <p>Stripe may be used for online card payments. Manual payments are managed by the club admin. Prize pools and payouts are the responsibility of the relevant club or competition organizer.</p>
+        <TermsSection title="Payments">
+          <p>Competitions may be configured as free, manual/offline payment tracking, or online payment where supported. Manual payments are managed by the club admin. Online payment availability depends on payment provider support and compliance requirements.</p>
+          <p>Last Man Standing may restrict or disable online payments for competition types that are not supported by a payment provider.</p>
+        </TermsSection>
+
+        <TermsSection title="No Betting or Wagering Service">
+          <p>Last Man Standing does not provide sportsbook betting, casino gaming, wagering, odds, betting markets, betting exchange services, or betting against the platform. The platform does not set odds or take risk on sports outcomes.</p>
+          <p>Club admins are responsible for ensuring their competitions comply with local laws, club rules, and payment provider requirements.</p>
         </TermsSection>
 
         <TermsSection title="Acceptable Use">

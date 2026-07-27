@@ -18,7 +18,7 @@ export default function LandingPage() {
     operatingSystem: 'Web',
     url: window.location.origin,
     description:
-      'A last man standing app to run football survivor pool competitions with lifelines, reminders, payments, and live results.',
+      'Competition management software for clubs and private groups running football survivor competitions with picks, reminders, results, and organiser tools.',
     offers: {
       '@type': 'Offer',
       price: '0',
@@ -39,7 +39,7 @@ export default function LandingPage() {
         name: 'How does a last man standing competition work?',
         acceptedAnswer: {
           '@type': 'Answer',
-          text: 'Players pick one team each gameweek. Win or draw advances, loss eliminates. The last active entry wins.',
+          text: 'Players pick one eligible team each gameweek before lock. Competition rules determine how wins, draws, postponed fixtures, lifelines, and missed picks are handled.',
         },
       },
       {
@@ -60,10 +60,10 @@ export default function LandingPage() {
       },
       {
         '@type': 'Question',
-        name: 'Can we collect entry fees?',
+        name: 'Can clubs track payments?',
         acceptedAnswer: {
           '@type': 'Answer',
-          text: 'Yes. Use manual payment tracking or Stripe, depending on your competition setup.',
+          text: 'Yes. Clubs can use free competitions, manual/offline payment tracking, or online payments where supported by payment provider policies.',
         },
       },
     ],
@@ -103,7 +103,7 @@ export default function LandingPage() {
 
         <div className="relative mx-auto max-w-4xl space-y-6">
           <div className="inline-flex items-center gap-2 rounded-full border border-brand-500/30 bg-brand-600/20 px-3 py-1.5 text-sm font-medium text-brand-300">
-            ⚽ Premier League Survival Game
+            Club competition management software
           </div>
 
           <h1 className="text-5xl sm:text-6xl font-black leading-tight tracking-tight">
@@ -112,8 +112,7 @@ export default function LandingPage() {
           </h1>
 
           <p className="text-xl text-gray-300 max-w-xl mx-auto leading-relaxed">
-            Run your football last man standing competition in minutes. Manage picks,
-            lifelines, payments, reminders, and results in one place.
+            Create and manage club football survivor competitions in minutes. Track entries, picks, lifelines, reminders, results, and standings in one place.
           </p>
 
           <div className="grid gap-3 pt-4 sm:grid-cols-2">
@@ -160,7 +159,7 @@ export default function LandingPage() {
           <div className="grid sm:grid-cols-3 gap-8">
             {[
               { icon: '⚙️', title: 'Set Rules That Fit Your Competition', desc: 'Configure lock times, entry limits, missed-pick behavior, and optional lifeline rules for each competition.' },
-              { icon: '💳', title: 'Manage Entries and Payments', desc: 'Track each entry separately with manual or Stripe payment modes and clear club-admin payment history.' },
+              { icon: '💳', title: 'Manage Entries and Payment Status', desc: 'Track each entry separately with free competitions, manual/offline payment tracking, or online payments where supported.' },
               { icon: '📊', title: 'Track Results and Survivor Table Live', desc: 'Reveal all picks after lock, process outcomes quickly, and keep the full survivor table visible to players.' },
             ].map(({ icon, title, desc }) => (
               <div key={title} className="rounded-2xl border border-white/8 bg-white/[0.035] p-6 text-center space-y-3 shadow-[0_20px_50px_rgba(2,6,23,0.28)]">
@@ -173,6 +172,38 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Product details */}
+      <section className="py-20 px-4 bg-surface-800/50 border-t border-gray-800">
+        <div className="max-w-5xl mx-auto">
+          <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+            <div className="card space-y-4">
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-brand-200">What we sell</p>
+              <h2 className="text-3xl font-black text-white">Software for club organisers</h2>
+              <p className="text-sm leading-6 text-gray-300">
+                Last Man Standing provides web and mobile software that helps clubs and private groups create competitions, invite participants, manage entries, track picks, send reminders, publish results, and view standings.
+              </p>
+              <p className="text-sm leading-6 text-gray-300">
+                The platform does not provide sportsbook betting, casino gaming, odds wagering, a betting exchange, or betting against the platform.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Link to="/services" className="btn-primary">View services</Link>
+                <Link to="/pricing" className="btn-secondary">Pricing</Link>
+                <Link to="/refund-policy" className="btn-secondary">Refund policy</Link>
+              </div>
+            </div>
+            <div className="card space-y-3">
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-gray-400">Payment model</p>
+              <p className="text-sm leading-6 text-gray-300">
+                Platform access is currently free during beta. Club organisers may configure free competitions, manual/offline payment tracking, or online payments where supported by payment provider rules.
+              </p>
+              <p className="text-sm leading-6 text-gray-300">
+                Online payments can be restricted or disabled for competition types that payment providers cannot support.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Rules */}
       <section className="py-20 px-4 bg-surface-800/50 border-t border-gray-800">
         <div className="max-w-4xl mx-auto">
@@ -181,10 +212,10 @@ export default function LandingPage() {
             {[
               { icon: '✅', text: 'Pick exactly 1 Premier League team per gameweek' },
               { icon: '🏆', text: "Your team wins → you advance to next week" },
-              { icon: '❌', text: 'Your team draws or loses → you\'re eliminated' },
+              { icon: '❌', text: 'If your pick loses, that entry is eliminated' },
               { icon: '🔒', text: 'Once used, you can\'t pick that team again' },
               { icon: '⏰', text: 'Picks lock when the first game of the week kicks off' },
-              { icon: '🥇', text: 'Last survivor wins the competition' },
+              { icon: '🥇', text: 'The last active entry is shown as the winner' },
             ].map(({ icon, text }) => (
               <div key={text} className="flex items-start gap-3 rounded-2xl border border-white/8 bg-white/[0.035] p-4 shadow-[0_16px_40px_rgba(2,6,23,0.22)]">
                 <span className="text-xl shrink-0">{icon}</span>
@@ -226,6 +257,14 @@ export default function LandingPage() {
           <span className="font-medium text-gray-400">Last Man Standing</span>
         </div>
         <div className="mb-2">
+          <Link to="/services" className="text-gray-400 hover:text-white transition-colors">Services</Link>
+          <span className="text-gray-700">·</span>
+          <Link to="/pricing" className="text-gray-400 hover:text-white transition-colors">Pricing</Link>
+          <span className="text-gray-700">·</span>
+          <Link to="/refund-policy" className="text-gray-400 hover:text-white transition-colors">Refunds</Link>
+          <span className="text-gray-700">·</span>
+          <Link to="/contact" className="text-gray-400 hover:text-white transition-colors">Contact</Link>
+          <span className="text-gray-700">·</span>
           <Link to="/faq" className="text-gray-400 hover:text-white transition-colors">FAQ</Link>
           <span className="text-gray-700">·</span>
           <Link to="/privacy" className="text-gray-400 hover:text-white transition-colors">Privacy</Link>

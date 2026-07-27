@@ -26,6 +26,9 @@ const FaqPage = lazy(() => import('./pages/FaqPage'));
 const UserGuidePage = lazy(() => import('./pages/UserGuidePage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 const TermsPage = lazy(() => import('./pages/TermsPage'));
+const ServicesPage = lazy(() => import('./pages/ServicesPage'));
+const PricingPage = lazy(() => import('./pages/PricingPage'));
+const RefundPolicyPage = lazy(() => import('./pages/RefundPolicyPage'));
 const AccountDeletionPage = lazy(() => import('./pages/AccountDeletionPage'));
 const StripeConnectReturnPage = lazy(() => import('./pages/StripeConnectReturnPage'));
 
@@ -100,8 +103,12 @@ export default function App() {
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/faq" element={<FaqPage />} />
         <Route path="/guide" element={<UserGuidePage />} />
+        <Route path="/services" element={<ServicesPage />} />
+        <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/refund-policy" element={<RefundPolicyPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />
+        <Route path="/contact" element={<Layout><ContactPage /></Layout>} />
         <Route path="/account-deletion" element={<AccountDeletionPage />} />
         <Route path="/stripe-connect/return" element={<StripeConnectReturnPage />} />
         <Route path="/invite/:code" element={<InviteRedirect />} />
@@ -133,7 +140,6 @@ export default function App() {
                   <Route path="/admin" element={<AdminPage />} />
                   <Route path="/club-admin" element={<ClubAdminPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
-                  <Route path="/contact" element={<ContactPage />} />
                   <Route path="*" element={<Navigate to="/competitions" />} />
                 </Routes>
               </Layout>

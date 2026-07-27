@@ -4,7 +4,7 @@ import { useState } from 'react';
 import api from '../api';
 import SeoMeta from '../components/SeoMeta';
 
-const SUPPORT_EMAIL = 'support@lastmanstanding.com';
+const SUPPORT_EMAIL = 'support@runlastmanstanding.com';
 
 function buildMailto(subject: string, body: string) {
   return `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -66,6 +66,10 @@ Any reference IDs (PaymentIntent, account, etc):
 
   const submitTicket = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) {
+      toast.error('Sign in to submit an in-app support request, or use the support email below.');
+      return;
+    }
     if (!subject.trim() || !message.trim()) {
       toast.error('Subject and message are required');
       return;
@@ -116,6 +120,7 @@ Any reference IDs (PaymentIntent, account, etc):
       <section className="card space-y-4">
         <form onSubmit={submitTicket} className="rounded-xl border border-white/10 bg-white/[0.03] p-4 space-y-3">
           <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-gray-200">Send from app</h2>
+          {!user ? <p className="rounded-xl border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-xs text-amber-100">Sign in to submit an in-app ticket, or email support directly using the details below.</p> : null}
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-xs text-gray-400">Issue type</label>

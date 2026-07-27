@@ -27,8 +27,11 @@ public class GameweekEmailService {
     private final PickResultRepository pickResultRepository;
     private final CompetitionParticipantRepository participantRepository;
 
-    @Value("${app.mail-from:noreply@lastmanstanding.com}")
+    @Value("${app.mail-from:noreply@runlastmanstanding.com}")
     private String mailFrom;
+
+    @Value("${app.mail-reply-to:support@runlastmanstanding.com}")
+    private String mailReplyTo;
 
     @Value("${app.mail-enabled:false}")
     private boolean mailEnabled;
@@ -110,7 +113,7 @@ public class GameweekEmailService {
 
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            helper.setFrom(mailFrom);
+            applySender(helper);
             helper.setTo(user.getEmail());
             helper.setSubject(subject);
             helper.setText(body, true);
@@ -179,13 +182,20 @@ public class GameweekEmailService {
 
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-        helper.setFrom(mailFrom);
+        applySender(helper);
         helper.setTo(user.getEmail());
         helper.setSubject(subject);
         helper.setText(body, true);
         mailSender.send(message);
 
         log.info("Sent GW{} result email to {}", gw.getWeekNumber(), user.getEmail());
+    }
+
+    private void applySender(MimeMessageHelper helper) throws Exception {
+        helper.setFrom(mailFrom);
+        if (mailReplyTo != null && !mailReplyTo.isBlank()) {
+            helper.setReplyTo(mailReplyTo);
+        }
     }
 
     /**
@@ -360,7 +370,7 @@ public class GameweekEmailService {
 
                 MimeMessage message = mailSender.createMimeMessage();
                 MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-                helper.setFrom(mailFrom);
+                applySender(helper);
                 helper.setTo(user.getEmail());
                 helper.setSubject(subject);
                 helper.setText(body, true);
@@ -411,7 +421,7 @@ public class GameweekEmailService {
 
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            helper.setFrom(mailFrom);
+            applySender(helper);
             helper.setTo(toEmail);
             helper.setSubject(subject);
             helper.setText(body, true);

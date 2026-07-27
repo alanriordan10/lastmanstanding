@@ -17,13 +17,13 @@ public class SupportService {
 
     private final JavaMailSender mailSender;
 
-    @Value("${app.mail-from:noreply@lastmanstanding.com}")
+    @Value("${app.mail-from:noreply@runlastmanstanding.com}")
     private String mailFrom;
 
     @Value("${app.mail-enabled:false}")
     private boolean mailEnabled;
 
-    @Value("${app.support-email:support@lastmanstanding.com}")
+    @Value("${app.support-email:support@runlastmanstanding.com}")
     private String supportEmail;
 
     public SupportService(JavaMailSender mailSender) {

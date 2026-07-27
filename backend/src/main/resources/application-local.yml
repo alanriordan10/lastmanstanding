@@ -34,7 +34,10 @@ odds:
 app:
   frontend-url: ${LOCAL_FRONTEND_URL:http://localhost:5173}
   public-url: ${LOCAL_PUBLIC_APP_URL:http://localhost:5173}
+  mail-from: ${LOCAL_MAIL_FROM:noreply@runlastmanstanding.com}
+  mail-reply-to: ${LOCAL_MAIL_REPLY_TO:support@runlastmanstanding.com}
   mail-enabled: ${LOCAL_MAIL_ENABLED:false}
+  support-email: ${LOCAL_SUPPORT_EMAIL:support@runlastmanstanding.com}
   perf:
     endpoint-metrics-enabled: ${LOCAL_ENDPOINT_METRICS_ENABLED:false}
 
