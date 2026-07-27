@@ -20,7 +20,7 @@ export default function RefundPolicyPage() {
 
       <section className="card space-y-4 text-sm leading-6 text-gray-300">
         <PolicySection title="Platform access">
-          <p>Platform access is currently free during beta. If paid platform subscriptions or service fees are introduced later, refund terms will be shown before purchase.</p>
+          <p>Platform access is currently free. If paid platform subscriptions or service fees are introduced later, refund terms will be shown before purchase.</p>
         </PolicySection>
 
         <PolicySection title="Competition entry/admin fees">
