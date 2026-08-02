@@ -132,15 +132,7 @@ function calculateTeamRisk(fixture: Fixture, side: 'home' | 'away', pickStat?: P
   const p = clamp01(hasOdds ? pRaw : NaN);
 
   if (!Number.isFinite(p) && !pickStat) {
-    return {
-      label: 'Balanced',
-      score: 50,
-      lowConfidence: true,
-      source: 'fallback',
-      marketChance: null,
-      pickShare: null,
-      explanation: buildRiskExplanation('Balanced', false),
-    };
+    return null;
   }
 
   const oddsRisk = Number.isFinite(p) ? (1 - p) * 100 : null;
