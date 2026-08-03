@@ -72,6 +72,7 @@ export default function ServicesPage() {
           <Link to="/pricing" className="btn-secondary">Pricing</Link>
           <Link to="/refund-policy" className="btn-secondary">Refund policy</Link>
           <Link to="/contact" className="btn-primary">Contact support</Link>
+          <Link to="/demo-checkout" className="btn-primary">Demo Checkout</Link>
         </div>
       </section>
     </div>
