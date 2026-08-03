@@ -21,11 +21,13 @@ import com.stripe.model.Event;
 import com.stripe.model.LoginLink;
 import com.stripe.model.PaymentIntent;
 import com.stripe.model.StripeObject;
+import com.stripe.model.checkout.Session;
 import com.stripe.net.Webhook;
 import com.stripe.param.AccountCreateParams;
 import com.stripe.param.AccountLinkCreateParams;
 import com.stripe.param.LoginLinkCreateOnAccountParams;
 import com.stripe.param.PaymentIntentCreateParams;
+import com.stripe.param.checkout.SessionCreateParams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -71,6 +73,12 @@ public class PaymentService {
 
     @Value("${stripe.platform-fee-bps:0}")
     private int stripePlatformFeeBps;
+
+    @Value("${stripe.demo-success-url:https://www.runlastmanstanding.com/services}")
+    private String stripeDemoSuccessUrl;
+
+    @Value("${stripe.demo-cancel-url:https://www.runlastmanstanding.com/services}")
+    private String stripeDemoCancelUrl;
 
     public PaymentService(PaymentRepository paymentRepository,
                           CompetitionRepository competitionRepository,
@@ -276,6 +284,38 @@ public class PaymentService {
             log.error("Stripe error creating PaymentIntent: {}", e.getMessage());
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                     "Payment service error: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Creates a public demo Stripe Checkout Session for reviewers.
+     */
+    public String createDemoCheckoutSession() {
+        ensureConfigured();
+        Stripe.apiKey = stripeSecretKey;
+
+        try {
+            SessionCreateParams params = SessionCreateParams.builder()
+                    .setMode(SessionCreateParams.Mode.PAYMENT)
+                    .setSuccessUrl(stripeDemoSuccessUrl)
+                    .setCancelUrl(stripeDemoCancelUrl)
+                    .addLineItem(SessionCreateParams.LineItem.builder()
+                            .setQuantity(1L)
+                            .setPriceData(SessionCreateParams.LineItem.PriceData.builder()
+                                    .setCurrency("eur")
+                                    .setUnitAmount(100L) // €1.00 demo
+                                    .setProductData(SessionCreateParams.LineItem.PriceData.ProductData.builder()
+                                            .setName("LastManStanding demo: entry fee (test)")
+                                            .build())
+                                    .build())
+                            .build())
+                    .build();
+
+            Session session = Session.create(params);
+            return session.getUrl();
+        } catch (StripeException e) {
+            log.error("Stripe error creating Checkout Session: {}", e.getMessage());
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Payment service error: " + e.getMessage());
         }
     }
 

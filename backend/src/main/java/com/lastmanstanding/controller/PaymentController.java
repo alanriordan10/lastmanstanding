@@ -52,4 +52,12 @@ public class PaymentController {
 
     public record ConfigResponse(String publishableKey) {}
     public record ConfirmRequest(String paymentIntentId) {}
+
+    @PostMapping("/demo-checkout")
+    public ResponseEntity<DemoCheckoutResponse> createDemoCheckout() {
+        String url = paymentService.createDemoCheckoutSession();
+        return ResponseEntity.ok(new DemoCheckoutResponse(url));
+    }
+
+    public record DemoCheckoutResponse(String url) {}
 }

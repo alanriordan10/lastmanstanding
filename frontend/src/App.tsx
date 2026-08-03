@@ -27,6 +27,7 @@ const UserGuidePage = lazy(() => import('./pages/UserGuidePage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 const TermsPage = lazy(() => import('./pages/TermsPage'));
 const ServicesPage = lazy(() => import('./pages/ServicesPage'));
+const DemoCheckoutPage = lazy(() => import('./pages/DemoCheckout'));
 const PricingPage = lazy(() => import('./pages/PricingPage'));
 const RefundPolicyPage = lazy(() => import('./pages/RefundPolicyPage'));
 const AccountDeletionPage = lazy(() => import('./pages/AccountDeletionPage'));
@@ -104,6 +105,7 @@ export default function App() {
         <Route path="/faq" element={<FaqPage />} />
         <Route path="/guide" element={<UserGuidePage />} />
         <Route path="/services" element={<ServicesPage />} />
+        <Route path="/demo-checkout" element={<DemoCheckoutPage />} />
         <Route path="/pricing" element={<PricingPage />} />
         <Route path="/refund-policy" element={<RefundPolicyPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
