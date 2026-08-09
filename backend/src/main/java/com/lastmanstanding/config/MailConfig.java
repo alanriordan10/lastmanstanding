@@ -58,9 +58,9 @@ public class MailConfig {
         props.setProperty("mail.smtp.ssl.protocols", "TLSv1.2 TLSv1.3");
 
         // Connection timeouts
-        props.setProperty("mail.smtp.connectiontimeout", "5000");
-        props.setProperty("mail.smtp.timeout", "5000");
-        props.setProperty("mail.smtp.writetimeout", "5000");
+        props.setProperty("mail.smtp.connectiontimeout", "15000");
+        props.setProperty("mail.smtp.timeout", "15000");
+        props.setProperty("mail.smtp.writetimeout", "15000");
 
         mailSender.setJavaMailProperties(props);
 
