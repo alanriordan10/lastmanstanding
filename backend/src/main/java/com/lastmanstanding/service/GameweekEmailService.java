@@ -1,5 +1,6 @@
 package com.lastmanstanding.service;
 
+import com.lastmanstanding.config.ResendEmailClient;
 import com.lastmanstanding.entity.*;
 import com.lastmanstanding.repository.PickRepository;
 import com.lastmanstanding.repository.PickResultRepository;
@@ -8,12 +9,9 @@ import com.lastmanstanding.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import jakarta.mail.internet.MimeMessage;
 import java.util.List;
 
 @Service
@@ -21,7 +19,7 @@ public class GameweekEmailService {
 
     private static final Logger log = LoggerFactory.getLogger(GameweekEmailService.class);
 
-    private final JavaMailSender mailSender;
+    private final ResendEmailClient emailClient;
     private final UserRepository userRepository;
     private final PickRepository pickRepository;
     private final PickResultRepository pickResultRepository;
@@ -30,21 +28,18 @@ public class GameweekEmailService {
     @Value("${app.mail-from:noreply@runlastmanstanding.com}")
     private String mailFrom;
 
-    @Value("${app.mail-reply-to:support@runlastmanstanding.com}")
-    private String mailReplyTo;
-
     @Value("${app.mail-enabled:false}")
     private boolean mailEnabled;
 
     @Value("${app.public-url:https://runlastmanstanding.com}")
     private String publicAppUrl;
 
-    public GameweekEmailService(JavaMailSender mailSender,
+    public GameweekEmailService(ResendEmailClient emailClient,
                                 UserRepository userRepository,
                                 PickRepository pickRepository,
                                 PickResultRepository pickResultRepository,
                                 CompetitionParticipantRepository participantRepository) {
-        this.mailSender = mailSender;
+        this.emailClient = emailClient;
         this.userRepository = userRepository;
         this.pickRepository = pickRepository;
         this.pickResultRepository = pickResultRepository;
@@ -58,7 +53,7 @@ public class GameweekEmailService {
     public void sendGameweekResultEmails(Competition comp, Gameweek gw) {
         if (!mailEnabled) {
             log.info("Mail is disabled (app.mail-enabled=false) — skipping result emails for GW{} competition {}. " +
-                     "Set MAIL_ENABLED=true and configure MAIL_HOST/USERNAME/PASSWORD to enable.",
+                     "Set MAIL_ENABLED=true and configure RESEND_API_KEY to enable.",
                      gw.getWeekNumber(), comp.getId());
             return;
         }
@@ -111,13 +106,7 @@ public class GameweekEmailService {
                     </body></html>
                     """.formatted(comp.getName(), publicAppUrl, comp.getId());
 
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            applySender(helper);
-            helper.setTo(user.getEmail());
-            helper.setSubject(subject);
-            helper.setText(body, true);
-            mailSender.send(message);
+            sendEmail(user.getEmail(), subject, body);
             log.info("Sent payment confirmation email to {} for competition {}", user.getEmail(), comp.getId());
         } catch (Exception e) {
             log.warn("Failed to send payment confirmation email to {} for competition {}: {}",
@@ -180,22 +169,8 @@ public class GameweekEmailService {
                 """.formatted(gw.getWeekNumber(), comp.getName(), resultLine, statusLine,
                 statsSection, publicAppUrl, comp.getId(), publicAppUrl);
 
-        MimeMessage message = mailSender.createMimeMessage();
-        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-        applySender(helper);
-        helper.setTo(user.getEmail());
-        helper.setSubject(subject);
-        helper.setText(body, true);
-        mailSender.send(message);
-
+        sendEmail(user.getEmail(), subject, body);
         log.info("Sent GW{} result email to {}", gw.getWeekNumber(), user.getEmail());
-    }
-
-    private void applySender(MimeMessageHelper helper) throws Exception {
-        helper.setFrom(mailFrom);
-        if (mailReplyTo != null && !mailReplyTo.isBlank()) {
-            helper.setReplyTo(mailReplyTo);
-        }
     }
 
     /**
@@ -368,13 +343,7 @@ public class GameweekEmailService {
                         </body></html>
                         """.formatted(user.getUsername(), comp.getName(), gw.getWeekNumber(), missedPickConsequence, pickUrl);
 
-                MimeMessage message = mailSender.createMimeMessage();
-                MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-                applySender(helper);
-                helper.setTo(user.getEmail());
-                helper.setSubject(subject);
-                helper.setText(body, true);
-                mailSender.send(message);
+                sendEmail(user.getEmail(), subject, body);
                 sent++;
                 log.info("Sent pick reminder to {} for GW{} competition {}", user.getEmail(), gw.getWeekNumber(), comp.getId());
             } catch (Exception e) {
@@ -419,16 +388,17 @@ public class GameweekEmailService {
                     </body></html>
                     """.formatted(username, resetLink, resetLink);
 
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            applySender(helper);
-            helper.setTo(toEmail);
-            helper.setSubject(subject);
-            helper.setText(body, true);
-            mailSender.send(message);
+            sendEmail(toEmail, subject, body);
             log.info("Sent password reset email to {}", toEmail);
         } catch (Exception e) {
             log.warn("Failed to send password reset email to {}: {}", toEmail, e.getMessage());
         }
+    }
+
+    /**
+     * Send an email via Resend API.
+     */
+    private void sendEmail(String toEmail, String subject, String body) {
+        emailClient.sendEmail(mailFrom, toEmail, subject, body);
     }
 }

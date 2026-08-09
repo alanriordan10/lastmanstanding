@@ -9,8 +9,10 @@ import org.springframework.mail.javamail.JavaMailSenderImpl;
 import java.util.Properties;
 
 /**
- * Explicit mail configuration to ensure STARTTLS (not implicit SSL) is used for SMTP.
- * This overrides Spring's auto-detection to guarantee protocol correctness.
+ * Legacy mail configuration — no longer used (using Resend REST API instead).
+ * Kept for backward compatibility but disabled.
+ *
+ * @deprecated Use ResendConfig instead
  */
 @Configuration
 public class MailConfig {
