@@ -15,7 +15,6 @@ const quickLinks = [
   ['For players', '#players'],
   ['Create competitions', '#create-competition'],
   ['Payments', '#payments'],
-  ['Stripe Connect', '#stripe'],
   ['Lifeline', '#lifeline'],
   ['Results', '#results'],
   ['Pause and void', '#pause'],
@@ -55,7 +54,6 @@ const playerSections: GuideSection[] = [
           'For private competitions, enter the invite code exactly as given by the organiser. The invite code should not just filter the list; it should preview and join the competition flow.',
           'If the competition is free, you can join immediately.',
           'If manual payment is enabled, your entry may be created but remain awaiting payment until the club admin marks that specific entry as paid.',
-          'If online payment is enabled, you should be taken to the payment flow before the entry is fully confirmed.',
         ],
       },
       {
@@ -113,7 +111,7 @@ const adminSections: GuideSection[] = [
         title: '2. Complete the setup checklist',
         points: [
           'The setup checklist highlights whether core setup is complete.',
-          'Typical setup items are club details, at least one competition, and payment readiness if online payments are used.',
+          'Typical setup items are club details, at least one competition, and manual payment readiness if payments are tracked.',
           'Use the checklist as an onboarding aid. It does not replace checking the competition rules before inviting members.',
         ],
       },
@@ -192,7 +190,7 @@ const adminSections: GuideSection[] = [
     id: 'payments',
     eyebrow: 'Payment configuration',
     title: 'Choose the right payment mode',
-    summary: 'Payment mode decides whether players can join freely, need manual admin confirmation, or pay online through Stripe.',
+    summary: 'Payment mode decides whether players can join freely or need manual admin confirmation.',
     items: [
       {
         title: 'Free competitions',
@@ -210,67 +208,6 @@ const adminSections: GuideSection[] = [
           'Each entry can be marked paid or reverted individually by the club admin.',
           'This is important for users with multiple entries. Marking one entry as paid should not mark all entries for that user.',
           'Strict manual payment policy means unpaid entries may need admin confirmation before they are treated as fully paid.',
-        ],
-      },
-      {
-        title: 'Online Stripe payment competitions',
-        points: [
-          'Use Online Payment when players should pay through Stripe checkout or payment sheet.',
-          'Stripe Connect must be ready for the club before this mode is enabled.',
-          'Players joining a private paid competition by invite code should be taken to a payment screen if payment is required.',
-          'Payment options such as card, Link, Revolut Pay, Klarna, Google Pay, and Apple Pay are controlled by Stripe settings, payment method availability, device wallet setup, region, currency, and whether live or test keys are used.',
-        ],
-      },
-      {
-        title: 'Passing fees to participants',
-        points: [
-          'If pass fee to participant is enabled, the player may pay an amount that includes the club entry fee plus calculated processing fees.',
-          'If disabled, the player pays the entry fee and the club absorbs Stripe fees.',
-          'Always preview payment amounts before launch so the displayed total matches your club policy.',
-        ],
-      },
-    ],
-  },
-  {
-    id: 'stripe',
-    eyebrow: 'Stripe Connect',
-    title: 'Set up Stripe for online payments',
-    summary: 'Stripe Connect lets a club accept card and wallet payments. It must be completed before online payment competitions are launched.',
-    items: [
-      {
-        title: '1. Start onboarding',
-        points: [
-          'Open Club Admin and expand Stripe Connect.',
-          'Select the onboarding or connect action.',
-          'Complete the Stripe-hosted onboarding flow with the required club or organiser information.',
-          'After onboarding, return to the app or web. If universal links are configured, the mobile app should reopen automatically. Otherwise, return manually and refresh status.',
-        ],
-      },
-      {
-        title: '2. Verify readiness',
-        points: [
-          'Refresh Stripe status after completing onboarding.',
-          'Ready normally means onboarding is complete, charges are enabled, and payouts are enabled.',
-          'Setup incomplete means Stripe still needs information or verification.',
-          'Charges off means the club may not be able to accept payments yet. Payouts off means Stripe may accept payments but cannot pay out until setup is complete.',
-        ],
-      },
-      {
-        title: '3. Manage payment methods',
-        points: [
-          'Payment method availability is mostly controlled in the Stripe Dashboard.',
-          'Google Pay and Apple Pay require supported device/browser, wallet setup, eligible payment method, correct domain/app configuration, and Stripe support for the currency and country.',
-          'If Google Pay does not appear in an internal test build, check Stripe payment method settings, Android app configuration, and whether the PaymentSheet environment supports it.',
-          'The Link option is Stripe Link, Stripe’s saved payment and accelerated checkout feature.',
-        ],
-      },
-      {
-        title: '4. Test before launch',
-        points: [
-          'Create a small private test competition with online payment enabled.',
-          'Join using a test user and verify the payment screen appears after invite code join.',
-          'Confirm the payment creates or updates the correct participant entry only.',
-          'Confirm the club admin payment panel shows the correct entry as paid.',
         ],
       },
     ],
@@ -448,7 +385,6 @@ const adminSections: GuideSection[] = [
 const paymentOptions: OptionRow[] = [
   { option: 'Free', useWhen: 'No payment is collected through the app.', notes: 'Fastest setup. Players can join immediately. Payment state shows Not needed.' },
   { option: 'Manual', useWhen: 'The club collects cash, bank transfer, Revolut, or another offline payment.', notes: 'Admin marks each entry as paid. Best when the club already has an offline payment process.' },
-  { option: 'Online Stripe', useWhen: 'Players should pay by card, wallet, or Stripe-supported payment method.', notes: 'Requires Stripe Connect readiness. Test invite-code payment and multi-entry behavior before launch.' },
 ];
 
 const competitionOptions: OptionRow[] = [
@@ -462,8 +398,6 @@ const competitionOptions: OptionRow[] = [
 
 const troubleshooting = [
   ['Fixtures are missing', 'Check fixture competition code, start date, provider availability, and whether fixture sync has run. For edited competitions, trigger or wait for a resync.'],
-  ['Stripe says setup incomplete', 'Refresh status and complete missing Stripe onboarding requirements. Charges and payouts must be enabled before relying on online payments.'],
-  ['Google Pay does not show', 'Check Stripe payment method settings, supported device/browser, wallet setup, app/domain configuration, currency, country, and live/test environment.'],
   ['A player appears twice', 'This is expected only when they have multiple entries. The UI should show entry numbers only for users with multiple entries.'],
   ['Picks are stale', 'Use refresh. The app intentionally avoids aggressive polling to reduce Render and Supabase usage. Live information updates in a reasonable timeframe, not instantly.'],
   ['Email links point to localhost', 'Set the deployed frontend base URL in backend configuration so reminders use the production web URL.'],
@@ -474,7 +408,7 @@ export default function UserGuidePage() {
     <div className="min-h-screen bg-[linear-gradient(165deg,#070f22_0%,#0a1731_58%,#0a1730_100%)] px-4 py-10 text-white">
       <SeoMeta
         title="How to Use Last Man Standing | Detailed Player and Club Admin Guide"
-        description="Detailed walkthrough for players and club admins covering competition setup, payment modes, Stripe Connect, lifelines, participants, results, pause rules, and troubleshooting."
+        description="Detailed walkthrough for players and club admins covering competition setup, payment modes, lifelines, participants, results, pause rules, and troubleshooting."
         canonicalPath="/guide"
       />
 
@@ -489,14 +423,14 @@ export default function UserGuidePage() {
             <h1 className="mt-3 text-4xl font-black tracking-tight sm:text-5xl">How to use Last Man Standing</h1>
             <p className="mt-4 text-base leading-7 text-slate-300">
               A complete walkthrough for players and club admins using the web portal or mobile app. It covers joining competitions,
-              making picks, creating competitions, payment options, Stripe setup, lifelines, participants, results, pause rules, announcements,
+              making picks, creating competitions, payment options, lifelines, participants, results, pause rules, announcements,
               and common issues.
             </p>
           </div>
           <div className="mt-6 grid gap-3 sm:grid-cols-3">
             <GuideMetric label="Player guide" value="Join, pick, track" />
             <GuideMetric label="Club admin guide" value="Create, invite, manage" />
-            <GuideMetric label="Payments" value="Free, manual, Stripe" />
+            <GuideMetric label="Payments" value="Free, manual" />
           </div>
         </section>
 

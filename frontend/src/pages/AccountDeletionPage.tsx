@@ -52,7 +52,7 @@ export default function AccountDeletionPage() {
           <p>Some records may be retained where needed for competition integrity, payment records, fraud prevention, legal obligations, or audit history. This may include:</p>
           <ul className="mt-2 list-disc space-y-1 pl-5">
             <li>Competition entries, picks, gameweek results, survivor table history, and winner records.</li>
-            <li>Payment references, payment status, Stripe identifiers, refunds, and accounting records.</li>
+            <li>Payment status, manual payment notes or references, refunds, and accounting records.</li>
             <li>Club admin audit logs and security records.</li>
           </ul>
           <p className="mt-3">Where retained records are no longer required to identify you personally, we anonymise them where practical.</p>

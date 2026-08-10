@@ -26,7 +26,7 @@
 
 ### For Club Admins
 1. Open `Club Admin`.
-2. Complete setup checks (especially Stripe if using online payments).
+2. Complete setup checks, including manual payment readiness if payments are tracked.
 3. Create a competition with correct payment mode and rules.
 4. Manage participants and payment confirmations.
 5. Process gameweeks and monitor eliminations.
@@ -75,25 +75,20 @@
 
 ## 3. Club Admin Guide
 
-### 3.1 Setup Checklist and Stripe Connect
+### 3.1 Setup Checklist
 - Use `Setup Checklist` to track readiness.
-- Open `Stripe Connect` if using online payments.
-- Ensure onboarding and charges/payouts are enabled.
+- Confirm how manual payments will be collected outside the app if entry fees are used.
 
 **Screenshot placeholder:**
 - `assets/screenshots/admin-setup-checklist-collapsed.png`
 - Caption: "Setup summary in collapsed state"
-
-**Screenshot placeholder:**
-- `assets/screenshots/admin-stripe-connect-expanded.png`
-- Caption: "Stripe Connect expanded with status details"
 
 ### 3.2 Create a Competition
 - Click `+ New Competition`.
 - Set:
   - Name and start date
   - Visibility (`Public` or `Private`)
-  - Payment mode (`Free`, `Manual`, `Stripe`)
+  - Payment mode (`Free` or `Manual`)
   - Entry fee / prize pool
   - Missed pick rule
   - Lifeline (`Enabled` or `Disabled`)
@@ -113,7 +108,6 @@
 ### 3.3 Choose the Right Payment Mode
 - `Free`: no payment tracking.
 - `Manual`: admin confirms payments manually.
-- `Stripe`: online card payments routed via Stripe Connect.
 
 **Screenshot placeholder:**
 - `assets/screenshots/admin-payment-mode-options.png`
@@ -159,7 +153,7 @@
 ---
 
 ## 4. Recommended Admin Workflow (Per Competition)
-1. Confirm setup readiness (`Setup Checklist`, `Stripe Connect` if needed).
+1. Confirm setup readiness (`Setup Checklist`).
 2. Create competition with correct payment and rule settings.
 3. Monitor joiners and payment confirmations.
 4. Before lock: verify active participants and payment state.
@@ -169,11 +163,6 @@
 ---
 
 ## 5. Troubleshooting
-
-### Problem: Stripe not available as payment mode
-- Check Stripe Connect onboarding is complete.
-- Check charges and payouts are enabled.
-- Refresh Stripe status in Club Admin.
 
 ### Problem: Participant cannot pick
 - In manual mode with strict policy, unpaid users may be blocked.
@@ -193,9 +182,9 @@
 
 ## 6. FAQ
 
-### Should we use Manual or Stripe payments?
+### Should we use manual payments?
 - Use `Manual` if you collect externally (cash, transfer, Revolut).
-- Use `Stripe` for in-app online payments and cleaner audit flow.
+- Use `Free` when no payment tracking is required.
 
 ### Can we run free competitions and paid ones together?
 - Yes. Each competition has its own payment mode.
@@ -217,13 +206,12 @@ Create the following screenshots in this order:
 1. Player join flow
 2. Player pick flow
 3. Setup Checklist collapsed summary
-4. Stripe Connect expanded details
-5. Competition creation form
-6. Payment mode selection states
-7. Participants mobile toolbar (Search/Filters/Actions)
-8. Participant row actions popover
-9. Manual payment filters + states
-10. Process results action panel
+4. Competition creation form
+5. Payment mode selection states
+6. Participants mobile toolbar (Search/Filters/Actions)
+7. Participant row actions popover
+8. Manual payment filters + states
+9. Process results action panel
 
 Tip:
 - Capture both mobile and desktop for admin-heavy screens.

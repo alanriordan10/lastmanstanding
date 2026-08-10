@@ -31,9 +31,6 @@ Use this checklist while capturing visuals for `docs/competition-management-guid
   - Page/state: Club Admin with checklist collapsed summary
   - Caption: Setup summary in collapsed state
 
-- [ ] `admin-stripe-connect-expanded.png`
-  - Page/state: Stripe Connect expanded with statuses
-  - Caption: Stripe Connect expanded with status details
 
 - [ ] `admin-create-competition-form.png`
   - Page/state: New Competition form open
@@ -62,7 +59,6 @@ Use this checklist while capturing visuals for `docs/competition-management-guid
 ## Optional Nice-to-Have Captures
 - [ ] `admin-filters-active-chips-mobile.png`
 - [ ] `admin-setup-checklist-expanded.png`
-- [ ] `admin-stripe-connect-collapsed-ready.png`
 
 ## Quality Review Before Publish
 - [ ] No personal data visible

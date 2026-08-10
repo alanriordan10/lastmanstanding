@@ -33,7 +33,7 @@ The screenshots below are guide mockups based on the current UI structure. They 
 | [Competition detail](assets/screenshots/guide-player-competition-detail.svg) | Pulse, next action, gameweeks, cards/My Route |
 | [My Route](assets/screenshots/guide-player-my-route.svg) | Available, used, and reserved team tracking |
 | [Survivor table](assets/screenshots/guide-player-survivor-table.svg) | Standings, filters, pick history, lifeline status |
-| [Club Admin dashboard](assets/screenshots/guide-admin-dashboard.svg) | Setup checklist, Stripe, branding, competitions |
+| [Club Admin dashboard](assets/screenshots/guide-admin-dashboard.svg) | Setup checklist, branding, competitions |
 | [Create competition](assets/screenshots/guide-admin-create-competition.svg) | Rules, visibility, payment, fixture source, lifeline |
 | [Participants and payments](assets/screenshots/guide-admin-participants-payments.svg) | Participant actions, mark paid, revert, export |
 | [Pause and announcements](assets/screenshots/guide-admin-pause-announcements.svg) | Pause/resume and organiser announcements |
@@ -86,7 +86,6 @@ The join button changes depending on the competition:
 |---|---|
 | Free | You join immediately. |
 | Manual payment | You join, but the organiser must mark your entry as paid if strict payment rules are enabled. |
-| Online payment | You are taken through Stripe payment before your entry is fully confirmed. |
 
 ## 4. Join a Private Competition
 
@@ -94,7 +93,7 @@ The join button changes depending on the competition:
 2. Open `Competitions`.
 3. Enter the code in `Join a private competition`.
 4. Preview the competition.
-5. Confirm join or continue to payment.
+5. Confirm join.
 
 Private competitions do not normally appear in public listings. The invite code is required.
 
@@ -212,8 +211,6 @@ Payment states:
 | Awaiting payment | You joined but payment is not confirmed yet. |
 | Paid | Your entry is confirmed. |
 
-If online payment is required, use the payment button shown on the competition screen.
-
 If manual payment is required, follow the organiser's instructions. The club admin must mark your entry as paid.
 
 ## 12. Profile, Notifications, and Account Settings
@@ -243,7 +240,6 @@ Club admins can manage their own club only.
 Main sections:
 
 - Setup Checklist: quick readiness status.
-- Stripe Connect: online payment setup.
 - Club Settings: transfer or manage club ownership.
 - Club Branding: logo and colours used on competition pages.
 - Competitions: create, edit, pause, announce, view, and delete competitions.
@@ -281,28 +277,7 @@ You can set:
 
 Use colours with enough contrast so buttons, badges, and text remain readable.
 
-## 17. Configure Stripe Connect
-
-Use Stripe Connect only if you want online payments.
-
-Steps:
-
-1. Open `Club Admin`.
-2. Expand `Stripe Connect`.
-3. Choose `Connect Stripe` or `Continue onboarding`.
-4. Complete Stripe's required business details.
-5. Return to the app or web portal.
-6. Refresh status.
-
-Stripe is ready only when:
-
-- onboarding is complete;
-- charges are enabled;
-- payouts are enabled.
-
-If Stripe is incomplete, paid online competitions may not accept payments correctly.
-
-## 18. Create a Competition
+## 17. Create a Competition
 
 ![Create competition](assets/screenshots/guide-admin-create-competition.svg)
 
@@ -328,13 +303,13 @@ Key competition settings:
 | Start date | Used for fixture sync and competition availability. |
 | Fixture source | The supported fixture provider configured for the competition. |
 | Visibility | Public listing or private invite-code competition. |
-| Payment mode | Free, manual, or online Stripe payment. |
+| Payment mode | Free or manual payment tracking. |
 | Max entries per user | Allows one or multiple entries per account. |
 | Missed pick mode | Eliminate or use configured automatic behavior. |
 | Postponed consumes team | Whether postponed picks still count as team usage. |
 | Lifeline | Optional one-time draw protection per entry. |
 
-## 19. Competition Modes
+## 18. Competition Modes
 
 ### Public vs Private
 
@@ -350,7 +325,7 @@ Private:
 - good for closed groups;
 - club admin can copy/share the code.
 
-### Free vs Manual vs Online Payment
+### Free vs Manual Payment
 
 Free:
 
@@ -361,12 +336,6 @@ Manual:
 - admin collects money externally;
 - admin marks individual entries as paid;
 - best for cash, bank transfer, or Revolut-style flows.
-
-Online payment:
-
-- users pay through Stripe;
-- requires Stripe Connect setup;
-- best for cleaner payment audit and less admin work.
 
 ### Classic vs Lifeline
 
@@ -436,19 +405,17 @@ For manual payment competitions:
 
 If manual payment policy is strict, unpaid entries may be blocked from picking.
 
-## 23. Online Payment Workflow
+## 22. Manual Payment Workflow
 
-For Stripe competitions:
+For manual payment competitions:
 
-1. User joins or enters private invite code.
-2. User is taken to payment.
-3. Stripe processes payment.
-4. Payment success confirms the entry.
+1. User joins or enters a private invite code.
+2. Entry appears as awaiting payment.
+3. Admin receives payment outside the app.
+4. Admin marks that entry as paid.
 5. The competition screen shows paid/confirmed state.
 
-If payment is incomplete, the entry may show `Awaiting payment`.
-
-## 24. Send Announcements
+## 23. Send Announcements
 
 ![Pause and announcements](assets/screenshots/guide-admin-pause-announcements.svg)
 
@@ -464,7 +431,7 @@ Use announcements for:
 
 Users see announcements in the competitions area and can dismiss them.
 
-## 25. Pause and Resume a Competition
+## 24. Pause and Resume a Competition
 
 Pause is useful when a competition must be temporarily stopped.
 
@@ -472,7 +439,7 @@ When paused:
 
 - users cannot join;
 - users cannot make or change picks;
-- payments are temporarily unavailable;
+- payment confirmation actions are temporarily unavailable;
 - automatic lock/result processing is paused;
 - fixture kickoff times and lock deadlines are not moved.
 
@@ -488,7 +455,7 @@ When resumed:
 - normal actions continue;
 - users make picks for the next available gameweek.
 
-## 26. Review Gameweek Results
+## 25. Review Gameweek Results
 
 ![Results processing](assets/screenshots/guide-admin-results.svg)
 
@@ -509,7 +476,7 @@ Paused result behavior:
 - active entries remain active;
 - players continue from the next valid gameweek.
 
-## 27. If a Fixture Result Looks Wrong
+## 26. If a Fixture Result Looks Wrong
 
 If a provider result is wrong or delayed, players should not need to do anything themselves.
 
@@ -521,7 +488,7 @@ Recommended approach:
 4. After correction, review the survivor table, gameweek results, pulse, and pick history.
 5. Check survivor table and participant states.
 
-## 28. Export Participant Data
+## 27. Export Participant Data
 
 Use `Export CSV` from the participants area.
 
@@ -534,15 +501,11 @@ Useful for:
 
 Avoid sharing exports publicly if they contain personal data.
 
-## 29. Common Club Admin Problems
+## 28. Common Club Admin Problems
 
 ### Fixtures are not visible after creating a competition
 
 Open the competition page again or use fixture sync/retry if available. The backend attempts to populate missing fixtures when the fixtures endpoint is opened.
-
-### Stripe says setup incomplete
-
-Return to Stripe onboarding and complete all required business details. Then refresh Stripe status.
 
 ### A user cannot make a pick
 
@@ -582,7 +545,6 @@ That user likely has multiple entries. Entry numbers are shown when there is mor
 
 1. Create club or open Club Admin.
 2. Set branding.
-3. Complete Stripe Connect if using online payments.
 4. Create competition.
 5. Share public link or private invite code.
 6. Manage participants and payments.

@@ -16,7 +16,7 @@ const serviceCards = [
   },
   {
     title: 'Payments support',
-    body: 'Competitions can be free, manually tracked by the club organiser, or use online payments where supported. Payment availability depends on compliance and provider support.',
+    body: 'Competitions can be free or manually tracked by the club organiser. Admins can mark entries as paid after collecting payment outside the app.',
   },
 ];
 
@@ -59,7 +59,7 @@ export default function ServicesPage() {
           ))}
         </div>
         <p>
-          Clubs are responsible for their own competition rules and for ensuring their use of the platform complies with local laws and payment provider rules. Online payment functionality may be restricted or disabled for unsupported competition types.
+          Clubs are responsible for their own competition rules and for ensuring their use of the platform complies with local laws. Any entry fees are collected outside the app and manually tracked by the organiser.
         </p>
       </section>
 
@@ -72,7 +72,6 @@ export default function ServicesPage() {
           <Link to="/pricing" className="btn-secondary">Pricing</Link>
           <Link to="/refund-policy" className="btn-secondary">Refund policy</Link>
           <Link to="/contact" className="btn-primary">Contact support</Link>
-          <Link to="/demo-checkout" className="btn-primary">Demo Checkout</Link>
         </div>
       </section>
     </div>

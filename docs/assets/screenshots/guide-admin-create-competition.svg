@@ -19,7 +19,7 @@
 <text x="52" y="408" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="900" fill="#f8fafc" text-anchor="start" opacity="1">Payment mode</text>
 <rect x="52" y="426" width="88" height="38" rx="19" fill="#052e1a" stroke="#16a34a" stroke-width="2" opacity="1" /><text x="96.0" y="451" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="900" fill="#bbf7d0" text-anchor="middle" opacity="1">Free</text>
 <rect x="134" y="426" width="90" height="38" rx="19" fill="#3a2605" stroke="#f59e0b" stroke-width="2" opacity="1" /><text x="179.0" y="451" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="900" fill="#fde68a" text-anchor="middle" opacity="1">Manual</text>
-<rect x="238" y="426" width="90" height="38" rx="19" fill="#0f2a3d" stroke="#38bdf8" stroke-width="2" opacity="1" /><text x="283.0" y="451" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="900" fill="#bae6fd" text-anchor="middle" opacity="1">Stripe</text>
+<rect x="238" y="426" width="90" height="38" rx="19" fill="#0f2a3d" stroke="#38bdf8" stroke-width="2" opacity="1" /><text x="283.0" y="451" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="900" fill="#bae6fd" text-anchor="middle" opacity="1">Manual</text>
 <text x="52" y="504" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="900" fill="#f8fafc" text-anchor="start" opacity="1">Rules</text>
 <rect x="52" y="522" width="286" height="42" rx="12" fill="#0b1220" stroke="#334155" stroke-width="2" opacity="1" />
 <text x="68" y="549" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700" fill="#94a3b8" text-anchor="start" opacity="1">Max entries per user: 1</text>

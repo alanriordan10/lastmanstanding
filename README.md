@@ -7,7 +7,7 @@ For a user-facing walkthrough of the web portal and mobile app, see:
 
 - [How to Use Last Man Standing](docs/how-to-use-app-and-web.md)
 
-This covers normal users and club admins, including joining competitions, making picks, payments, lifeline, My Route, survivor table, club setup, Stripe Connect, participants, announcements, pause/resume, and result processing.
+This covers normal users and club admins, including joining competitions, making picks, payments, lifeline, My Route, survivor table, club setup, participants, announcements, pause/resume, and result processing.
 
 ## Prerequisites
 

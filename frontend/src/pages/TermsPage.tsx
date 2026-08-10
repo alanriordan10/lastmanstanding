@@ -36,13 +36,13 @@ export default function TermsPage() {
         </TermsSection>
 
         <TermsSection title="Payments">
-          <p>Competitions may be configured as free, manual/offline payment tracking, or online payment where supported. Manual payments are managed by the club admin. Online payment availability depends on payment provider support and compliance requirements.</p>
-          <p>Last Man Standing may restrict or disable online payments for competition types that are not supported by a payment provider.</p>
+          <p>Competitions may be configured as free or manual/offline payment tracking. Manual payments are managed by the club admin and collected outside the app.</p>
+          <p>Last Man Standing does not currently offer online competition entry payments.</p>
         </TermsSection>
 
         <TermsSection title="No Betting or Wagering Service">
           <p>Last Man Standing does not provide sportsbook betting, casino gaming, wagering, odds, betting markets, betting exchange services, or betting against the platform. The platform does not set odds or take risk on sports outcomes.</p>
-          <p>Club admins are responsible for ensuring their competitions comply with local laws, club rules, and payment provider requirements.</p>
+          <p>Club admins are responsible for ensuring their competitions comply with local laws and club rules.</p>
         </TermsSection>
 
         <TermsSection title="Acceptable Use">

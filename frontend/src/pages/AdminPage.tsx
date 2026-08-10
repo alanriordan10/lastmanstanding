@@ -371,8 +371,8 @@ function CompetitionsTab() {
     setMissedPickMode(competition.missedPickMode);
     setPostponedConsumesTeam(competition.postponedConsumesTeam);
     setLifelineEnabled(Boolean(competition.lifelineEnabled));
-    setPassFeeToParticipant(Boolean(competition.passFeeToParticipant));
-    setPaymentMode((competition.paymentMode ?? 'FREE') as 'FREE' | 'MANUAL' | 'STRIPE');
+    setPassFeeToParticipant(false);
+    setPaymentMode(competition.paymentMode === 'STRIPE' ? 'MANUAL' : (competition.paymentMode ?? 'FREE') as 'FREE' | 'MANUAL');
     setManualPaymentPolicy((competition.manualPaymentPolicy ?? 'STRICT') as 'STRICT' | 'LENIENT');
     setVisibility((competition.visibility ?? 'PRIVATE') as 'PUBLIC' | 'PRIVATE');
     setStartDate(competition.startDate);
@@ -764,11 +764,10 @@ function CompetitionsTab() {
             {/* Payment Mode */}
             <div className="sm:col-span-2">
               <label className="mb-2 block text-sm font-medium text-gray-300">Payment Mode</label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 {([
                   { value: 'FREE',   label: 'Free',   icon: '🎉', desc: 'No entry fee' },
                   { value: 'MANUAL', label: 'Manual', icon: '💸', desc: 'Revolut / cash / bank transfer' },
-                  { value: 'STRIPE', label: 'Online', icon: '💳', desc: 'Players pay by card via Stripe' },
                 ] as const).map(opt => (
                   <button key={opt.value} type="button"
                     onClick={() => {
@@ -962,22 +961,6 @@ function CompetitionsTab() {
                   </span>
                 </span>
               </label>
-              {paymentMode === 'STRIPE' && parseFloat(entryFee) > 0 && (
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input type="checkbox" checked={passFeeToParticipant}
-                    onChange={(e) => setPassFeeToParticipant(e.target.checked)}
-                    className="w-4 h-4 mt-0.5 rounded border-gray-600 bg-surface-700 text-brand-500" />
-                  <span className="text-sm text-gray-300">
-                    Pass Stripe processing fee to participant
-                    <span className="ml-1 text-xs text-gray-500">— player pays slightly more so you receive exactly €{entryFee}</span>
-                    {passFeeToParticipant && (
-                      <span className="block mt-1 text-xs text-yellow-400">
-                        e.g. player pays ~€{((parseFloat(entryFee) + 0.25) / (1 - 0.015)).toFixed(2)}, you receive €{entryFee}
-                      </span>
-                    )}
-                  </span>
-                </label>
-              )}
             </div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">

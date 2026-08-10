@@ -27,19 +27,18 @@ export default function PricingPage() {
         <article className="card">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-gray-400">Competition payments</p>
           <h2 className="mt-2 text-2xl font-black text-white">Configured by organiser</h2>
-          <p className="mt-2 text-sm leading-6 text-gray-300">Club organisers may configure free competitions, manual/offline payment tracking, or online payments where supported by payment provider rules.</p>
+          <p className="mt-2 text-sm leading-6 text-gray-300">Club organisers may configure free competitions or manual/offline payment tracking.</p>
         </article>
       </section>
 
       <section className="card space-y-3 text-sm leading-6 text-gray-300">
         <h2 className="text-xl font-black text-white">Payment modes</h2>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-2xl border border-white/8 bg-white/[0.035] p-4"><strong className="text-white">Free</strong><p className="mt-1 text-gray-400">No entry payment is collected through the platform.</p></div>
           <div className="rounded-2xl border border-white/8 bg-white/[0.035] p-4"><strong className="text-white">Manual</strong><p className="mt-1 text-gray-400">The organiser tracks payment outside the app and marks entries as paid.</p></div>
-          <div className="rounded-2xl border border-white/8 bg-white/[0.035] p-4"><strong className="text-white">Online</strong><p className="mt-1 text-gray-400">Online payments may be available for supported competition types and compliant use cases.</p></div>
         </div>
         <p>
-          Last Man Standing does not provide sportsbook betting, casino games, wagering, odds, or betting against the platform. Online payments may be disabled for competitions that are not supported by payment provider policies.
+          Last Man Standing does not provide sportsbook betting, casino games, wagering, odds, or betting against the platform. Entry fees are collected outside the app when manual payment tracking is used.
         </p>
       </section>
 

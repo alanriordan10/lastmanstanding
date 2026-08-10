@@ -33,7 +33,7 @@ export default function PrivacyPage() {
         </PolicySection>
 
         <PolicySection title="Payments">
-          <p>Online payments are processed by Stripe. We do not store full card numbers. We store payment references, payment status, entry scope, and related metadata required to confirm competition entry payment.</p>
+          <p>For manual payment tracking, we store payment status, entry scope, and related metadata required to help organisers confirm competition entry payment. Payment collection happens outside the app.</p>
         </PolicySection>
 
         <PolicySection title="How We Use Information">

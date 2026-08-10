@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api';
-import type { Competition, Club, Participant, StripeConnectStatus } from '../types';
+import type { Competition, Club, Participant } from '../types';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -68,7 +68,6 @@ export default function ClubAdminPage() {
   const [adminSearchResults, setAdminSearchResults] = useState<{id: number; username: string; email: string}[]>([]);
   const [adminSearching, setAdminSearching] = useState(false);
   const [checklistOpen, setChecklistOpen] = useState(true);
-  const [stripeOpen, setStripeOpen] = useState(false);
   const adminDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const checklistUserToggledRef = useRef(false);
   const formRef = useRef<HTMLFormElement | null>(null);
@@ -90,13 +89,6 @@ export default function ClubAdminPage() {
   const { data: competitions, isLoading } = useQuery<Competition[]>({
     queryKey: ['club-admin', 'competitions'],
     queryFn: () => api.get('/club-admin/competitions').then((r) => Array.isArray(r.data) ? r.data : []),
-    enabled: !!myClub,
-    staleTime: 0,
-  });
-
-  const { data: stripeStatus, isLoading: stripeLoading, refetch: refetchStripeStatus } = useQuery<StripeConnectStatus>({
-    queryKey: ['club-admin', 'stripe-connect-status'],
-    queryFn: () => api.get('/club-admin/my-club/stripe/connect/status').then((r) => r.data),
     enabled: !!myClub,
     staleTime: 0,
   });
@@ -177,8 +169,8 @@ export default function ClubAdminPage() {
     setMissedPickMode(competition.missedPickMode);
     setPostponedConsumesTeam(competition.postponedConsumesTeam);
     setLifelineEnabled(Boolean(competition.lifelineEnabled));
-    setPassFeeToParticipant(Boolean(competition.passFeeToParticipant));
-    setPaymentMode((competition.paymentMode ?? 'FREE') as 'FREE' | 'MANUAL' | 'STRIPE');
+    setPassFeeToParticipant(false);
+    setPaymentMode(competition.paymentMode === 'STRIPE' ? 'MANUAL' : (competition.paymentMode ?? 'FREE') as 'FREE' | 'MANUAL');
     setManualPaymentPolicy((competition.manualPaymentPolicy ?? 'STRICT') as 'STRICT' | 'LENIENT');
     setVisibility((competition.visibility ?? 'PRIVATE') as 'PUBLIC' | 'PRIVATE');
     setPrizePool(competition.prizePool != null ? String(competition.prizePool) : '');
@@ -313,63 +305,23 @@ export default function ClubAdminPage() {
   const brandingPreviewPrimary = hexColorPattern.test(brandingPrimary) ? brandingPrimary : '#6366f1';
   const brandingPreviewSecondary = hexColorPattern.test(brandingSecondary) ? brandingSecondary : '#a5b4fc';
 
-  const startStripeConnectMutation = useMutation({
-    mutationFn: () => api.post('/club-admin/my-club/stripe/connect/start'),
-    onSuccess: (response) => {
-      const onboardingUrl = response.data?.onboardingUrl as string | undefined;
-      if (!onboardingUrl) {
-        toast.error('Stripe onboarding URL was not returned');
-        return;
-      }
-      window.location.href = onboardingUrl;
-    },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to start Stripe onboarding'),
-  });
-
-  const stripeDashboardLinkMutation = useMutation({
-    mutationFn: () => api.post('/club-admin/my-club/stripe/connect/dashboard-link'),
-    onSuccess: (response) => {
-      const url = response.data?.url as string | undefined;
-      if (!url) {
-        toast.error('Stripe dashboard URL was not returned');
-        return;
-      }
-      window.open(url, '_blank', 'noopener,noreferrer');
-    },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Could not open Stripe dashboard'),
-  });
-
-  const stripeReady = Boolean(
-    stripeStatus?.stripeAccountId &&
-    stripeStatus?.onboardingComplete &&
-    stripeStatus?.chargesEnabled &&
-    stripeStatus?.payoutsEnabled,
-  );
   const hasCompetitions = (competitions?.length ?? 0) > 0;
-  const hasStripeCompetition = (competitions ?? []).some((c) => c.paymentMode === 'STRIPE');
+  const hasManualCompetition = (competitions ?? []).some((c) => c.paymentMode === 'MANUAL');
   const onboardingSteps = [
     { label: 'Club created', done: true },
-    { label: 'Stripe connected', done: stripeReady },
     { label: 'Create competition', done: hasCompetitions },
-    { label: 'First Stripe competition', done: !hasCompetitions ? false : hasStripeCompetition || stripeReady },
+    { label: 'Configure manual payments', done: !hasCompetitions ? false : hasManualCompetition },
   ];
   const checklistDoneCount = onboardingSteps.filter((s) => s.done).length;
-  const stripeSummary = stripeReady
-    ? 'Ready'
-    : stripeStatus?.stripeAccountId
-      ? 'Incomplete'
-      : 'Not connected';
 
   useEffect(() => {
     if (checklistUserToggledRef.current) return;
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
     if (isMobile) {
       setChecklistOpen(false);
-      setStripeOpen(false);
       return;
     }
     setChecklistOpen(checklistDoneCount < onboardingSteps.length);
-    setStripeOpen(false);
   }, [checklistDoneCount, onboardingSteps.length]);
 
   // Debounced user search for assign admin
@@ -534,82 +486,6 @@ export default function ClubAdminPage() {
             >
               Read club admin guide
             </Link>
-          </>
-        )}
-      </div>
-
-      {/* Stripe Connect card */}
-      <div className="card space-y-3">
-        <button
-          type="button"
-          onClick={() => setStripeOpen((v) => !v)}
-          className="flex w-full items-center justify-between rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2.5 text-left"
-          aria-expanded={stripeOpen}
-        >
-          <div>
-            <h2 className="text-sm font-semibold uppercase tracking-[0.16em] text-gray-200">Stripe Connect</h2>
-            <p className="mt-1 text-xs text-gray-400">Connect your club to receive Stripe competition payouts.</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className={`rounded-full border px-2 py-0.5 text-[11px] ${stripeReady ? 'border-green-400/25 bg-green-500/10 text-green-200' : 'border-amber-400/25 bg-amber-500/10 text-amber-200'}`}>
-              {stripeSummary}
-            </span>
-            <span className="text-gray-400">{stripeOpen ? '▾' : '▸'}</span>
-          </div>
-        </button>
-        {stripeOpen && (
-          <>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => refetchStripeStatus()}
-                className="text-xs px-3 py-1.5 rounded-xl border border-white/10 bg-white/[0.04] text-gray-300 transition hover:border-white/15 hover:bg-white/[0.08]"
-                disabled={stripeLoading}
-              >
-                {stripeLoading ? 'Refreshing…' : 'Refresh status'}
-              </button>
-              <button
-                type="button"
-                onClick={() => startStripeConnectMutation.mutate()}
-                disabled={startStripeConnectMutation.isPending}
-                className="text-xs px-3 py-1.5 rounded-xl border border-brand-500/40 bg-brand-500/10 text-brand-300 transition hover:bg-brand-500/20"
-              >
-                {startStripeConnectMutation.isPending
-                  ? 'Starting…'
-                  : stripeReady
-                    ? 'Reconnect Stripe'
-                    : stripeStatus?.stripeAccountId
-                      ? 'Continue onboarding'
-                      : 'Connect Stripe'}
-              </button>
-              <button
-                type="button"
-                onClick={() => stripeDashboardLinkMutation.mutate()}
-                disabled={!stripeStatus?.stripeAccountId || stripeDashboardLinkMutation.isPending}
-                className="text-xs px-3 py-1.5 rounded-xl border border-white/10 bg-white/[0.04] text-gray-300 transition hover:border-white/15 hover:bg-white/[0.08] disabled:opacity-50"
-              >
-                {stripeDashboardLinkMutation.isPending ? 'Opening…' : 'Manage payouts'}
-              </button>
-            </div>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-gray-300">
-                Account: <span className="font-mono text-gray-200">{stripeStatus?.stripeAccountId ?? 'Not connected'}</span>
-              </div>
-              <div className={`rounded-lg border px-3 py-2 text-xs ${stripeReady ? 'border-green-400/30 bg-green-500/10 text-green-200' : 'border-amber-400/30 bg-amber-500/10 text-amber-200'}`}>
-                {stripeReady ? 'Ready for Stripe competitions' : 'Not ready yet: complete onboarding + enable charges/payouts'}
-              </div>
-              <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-gray-300">
-                Onboarding: <span className={stripeStatus?.onboardingComplete ? 'text-green-300' : 'text-amber-300'}>{stripeStatus?.onboardingComplete ? 'Complete' : 'Incomplete'}</span>
-              </div>
-              <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-gray-300">
-                Charges/Payouts: <span className={(stripeStatus?.chargesEnabled && stripeStatus?.payoutsEnabled) ? 'text-green-300' : 'text-amber-300'}>
-                  {stripeStatus?.chargesEnabled ? 'charges:on' : 'charges:off'} / {stripeStatus?.payoutsEnabled ? 'payouts:on' : 'payouts:off'}
-                </span>
-              </div>
-            </div>
-            <div className="rounded-lg border border-sky-400/20 bg-sky-500/10 px-3 py-2 text-xs text-sky-100/90">
-              Stripe shows the exact processing fee after a payment succeeds, under the payment's balance transaction. The checkout screen in this app shows an estimate before payment so entrants know the expected charge/net amount upfront.
-            </div>
           </>
         )}
       </div>
@@ -937,18 +813,13 @@ export default function ClubAdminPage() {
             </div>
             <div className="sm:col-span-2">
               <label className="mb-2 block text-sm font-medium text-gray-300">Payment Mode</label>
-              <div className="grid gap-2 sm:grid-cols-3">
+              <div className="grid gap-2 sm:grid-cols-2">
                 {([
                   { value: 'FREE', label: 'Free', icon: '🎉', desc: 'No entry fee' },
                   { value: 'MANUAL', label: 'Manual', icon: '💸', desc: 'Revolut / cash / bank transfer — you mark players as paid' },
-                  { value: 'STRIPE', label: 'Online', icon: '💳', desc: 'Players pay by card via Stripe' },
                 ] as const).map(opt => (
                   <button key={opt.value} type="button"
                     onClick={() => {
-                      if (opt.value === 'STRIPE' && !stripeReady) {
-                        toast.error('Complete Stripe Connect setup for this club before enabling Stripe payments.');
-                        return;
-                      }
                       setPaymentMode(opt.value);
                       if (opt.value === 'FREE') { setEntryFee('0'); setPassFeeToParticipant(false); }
                     }}
@@ -960,19 +831,9 @@ export default function ClubAdminPage() {
                     <span className="text-xl">{opt.icon}</span>
                     <span className="font-semibold">{opt.label}</span>
                     <span className="text-center leading-tight">{opt.desc}</span>
-                    {opt.value === 'STRIPE' && !stripeReady && (
-                      <span className="text-[11px] text-amber-300">Connect Stripe first</span>
-                    )}
                   </button>
                 ))}
               </div>
-              {paymentMode === 'STRIPE' && (
-                <div className={`mt-2 rounded-lg border px-3 py-2 text-xs ${stripeReady ? 'border-green-400/25 bg-green-500/10 text-green-200' : 'border-amber-400/25 bg-amber-500/10 text-amber-200'}`}>
-                  {stripeReady
-                    ? 'Stripe is ready. Participant payments will route to your connected club account.'
-                    : 'Stripe is not ready yet. Complete onboarding and enable charges/payouts in Stripe Connect.'}
-                </div>
-              )}
               {paymentMode === 'MANUAL' && (
                 <div className="mt-2 space-y-2">
                   <p className="text-xs text-yellow-400/80">
@@ -1024,11 +885,6 @@ export default function ClubAdminPage() {
                       }`}>€{preset}</button>
                   ))}
                 </div>
-                {paymentMode === 'STRIPE' && (
-                  <p className="mt-1 text-xs text-gray-500">
-                    Fee preview: participant pays approximately <strong>€{(parseFloat(entryFee) || 0).toFixed(2)}</strong>, before Stripe processing/network fee differences.
-                  </p>
-                )}
               </div>
             )}
             <div>
@@ -1135,24 +991,6 @@ export default function ClubAdminPage() {
                 </span>
               </label>
             </div>
-            {paymentMode === 'STRIPE' && parseFloat(entryFee) > 0 && (
-              <div className="sm:col-span-2">
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input type="checkbox" checked={passFeeToParticipant}
-                    onChange={(e) => setPassFeeToParticipant(e.target.checked)}
-                    className="w-4 h-4 mt-0.5 rounded border-gray-600 bg-surface-700 text-brand-500" />
-                  <span className="text-sm text-gray-300">
-                    Pass Stripe processing fee to participant
-                    <span className="ml-1 text-xs text-gray-500">— player pays slightly more so you receive exactly €{entryFee}</span>
-                    {passFeeToParticipant && (
-                      <span className="block mt-1 text-xs text-yellow-400">
-                        e.g. player pays ~€{((parseFloat(entryFee) + 0.25) / (1 - 0.015)).toFixed(2)}, you receive €{entryFee}
-                      </span>
-                    )}
-                  </span>
-                </label>
-              </div>
-            )}
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
             <button type="submit" disabled={createMutation.isPending || updateMutation.isPending} className="btn-primary w-full sm:w-auto">

@@ -63,7 +63,7 @@ export default function LandingPage() {
         name: 'Can clubs track payments?',
         acceptedAnswer: {
           '@type': 'Answer',
-          text: 'Yes. Clubs can use free competitions, manual/offline payment tracking, or online payments where supported by payment provider policies.',
+          text: 'Yes. Clubs can use free competitions or manual/offline payment tracking.',
         },
       },
     ],
@@ -159,7 +159,7 @@ export default function LandingPage() {
           <div className="grid sm:grid-cols-3 gap-8">
             {[
               { icon: '⚙️', title: 'Set Rules That Fit Your Competition', desc: 'Configure lock times, entry limits, missed-pick behavior, and optional lifeline rules for each competition.' },
-              { icon: '💳', title: 'Manage Entries and Payment Status', desc: 'Track each entry separately with free competitions, manual/offline payment tracking, or online payments where supported.' },
+              { icon: '💳', title: 'Manage Entries and Payment Status', desc: 'Track each entry separately with free competitions or manual/offline payment tracking.' },
               { icon: '📊', title: 'Track Results and Survivor Table Live', desc: 'Reveal all picks after lock, process outcomes quickly, and keep the full survivor table visible to players.' },
             ].map(({ icon, title, desc }) => (
               <div key={title} className="rounded-2xl border border-white/8 bg-white/[0.035] p-6 text-center space-y-3 shadow-[0_20px_50px_rgba(2,6,23,0.28)]">
@@ -194,10 +194,10 @@ export default function LandingPage() {
             <div className="card space-y-3">
               <p className="text-xs font-black uppercase tracking-[0.22em] text-gray-400">Payment model</p>
               <p className="text-sm leading-6 text-gray-300">
-                Platform access is currently free during beta. Club organisers may configure free competitions, manual/offline payment tracking, or online payments where supported by payment provider rules.
+                Platform access is currently free during beta. Club organisers may configure free competitions or manual/offline payment tracking.
               </p>
               <p className="text-sm leading-6 text-gray-300">
-                Online payments can be restricted or disabled for competition types that payment providers cannot support.
+                Entry fees are collected outside the app when manual payment tracking is used.
               </p>
             </div>
           </div>

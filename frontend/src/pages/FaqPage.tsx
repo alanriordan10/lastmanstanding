@@ -69,11 +69,11 @@ const FAQ_SECTIONS = [
     items: [
   {
     q: 'Can we collect entry fees in the app?',
-    a: 'Yes. Competitions can use manual payment tracking or Stripe. Payment status is managed per entry so multi-entry players are handled correctly.',
+    a: 'Yes. Competitions can use manual payment tracking. Payment status is managed per entry so multi-entry players are handled correctly.',
   },
   {
     q: 'What payment modes are supported?',
-    a: 'Free competitions, manual payment tracking, or Stripe payments. The mode is configured per competition by the admin.',
+    a: 'Free competitions or manual payment tracking. The mode is configured per competition by the admin.',
   },
   {
     q: 'Can a user have one paid entry and one unpaid entry?',

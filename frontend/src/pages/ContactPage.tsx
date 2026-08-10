@@ -50,9 +50,9 @@ User: ${username}
 Email: ${email}
 Role: ${role}
 Competition name:
-Payment mode (Stripe/Manual):
+Payment mode (Free/Manual):
 What happened:
-Any reference IDs (PaymentIntent, account, etc):
+Any reference IDs or organiser receipt details:
 `;
 
   const copyText = async (label: string, text: string) => {
@@ -229,7 +229,7 @@ Any reference IDs (PaymentIntent, account, etc):
           </div>
           <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-gray-200">
             <p className="font-semibold">Payment support</p>
-            <p className="mt-1 text-xs text-gray-400">Use for Stripe/manual payment confirmation issues.</p>
+            <p className="mt-1 text-xs text-gray-400">Use for manual payment confirmation issues.</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <a
                 href={buildMailto(paymentSubject, paymentBody)}

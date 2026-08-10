@@ -25,7 +25,7 @@ export default function RefundPolicyPage() {
 
         <PolicySection title="Competition entry/admin fees">
           <p>Competition entry/admin fees are configured by the club organiser. Refund decisions for organiser-configured competition payments are handled by the relevant club organiser unless otherwise required by law.</p>
-          <p>If a payment was made online through Stripe, refund requests should be sent through the organiser or Last Man Standing support with the competition name, payment date, and account email.</p>
+          <p>For manually collected entry fees, refund requests should be sent to the organiser with the competition name, payment date, and account email.</p>
         </PolicySection>
 
         <PolicySection title="Competitions already started">
