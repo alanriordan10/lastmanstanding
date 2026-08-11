@@ -361,7 +361,7 @@ public class CompetitionService {
         if (fixtureCompetitionCode == null || fixtureCompetitionCode.isBlank()) return "PL";
         String normalized = fixtureCompetitionCode.trim().toUpperCase(Locale.ROOT);
         return switch (normalized) {
-            case "PL", "WC" -> normalized;
+            case "PL" -> normalized;
             default -> "PL";
         };
     }

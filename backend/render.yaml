@@ -25,6 +25,18 @@ services:
         sync: false
       - key: STRIPE_PUBLISHABLE_KEY
         sync: false
+      - key: STRIPE_SLOT_PRICE_ID
+        sync: false
+      - key: STRIPE_SLOT_SUCCESS_URL
+        value: https://runlastmanstanding.com/club-admin?billing=success
+      - key: STRIPE_SLOT_CANCEL_URL
+        value: https://runlastmanstanding.com/club-admin?billing=cancel
+      - key: STRIPE_SLOT_MOBILE_SUCCESS_URL
+        value: lastmanstanding://billing/callback?billing=success
+      - key: STRIPE_SLOT_MOBILE_CANCEL_URL
+        value: lastmanstanding://billing/callback?billing=cancel
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
       - key: VAPID_PUBLIC_KEY
         sync: false
       - key: VAPID_PRIVATE_KEY

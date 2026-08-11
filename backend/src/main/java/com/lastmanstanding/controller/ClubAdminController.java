@@ -4,6 +4,7 @@ import com.lastmanstanding.dto.CompetitionDtos.*;
 import com.lastmanstanding.entity.*;
 import com.lastmanstanding.repository.*;
 import com.lastmanstanding.security.UserDetailsImpl;
+import com.lastmanstanding.service.BillingService;
 import com.lastmanstanding.service.CompetitionService;
 import com.lastmanstanding.service.CompetitionCacheService;
 import com.lastmanstanding.service.CompetitionAnnouncementService;
@@ -55,6 +56,7 @@ public class ClubAdminController {
     private final CompetitionCacheService competitionCacheService;
     private final CompetitionAnnouncementService competitionAnnouncementService;
     private final CompetitionPauseService competitionPauseService;
+    private final BillingService billingService;
 
     public ClubAdminController(ClubRepository clubRepository,
                                CompetitionRepository competitionRepository,
@@ -71,7 +73,7 @@ public class ClubAdminController {
                                GameweekProcessingService gameweekProcessingService,
                                CompetitionCacheService competitionCacheService,
                                CompetitionAnnouncementService competitionAnnouncementService,
-                               CompetitionPauseService competitionPauseService) {
+                               CompetitionPauseService competitionPauseService, BillingService billingService) {
         this.clubRepository = clubRepository;
         this.competitionRepository = competitionRepository;
         this.participantRepository = participantRepository;
@@ -88,6 +90,7 @@ public class ClubAdminController {
         this.competitionCacheService = competitionCacheService;
         this.competitionAnnouncementService = competitionAnnouncementService;
         this.competitionPauseService = competitionPauseService;
+        this.billingService = billingService;
     }
 
     // ── My Club ──────────────────────────────────────────────────────────
@@ -231,6 +234,8 @@ public class ClubAdminController {
             @Valid @RequestBody CreateCompetitionRequest request,
             @AuthenticationPrincipal UserDetailsImpl userDetails) {
         Club club = resolveClub(userDetails);
+        // Pricing: 1 free competition per club (lifetime), then a purchased slot credit is required.
+        boolean isFree = billingService.checkCanCreateReturningIsFree(club.getId());
         // Force the competition into this club
         Competition c = competitionService.createCompetition(
                 request.name(), request.description(), request.entryFee(), request.prizePool(),
@@ -238,10 +243,37 @@ public class ClubAdminController {
                 request.fixtureCompetitionCode(),
                 request.missedPickMode(), request.postponedConsumesTeam(), request.lifelineEnabled(), request.passFeeToParticipant(),
                 request.paymentMode(), request.manualPaymentPolicy(), request.visibility(), request.startDate(), userDetails.getId(), club.getId(), false);
+        if (!isFree) {
+            billingService.consumePaidCredit(club.getId());
+        } else {
+            billingService.markFreeCompetitionUsed(club.getId());
+        }
         syncInitialFixtures(c);
         logAudit(userDetails, "Competition", c.getId(), "name", null, c.getName(), "CREATE");
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(CompetitionResponse.from(c, 0, 0, null));
+    }
+
+    // ── Billing (competition-slot purchases) ─────────────────────────────
+
+    @GetMapping("/my-club/billing")
+    public ResponseEntity<BillingService.BillingStatus> getBillingStatus(
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        Club club = resolveClub(userDetails);
+        return ResponseEntity.ok(billingService.getStatus(club.getId()));
+    }
+
+    public record SlotCheckoutResponse(String url) {}
+
+    @PostMapping("/my-club/billing/checkout")
+    public ResponseEntity<SlotCheckoutResponse> createSlotCheckout(
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            @RequestParam(name = "client", required = false) String client) {
+        Club club = resolveClub(userDetails);
+        String url = billingService.createSlotCheckoutSession(
+                club.getId(),
+                BillingService.CheckoutClient.from(client));
+        return ResponseEntity.ok(new SlotCheckoutResponse(url));
     }
 
     @PutMapping("/competitions/{id}")

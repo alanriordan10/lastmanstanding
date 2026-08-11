@@ -31,6 +31,13 @@ football-data:
 odds:
   enabled: false
 
+stripe:
+  slot:
+    success-url: ${LOCAL_STRIPE_SLOT_SUCCESS_URL:http://localhost:5173/club-admin?billing=success}
+    cancel-url: ${LOCAL_STRIPE_SLOT_CANCEL_URL:http://localhost:5173/club-admin?billing=cancel}
+  demo-success-url: ${LOCAL_STRIPE_DEMO_SUCCESS_URL:http://localhost:5173/services}
+  demo-cancel-url: ${LOCAL_STRIPE_DEMO_CANCEL_URL:http://localhost:5173/services}
+
 app:
   frontend-url: ${LOCAL_FRONTEND_URL:http://localhost:5173}
   public-url: ${LOCAL_PUBLIC_APP_URL:http://localhost:5173}

@@ -49,6 +49,14 @@ public class Club {
     @Column(name = "stripe_payouts_enabled", nullable = false)
     private boolean stripePayoutsEnabled = false;
 
+    /** Purchased competition-slot credits. Each credit lets the club create one extra competition beyond the free one. */
+    @Column(name = "paid_competition_credits", nullable = false)
+    private int paidCompetitionCredits = 0;
+
+    /** Persistent flag: true once the club has used its one free competition (survives competition deletion). */
+    @Column(name = "free_competition_used", nullable = false)
+    private boolean freeCompetitionUsed = false;
+
     public Club() {}
 
     public Club(String name, String description, User createdBy) {
@@ -99,4 +107,10 @@ public class Club {
 
     public boolean isStripePayoutsEnabled() { return stripePayoutsEnabled; }
     public void setStripePayoutsEnabled(boolean stripePayoutsEnabled) { this.stripePayoutsEnabled = stripePayoutsEnabled; }
+    public void setPaidCompetitionCredits(int paidCompetitionCredits) { this.paidCompetitionCredits = paidCompetitionCredits; }
+    public int getPaidCompetitionCredits() { return paidCompetitionCredits; }
+
+    public boolean isFreeCompetitionUsed() { return freeCompetitionUsed; }
+    public void setFreeCompetitionUsed(boolean freeCompetitionUsed) { this.freeCompetitionUsed = freeCompetitionUsed; }
+
 }

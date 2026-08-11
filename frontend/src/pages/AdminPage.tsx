@@ -304,7 +304,7 @@ function CompetitionsTab() {
   const [entryFee, setEntryFee] = useState('0');
   const [maxEntriesPerUser, setMaxEntriesPerUser] = useState('1');
   const [prizePool, setPrizePool] = useState('');
-  const [fixtureCompetitionCode, setFixtureCompetitionCode] = useState<'PL' | 'WC'>('PL');
+  const [fixtureCompetitionCode, setFixtureCompetitionCode] = useState<'PL'>('PL');
   const [missedPickMode, setMissedPickMode] = useState('ELIMINATE');
   const [postponedConsumesTeam, setPostponedConsumesTeam] = useState(true);
   const [lifelineEnabled, setLifelineEnabled] = useState(false);
@@ -367,7 +367,7 @@ function CompetitionsTab() {
     setEntryFee(String(competition.entryFee ?? 0));
     setMaxEntriesPerUser(String(competition.maxEntriesPerUser ?? 1));
     setPrizePool(competition.prizePool != null ? String(competition.prizePool) : '');
-    setFixtureCompetitionCode((competition.fixtureCompetitionCode ?? 'PL') as 'PL' | 'WC');
+    setFixtureCompetitionCode('PL');
     setMissedPickMode(competition.missedPickMode);
     setPostponedConsumesTeam(competition.postponedConsumesTeam);
     setLifelineEnabled(Boolean(competition.lifelineEnabled));
@@ -873,10 +873,9 @@ function CompetitionsTab() {
               <label className="mb-1 block text-sm font-medium text-gray-300">Fixture Source</label>
               <AdminSelect
                 value={fixtureCompetitionCode}
-                onChange={(next) => setFixtureCompetitionCode(next as 'PL' | 'WC')}
+                onChange={() => setFixtureCompetitionCode('PL')}
                 options={[
                   { value: 'PL', label: 'Premier League' },
-                  { value: 'WC', label: 'World Cup' },
                 ]}
               />
             </div>

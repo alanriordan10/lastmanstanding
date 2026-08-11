@@ -52,7 +52,7 @@ export default function ClubAdminPage() {
   const [description, setDescription] = useState('');
   const [entryFee, setEntryFee] = useState('0');
   const [maxEntriesPerUser, setMaxEntriesPerUser] = useState('1');
-  const [fixtureCompetitionCode, setFixtureCompetitionCode] = useState<'PL' | 'WC'>('PL');
+  const [fixtureCompetitionCode, setFixtureCompetitionCode] = useState<'PL'>('PL');
   const [missedPickMode, setMissedPickMode] = useState('ELIMINATE');
   const [postponedConsumesTeam, setPostponedConsumesTeam] = useState(true);
   const [lifelineEnabled, setLifelineEnabled] = useState(false);
@@ -92,6 +92,48 @@ export default function ClubAdminPage() {
     enabled: !!myClub,
     staleTime: 0,
   });
+
+  type BillingStatus = {
+    freeCompetitionUsed: boolean;
+    paidCredits: number;
+    canCreateNow: boolean;
+    paymentRequired: boolean;
+  };
+
+  const { data: billing } = useQuery<BillingStatus>({
+    queryKey: ['club-admin', 'billing'],
+    queryFn: () => api.get('/club-admin/my-club/billing').then((r) => r.data),
+    enabled: !!myClub,
+    staleTime: 0,
+  });
+
+  const slotCheckoutMutation = useMutation({
+    mutationFn: () => api.post('/club-admin/my-club/billing/checkout').then((r) => r.data as { url: string }),
+    onSuccess: (data) => {
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        toast.error('Could not start checkout');
+      }
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Could not start checkout'),
+  });
+
+  // Surface the result of a returning Stripe slot-purchase checkout.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const billingResult = params.get('billing');
+    if (!billingResult) return;
+    if (billingResult === 'success') {
+      toast.success('Payment received — a competition slot has been added to your club.');
+      queryClient.invalidateQueries({ queryKey: ['club-admin', 'billing'] });
+    } else if (billingResult === 'cancel') {
+      toast('Checkout cancelled — no charge was made.');
+    }
+    params.delete('billing');
+    const newSearch = params.toString();
+    window.history.replaceState({}, '', window.location.pathname + (newSearch ? `?${newSearch}` : ''));
+  }, [queryClient]);
 
   const pauseMutation = useMutation({
     mutationFn: () => api.post(`/club-admin/competitions/${pausingComp?.id}/pause`, { reason: pauseReason.trim() }),
@@ -165,7 +207,7 @@ export default function ClubAdminPage() {
     setDescription(competition.description ?? '');
     setEntryFee(String(competition.entryFee ?? 0));
     setMaxEntriesPerUser(String(competition.maxEntriesPerUser ?? 1));
-    setFixtureCompetitionCode((competition.fixtureCompetitionCode ?? 'PL') as 'PL' | 'WC');
+    setFixtureCompetitionCode('PL');
     setMissedPickMode(competition.missedPickMode);
     setPostponedConsumesTeam(competition.postponedConsumesTeam);
     setLifelineEnabled(Boolean(competition.lifelineEnabled));
@@ -225,9 +267,17 @@ export default function ClubAdminPage() {
       );
       queryClient.invalidateQueries({ queryKey: ['club-admin', 'competitions'] });
       queryClient.invalidateQueries({ queryKey: ['competitions'] });
+      queryClient.invalidateQueries({ queryKey: ['club-admin', 'billing'] });
       resetCompetitionForm();
     },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to create competition'),
+    onError: (err: any) => {
+      if (err.response?.status === 402) {
+        toast.error(err.response?.data?.message || 'Payment required to create another competition');
+        queryClient.invalidateQueries({ queryKey: ['club-admin', 'billing'] });
+        return;
+      }
+      toast.error(err.response?.data?.message || 'Failed to create competition');
+    },
   });
 
   const updateMutation = useMutation({
@@ -424,22 +474,94 @@ export default function ClubAdminPage() {
             <AdminHeroStat label="Active" value={String(competitions?.filter((c) => c.status === 'ACTIVE').length ?? 0)} accent="text-green-200" />
           </div>
         </div>
-        <div className="relative mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative mt-5 flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
           <div className="text-xs uppercase tracking-[0.16em] text-gray-400">
             Admin: <span className="text-gray-200">{myClub.clubAdminUsername ?? '—'}</span>
           </div>
-          <button
-            onClick={() => {
-              if (editingComp || showForm) {
-                resetCompetitionForm();
-                return;
-              }
-              setShowForm(true);
-            }}
-            className="btn-primary w-full sm:w-auto"
-          >
-            {editingComp ? 'Cancel Edit' : showForm ? 'Cancel' : '+ New Competition'}
-          </button>
+          <div className="flex flex-col items-stretch gap-3 xl:items-end">
+            {billing && (
+              <div className="w-full max-w-[540px] rounded-2xl border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] px-4 py-3.5 shadow-[0_16px_36px_rgba(2,6,23,0.24)] backdrop-blur-sm">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <div className={`mt-0.5 flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border text-base font-black shadow-inner ${
+                      !billing.freeCompetitionUsed
+                        ? 'border-emerald-400/30 bg-emerald-500/12 text-emerald-200'
+                        : billing.paidCredits > 0
+                          ? 'border-brand-400/30 bg-brand-500/12 text-brand-100'
+                          : 'border-amber-400/30 bg-amber-500/12 text-amber-100'
+                    }`}>
+                      {!billing.freeCompetitionUsed ? '1' : billing.paidCredits}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">
+                          {!billing.freeCompetitionUsed ? 'Free competition' : 'Slot credits'}
+                        </div>
+                        {!billing.freeCompetitionUsed && (
+                          <span className="rounded-full border border-emerald-400/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-100">
+                            Included
+                          </span>
+                        )}
+                        {billing.freeCompetitionUsed && billing.paidCredits > 0 && (
+                          <span className="rounded-full border border-brand-400/25 bg-brand-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-100">
+                            Ready to use
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-1 text-base font-semibold text-white">
+                        {!billing.freeCompetitionUsed
+                          ? 'Your first competition is ready to launch'
+                          : `${billing.paidCredits} credit${billing.paidCredits === 1 ? '' : 's'} available`}
+                      </div>
+                      <p className="mt-1 text-xs leading-5 text-gray-400 sm:max-w-[320px]">
+                        {!billing.freeCompetitionUsed
+                          ? 'Your club includes one free competition. Extra competitions can be added later with slot credits.'
+                          : billing.paidCredits > 0
+                            ? 'Keep credits on hand so you can create another competition whenever you need it.'
+                            : 'You have used your free competition. Purchase a slot to create another competition.'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:min-w-[190px] sm:items-end">
+                    {billing.freeCompetitionUsed && (
+                      <button
+                        onClick={() => slotCheckoutMutation.mutate()}
+                        disabled={slotCheckoutMutation.isPending}
+                        className="btn-secondary h-10 w-full whitespace-nowrap px-4 text-[13px] sm:w-auto sm:min-w-[190px]"
+                      >
+                        {slotCheckoutMutation.isPending
+                          ? 'Redirecting…'
+                          : billing.paidCredits > 0
+                            ? 'Buy another slot (€29)'
+                            : 'Buy competition slot (€29)'}
+                      </button>
+                    )}
+                    {billing.freeCompetitionUsed && (
+                      <span className="text-[11px] text-gray-500 sm:text-right">
+                        1 slot credit = 1 extra competition
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+            <button
+              onClick={() => {
+                if (editingComp || showForm) {
+                  resetCompetitionForm();
+                  return;
+                }
+                if (billing && !billing.canCreateNow) {
+                  toast.error('Your free competition has been used. Buy a competition slot to create another.');
+                  return;
+                }
+                setShowForm(true);
+              }}
+              className="btn-primary w-full whitespace-nowrap xl:min-w-[220px] xl:w-auto"
+            >
+              {editingComp ? 'Cancel Edit' : showForm ? 'Cancel' : '+ New Competition'}
+            </button>
+          </div>
         </div>
       </section>
 
@@ -918,11 +1040,10 @@ export default function ClubAdminPage() {
               <label className="mb-1 block text-sm font-medium text-gray-300">Fixture Source</label>
               <select
                 value={fixtureCompetitionCode}
-                onChange={(e) => setFixtureCompetitionCode(e.target.value as 'PL' | 'WC')}
+                onChange={() => setFixtureCompetitionCode('PL')}
                 className="input-field"
               >
                 <option value="PL">Premier League</option>
-                <option value="WC">World Cup</option>
               </select>
             </div>
             <div>

@@ -23,6 +23,8 @@ public interface CompetitionRepository extends JpaRepository<Competition, Long> 
 
     List<Competition> findByClubIdOrderByStartDateDesc(Long clubId);
 
+    long countByClubId(Long clubId);
+
     List<Competition> findByStatusOrderByStartDateDesc(CompetitionStatus status);
 
     List<Competition> findByStatusAndClubIdOrderByStartDateDesc(CompetitionStatus status, Long clubId);

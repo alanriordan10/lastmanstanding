@@ -20,6 +20,24 @@ This covers normal users and club admins, including joining competitions, making
 
 ---
 
+## 💳 Competition Pricing (Stripe)
+
+Each club gets **one free competition (lifetime)**. Creating any further
+competition requires purchasing a one-time **competition slot** (paid to the
+platform Stripe account). Configure these environment variables on the backend:
+
+| Variable                   | Description                                                        |
+|----------------------------|--------------------------------------------------------------------|
+| `STRIPE_SLOT_PRICE_ID`     | Stripe Price ID for the competition slot (e.g. €29 one-time price). |
+| `STRIPE_SLOT_SUCCESS_URL`  | Redirect URL after successful checkout (e.g. `https://app/club-admin?billing=success`). |
+| `STRIPE_SLOT_CANCEL_URL`   | Redirect URL if checkout is cancelled (e.g. `https://app/club-admin?billing=cancel`).   |
+
+The existing `stripe.secret-key` / `stripe.webhook-secret` are reused. The
+webhook must forward `checkout.session.completed` events — the backend credits
+the club one slot idempotently when the session metadata `type=competition_slot`.
+
+---
+
 ## 🚀 Local Development with PostgreSQL
 
 The local profile uses a Docker PostgreSQL database and is isolated from the
