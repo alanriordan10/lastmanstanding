@@ -108,6 +108,8 @@ stripe:
   secret-key: ${STRIPE_SECRET_KEY:sk_test_your_stripe_secret_key_here}
   publishable-key: ${STRIPE_PUBLISHABLE_KEY:pk_test_your_stripe_publishable_key_here}
   webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+  currency: ${STRIPE_CURRENCY:eur}
+  default-country: ${STRIPE_DEFAULT_COUNTRY:IE}
   platform-fee-enabled: ${STRIPE_PLATFORM_FEE_ENABLED:false}
   # Prefer percent for readability, e.g. 5 means 5%. BPS remains supported, e.g. 500 means 5%.
   platform-fee-percent: ${STRIPE_PLATFORM_FEE_PERCENT:0}

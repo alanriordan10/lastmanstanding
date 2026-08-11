@@ -75,6 +75,34 @@
 
 ## 3. Club Admin Guide
 
+### 3.0 Competition Pricing (First Free, Then Paid)
+Each club can create its **first competition for free (one-time, lifetime)**.
+Every additional competition requires purchasing a one-time **competition
+creation credit** (a flat fee paid to the platform).
+
+How it works:
+- **First competition:** created immediately, no charge.
+- **Second and beyond:** the club must buy a competition slot before creating.
+- **Credits:** one purchase adds one credit; creating one competition consumes
+  one credit. Buy multiple in advance if you plan several competitions.
+
+Admin experience:
+- The Club Admin dashboard shows either `First competition is free` or your
+  current `Slot credits: N`.
+- When a purchase is required, a `Buy competition slot` button appears.
+- Clicking it opens **Stripe Checkout**; after paying you return to the
+  dashboard and a success message confirms the credit was added.
+- If checkout is cancelled, no charge is made.
+
+Notes:
+- The creation fee is a **software/hosting fee** paid to the platform. It is
+  separate from any **player entry fees** (see `Payment Mode` in 3.3).
+- Credits do not expire and are tied to the club.
+
+**Screenshot placeholder:**
+- `assets/screenshots/admin-billing-buy-slot.png`
+- Caption: "Buy competition slot when free competition is used"
+
 ### 3.1 Setup Checklist
 - Use `Setup Checklist` to track readiness.
 - Confirm how manual payments will be collected outside the app if entry fees are used.
@@ -108,6 +136,11 @@
 ### 3.3 Choose the Right Payment Mode
 - `Free`: no payment tracking.
 - `Manual`: admin confirms payments manually.
+
+> Note: Payment **mode** controls how *player entry fees* are tracked for a
+> single competition. It is separate from the **competition creation fee**
+> described in section 3.0, which is what a club pays the platform to create
+> additional competitions.
 
 **Screenshot placeholder:**
 - `assets/screenshots/admin-payment-mode-options.png`
@@ -188,6 +221,26 @@
 
 ### Can we run free competitions and paid ones together?
 - Yes. Each competition has its own payment mode.
+
+### Why is my first competition free but the next one asks for payment?
+- Each club gets one free competition for life.
+- Additional competitions require a one-time creation credit purchased via
+  Stripe Checkout.
+- This creation fee is separate from player entry fees.
+
+### How do we pay to create another competition?
+- On the Club Admin dashboard, click `Buy competition slot`.
+- Complete Stripe Checkout; you return to the dashboard automatically.
+- Once payment is confirmed, your credit is added and you can create the
+  competition. Creating it consumes one credit.
+
+### Can we buy several competition slots in advance?
+- Yes. Each successful checkout adds one credit; buy as many as you need.
+- Credits do not expire and belong to the club.
+
+### The create button is blocked / I got a "payment required" message. Why?
+- Your club's free competition has already been used and you have no credits.
+- Buy a competition slot, then create the competition.
 
 ### How does lifeline work exactly?
 - Lifeline must be enabled in competition settings.

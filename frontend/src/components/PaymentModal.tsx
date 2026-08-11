@@ -182,9 +182,20 @@ function CheckoutForm({
         <PaymentElement
           options={{
             layout: 'tabs',
+            defaultValues: {
+              billingDetails: {
+                address: {
+                  country: 'IE',
+                },
+              },
+            },
           }}
         />
       </div>
+
+      <p className="-mt-2 text-xs text-gray-500">
+        Payments are processed in euro, with Ireland preselected for billing details.
+      </p>
 
       {errorMessage && (
         <div className="rounded-lg bg-red-500/10 border border-red-500/30 px-4 py-3 text-sm text-red-400">

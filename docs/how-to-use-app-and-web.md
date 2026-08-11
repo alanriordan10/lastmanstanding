@@ -288,6 +288,13 @@ Use colours with enough contrast so buttons, badges, and text remain readable.
 5. Choose payment mode and visibility.
 6. Save.
 
+> **Pricing:** Your club's **first competition is free**. Creating additional
+> competitions requires buying a one-time **competition slot** via Stripe
+> Checkout. When required, the dashboard shows a `Buy competition slot` button
+> and your current slot credits. This creation fee is separate from any player
+> entry fees you may collect. See the Competition Management Guide, section 3.0,
+> for full details.
+
 Required fields normally include:
 
 - competition name;

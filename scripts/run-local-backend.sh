@@ -2,8 +2,25 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-JAVA_HOME="${JAVA_HOME_17:-/usr/lib/jvm/java-17-openjdk-amd64}"
-export JAVA_HOME
+
+# Resolve Java 17 in a way that works on both Linux and macOS.
+if [[ -n "${JAVA_HOME:-}" ]]; then
+  RESOLVED_JAVA_HOME="$JAVA_HOME"
+elif [[ -n "${JAVA_HOME_17:-}" ]]; then
+  RESOLVED_JAVA_HOME="$JAVA_HOME_17"
+elif [[ "$(uname -s)" == "Darwin" ]] && command -v /usr/libexec/java_home >/dev/null 2>&1; then
+  RESOLVED_JAVA_HOME="$(/usr/libexec/java_home -v 17 2>/dev/null || /usr/libexec/java_home 2>/dev/null || true)"
+else
+  RESOLVED_JAVA_HOME=""
+fi
+
+if [[ -z "$RESOLVED_JAVA_HOME" || ! -x "$RESOLVED_JAVA_HOME/bin/java" ]]; then
+  echo "Unable to resolve a valid JAVA_HOME (Java 17 required)." >&2
+  echo "Set JAVA_HOME or JAVA_HOME_17 and retry." >&2
+  exit 1
+fi
+
+export JAVA_HOME="$RESOLVED_JAVA_HOME"
 export PATH="$JAVA_HOME/bin:$PATH"
 
 DB_HOST="${LOCAL_DB_HOST:-127.0.0.1}"
