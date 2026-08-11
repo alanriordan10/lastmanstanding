@@ -6,9 +6,7 @@ import com.lastmanstanding.repository.ClubRepository;
 import com.lastmanstanding.repository.ClubSlotPurchaseRepository;
 import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
-import com.stripe.model.Customer;
 import com.stripe.model.checkout.Session;
-import com.stripe.param.CustomerCreateParams;
 import com.stripe.param.checkout.SessionCreateParams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,9 +48,6 @@ public class BillingService {
 
     @Value("${stripe.currency:eur}")
     private String stripeCurrency;
-
-    @Value("${stripe.default-country:IE}")
-    private String stripeDefaultCountry;
 
     public BillingService(ClubRepository clubRepository,
                           ClubSlotPurchaseRepository slotPurchaseRepository) {
@@ -128,28 +123,16 @@ public class BillingService {
         }
         Stripe.apiKey = stripeSecretKey;
         try {
-            CustomerCreateParams customerParams = CustomerCreateParams.builder()
-                    .setAddress(CustomerCreateParams.Address.builder()
-                            .setCountry(stripeDefaultCountry)
-                            .build())
-                    .putMetadata("clubId", String.valueOf(club.getId()))
-                    .build();
-            Customer customer = Customer.create(customerParams);
-
             SessionCreateParams params = SessionCreateParams.builder()
                     .setMode(SessionCreateParams.Mode.PAYMENT)
                     .setSuccessUrl(slotSuccessUrl)
                     .setCancelUrl(slotCancelUrl)
-                    .setLocale(SessionCreateParams.Locale.EN)
-                    .setBillingAddressCollection(SessionCreateParams.BillingAddressCollection.REQUIRED)
-                    .setCustomer(customer.getId())
                     .addLineItem(SessionCreateParams.LineItem.builder()
                             .setQuantity(1L)
                             .setPrice(slotPriceId)
                             .build())
                     .putMetadata("type", "competition_slot")
                     .putMetadata("clubId", String.valueOf(club.getId()))
-                    .putMetadata("defaultCountry", stripeDefaultCountry)
                     .build();
             Session session = Session.create(params);
 

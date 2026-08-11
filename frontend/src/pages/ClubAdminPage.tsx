@@ -52,7 +52,7 @@ export default function ClubAdminPage() {
   const [description, setDescription] = useState('');
   const [entryFee, setEntryFee] = useState('0');
   const [maxEntriesPerUser, setMaxEntriesPerUser] = useState('1');
-  const [fixtureCompetitionCode, setFixtureCompetitionCode] = useState<'PL' | 'WC'>('PL');
+  const [fixtureCompetitionCode, setFixtureCompetitionCode] = useState<'PL'>('PL');
   const [missedPickMode, setMissedPickMode] = useState('ELIMINATE');
   const [postponedConsumesTeam, setPostponedConsumesTeam] = useState(true);
   const [lifelineEnabled, setLifelineEnabled] = useState(false);
@@ -207,7 +207,7 @@ export default function ClubAdminPage() {
     setDescription(competition.description ?? '');
     setEntryFee(String(competition.entryFee ?? 0));
     setMaxEntriesPerUser(String(competition.maxEntriesPerUser ?? 1));
-    setFixtureCompetitionCode((competition.fixtureCompetitionCode ?? 'PL') as 'PL' | 'WC');
+    setFixtureCompetitionCode('PL');
     setMissedPickMode(competition.missedPickMode);
     setPostponedConsumesTeam(competition.postponedConsumesTeam);
     setLifelineEnabled(Boolean(competition.lifelineEnabled));
@@ -1040,11 +1040,10 @@ export default function ClubAdminPage() {
               <label className="mb-1 block text-sm font-medium text-gray-300">Fixture Source</label>
               <select
                 value={fixtureCompetitionCode}
-                onChange={(e) => setFixtureCompetitionCode(e.target.value as 'PL' | 'WC')}
+                onChange={() => setFixtureCompetitionCode('PL')}
                 className="input-field"
               >
                 <option value="PL">Premier League</option>
-                <option value="WC">World Cup</option>
               </select>
             </div>
             <div>

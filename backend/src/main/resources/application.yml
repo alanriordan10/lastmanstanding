@@ -117,6 +117,10 @@ stripe:
   connect:
     return-url: ${STRIPE_CONNECT_RETURN_URL:https://runlastmanstanding.com/stripe-connect/return}
     refresh-url: ${STRIPE_CONNECT_REFRESH_URL:https://runlastmanstanding.com/stripe-connect/return}
+  slot:
+    success-url: ${STRIPE_SLOT_SUCCESS_URL:https://runlastmanstanding.com/club-admin?billing=success}
+    cancel-url: ${STRIPE_SLOT_CANCEL_URL:https://runlastmanstanding.com/club-admin?billing=cancel}
+    price-id: ${STRIPE_SLOT_PRICE_ID:}
 
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:5173}
