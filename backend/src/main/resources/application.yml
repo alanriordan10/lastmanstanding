@@ -120,6 +120,8 @@ stripe:
   slot:
     success-url: ${STRIPE_SLOT_SUCCESS_URL:https://runlastmanstanding.com/club-admin?billing=success}
     cancel-url: ${STRIPE_SLOT_CANCEL_URL:https://runlastmanstanding.com/club-admin?billing=cancel}
+    mobile-success-url: ${STRIPE_SLOT_MOBILE_SUCCESS_URL:lastmanstanding://billing/callback?billing=success}
+    mobile-cancel-url: ${STRIPE_SLOT_MOBILE_CANCEL_URL:lastmanstanding://billing/callback?billing=cancel}
     price-id: ${STRIPE_SLOT_PRICE_ID:}
 
 app:

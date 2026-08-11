@@ -267,9 +267,12 @@ public class ClubAdminController {
 
     @PostMapping("/my-club/billing/checkout")
     public ResponseEntity<SlotCheckoutResponse> createSlotCheckout(
-            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            @RequestParam(name = "client", required = false) String client) {
         Club club = resolveClub(userDetails);
-        String url = billingService.createSlotCheckoutSession(club.getId());
+        String url = billingService.createSlotCheckoutSession(
+                club.getId(),
+                BillingService.CheckoutClient.from(client));
         return ResponseEntity.ok(new SlotCheckoutResponse(url));
     }
 

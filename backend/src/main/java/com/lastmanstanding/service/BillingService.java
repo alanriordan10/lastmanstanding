@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.util.Locale;
 
 /**
  * Competition-slot pricing model: every club gets ONE free competition (lifetime);
@@ -28,6 +29,22 @@ import java.time.LocalDateTime;
  */
 @Service
 public class BillingService {
+
+    public enum CheckoutClient {
+        WEB,
+        MOBILE;
+
+        public static CheckoutClient from(String raw) {
+            if (raw == null || raw.isBlank()) {
+                return WEB;
+            }
+            try {
+                return CheckoutClient.valueOf(raw.trim().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException ex) {
+                return WEB;
+            }
+        }
+    }
 
     private static final Logger log = LoggerFactory.getLogger(BillingService.class);
 
@@ -45,6 +62,12 @@ public class BillingService {
 
     @Value("${stripe.slot.cancel-url:${STRIPE_SLOT_CANCEL_URL:http://localhost:5173/club-admin?billing=cancel}}")
     private String slotCancelUrl;
+
+    @Value("${stripe.slot.mobile-success-url:${STRIPE_SLOT_MOBILE_SUCCESS_URL:lastmanstanding://billing/callback?billing=success}}")
+    private String slotMobileSuccessUrl;
+
+    @Value("${stripe.slot.mobile-cancel-url:${STRIPE_SLOT_MOBILE_CANCEL_URL:lastmanstanding://billing/callback?billing=cancel}}")
+    private String slotMobileCancelUrl;
 
     @Value("${stripe.currency:eur}")
     private String stripeCurrency;
@@ -113,6 +136,12 @@ public class BillingService {
     /** Creates a Stripe Checkout Session to buy one competition-slot credit (paid to the platform account). */
     @Transactional
     public String createSlotCheckoutSession(Long clubId) {
+        return createSlotCheckoutSession(clubId, CheckoutClient.WEB);
+    }
+
+    /** Creates a Stripe Checkout Session to buy one competition-slot credit with client-specific return URLs. */
+    @Transactional
+    public String createSlotCheckoutSession(Long clubId, CheckoutClient client) {
         Club club = requireClub(clubId);
         if (stripeSecretKey == null || stripeSecretKey.isBlank()) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Billing is not configured");
@@ -121,12 +150,18 @@ public class BillingService {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
                     "Competition-slot price is not configured (STRIPE_SLOT_PRICE_ID)");
         }
+        String successUrl = client == CheckoutClient.MOBILE && slotMobileSuccessUrl != null && !slotMobileSuccessUrl.isBlank()
+                ? slotMobileSuccessUrl
+                : slotSuccessUrl;
+        String cancelUrl = client == CheckoutClient.MOBILE && slotMobileCancelUrl != null && !slotMobileCancelUrl.isBlank()
+                ? slotMobileCancelUrl
+                : slotCancelUrl;
         Stripe.apiKey = stripeSecretKey;
         try {
             SessionCreateParams params = SessionCreateParams.builder()
                     .setMode(SessionCreateParams.Mode.PAYMENT)
-                    .setSuccessUrl(slotSuccessUrl)
-                    .setCancelUrl(slotCancelUrl)
+                    .setSuccessUrl(successUrl)
+                    .setCancelUrl(cancelUrl)
                     .addLineItem(SessionCreateParams.LineItem.builder()
                             .setQuantity(1L)
                             .setPrice(slotPriceId)
@@ -135,6 +170,8 @@ public class BillingService {
                     .putMetadata("clubId", String.valueOf(club.getId()))
                     .build();
             Session session = Session.create(params);
+            log.info("Created competition-slot checkout for club {} using {} client (successUrl={}, cancelUrl={}, sessionId={})",
+                    clubId, client, successUrl, cancelUrl, session.getId());
 
             ClubSlotPurchase purchase = new ClubSlotPurchase(
                     club, session.getId(),
