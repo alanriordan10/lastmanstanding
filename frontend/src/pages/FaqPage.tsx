@@ -86,6 +86,51 @@ const FAQ_SECTIONS = [
     ],
   },
   {
+    title: 'Competition Slots',
+    items: [
+  {
+    q: 'How much does it cost to run a competition?',
+    a: 'Every club gets its first competition free. After that, each additional competition requires one competition slot credit, purchased once-off through Stripe Checkout from the Club Admin page.',
+  },
+  {
+    q: 'What is a competition slot?',
+    a: 'A competition slot is a credit that allows a club admin to create one additional competition. Slots do not expire, and one slot is consumed each time a competition is created after your free competition has been used.',
+  },
+  {
+    q: 'Is the free competition per year or once only?',
+    a: 'Once only. The free competition is a lifetime allowance per club, not a recurring yearly credit. Once it is used it is not restored, even if the competition is completed or deleted.',
+  },
+  {
+    q: 'How do I buy a competition slot?',
+    a: 'Go to Club Admin, find the Competition Slots card and select "Buy competition slot". You are taken to Stripe Checkout to pay securely by card. When payment succeeds you are returned to Club Admin and your credit balance updates automatically.',
+  },
+  {
+    q: 'Can I buy several slots in advance?',
+    a: 'Yes. You can purchase slots whenever you like and they accumulate on your club balance, so you can stock up before a busy season.',
+  },
+  {
+    q: 'Why am I being told payment is required when I try to create a competition?',
+    a: 'That means your club has already used its free competition and has no remaining slot credits. Buy a competition slot from the Club Admin page and then create the competition again.',
+  },
+  {
+    q: 'Is the slot fee the same as player entry fees?',
+    a: 'No. The competition slot fee is a platform fee paid to Last Man Standing for creating a competition. Player entry fees are collected separately by your club under the competition’s payment mode.',
+  },
+  {
+    q: 'What happens if I cancel at the Stripe payment screen?',
+    a: 'Nothing is charged and no credit is added. You are returned to the Club Admin page with a message confirming that checkout was cancelled, and you can try again at any time.',
+  },
+  {
+    q: 'Does buying a slot work the same on mobile?',
+    a: 'Yes. On the mobile app the "Buy competition slot" button opens Stripe Checkout in your browser and returns you straight back to the Club Admin screen when payment completes or is cancelled.',
+  },
+  {
+    q: 'Do I get a slot back if I delete a competition?',
+    a: 'No. A slot credit is consumed at the moment a competition is created and is not refunded if the competition is later deleted or abandoned.',
+  },
+    ],
+  },
+  {
     title: 'Gameweek and Admin Rules',
     items: [
   {

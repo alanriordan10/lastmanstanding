@@ -13,6 +13,7 @@ type OptionRow = { option: string; useWhen: string; notes: string };
 
 const quickLinks = [
   ['For players', '#players'],
+  ['Competition slots', '#competition-slots'],
   ['Create competitions', '#create-competition'],
   ['Payments', '#payments'],
   ['Lifeline', '#lifeline'],
@@ -129,6 +130,60 @@ const adminSections: GuideSection[] = [
           'Use Club Settings to review club ownership and transfer club admin access when needed.',
           'Before deleting an account that owns or administers a club, transfer admin responsibility to another user.',
           'Only assign admin access to a trusted organiser because they can manage competitions, payments, participants, and announcements.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'competition-slots',
+    eyebrow: 'Competition slots',
+    title: 'Your free competition and buying slot credits',
+    summary: 'Every club can create one competition free of charge. Each competition after that consumes one competition slot credit, bought once-off through Stripe Checkout.',
+    items: [
+      {
+        title: '1. How the allowance works',
+        points: [
+          'Each club gets one free competition. This is a lifetime allowance, not a yearly or monthly reset.',
+          'Once the free competition has been created, every further competition requires one competition slot credit.',
+          'Creating a competition consumes exactly one credit at the moment it is saved.',
+          'Credits do not expire, and they are held at club level so any club admin can use them.',
+          'Deleting or completing a competition does not return the free allowance or a spent credit.',
+        ],
+      },
+      {
+        title: '2. Where to check your slot status',
+        points: [
+          'Open Club Admin. The Competition Slots card shows your current position on both web and mobile.',
+          'Free competition available means you can create your first competition at no cost.',
+          'A credit count means you have that many extra competitions ready to create.',
+          'Payment required means the free competition is used and there are no credits left, so + New Competition is blocked until you buy a slot.',
+        ],
+      },
+      {
+        title: '3. Buying a competition slot',
+        points: [
+          'Select Buy competition slot on the Competition Slots card.',
+          'On web you are redirected to Stripe Checkout in the browser. On mobile the app opens Stripe Checkout in your browser and returns you to the app afterwards.',
+          'Pay securely by card. Last Man Standing never stores your card details; Stripe handles the payment.',
+          'On success you return to Club Admin with a confirmation message and the credit balance refreshes automatically.',
+          'If you cancel at the payment screen nothing is charged, no credit is added, and you can retry at any time.',
+          'You can buy several slots in advance if you plan to run multiple competitions in a season.',
+        ],
+      },
+      {
+        title: '4. Slot fees versus player entry fees',
+        points: [
+          'The competition slot fee is a platform fee paid to Last Man Standing for creating a competition.',
+          'Player entry fees are separate and are collected by your club under the competition Payment mode (Free or Manual).',
+          'Buying a slot does not change how you collect money from players, and it does not enable online entry-fee collection.',
+        ],
+      },
+      {
+        title: '5. If creation is blocked',
+        points: [
+          'The message "Your club\u2019s free competition has been used. Purchase a competition slot to create another." means you need a credit.',
+          'Buy a slot, wait for the balance to update on the Competition Slots card, then create the competition again.',
+          'If you paid but the balance has not moved, refresh Club Admin. Stripe confirms the payment to the app in the background, which can take a few seconds.',
         ],
       },
     ],
@@ -398,6 +453,8 @@ const competitionOptions: OptionRow[] = [
 
 const troubleshooting = [
   ['Fixtures are missing', 'Check fixture competition code, start date, provider availability, and whether fixture sync has run. For edited competitions, trigger or wait for a resync.'],
+  ['New Competition is blocked', 'Your club has used its free competition and has no slot credits. Open the Competition Slots card on Club Admin and buy a competition slot, then try again.'],
+  ['I paid for a slot but the balance did not change', 'Refresh Club Admin. Stripe confirms the payment to the app in the background, so the credit can take a few seconds to appear. If it still does not appear, contact support with the Stripe receipt.'],
   ['A player appears twice', 'This is expected only when they have multiple entries. The UI should show entry numbers only for users with multiple entries.'],
   ['Picks are stale', 'Use refresh. The app intentionally avoids aggressive polling to reduce Render and Supabase usage. Live information updates in a reasonable timeframe, not instantly.'],
   ['Email links point to localhost', 'Set the deployed frontend base URL in backend configuration so reminders use the production web URL.'],
@@ -427,9 +484,10 @@ export default function UserGuidePage() {
               and common issues.
             </p>
           </div>
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+          <div className="mt-6 grid gap-3 sm:grid-cols-4">
             <GuideMetric label="Player guide" value="Join, pick, track" />
             <GuideMetric label="Club admin guide" value="Create, invite, manage" />
+            <GuideMetric label="Competition slots" value="1 free, then credits" />
             <GuideMetric label="Payments" value="Free, manual" />
           </div>
         </section>
@@ -488,13 +546,14 @@ function ImageGrid() {
     ['Competition detail', '/guide/screenshots/guide-player-competition-detail.svg'],
     ['My Route', '/guide/screenshots/guide-player-my-route.svg'],
     ['Club Admin', '/guide/screenshots/guide-admin-dashboard.svg'],
+    ['Competition slots', '/guide/screenshots/guide-admin-billing-slots.svg'],
   ];
   return (
-    <section className="grid gap-4 lg:grid-cols-4">
+    <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
       {images.map(([label, src]) => (
-        <article key={src} className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.035]">
+        <article key={src} className="flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.035]">
           <div className="border-b border-white/10 px-4 py-3 text-sm font-bold text-gray-100">{label}</div>
-          <img src={src} alt="" loading="lazy" className="w-full bg-slate-950/70" />
+          <img src={src} alt={label} loading="lazy" className="block h-auto w-full bg-slate-950/70" />
         </article>
       ))}
     </section>

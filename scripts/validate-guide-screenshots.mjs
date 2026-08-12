@@ -3,7 +3,10 @@ import fs from 'fs';
 import path from 'path';
 
 const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
-const guidePath = path.join(repoRoot, 'docs', 'competition-management-guide.md');
+const guidePaths = [
+  path.join(repoRoot, 'docs', 'competition-management-guide.md'),
+  path.join(repoRoot, 'docs', 'how-to-use-app-and-web.md'),
+];
 const screenshotDir = path.join(repoRoot, 'docs', 'assets', 'screenshots');
 
 function fail(msg) {
@@ -11,11 +14,14 @@ function fail(msg) {
   process.exit(1);
 }
 
-if (!fs.existsSync(guidePath)) fail(`Guide not found: ${guidePath}`);
+for (const guidePath of guidePaths) {
+  if (!fs.existsSync(guidePath)) fail(`Guide not found: ${guidePath}`);
+}
 if (!fs.existsSync(screenshotDir)) fail(`Screenshot directory not found: ${screenshotDir}`);
 
-const guide = fs.readFileSync(guidePath, 'utf8');
-const regex = /`assets\/screenshots\/([^`]+)`/g;
+const guide = guidePaths.map((p) => fs.readFileSync(p, 'utf8')).join('\n');
+// Matches both `assets/screenshots/x.png` and (assets/screenshots/x.svg) links.
+const regex = /assets\/screenshots\/([A-Za-z0-9._-]+)/g;
 const referenced = new Set();
 let match;
 while ((match = regex.exec(guide)) !== null) {
