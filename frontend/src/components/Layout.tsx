@@ -8,7 +8,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const canAccessClubAdmin = isClubAdmin || isAdmin;
+  const canAccessClubAdmin = isClubAdmin;
 
   const handleLogout = () => {
     logout();

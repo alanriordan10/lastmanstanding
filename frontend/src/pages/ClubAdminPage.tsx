@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useRef, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../api';
 import type { Competition, Club, Participant } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -36,7 +36,8 @@ function formatDateSafe(value: unknown, pattern: string, fallback = '—'): stri
 }
 
 export default function ClubAdminPage() {
-  const { isClubAdmin, isAdmin, loginWithToken } = useAuth();
+  const { isClubAdmin, isAdmin, loginWithToken, markClubAdminRevoked } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [editingComp, setEditingComp] = useState<Competition | null>(null);
@@ -78,6 +79,7 @@ export default function ClubAdminPage() {
   const [compStatusFilter, setCompStatusFilter] = useState<'ALL' | 'UPCOMING' | 'ACTIVE' | 'COMPLETED'>('ALL');
   const [compPage, setCompPage] = useState(1);
   const COMP_PAGE_SIZE = 8;
+  const [revocationRefreshStarted, setRevocationRefreshStarted] = useState(false);
 
   const { data: myClub, isLoading: clubLoading, error: clubError } = useQuery<Club>({
     queryKey: ['club-admin', 'my-club'],
@@ -85,6 +87,29 @@ export default function ClubAdminPage() {
     enabled: isClubAdmin || isAdmin,
     retry: false,
   });
+
+  const isClub403 = (clubError as any)?.response?.status === 403;
+  const isRevokedClubAdmin403 = isClub403 && !isAdmin;
+
+  useEffect(() => {
+    if (!isRevokedClubAdmin403) {
+      setRevocationRefreshStarted(false);
+      return;
+    }
+    if (revocationRefreshStarted) return;
+    setRevocationRefreshStarted(true);
+    markClubAdminRevoked();
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      void loginWithToken(token).catch(() => {});
+    }
+  }, [isRevokedClubAdmin403, revocationRefreshStarted, loginWithToken, markClubAdminRevoked]);
+
+  useEffect(() => {
+    if (!isRevokedClubAdmin403) return;
+    if (isAdmin || isClubAdmin) return;
+    navigate('/competitions', { replace: true });
+  }, [isRevokedClubAdmin403, isAdmin, isClubAdmin, navigate]);
 
   const { data: competitions, isLoading } = useQuery<Competition[]>({
     queryKey: ['club-admin', 'competitions'],
@@ -410,24 +435,20 @@ export default function ClubAdminPage() {
   }
 
   if (clubError || !myClub) {
-    const is403 = (clubError as any)?.response?.status === 403;
-    // If 403, refresh role from server so the nav link disappears automatically
-    if (is403) {
-      const token = localStorage.getItem('accessToken');
-      if (token) loginWithToken(token).catch(() => {});
-    }
+    const is403 = isClub403;
+    const showRevokedMessage = is403 && !isAdmin;
     return (
       <div className="card py-16 text-center space-y-3">
-        <div className="text-4xl">{is403 ? '🔒' : '🏠'}</div>
+        <div className="text-4xl">{showRevokedMessage ? '🔒' : '🏠'}</div>
         <p className="text-lg font-medium text-gray-300">
-          {is403 ? 'Club admin access revoked' : 'No club assigned'}
+          {showRevokedMessage ? 'Club admin access revoked' : 'No club assigned'}
         </p>
         <p className="text-sm text-gray-400">
-          {is403
+          {showRevokedMessage
             ? 'Your club admin role has been transferred to another user. Please log out and back in to refresh your session.'
             : "You haven't been assigned as admin of a club yet. Ask a super admin to assign you."}
         </p>
-        {is403 && (
+        {showRevokedMessage && (
           <button
             onClick={() => { localStorage.clear(); window.location.href = '/login'; }}
             className="btn-primary mx-auto mt-2"
@@ -435,7 +456,7 @@ export default function ClubAdminPage() {
             Log out & sign in again
           </button>
         )}
-        {!is403 && (
+        {!showRevokedMessage && (
           <p className="text-xs text-gray-500">
             If you were just assigned, try logging out and back in to refresh your session.
           </p>

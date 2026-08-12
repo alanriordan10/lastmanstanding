@@ -8,6 +8,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   loginWithToken: (token: string) => Promise<void>;
   loginWithData: (data: AuthResponse) => void;
+  markClubAdminRevoked: () => void;
   signup: (email: string, username: string, password: string) => Promise<void>;
   logout: () => void;
   isAdmin: boolean;
@@ -19,6 +20,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [clubAdminRevoked, setClubAdminRevoked] = useState(() => localStorage.getItem('clubAdminRevoked') === '1');
 
   // Load user from localStorage on mount, then validate + refresh role from server
   useEffect(() => {
@@ -67,8 +69,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('accessToken', data.accessToken);
     localStorage.setItem('refreshToken', data.refreshToken);
     localStorage.setItem('user', JSON.stringify(data));
+    localStorage.removeItem('clubAdminRevoked');
+    setClubAdminRevoked(false);
     setUser(data);
   };
+
+  const markClubAdminRevoked = useCallback(() => {
+    localStorage.setItem('clubAdminRevoked', '1');
+    setClubAdminRevoked(true);
+  }, []);
 
   const login = useCallback(async (email: string, password: string) => {
     const { data } = await api.post<AuthResponse>('/auth/login', { email, password });
@@ -93,14 +102,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(() => {
     api.post('/auth/logout').catch(() => {});
     localStorage.clear();
+    setClubAdminRevoked(false);
     setUser(null);
   }, []);
 
   const isAdmin = user?.role === 'ADMIN';
-  const isClubAdmin = user?.role === 'CLUB_ADMIN';
+  const isClubAdmin = user?.role === 'CLUB_ADMIN' && !clubAdminRevoked;
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, loginWithToken, loginWithData, signup, logout, isAdmin, isClubAdmin }}>
+    <AuthContext.Provider value={{ user, isLoading, login, loginWithToken, loginWithData, markClubAdminRevoked, signup, logout, isAdmin, isClubAdmin }}>
       {children}
     </AuthContext.Provider>
   );

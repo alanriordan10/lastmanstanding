@@ -339,6 +339,18 @@ export default function SignupPage() {
             Sign in
           </Link>
         </p>
+
+        <div className="text-center">
+          <a
+            href="https://play.google.com/store/apps/details?id=com.lastmanstanding.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-1.5 text-xs font-semibold text-gray-300 transition hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
+          >
+            <span>📱</span>
+            <span>Using Android? Get the app on Google Play</span>
+          </a>
+        </div>
         </div>
       </div>
     </div>

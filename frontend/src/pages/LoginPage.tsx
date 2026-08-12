@@ -139,6 +139,18 @@ export default function LoginPage() {
           <Link to="/terms" className="hover:text-brand-300">Terms</Link>
         </div>
 
+        <div className="text-center">
+          <a
+            href="https://play.google.com/store/apps/details?id=com.lastmanstanding.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-1.5 text-xs font-semibold text-gray-300 transition hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
+          >
+            <span>📱</span>
+            <span>Using Android? Get the app on Google Play</span>
+          </a>
+        </div>
+
         {!hideClubCta ? (
           <div className="rounded-[1.4rem] border border-brand-300/25 bg-[linear-gradient(145deg,rgba(14,165,233,0.14),rgba(15,23,42,0.9))] p-5 shadow-[0_18px_42px_rgba(2,6,23,0.34)]">
             <div className="inline-flex rounded-full border border-brand-300/25 bg-brand-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-brand-100">
