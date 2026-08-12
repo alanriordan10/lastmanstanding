@@ -726,9 +726,12 @@ export default function CompetitionHomePage() {
     return effectivePickOutcome(pick);
   };
   const uniqueTeamIds = new Set<number>();
+  const teamLogoById = new Map<number, string | null | undefined>();
   fixtures?.forEach((f) => {
     uniqueTeamIds.add(f.homeTeamId);
     uniqueTeamIds.add(f.awayTeamId);
+    teamLogoById.set(f.homeTeamId, f.homeTeamLogoUrl);
+    teamLogoById.set(f.awayTeamId, f.awayTeamLogoUrl);
   });
   const totalTeamsCount = uniqueTeamIds.size;
   const remainingTeamsCount = totalTeamsCount > 0 ? Math.max(totalTeamsCount - consumedTeamIds.size, 0) : null;
@@ -2742,7 +2745,15 @@ export default function CompetitionHomePage() {
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                               <p className="text-xs uppercase tracking-[0.14em] text-gray-500">Gameweek {pick.weekNumber}</p>
-                              <p className="mt-1 text-sm font-semibold text-gray-100">{pick.teamShortName}</p>
+                              <p className="mt-1 inline-flex min-w-0 items-center gap-1.5 text-sm font-semibold text-gray-100">
+                                <RouteTeamLogo
+                                  teamName={pick.teamName}
+                                  shortName={pick.teamShortName}
+                                  logoUrl={teamLogoById.get(pick.teamId) ?? null}
+                                  size="sm"
+                                />
+                                <span className="truncate">{pick.teamShortName}</span>
+                              </p>
                               <p className="text-xs text-gray-400 truncate">{pick.teamName}</p>
                             </div>
                             <OutcomeBadge outcome={outcome} />
@@ -2779,8 +2790,16 @@ export default function CompetitionHomePage() {
                           <tr key={pick.pickId} className="border-b border-gray-700/50 hover:bg-surface-700/30">
                             <td className="py-3 px-4 font-medium">{pick.weekNumber}</td>
                             <td className="py-3 px-4">
-                              <span className="font-semibold">{pick.teamShortName}</span>
-                              <span className="text-gray-400 ml-2 text-xs">{pick.teamName}</span>
+                              <div className="inline-flex max-w-full items-center gap-2 min-w-0">
+                                <RouteTeamLogo
+                                  teamName={pick.teamName}
+                                  shortName={pick.teamShortName}
+                                  logoUrl={teamLogoById.get(pick.teamId) ?? null}
+                                  size="sm"
+                                />
+                                <span className="font-semibold truncate">{pick.teamShortName}</span>
+                                <span className="text-gray-400 text-xs truncate">{pick.teamName}</span>
+                              </div>
                             </td>
                             <td className="py-3 px-4">
                               <div className="flex items-center gap-2">
@@ -3105,6 +3124,7 @@ type RouteTeam = {
   teamId: number;
   teamName: string;
   teamShortName: string;
+  logoUrl?: string | null;
   opponentShortName: string;
   opponentName: string;
   venueLabel: string;
@@ -3128,6 +3148,7 @@ function uniqueTeamsForFixtures(fixtures: Fixture[], gameweekStatus: string, get
       teamId: fixture.homeTeamId,
       teamName: fixture.homeTeamName,
       teamShortName: fixture.homeTeamShortName,
+      logoUrl: fixture.homeTeamLogoUrl,
       opponentShortName: fixture.awayTeamShortName,
       opponentName: fixture.awayTeamName,
       venueLabel: 'vs',
@@ -3137,6 +3158,7 @@ function uniqueTeamsForFixtures(fixtures: Fixture[], gameweekStatus: string, get
       teamId: fixture.awayTeamId,
       teamName: fixture.awayTeamName,
       teamShortName: fixture.awayTeamShortName,
+      logoUrl: fixture.awayTeamLogoUrl,
       opponentShortName: fixture.homeTeamShortName,
       opponentName: fixture.homeTeamName,
       venueLabel: '@',
@@ -3177,6 +3199,7 @@ function MyRoutePanel({
     teamId: pick.teamId,
     teamName: pick.teamName,
     teamShortName: pick.teamShortName,
+    logoUrl: null,
     opponentShortName: '—',
     opponentName: 'Not in this gameweek',
     venueLabel: '',
@@ -3202,7 +3225,10 @@ function MyRoutePanel({
         <div className="text-[10px] font-black uppercase tracking-[0.22em] text-sky-200">Your route</div>
         {currentPick ? (
           <>
-            <div className="mt-2 text-3xl font-black text-white">{currentPick.teamShortName}</div>
+            <div className="mt-2 inline-flex max-w-full items-center gap-2 overflow-hidden">
+              <RouteTeamLogo teamName={currentPick.teamName} shortName={currentPick.teamShortName} logoUrl={currentPickFixture?.logoUrl} size="lg" />
+              <div className="truncate text-3xl font-black text-white">{currentPick.teamShortName}</div>
+            </div>
             <div className="mt-1 text-sm font-bold text-slate-300">
               {currentPick.teamName}{currentPick.outcome && currentPick.outcome !== 'PENDING' ? ` · ${currentPick.outcome.replace(/_/g, ' ')}` : ''}
             </div>
@@ -3251,7 +3277,7 @@ function MyRoutePanel({
         <div className="mt-4">
           <div className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-300">Used before</div>
           <div className="mt-2 flex flex-wrap gap-2">
-            {usedTeams.map((team) => <span key={team.teamId} className="rounded-full border border-yellow-400/30 bg-yellow-500/10 px-3 py-1.5 text-xs font-black text-yellow-200 line-through">{team.teamShortName}</span>)}
+            {usedTeams.map((team) => <span key={team.teamId} className="inline-flex items-center gap-1.5 rounded-full border border-yellow-400/30 bg-yellow-500/10 px-3 py-1.5 text-xs font-black text-yellow-200 line-through"><RouteTeamLogo teamName={team.teamName} shortName={team.teamShortName} logoUrl={team.logoUrl} size="xs" />{team.teamShortName}</span>)}
           </div>
         </div>
       ) : null}
@@ -3260,7 +3286,7 @@ function MyRoutePanel({
         <div className="mt-4">
           <div className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-300">Reserved in another gameweek</div>
           <div className="mt-2 flex flex-wrap gap-2">
-            {reservedTeams.map((team) => <span key={team.teamId} className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-black text-cyan-200">{team.teamShortName}</span>)}
+            {reservedTeams.map((team) => <span key={team.teamId} className="inline-flex items-center gap-1.5 rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-black text-cyan-200"><RouteTeamLogo teamName={team.teamName} shortName={team.teamShortName} logoUrl={team.logoUrl} size="xs" />{team.teamShortName}</span>)}
           </div>
         </div>
       ) : null}
@@ -3278,20 +3304,75 @@ function MyRoutePanel({
                 disabled={disabled}
                 onClick={() => onPick(team)}
                 className={clsx(
-                  'min-w-0 rounded-xl border px-3 py-2 text-left transition',
+                  'min-w-0 overflow-hidden rounded-xl border px-3 py-2.5 text-left transition',
                   picked ? 'border-sky-200 bg-sky-600 text-white shadow-md shadow-sky-950/30' : 'border-slate-700 bg-slate-800/80 text-slate-100 hover:border-slate-500',
                   disabled && 'cursor-not-allowed opacity-55'
                 )}
               >
-                <div className="text-sm font-black">{team.teamShortName}</div>
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <RouteTeamLogo teamName={team.teamName} shortName={team.teamShortName} logoUrl={team.logoUrl} size="lg" />
+                  <div className="truncate text-base font-black leading-tight">{team.teamShortName}</div>
+                </div>
                 <div className={clsx('mt-1 truncate text-[10px] font-bold', picked ? 'text-white/85' : 'text-slate-400')}>{picked ? 'Picked' : `${team.venueLabel} ${team.opponentShortName}`}</div>
-                {team.risk ? <div className={clsx('mt-1 text-[10px] font-black', picked ? 'text-white' : 'text-sky-200')}>{team.risk.label}</div> : null}
+                {team.risk ? (
+                  <div className="mt-1">
+                    <span
+                      className={clsx(
+                        'inline-flex max-w-full items-center gap-1 rounded-full px-2 py-1 text-[10px] font-black whitespace-nowrap overflow-hidden',
+                        team.risk.label === 'Safe' && (picked ? 'bg-white/18 text-white' : 'bg-green-500/20 text-green-200'),
+                        team.risk.label === 'Balanced' && (picked ? 'bg-white/18 text-white' : 'bg-yellow-500/20 text-yellow-200'),
+                        team.risk.label === 'Differential' && (picked ? 'bg-white/18 text-white' : 'bg-cyan-500/20 text-cyan-200'),
+                      )}
+                    >
+                      <span className="truncate">{riskLabelText(team.risk)}</span>
+                    </span>
+                  </div>
+                ) : null}
               </button>
             );
           })}
         </div>
       </div>
     </div>
+  );
+}
+
+function RouteTeamLogo({
+  teamName,
+  shortName,
+  logoUrl,
+  size = 'sm',
+}: {
+  teamName: string;
+  shortName: string;
+  logoUrl?: string | null;
+  size?: 'xs' | 'sm' | 'lg';
+}) {
+  const [logoFailed, setLogoFailed] = useState(false);
+  const trimmedLogoUrl = typeof logoUrl === 'string' ? logoUrl.trim() : '';
+  const showLogo = !!trimmedLogoUrl && !logoFailed;
+  const fallback = shortName.slice(0, 1).toUpperCase();
+  const sizeClass = size === 'lg' ? 'h-7 w-7 text-[10px]' : size === 'xs' ? 'h-3.5 w-3.5 text-[7px]' : 'h-4 w-4 text-[8px]';
+
+  if (showLogo) {
+    return (
+      <img
+        src={trimmedLogoUrl}
+        alt={`${teamName} crest`}
+        className={clsx('shrink-0 rounded-full border border-white/20 object-cover', sizeClass)}
+        loading="lazy"
+        onError={() => setLogoFailed(true)}
+      />
+    );
+  }
+
+  return (
+    <span
+      className={clsx('inline-flex shrink-0 items-center justify-center rounded-full border border-white/20 bg-slate-700 font-black text-slate-300', sizeClass)}
+      aria-hidden="true"
+    >
+      {fallback}
+    </span>
   );
 }
 
@@ -3325,7 +3406,7 @@ function TeamButton({
         name
       }
       className={clsx(
-        'flex h-full flex-col justify-center gap-0.5 rounded-xl px-2 py-2.5 sm:rounded-lg sm:px-3 lg:px-4 sm:py-0.5 w-full min-w-0 transition-all min-h-[74px] sm:min-h-[30px] lg:min-h-[32px]',
+        'flex h-full flex-col justify-center gap-0.5 rounded-xl px-2 py-2.5 sm:rounded-lg sm:px-3 lg:px-4 sm:py-0.5 w-full min-w-0 overflow-hidden transition-all min-h-[74px] sm:min-h-[30px] lg:min-h-[32px]',
         align === 'right' ? 'items-center sm:items-end sm:text-right' : 'items-center sm:items-start sm:text-left',
         isMyPick && 'bg-brand-600/85 border-2 border-brand-300 text-white font-bold shadow-md shadow-brand-900/25',
         isUsed && !isMyPick && 'bg-transparent text-amber-300 cursor-not-allowed',
@@ -3337,28 +3418,28 @@ function TeamButton({
       aria-label={`Pick ${name}`}
     >
       {/* Mobile: app-style centered team column */}
-      <div className="flex sm:hidden w-full flex-col items-center justify-center text-center gap-1">
-        <div className={clsx('flex items-center justify-center gap-1.5', align === 'right' ? 'flex-row-reverse' : 'flex-row')}>
+      <div className="flex sm:hidden w-full min-w-0 flex-col items-center justify-center text-center gap-1">
+        <div className={clsx('flex max-w-full min-w-0 flex-wrap items-center justify-center gap-1.5', align === 'right' ? 'flex-row-reverse' : 'flex-row')}>
           {showLogo ? (
             <img
               src={trimmedLogoUrl}
               alt={logoAlt}
-              className="h-5 w-5 rounded-full border border-white/25 object-cover"
+              className="h-5 w-5 shrink-0 rounded-full border border-white/25 object-cover"
               loading="lazy"
               onError={() => setLogoFailed(true)}
             />
           ) : (
-            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/20 bg-slate-700 text-[9px] font-black text-slate-300">
+            <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-white/20 bg-slate-700 text-[9px] font-black text-slate-300">
               {logoFallback}
             </span>
           )}
-          <span className={clsx('font-black text-base leading-tight', isMyPick ? 'text-white' : isUsed ? 'line-through text-amber-200' : '')}>
+            <span className={clsx('shrink-0 font-black text-base leading-tight', isMyPick ? 'text-white' : isUsed ? 'line-through text-amber-200' : '')}>
             {shortName}
           </span>
           {showStatusPill && (
             <span
               className={clsx(
-                'inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.08em]',
+                'inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.08em]',
                 isMyPick ? 'bg-white/18 text-white' : 'bg-amber-500/20 text-amber-200',
                 isReserved && !isUsed && !isMyPick && 'bg-cyan-500/20 text-cyan-200',
               )}
