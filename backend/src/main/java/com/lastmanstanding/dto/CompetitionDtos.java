@@ -250,9 +250,11 @@ public final class CompetitionDtos {
             Long homeTeamId,
             String homeTeamName,
             String homeTeamShortName,
+            String homeTeamLogoUrl,
             Long awayTeamId,
             String awayTeamName,
             String awayTeamShortName,
+            String awayTeamLogoUrl,
             LocalDateTime kickoffAt,
             String status,
             Integer scoreHome,
@@ -278,8 +280,8 @@ public final class CompetitionDtos {
                     || f.getOverrideScoreHome() != null || f.getOverrideScoreAway() != null;
             return new FixtureResponse(
                     f.getId(), f.getGameweek().getId(), f.getGameweek().getWeekNumber(),
-                    home.getId(), home.getName(), home.getShortName(),
-                    away.getId(), away.getName(), away.getShortName(),
+                    home.getId(), home.getName(), home.getShortName(), home.getLogoUrl(),
+                    away.getId(), away.getName(), away.getShortName(), away.getLogoUrl(),
                     f.getEffectiveKickoffAt(), f.getEffectiveStatus().name(),
                     f.getEffectiveScoreHome(), f.getEffectiveScoreAway(),
                     f.getOddsHomeWin(), f.getOddsDraw(), f.getOddsAwayWin(),

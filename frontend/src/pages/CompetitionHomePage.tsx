@@ -2646,6 +2646,7 @@ export default function CompetitionHomePage() {
                                 <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-2xl bg-surface-700/55 px-3 py-4 sm:rounded-lg sm:gap-3 sm:px-4 sm:py-2.5 lg:gap-4">
                                   <TeamButton
                                     name={f.homeTeamName}
+                                  logoUrl={f.homeTeamLogoUrl}
                                   shortName={f.homeTeamShortName}
                                   isMyPick={homeIsMyPick}
                                   isUsed={homeUsed}
@@ -2680,6 +2681,7 @@ export default function CompetitionHomePage() {
                                 </div>
                                   <TeamButton
                                     name={f.awayTeamName}
+                                  logoUrl={f.awayTeamLogoUrl}
                                   shortName={f.awayTeamShortName}
                                   isMyPick={awayIsMyPick}
                                   isUsed={awayUsed}
@@ -3294,14 +3296,23 @@ function MyRoutePanel({
 }
 
 function TeamButton({
-  name, shortName, isMyPick, isUsed, isReserved, isClickable, align, pickStat, risk, accentColor, onClick,
+  name, logoUrl, shortName, isMyPick, isUsed, isReserved, isClickable, align, pickStat, risk, accentColor, onClick,
 }: {
-  name: string; shortName: string; isMyPick: boolean; isUsed: boolean;
+  name: string;
+  logoUrl?: string | null;
+  shortName: string;
+  isMyPick: boolean;
+  isUsed: boolean;
   isReserved?: boolean;
   isClickable: boolean; align: 'left' | 'right'; pickStat?: PickStat; risk?: TeamRisk | null; accentColor?: string | null; onClick: () => void;
 }) {
   const showStatusPill = isMyPick || (isUsed && !isMyPick) || (!!isReserved && !isMyPick && !isUsed);
   const statusPillLabel = isMyPick ? 'Picked' : isUsed ? 'Used' : isReserved ? 'Resvd' : '';
+  const [logoFailed, setLogoFailed] = useState(false);
+  const trimmedLogoUrl = typeof logoUrl === 'string' ? logoUrl.trim() : '';
+  const showLogo = !!trimmedLogoUrl && !logoFailed;
+  const logoAlt = `${name} crest`;
+  const logoFallback = shortName.slice(0, 1).toUpperCase();
 
   return (
     <button
@@ -3328,6 +3339,19 @@ function TeamButton({
       {/* Mobile: app-style centered team column */}
       <div className="flex sm:hidden w-full flex-col items-center justify-center text-center gap-1">
         <div className={clsx('flex items-center justify-center gap-1.5', align === 'right' ? 'flex-row-reverse' : 'flex-row')}>
+          {showLogo ? (
+            <img
+              src={trimmedLogoUrl}
+              alt={logoAlt}
+              className="h-5 w-5 rounded-full border border-white/25 object-cover"
+              loading="lazy"
+              onError={() => setLogoFailed(true)}
+            />
+          ) : (
+            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/20 bg-slate-700 text-[9px] font-black text-slate-300">
+              {logoFallback}
+            </span>
+          )}
           <span className={clsx('font-black text-base leading-tight', isMyPick ? 'text-white' : isUsed ? 'line-through text-amber-200' : '')}>
             {shortName}
           </span>
@@ -3357,14 +3381,40 @@ function TeamButton({
             <span className="min-w-0 flex-1 truncate text-xs lg:text-sm font-normal opacity-90 text-right">
               {name}
             </span>
-            <span className={clsx('w-[3ch] shrink-0 font-bold sm:text-sm', isMyPick ? 'text-white' : '')}>
-              {shortName}
+            <span className="shrink-0 flex items-center gap-1.5">
+              <span className={clsx('w-[3ch] shrink-0 font-bold sm:text-sm', isMyPick ? 'text-white' : '')}>{shortName}</span>
+              {showLogo ? (
+                <img
+                  src={trimmedLogoUrl}
+                  alt={logoAlt}
+                  className="h-4 w-4 rounded-full border border-white/20 object-cover"
+                  loading="lazy"
+                  onError={() => setLogoFailed(true)}
+                />
+              ) : (
+                <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-white/20 bg-slate-700 text-[8px] font-black text-slate-300">
+                  {logoFallback}
+                </span>
+              )}
             </span>
           </div>
         ) : (
           <div className="hidden sm:flex w-full items-center gap-2 text-left">
-            <span className={clsx('w-[3ch] shrink-0 font-bold sm:text-sm', isMyPick ? 'text-white' : '')}>
-              {shortName}
+            <span className="shrink-0 flex items-center gap-1.5">
+              {showLogo ? (
+                <img
+                  src={trimmedLogoUrl}
+                  alt={logoAlt}
+                  className="h-4 w-4 rounded-full border border-white/20 object-cover"
+                  loading="lazy"
+                  onError={() => setLogoFailed(true)}
+                />
+              ) : (
+                <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-white/20 bg-slate-700 text-[8px] font-black text-slate-300">
+                  {logoFallback}
+                </span>
+              )}
+              <span className={clsx('w-[3ch] shrink-0 font-bold sm:text-sm', isMyPick ? 'text-white' : '')}>{shortName}</span>
             </span>
             <span className="shrink-0 text-[10px] text-gray-500">·</span>
             <span className="min-w-0 flex-1 truncate text-xs lg:text-sm font-normal opacity-90">
@@ -3377,23 +3427,49 @@ function TeamButton({
         )
       ) : align === 'right' ? (
         <div className="hidden sm:grid h-full w-full place-items-center">
-          <div className="grid w-full max-w-[18rem] grid-cols-[3.5ch_minmax(0,1fr)_3ch] items-center gap-2">
+          <div className="grid w-full max-w-[18rem] grid-cols-[3.5ch_minmax(0,1fr)_auto] items-center gap-2">
             <span className="text-left text-xs font-bold text-gray-400">
               {showStatusPill ? statusPillLabel : ''}
             </span>
             <span className="truncate text-center text-xs lg:text-sm font-normal opacity-90">
               {name}
             </span>
-            <span className={clsx('text-right font-bold sm:text-sm', isMyPick ? 'text-white' : '')}>
-              {shortName}
+            <span className="shrink-0 flex items-center justify-end gap-1.5">
+              <span className={clsx('text-right font-bold sm:text-sm', isMyPick ? 'text-white' : '')}>{shortName}</span>
+              {showLogo ? (
+                <img
+                  src={trimmedLogoUrl}
+                  alt={logoAlt}
+                  className="h-4 w-4 rounded-full border border-white/20 object-cover"
+                  loading="lazy"
+                  onError={() => setLogoFailed(true)}
+                />
+              ) : (
+                <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-white/20 bg-slate-700 text-[8px] font-black text-slate-300">
+                  {logoFallback}
+                </span>
+              )}
             </span>
           </div>
         </div>
       ) : (
         <div className="hidden sm:grid h-full w-full place-items-center">
-          <div className="grid w-full max-w-[18rem] grid-cols-[3ch_minmax(0,1fr)_3.5ch] items-center gap-2">
-            <span className={clsx('text-left font-bold sm:text-sm', isMyPick ? 'text-white' : '')}>
-              {shortName}
+          <div className="grid w-full max-w-[18rem] grid-cols-[auto_minmax(0,1fr)_3.5ch] items-center gap-2">
+            <span className="shrink-0 flex items-center gap-1.5">
+              {showLogo ? (
+                <img
+                  src={trimmedLogoUrl}
+                  alt={logoAlt}
+                  className="h-4 w-4 rounded-full border border-white/20 object-cover"
+                  loading="lazy"
+                  onError={() => setLogoFailed(true)}
+                />
+              ) : (
+                <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-white/20 bg-slate-700 text-[8px] font-black text-slate-300">
+                  {logoFallback}
+                </span>
+              )}
+              <span className={clsx('text-left font-bold sm:text-sm', isMyPick ? 'text-white' : '')}>{shortName}</span>
             </span>
             <span className="truncate text-center text-xs lg:text-sm font-normal opacity-90">
               {name}
