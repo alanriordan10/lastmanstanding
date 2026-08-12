@@ -143,7 +143,26 @@ export default function LandingPage() {
             </Link>
           </div>
 
-          <p className="text-xs text-gray-500">No credit card required · Set up in 2 minutes</p>
+          {/* Platform availability */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-1">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-sm text-gray-300">
+              <span className="text-base">🌐</span>
+              <span><strong className="text-white">Web app</strong> — works in any browser, no install needed</span>
+            </div>
+            <span className="text-gray-600 hidden sm:block">+</span>
+            <a
+              href="https://play.google.com/store/apps/details?id=com.lastmanstanding.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-sm text-gray-300 hover:border-white/25 hover:bg-white/[0.09] transition-colors"
+            >
+              <span className="text-base">📱</span>
+              <span><strong className="text-white">Android app</strong> — download on Google Play</span>
+            </a>
+          </div>
+          <p className="text-xs text-gray-500">
+            Both platforms share the same account — use whichever suits you. iPhone users can use the web app.
+          </p>
           <div className="grid grid-cols-3 gap-3 pt-6 max-w-2xl mx-auto">
             <LandingMetric label="Setup" value="2 min" />
             <LandingMetric label="Format" value="Knockout" />

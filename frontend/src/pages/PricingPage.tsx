@@ -31,6 +31,29 @@ export default function PricingPage() {
         </article>
       </section>
 
+      <section className="card space-y-4">
+        <h2 className="text-xl font-black text-white">Competition slots</h2>
+        <p className="text-sm leading-6 text-gray-300">
+          Every club gets its <strong className="text-white">first competition free</strong>. After that, each additional competition requires one <strong className="text-white">competition slot</strong> — a one-off credit purchased through the Club Admin page.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-2xl border border-green-500/25 bg-green-500/10 p-4">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-green-300">First competition</p>
+            <p className="mt-1 text-2xl font-black text-white">Free</p>
+            <p className="mt-1 text-sm text-gray-300">Included for every club. No card required.</p>
+          </div>
+          <div className="rounded-2xl border border-brand-400/25 bg-brand-500/10 p-4">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-brand-200">Additional competitions</p>
+            <p className="mt-1 text-2xl font-black text-white">1 slot per competition</p>
+            <p className="mt-1 text-sm text-gray-300">Slots are bought once-off, do not expire, and can be stocked up in advance. Pricing is shown at checkout.</p>
+          </div>
+        </div>
+        <p className="text-xs text-gray-500">
+          Slots are purchased from the Club Admin screen via Stripe Checkout. A slot is consumed when a competition is created and is not refunded if the competition is later deleted.{' '}
+          <Link to="/faq" className="text-brand-400 hover:text-brand-300">See the FAQ for more detail →</Link>
+        </p>
+      </section>
+
       <section className="card space-y-3 text-sm leading-6 text-gray-300">
         <h2 className="text-xl font-black text-white">Payment modes</h2>
         <div className="grid gap-3 sm:grid-cols-2">
