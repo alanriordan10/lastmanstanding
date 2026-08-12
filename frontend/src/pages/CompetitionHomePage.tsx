@@ -11,7 +11,6 @@ import { useCountdown } from '../hooks/useCountdown';
 import { useAuth } from '../context/AuthContext';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { MetricCard, StatusPill } from '../components/ui-primitives';
-import PaymentModal from '../components/PaymentModal';
 
 interface PickStat {
   teamId: number;
@@ -197,7 +196,6 @@ export default function CompetitionHomePage() {
   const [selectedEntryId, setSelectedEntryId] = useState<number | null>(null);
   const [lifelineForGwId, setLifelineForGwId] = useState<number | null>(null);
   const [gameweekDisplayMode, setGameweekDisplayMode] = useState<GameweekDisplayMode>('cards');
-  const [payingComp, setPayingComp] = useState<Competition | null>(null);
 
   // Close share dropdown on outside click
   useEffect(() => {
@@ -364,7 +362,7 @@ export default function CompetitionHomePage() {
     mutationFn: () => api.post(`/competitions/${compId}/join`),
     onSuccess: () => {
       const competitionName = comp?.name ?? 'competition';
-      if (comp?.paymentMode === 'MANUAL') {
+      if ((comp?.entryFee ?? 0) > 0 && comp?.paymentMode !== 'FREE') {
         toast(`You've registered for ${competitionName}. Please pay the organiser directly.`, { icon: '💸', duration: 8000 });
       } else {
         toast.success('Joined competition!');
@@ -381,10 +379,6 @@ export default function CompetitionHomePage() {
 
   const handleDirectJoin = () => {
     if (!comp) return;
-    if (requiresStripePayment) {
-      setPayingComp(comp);
-      return;
-    }
     joinMutation.mutate();
   };
 
@@ -571,7 +565,6 @@ export default function CompetitionHomePage() {
   const isWinner = participant?.status === 'WINNER';
   const canInvite = comp.status === 'UPCOMING';
   const paymentState = participant?.paymentState;
-  const requiresStripePayment = comp.paymentMode === 'STRIPE' && comp.entryFee > 0;
   const awaitingPayment = paymentState === 'AWAITING_PAYMENT';
   const strictManualPayment = comp.paymentMode === 'MANUAL' && comp.manualPaymentPolicy !== 'LENIENT';
   const joinPath = comp.joinCode
@@ -1161,12 +1154,12 @@ export default function CompetitionHomePage() {
   } else if (!isParticipant) {
     if (comp.status === 'UPCOMING') {
       actionTone = 'warning';
-      actionTitle = comp.paymentMode === 'MANUAL'
+      actionTitle = comp.entryFee > 0 && comp.paymentMode !== 'FREE'
         ? pickCopyVariant(['Register and pay the organiser', 'Join now and pay the organiser', 'Register, then settle payment with organiser'], 203)
         : comp.entryFee > 0
         ? pickCopyVariant(['Join before the next lock', 'Secure your place before lock', 'Enter before the next deadline'], 204)
         : pickCopyVariant(['Join this competition', 'Register for this competition', 'Enter this competition now'], 205);
-      actionBody = comp.paymentMode === 'MANUAL'
+      actionBody = comp.entryFee > 0 && comp.paymentMode !== 'FREE'
         ? `Registration is open. Entry is €${comp.entryFee} and the organiser confirms payment manually.`
         : comp.entryFee > 0
         ? `Entry is €${comp.entryFee}. Join before the next gameweek locks so you can make your first pick.`
@@ -1403,8 +1396,8 @@ export default function CompetitionHomePage() {
               </button>
             )}
           </div>
+          </div>
         </div>
-      </div>
     </section>
   ) : null;
 
@@ -1454,7 +1447,7 @@ export default function CompetitionHomePage() {
               'Free to join. Enter now so you are ready when picks open.',
             ], 221),
         ctaLabel: 'Join competition',
-        ctaKind: requiresStripePayment ? 'payment' as const : 'join' as const,
+        ctaKind: 'join' as const,
       };
     }
     if (canAddAnotherEntry) {
@@ -1464,7 +1457,7 @@ export default function CompetitionHomePage() {
         title: additionalEntriesRemaining === 1 ? 'You can add one more entry' : `You can add ${additionalEntriesRemaining} more entries`,
         detail: `This competition allows up to ${maxEntriesPerUser} entries per user. Add another entry before lock to increase your coverage.`,
         ctaLabel: 'Add another entry',
-        ctaKind: requiresStripePayment ? 'payment' as const : 'join' as const,
+        ctaKind: 'join' as const,
       };
     }
     if (awaitingPayment && strictManualPayment) {
@@ -2181,30 +2174,11 @@ export default function CompetitionHomePage() {
               <button type="button" onClick={handleDirectJoin} disabled={joinMutation.isPending} className="btn-primary w-full sm:w-auto disabled:cursor-not-allowed disabled:opacity-60">
                 {joinMutation.isPending ? 'Joining...' : stateBanner.ctaLabel}
               </button>
-            ) : stateBanner.ctaKind === 'payment' ? (
-              <button type="button" onClick={() => setPayingComp(comp)} className="btn-primary w-full sm:w-auto">{stateBanner.ctaLabel}</button>
             ) : stateBanner.ctaKind === 'pick' ? (
               <button type="button" onClick={handleScrollToOpenWeek} className="btn-primary w-full sm:w-auto">{stateBanner.ctaLabel}</button>
             ) : null}
           </div>
         </section>
-      )}
-
-
-      {payingComp && (
-        <PaymentModal
-          competition={payingComp}
-          onSuccess={() => {
-            setPayingComp(null);
-            toast.success('Payment complete. Your entry has been added.');
-            queryClient.invalidateQueries({ queryKey: ['competition', compId] });
-            queryClient.invalidateQueries({ queryKey: ['myEntries', compId] });
-            queryClient.invalidateQueries({ queryKey: ['myStatus', compId] });
-            queryClient.invalidateQueries({ queryKey: ['competitions', 'my', 'details'] });
-            queryClient.invalidateQueries({ queryKey: ['competitions', 'upcoming'] });
-          }}
-          onClose={() => setPayingComp(null)}
-        />
       )}
 
       {resultsProcessing && (
@@ -2260,7 +2234,7 @@ export default function CompetitionHomePage() {
                   disabled={joinMutation.isPending}
                   className="btn-primary w-full sm:w-auto text-sm disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {joinMutation.isPending ? 'Joining...' : requiresStripePayment ? `Pay €${comp.entryFee} & join` : 'Join competition'}
+                  {joinMutation.isPending ? 'Joining...' : comp.entryFee > 0 && comp.paymentMode !== 'FREE' ? `Register · €${comp.entryFee} to organiser` : 'Join competition'}
                 </button>
               ) : (
                 <Link
@@ -2844,7 +2818,7 @@ export default function CompetitionHomePage() {
                   disabled={joinMutation.isPending}
                   className="btn-primary w-full sm:w-auto text-sm disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {joinMutation.isPending ? 'Joining...' : requiresStripePayment ? `Pay €${comp.entryFee} & join` : 'Join competition'}
+                  {joinMutation.isPending ? 'Joining...' : comp.entryFee > 0 && comp.paymentMode !== 'FREE' ? `Register · €${comp.entryFee} to organiser` : 'Join competition'}
                 </button>
               ) : (
                 <Link
@@ -2871,14 +2845,12 @@ export default function CompetitionHomePage() {
                   label="Entry"
                   value={comp.entryFee > 0 ? `€${comp.entryFee}` : 'Free'}
                   detail={
-                    awaitingPayment && comp.paymentMode === 'MANUAL'
+                    awaitingPayment && comp.entryFee > 0 && comp.paymentMode !== 'FREE'
                       ? 'Awaiting organiser confirmation'
                       : paymentState === 'PAID'
                       ? 'Payment settled'
-                      : comp.paymentMode === 'MANUAL'
+                      : comp.entryFee > 0 && comp.paymentMode !== 'FREE'
                       ? 'Pay organiser directly'
-                      : comp.paymentMode === 'STRIPE'
-                      ? 'Paid online'
                       : 'No payment required'
                   }
                   accent={comp.entryFee > 0 ? 'text-brand-400' : 'text-green-400'}
@@ -2964,14 +2936,12 @@ export default function CompetitionHomePage() {
                       label="Entry"
                       value={comp.entryFee > 0 ? `€${comp.entryFee}` : 'Free'}
                       detail={
-                        awaitingPayment && comp.paymentMode === 'MANUAL'
+                        awaitingPayment && comp.entryFee > 0 && comp.paymentMode !== 'FREE'
                           ? 'Awaiting organiser confirmation'
                           : paymentState === 'PAID'
                           ? 'Payment settled'
-                          : comp.paymentMode === 'MANUAL'
+                          : comp.entryFee > 0 && comp.paymentMode !== 'FREE'
                           ? 'Pay organiser directly'
-                          : comp.paymentMode === 'STRIPE'
-                          ? 'Paid online'
                           : 'No payment required'
                       }
                       accent={comp.entryFee > 0 ? 'text-brand-400' : 'text-green-400'}

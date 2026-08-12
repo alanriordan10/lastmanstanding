@@ -58,7 +58,7 @@ export default function ClubAdminPage() {
   const [postponedConsumesTeam, setPostponedConsumesTeam] = useState(true);
   const [lifelineEnabled, setLifelineEnabled] = useState(false);
   const [passFeeToParticipant, setPassFeeToParticipant] = useState(false);
-  const [paymentMode, setPaymentMode] = useState<'FREE' | 'MANUAL' | 'STRIPE'>('FREE');
+  const [paymentMode, setPaymentMode] = useState<'FREE' | 'MANUAL'>('FREE');
   const [manualPaymentPolicy, setManualPaymentPolicy] = useState<'STRICT' | 'LENIENT'>('STRICT');
   const [visibility, setVisibility] = useState<'PUBLIC' | 'PRIVATE'>('PRIVATE');
   const [prizePool, setPrizePool] = useState('');

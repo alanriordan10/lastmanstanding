@@ -198,7 +198,7 @@ public class CompetitionService {
         } else {
             comp.setPaymentMode(entryFee == null || entryFee.compareTo(BigDecimal.ZERO) == 0
                     ? PaymentMode.FREE
-                    : PaymentMode.STRIPE);
+                    : PaymentMode.MANUAL);
         }
         if (manualPaymentPolicy != null) {
             try { comp.setManualPaymentPolicy(ManualPaymentPolicy.valueOf(manualPaymentPolicy)); }

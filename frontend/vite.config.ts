@@ -17,7 +17,6 @@ export default defineConfig({
 
           if (id.includes('react-router-dom')) return 'router';
           if (id.includes('@tanstack/react-query')) return 'react-query';
-          if (id.includes('@stripe') || id.includes('/stripe-js/')) return 'stripe';
           if (id.includes('react-hot-toast')) return 'toast';
           if (id.includes('date-fns')) return 'date-fns';
           if (id.includes('axios')) return 'http';

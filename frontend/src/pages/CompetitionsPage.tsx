@@ -7,7 +7,6 @@ import { useAuth } from '../context/AuthContext';
 import type { AxiosError } from 'axios';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
-import PaymentModal from '../components/PaymentModal';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { FilterPill, MetricCard } from '../components/ui-primitives';
 
@@ -90,9 +89,9 @@ function fixtureSourceLabel(comp: Competition): string {
 function getCompetitionActionHint(comp: Competition, mine?: MyCompetition, requiresPick = false): string | null {
   if (!mine) return null;
   if (mine.paymentState === 'AWAITING_PAYMENT') {
-    return comp.paymentMode === 'MANUAL'
+    return comp.entryFee > 0 && comp.paymentMode !== 'FREE'
       ? 'Action needed: pay the organiser to activate your entry.'
-      : 'Action needed: complete payment to confirm your entry.';
+      : 'Action needed: wait for your entry to be confirmed.';
   }
   if (requiresPick) {
     return 'Action needed: review your pick before the gameweek locks.';
@@ -127,7 +126,6 @@ export default function CompetitionsPage() {
   const joinCodeParam = searchParams.get('code')?.trim().toUpperCase() ?? '';
 
   const [selectedClub, setSelectedClub] = useState<Club | null>(null);
-  const [payingComp, setPayingComp] = useState<Competition | null>(null);
   const [viewMode, setViewMode] = useState<'available' | 'mine' | 'past'>(() => {
     if (typeof window === 'undefined') return 'available';
     const saved = window.localStorage.getItem('lms.competitions.viewMode');
@@ -169,7 +167,7 @@ export default function CompetitionsPage() {
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [joinCodeInput, setJoinCodeInput] = useState(joinCodeParam);
-  const [recentJoinSuccess, setRecentJoinSuccess] = useState<{ name: string; payment: 'PAID' | 'MANUAL' | 'FREE' } | null>(null);
+  const [recentJoinSuccess, setRecentJoinSuccess] = useState<{ name: string; payment: 'MANUAL' | 'FREE' } | null>(null);
   const PAGE_SIZE = 12;
 
   // Reset page when filters change
@@ -293,7 +291,7 @@ export default function CompetitionsPage() {
     onSuccess: (_, comp) => {
       clearInviteState();
       setViewMode('mine');
-      if (comp?.paymentMode === 'MANUAL') {
+      if ((comp?.entryFee ?? 0) > 0 && comp?.paymentMode !== 'FREE') {
         setRecentJoinSuccess({ name: comp.name, payment: 'MANUAL' });
         toast(
           `You've registered for ${comp.name}! Please pay €${comp.entryFee} to the organiser. Your entry will be activated once payment is confirmed.`,
@@ -309,12 +307,7 @@ export default function CompetitionsPage() {
   });
 
   const handleJoin = (comp: Competition) => {
-    if (comp.entryFee > 0 && comp.paymentMode === 'STRIPE') {
-      setPayingComp(comp);
-    } else {
-      // FREE or MANUAL — join directly
-      joinMutation.mutate(comp);
-    }
+    joinMutation.mutate(comp);
   };
 
   const joinedSet      = new Set(joinedIds ?? []);
@@ -857,7 +850,6 @@ export default function CompetitionsPage() {
             <div className="rounded-xl border border-green-500/30 bg-green-500/10 px-3 py-2 text-xs text-green-200">
               Entry confirmed for <strong>{recentJoinSuccess.name}</strong>.
               {recentJoinSuccess.payment === 'MANUAL' && ' Awaiting organiser payment confirmation.'}
-              {recentJoinSuccess.payment === 'PAID' && ' Payment complete and entry confirmed.'}
               {' '}
               <button onClick={() => setRecentJoinSuccess(null)} className="underline">Dismiss</button>
             </div>
@@ -982,9 +974,7 @@ export default function CompetitionsPage() {
                         {joinCodeCompetition.status} · {joinCodeCompetition.participantCount ?? 0} players · {joinCodeCompetition.entryFee > 0 ? `€${joinCodeCompetition.entryFee}` : 'Free'}
                       </p>
                       <p className="mt-1 text-xs text-gray-400">
-                        {joinCodeCompetition.paymentMode === 'STRIPE' && joinCodeCompetition.entryFee > 0
-                          ? 'Online payment is required before your entry is confirmed.'
-                          : joinCodeCompetition.paymentMode === 'MANUAL' && joinCodeCompetition.entryFee > 0
+                        {joinCodeCompetition.entryFee > 0 && joinCodeCompetition.paymentMode !== 'FREE'
                           ? 'You will be registered and the organiser will confirm payment.'
                           : 'No payment is required for this competition.'}
                       </p>
@@ -1000,8 +990,6 @@ export default function CompetitionsPage() {
                           ? 'Already joined'
                           : joinMutation.isPending
                           ? 'Joining...'
-                          : joinCodeCompetition.paymentMode === 'STRIPE' && joinCodeCompetition.entryFee > 0
-                          ? 'Continue to payment'
                           : 'Join competition'}
                       </button>
                       <button
@@ -1180,21 +1168,6 @@ export default function CompetitionsPage() {
         )}
         </>
       )}
-
-      {payingComp && (
-        <PaymentModal
-          competition={payingComp}
-          onSuccess={() => {
-            setRecentJoinSuccess({ name: payingComp.name, payment: 'PAID' });
-            clearInviteState();
-            setViewMode('mine');
-            setPayingComp(null);
-            toast.success(`Payment complete. Joined ${payingComp.name}!`);
-            queryClient.invalidateQueries({ queryKey: ['competitions'] });
-          }}
-          onClose={() => setPayingComp(null)}
-        />
-      )}
     </div>
   );
 }
@@ -1250,7 +1223,9 @@ function CompListView({ comps, joinedSet, onJoin, isPending, entryCounts }: {
                   className="text-xs px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white transition">
                   {joined
                     ? 'Add entry'
-                    : c.entryFee > 0 ? `Join €${c.entryFee}` : 'Join'}
+                    : c.entryFee > 0 && c.paymentMode !== 'FREE'
+                    ? `Register · €${c.entryFee} to organiser`
+                    : c.entryFee > 0 ? `Join · €${c.entryFee}` : 'Join Free'}
                 </button>
               )}
             </div>
@@ -1498,7 +1473,7 @@ function CompetitionCard({ comp, joined, onJoin, isPending, actionHint, isHighli
       <div className="flex items-start justify-between gap-2 mb-2.5">
         <div className="flex flex-wrap gap-2">
           <span className={comp.status === 'UPCOMING' ? 'badge-blue' : comp.status === 'ACTIVE' ? 'badge-green' : 'badge-gray'}>
-            {comp.status}
+            {comp.status === 'COMPLETED' ? 'FINISHED' : comp.status}
           </span>
           {comp.visibility === 'PRIVATE'
             ? <span className="badge-yellow">Private</span>
@@ -1632,7 +1607,7 @@ function CompetitionCard({ comp, joined, onJoin, isPending, actionHint, isHighli
           >
             {joined
               ? 'Add entry'
-              : comp.paymentMode === 'MANUAL'
+              : comp.entryFee > 0 && comp.paymentMode !== 'FREE'
               ? `Register · €${comp.entryFee} to organiser`
               : comp.entryFee > 0 ? `Join · €${comp.entryFee}` : 'Join Free'}
           </button>
@@ -1656,9 +1631,9 @@ function MyCompetitionCard({ myComp, actionHint }: { myComp: MyCompetition; acti
     if (myStatus !== 'ACTIVE' || comp.status !== 'UPCOMING') return false;
     const source = comp.firstGameweekDate ?? comp.startDate;
     if (!source) return false;
-    const dt = parseDate(source);
-    if (!dt) return false;
-    const ms = dt.getTime() - Date.now();
+    const parsed = parseDate(source);
+    if (!parsed) return false;
+    const ms = parsed.getTime() - Date.now();
     return ms > 0 && ms <= 24 * 60 * 60 * 1000;
   }, [myStatus, comp.status, comp.firstGameweekDate, comp.startDate]);
 
