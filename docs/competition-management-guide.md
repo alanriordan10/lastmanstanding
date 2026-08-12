@@ -98,6 +98,14 @@ Notes:
 - The creation fee is a **software/hosting fee** paid to the platform. It is
   separate from any **player entry fees** (see `Payment Mode` in 3.3).
 - Credits do not expire and are tied to the club.
+- Deleting a competition does **not** restore the free competition or return a
+  credit.
+- The same balance is used on web and mobile. On mobile, checkout opens in the
+  browser and returns to the app afterwards.
+- Blocked creation message: `Your club's free competition has been used.
+  Purchase a competition slot to create another.`
+
+See also: [How to Use Last Man Standing, section 17](how-to-use-app-and-web.md#17-competition-slots-creation-credits).
 
 **Screenshot placeholder:**
 - `assets/screenshots/admin-billing-buy-slot.png`

@@ -72,6 +72,16 @@ Use this checklist while capturing visuals for `docs/competition-management-guid
 
 The comprehensive guide includes generated SVG mockups under `docs/assets/screenshots/`. These are useful for documentation previews and can be replaced with real app screenshots later.
 
+Regenerate them with:
+
+```bash
+node scripts/generate-guide-mockups.mjs
+```
+
+The generator lays out each card from its content, so outlines always wrap the
+content and nothing spills over the card or canvas edges. Edit the screen
+definitions in that script rather than hand-editing the SVG files.
+
 Current generated assets:
 
 - `guide-player-competitions.svg`
@@ -79,6 +89,7 @@ Current generated assets:
 - `guide-player-my-route.svg`
 - `guide-player-survivor-table.svg`
 - `guide-admin-dashboard.svg`
+- `guide-admin-billing-slots.svg`
 - `guide-admin-create-competition.svg`
 - `guide-admin-participants-payments.svg`
 - `guide-admin-pause-announcements.svg`

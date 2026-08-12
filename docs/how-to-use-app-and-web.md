@@ -19,6 +19,7 @@ The web portal and mobile app follow the same competition rules and use the same
 | Competition detail | Competition page | Competition detail screen |
 | Survivor table | `Survivor Table` link | `Survivor Table` screen |
 | Club admin | `Club Admin` navigation | `Club Admin` tab |
+| Competition slots | `Buy competition slot` on Club Admin, Stripe Checkout in a tab | `Buy competition slot` on Club Admin, Stripe Checkout in the browser, returns to the app |
 | Profile | `Profile` page | `Profile` tab |
 
 Use whichever surface is more convenient. Club admins may find the web portal easier for larger participant lists, but the app supports the same day-to-day club operations.
@@ -33,7 +34,8 @@ The screenshots below are guide mockups based on the current UI structure. They 
 | [Competition detail](assets/screenshots/guide-player-competition-detail.svg) | Pulse, next action, gameweeks, cards/My Route |
 | [My Route](assets/screenshots/guide-player-my-route.svg) | Available, used, and reserved team tracking |
 | [Survivor table](assets/screenshots/guide-player-survivor-table.svg) | Standings, filters, pick history, lifeline status |
-| [Club Admin dashboard](assets/screenshots/guide-admin-dashboard.svg) | Setup checklist, branding, competitions |
+| [Club Admin dashboard](assets/screenshots/guide-admin-dashboard.svg) | Setup checklist, branding, competitions, slot credits |
+| [Competition slots](assets/screenshots/guide-admin-billing-slots.svg) | First free competition, buying slots, credit rules |
 | [Create competition](assets/screenshots/guide-admin-create-competition.svg) | Rules, visibility, payment, fixture source, lifeline |
 | [Participants and payments](assets/screenshots/guide-admin-participants-payments.svg) | Participant actions, mark paid, revert, export |
 | [Pause and announcements](assets/screenshots/guide-admin-pause-announcements.svg) | Pause/resume and organiser announcements |
@@ -240,6 +242,7 @@ Club admins can manage their own club only.
 Main sections:
 
 - Setup Checklist: quick readiness status.
+- Competition Slots: your free competition or purchased slot credits.
 - Club Settings: transfer or manage club ownership.
 - Club Branding: logo and colours used on competition pages.
 - Competitions: create, edit, pause, announce, view, and delete competitions.
@@ -277,23 +280,72 @@ You can set:
 
 Use colours with enough contrast so buttons, badges, and text remain readable.
 
-## 17. Create a Competition
+## 17. Competition Slots (Creation Credits)
+
+![Competition slots](assets/screenshots/guide-admin-billing-slots.svg)
+
+Creating competitions uses a simple credit model.
+
+- Your club's **first competition is free**. This is a one-time, lifetime entitlement.
+- Every competition after that needs one **competition slot** credit.
+- One purchase adds one credit. Creating one competition uses one credit.
+- Credits never expire and belong to the club, not to an individual admin.
+
+### Where you see your slot status
+
+The `Club Admin` dashboard shows one of the following:
+
+| Dashboard state | Meaning |
+|---|---|
+| `Free competition ready` | Your free competition has not been used yet. |
+| `Slot credits: N` | Your free competition is used. You have N purchased credits. |
+| `Buy competition slot` button | A purchase is required (or you want to stock up) before creating. |
+
+### Buying a slot
+
+1. Open `Club Admin` on web or mobile.
+2. Select `Buy competition slot`.
+3. Complete payment in **Stripe Checkout** (opens in the browser; on mobile it returns to the app afterwards).
+4. You are returned to the dashboard with a confirmation:
+   - success: `Payment received - a competition slot has been added to your club.`
+   - cancelled: `Checkout cancelled - no charge was made.`
+5. Your slot credit count updates, and `+ New Competition` becomes available.
+
+You can buy several slots in advance if you plan to run multiple competitions.
+
+### If creation is blocked
+
+If you try to create a competition without an available free competition or credit, you see:
+
+`Your club's free competition has been used. Purchase a competition slot to create another.`
+
+Buy a slot and try again.
+
+### Important notes
+
+- The slot fee is a **platform/software fee** paid to Last Man Standing. It is separate from any **player entry fees** you collect (see `Payment mode` in section 18).
+- Deleting a competition does **not** give the free competition or a credit back.
+- Cancelling checkout never charges you.
+- Slot purchases work the same on web and mobile and share the same club balance.
+
+## 18. Create a Competition
 
 ![Create competition](assets/screenshots/guide-admin-create-competition.svg)
 
 1. Open `Club Admin`.
-2. Select `+ New Competition`.
-3. Fill in required fields.
-4. Choose fixture settings and rules.
-5. Choose payment mode and visibility.
-6. Save.
+2. Check your slot status (see section 17). The first competition is free; later ones need a credit.
+3. Select `+ New Competition`.
+4. Fill in required fields.
+5. Choose fixture settings and rules.
+6. Choose payment mode and visibility.
+7. Save. If this is not your first competition, one slot credit is used.
 
 > **Pricing:** Your club's **first competition is free**. Creating additional
-> competitions requires buying a one-time **competition slot** via Stripe
+> competitions requires a one-time **competition slot** bought through Stripe
 > Checkout. When required, the dashboard shows a `Buy competition slot` button
 > and your current slot credits. This creation fee is separate from any player
-> entry fees you may collect. See the Competition Management Guide, section 3.0,
-> for full details.
+> entry fees you may collect. See section 17 above, and the Competition
+> Management Guide, section 3.0, for full details.
 
 Required fields normally include:
 
@@ -316,7 +368,7 @@ Key competition settings:
 | Postponed consumes team | Whether postponed picks still count as team usage. |
 | Lifeline | Optional one-time draw protection per entry. |
 
-## 18. Competition Modes
+## 19. Competition Modes
 
 ### Public vs Private
 
@@ -402,25 +454,16 @@ Important: payment actions should operate per entry, not per user. If one user h
 
 ## 22. Manual Payment Workflow
 
-For manual payment competitions:
+For manual payment competitions (player entry fees, not competition slots):
 
-1. User joins the competition.
-2. Entry appears as awaiting payment.
+1. User joins the competition, or enters a private invite code.
+2. The entry appears as awaiting payment.
 3. Admin receives payment outside the app.
-4. Admin marks that entry as paid.
+4. Admin marks that entry as paid, and the competition screen shows the paid/confirmed state.
 5. If the mark was wrong, admin can revert it.
 
 If manual payment policy is strict, unpaid entries may be blocked from picking.
 
-## 22. Manual Payment Workflow
-
-For manual payment competitions:
-
-1. User joins or enters a private invite code.
-2. Entry appears as awaiting payment.
-3. Admin receives payment outside the app.
-4. Admin marks that entry as paid.
-5. The competition screen shows paid/confirmed state.
 
 ## 23. Send Announcements
 
@@ -510,6 +553,14 @@ Avoid sharing exports publicly if they contain personal data.
 
 ## 28. Common Club Admin Problems
 
+### I cannot create a new competition
+
+Your club's free competition has probably been used and you have no slot credits left. Open `Club Admin`, select `Buy competition slot`, complete Stripe Checkout, then create the competition. See section 17.
+
+### I paid for a slot but the credit is not showing
+
+Return to `Club Admin` and refresh. Credits are added when Stripe confirms the payment, which is usually immediate. If checkout was cancelled, no charge was made and no credit is added.
+
 ### Fixtures are not visible after creating a competition
 
 Open the competition page again or use fixture sync/retry if available. The backend attempts to populate missing fixtures when the fixtures endpoint is opened.
@@ -552,6 +603,7 @@ That user likely has multiple entries. Entry numbers are shown when there is mor
 
 1. Create club or open Club Admin.
 2. Set branding.
+3. Check competition slots (first is free, extras need a credit).
 4. Create competition.
 5. Share public link or private invite code.
 6. Manage participants and payments.
@@ -574,3 +626,6 @@ That user likely has multiple entries. Entry numbers are shown when there is mor
 | Paused gameweek | Voided if it locks/processes during pause. |
 | Manual payment strict mode | Unpaid entries may be blocked from picking. |
 | Private competition | Requires invite code. |
+| First competition | Free, once per club, for life. |
+| Additional competitions | Need one purchased competition slot credit each. |
+| Slot credits | Never expire, belong to the club, not refunded by deleting a competition. |
