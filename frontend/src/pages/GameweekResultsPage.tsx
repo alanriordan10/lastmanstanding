@@ -591,6 +591,9 @@ export default function GameweekResultsPage() {
                 const fixture = gameweekFixtures.find(
                   (f) => f.homeTeamShortName === teamName || f.awayTeamShortName === teamName
                 );
+                const teamLogoUrl = fixture
+                  ? (fixture.homeTeamShortName === teamName ? fixture.homeTeamLogoUrl : fixture.awayTeamLogoUrl)
+                  : null;
                 const result = fixture?.status === 'FINISHED'
                   ? `${fixture.scoreHome}-${fixture.scoreAway}`
                   : fixture?.status === 'POSTPONED'
@@ -599,9 +602,16 @@ export default function GameweekResultsPage() {
                 
                 return (
                   <div key={teamName} className="bg-surface-700/50 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <h3 className="font-semibold text-gray-200">{teamName}</h3>
+                    <div className="flex items-center justify-between mb-3 gap-3">
+                      <div className="min-w-0">
+                        <h3 className="font-semibold text-gray-200 inline-flex items-center gap-2 min-w-0">
+                          {teamLogoUrl ? (
+                            <img src={teamLogoUrl} alt={`${teamName} crest`} className="h-4 w-4 shrink-0 rounded-full border border-white/20 object-cover" loading="lazy" />
+                          ) : (
+                            <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-white/20 bg-slate-700 text-[8px] font-black text-slate-300">{teamName.slice(0, 1)}</span>
+                          )}
+                          <span className="truncate">{teamName}</span>
+                        </h3>
                         {fixture && (
                           <p className="text-xs text-gray-400 mt-1">
                             {fixture.homeTeamShortName} vs {fixture.awayTeamShortName} • {result}
@@ -614,7 +624,7 @@ export default function GameweekResultsPage() {
                       {picks.map((sel) => (
                         <span
                           key={`${sel.participantId ?? sel.userId}-${sel.teamId}`}
-                          className={`text-xs px-2.5 py-1 rounded font-medium ${
+                          className={`inline-flex max-w-full items-center gap-1.5 text-xs px-2.5 py-1 rounded font-medium ${
                             sel.outcome === 'ADVANCE' || sel.outcome === 'POSTPONED_ADVANCE'
                               ? 'bg-green-600/20 text-green-400'
                               : sel.outcome === 'ELIMINATED'
@@ -622,7 +632,12 @@ export default function GameweekResultsPage() {
                               : 'bg-yellow-600/20 text-yellow-400'
                           }`}
                         >
-                          {displayName(sel)}
+                          {teamLogoUrl ? (
+                            <img src={teamLogoUrl} alt={`${teamName} crest`} className="h-3.5 w-3.5 shrink-0 rounded-full border border-white/20 object-cover" loading="lazy" />
+                          ) : (
+                            <span className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border border-white/20 bg-slate-700 text-[7px] font-black text-slate-300">{teamName.slice(0, 1)}</span>
+                          )}
+                          <span className="truncate">{displayName(sel)}</span>
                           {sel.source === 'AUTO' && ' (auto)'}
                           {sel.useLifeline && ' (lifeline)'}
                           {comp.lifelineEnabled && (sel.lifelineUsed ? ` [used${sel.lifelineUsedWeek ? ` GW${sel.lifelineUsedWeek}` : ''}]` : ' [available]')}

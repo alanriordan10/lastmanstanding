@@ -2,7 +2,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect, useMemo } from 'react';
 import api from '../api';
-import type { Competition, GameweekSelection, GameweekSelectionsData, GameweekResponse } from '../types';
+import type { Competition, Fixture, GameweekSelection, GameweekSelectionsData, GameweekResponse } from '../types';
 import clsx from 'clsx';
 
 export default function GameweekSelectionsPage() {
@@ -44,6 +44,14 @@ export default function GameweekSelectionsPage() {
     },
   });
 
+  const { data: fixtures } = useQuery<Fixture[]>({
+    queryKey: ['fixtures', compId, gameweekId],
+    queryFn: () => api.get(`/competitions/${compId}/gameweeks/${gameweekId}/fixtures`).then((r) =>
+      Array.isArray(r.data) ? r.data : []
+    ),
+    staleTime: comp?.status === 'COMPLETED' ? Infinity : 30_000,
+  });
+
   const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -58,6 +66,14 @@ export default function GameweekSelectionsPage() {
 
   const selections = selectionsData?.selections || [];
   const byeGranted = selectionsData?.byeGranted || false;
+  const teamLogoById = useMemo(() => {
+    const map = new Map<number, string | null | undefined>();
+    (fixtures ?? []).forEach((fixture) => {
+      map.set(fixture.homeTeamId, fixture.homeTeamLogoUrl);
+      map.set(fixture.awayTeamId, fixture.awayTeamLogoUrl);
+    });
+    return map;
+  }, [fixtures]);
   const userEntryCounts = useMemo(() => {
     const entriesByUser = new Map<number, Set<string>>();
     selections.forEach((s) => {
@@ -281,7 +297,14 @@ export default function GameweekSelectionsPage() {
                       <div key={`${s.participantId ?? s.userId}-${s.teamId}`} className="flex items-center justify-between gap-3 px-4 py-3">
                         <div className="min-w-0">
                           <p className="font-medium text-sm truncate">{displayName(s)}</p>
-                          <p className="text-xs text-gray-400 mt-0.5">{s.teamName}</p>
+                          <p className="text-xs text-gray-400 mt-0.5 inline-flex min-w-0 items-center gap-1.5">
+                            {teamLogoById.get(s.teamId) ? (
+                              <img src={teamLogoById.get(s.teamId)! || ''} alt={`${s.teamName} crest`} className="h-3.5 w-3.5 shrink-0 rounded-full border border-white/20 object-cover" loading="lazy" />
+                            ) : (
+                              <span className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border border-white/20 bg-slate-700 text-[7px] font-black text-slate-300">{s.teamShortName.slice(0, 1)}</span>
+                            )}
+                            <span className="truncate">{s.teamName}</span>
+                          </p>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           {s.source === 'AUTO' && <span className="badge-yellow text-xs">Auto</span>}
@@ -308,8 +331,15 @@ export default function GameweekSelectionsPage() {
                           <tr key={`${s.participantId ?? s.userId}-${s.teamId}`} className="border-b border-gray-700/50 hover:bg-surface-700/30">
                             <td className="py-3 px-4 font-medium">{displayName(s)}</td>
                             <td className="py-3 px-4">
-                              <span className="font-semibold">{s.teamShortName}</span>
-                              <span className="text-gray-400 ml-2 text-xs">{s.teamName}</span>
+                              <span className="inline-flex min-w-0 max-w-full items-center gap-2">
+                                {teamLogoById.get(s.teamId) ? (
+                                  <img src={teamLogoById.get(s.teamId)! || ''} alt={`${s.teamName} crest`} className="h-4 w-4 shrink-0 rounded-full border border-white/20 object-cover" loading="lazy" />
+                                ) : (
+                                  <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-white/20 bg-slate-700 text-[8px] font-black text-slate-300">{s.teamShortName.slice(0, 1)}</span>
+                                )}
+                                <span className="font-semibold truncate">{s.teamShortName}</span>
+                                <span className="text-gray-400 text-xs truncate">{s.teamName}</span>
+                              </span>
                             </td>
                             <td className="py-3 px-4">
                               <div className="flex items-center gap-2">
@@ -359,7 +389,14 @@ export default function GameweekSelectionsPage() {
                     .map(([key, picks]) => (
                       <div key={key} className="bg-surface-700/50 rounded-lg p-4">
                         <div className="flex items-center justify-between mb-3">
-                          <h3 className="font-semibold text-gray-200">{picks[0].teamShortName}</h3>
+                          <h3 className="font-semibold text-gray-200 inline-flex items-center gap-2 min-w-0">
+                            {teamLogoById.get(picks[0].teamId) ? (
+                              <img src={teamLogoById.get(picks[0].teamId)! || ''} alt={`${picks[0].teamName} crest`} className="h-4 w-4 shrink-0 rounded-full border border-white/20 object-cover" loading="lazy" />
+                            ) : (
+                              <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-white/20 bg-slate-700 text-[8px] font-black text-slate-300">{picks[0].teamShortName.slice(0, 1)}</span>
+                            )}
+                            <span className="truncate">{picks[0].teamShortName}</span>
+                          </h3>
                           <span className="text-sm text-gray-400">{picks.length} pick{picks.length !== 1 ? 's' : ''}</span>
                         </div>
                         <div className="flex flex-wrap gap-2">
