@@ -714,7 +714,14 @@ export default function GameweekResultsPage() {
                 <div key={f.id} className="bg-surface-700/50 rounded-lg px-4 py-3 text-sm">
                   <div className="sm:hidden space-y-2">
                     <div className="flex items-center justify-between gap-3">
-                      <span className="font-medium text-gray-200 min-w-0 truncate">{f.homeTeamShortName}</span>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        {f.homeTeamLogoUrl ? (
+                          <img src={f.homeTeamLogoUrl} alt={`${f.homeTeamName} crest`} className="h-4 w-4 shrink-0 rounded-full border border-white/20 object-cover" loading="lazy" />
+                        ) : (
+                          <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-white/20 bg-slate-700 text-[8px] font-black text-slate-300">{f.homeTeamShortName.slice(0, 1)}</span>
+                        )}
+                        <span className="font-medium text-gray-200 min-w-0 truncate">{f.homeTeamShortName}</span>
+                      </div>
                       <div className="flex items-center justify-center min-w-[60px]">
                         {f.status === 'FINISHED' ? (
                           <span className="font-bold text-white">{f.scoreHome} - {f.scoreAway}</span>
@@ -724,7 +731,14 @@ export default function GameweekResultsPage() {
                           <span className="text-gray-400 text-xs">{format(parseDate(f.kickoffAt), 'HH:mm')}</span>
                         )}
                       </div>
-                      <span className="font-medium text-gray-200 min-w-0 truncate">{f.awayTeamShortName}</span>
+                      <div className="flex items-center justify-end gap-1.5 min-w-0">
+                        <span className="font-medium text-gray-200 min-w-0 truncate">{f.awayTeamShortName}</span>
+                        {f.awayTeamLogoUrl ? (
+                          <img src={f.awayTeamLogoUrl} alt={`${f.awayTeamName} crest`} className="h-4 w-4 shrink-0 rounded-full border border-white/20 object-cover" loading="lazy" />
+                        ) : (
+                          <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-white/20 bg-slate-700 text-[8px] font-black text-slate-300">{f.awayTeamShortName.slice(0, 1)}</span>
+                        )}
+                      </div>
                     </div>
                     <div className="text-center text-xs text-gray-400">
                       {f.homeTeamName} vs {f.awayTeamName}
@@ -732,7 +746,14 @@ export default function GameweekResultsPage() {
                   </div>
 
                   <div className="hidden sm:grid grid-cols-[minmax(0,1fr)_72px_minmax(0,1fr)] items-center gap-3">
-                    <span className="text-gray-200 text-right min-w-0 truncate">{f.homeTeamName}</span>
+                    <span className="text-gray-200 text-right min-w-0 truncate inline-flex items-center justify-end gap-2">
+                      <span className="truncate">{f.homeTeamName}</span>
+                      {f.homeTeamLogoUrl ? (
+                        <img src={f.homeTeamLogoUrl} alt={`${f.homeTeamName} crest`} className="h-4 w-4 shrink-0 rounded-full border border-white/20 object-cover" loading="lazy" />
+                      ) : (
+                        <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-white/20 bg-slate-700 text-[8px] font-black text-slate-300">{f.homeTeamShortName.slice(0, 1)}</span>
+                      )}
+                    </span>
                     <div className="flex items-center justify-center min-w-[72px]">
                       {f.status === 'FINISHED' ? (
                         <span className="font-bold text-white">{f.scoreHome} - {f.scoreAway}</span>
@@ -742,7 +763,14 @@ export default function GameweekResultsPage() {
                         <span className="text-gray-400 text-xs">{format(parseDate(f.kickoffAt), 'HH:mm')}</span>
                       )}
                     </div>
-                    <span className="text-gray-200 min-w-0 truncate">{f.awayTeamName}</span>
+                    <span className="text-gray-200 min-w-0 truncate inline-flex items-center gap-2">
+                      {f.awayTeamLogoUrl ? (
+                        <img src={f.awayTeamLogoUrl} alt={`${f.awayTeamName} crest`} className="h-4 w-4 shrink-0 rounded-full border border-white/20 object-cover" loading="lazy" />
+                      ) : (
+                        <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-white/20 bg-slate-700 text-[8px] font-black text-slate-300">{f.awayTeamShortName.slice(0, 1)}</span>
+                      )}
+                      <span className="truncate">{f.awayTeamName}</span>
+                    </span>
                   </div>
                 </div>
               ))}

@@ -126,9 +126,11 @@ export interface Fixture {
   homeTeamId: number;
   homeTeamName: string;
   homeTeamShortName: string;
+  homeTeamLogoUrl?: string | null;
   awayTeamId: number;
   awayTeamName: string;
   awayTeamShortName: string;
+  awayTeamLogoUrl?: string | null;
   kickoffAt: string;
   status: 'SCHEDULED' | 'IN_PLAY' | 'FINISHED' | 'POSTPONED' | 'CANCELLED';
   scoreHome: number | null;
