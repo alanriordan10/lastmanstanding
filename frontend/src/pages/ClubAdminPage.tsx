@@ -1133,11 +1133,6 @@ export default function ClubAdminPage() {
               </div>
             )}
             <div className="sm:col-span-2">
-              <label className="mb-1 block text-sm font-medium text-gray-300">Description</label>
-              <input value={description} onChange={(e) => setDescription(e.target.value)}
-                className="input-field" placeholder="Optional description" />
-            </div>
-            <div className="sm:col-span-2">
               <label className="flex items-center gap-3 cursor-pointer">
                 <input type="checkbox" checked={postponedConsumesTeam}
                   onChange={(e) => setPostponedConsumesTeam(e.target.checked)}
@@ -1360,16 +1355,6 @@ export default function ClubAdminPage() {
                             </button>
                           )}
                           <button
-                            onClick={() => {
-                              setAnnouncingComp(comp);
-                              setAnnouncementTitle('');
-                              setAnnouncementMessage('');
-                            }}
-                            className="text-xs px-3 py-1.5 rounded-lg border border-amber-400/20 bg-amber-500/10 text-amber-200 transition hover:bg-amber-500/20"
-                          >
-                            Announce
-                          </button>
-                          <button
                             onClick={() => setDeletingComp(comp)}
                             disabled={deleteMutation.isPending}
                             className="text-xs px-3 py-1.5 rounded-lg bg-red-600/20 hover:bg-red-600/40 text-red-400 transition"
@@ -1434,19 +1419,31 @@ export default function ClubAdminPage() {
       />
 
       {pausingComp && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-3 backdrop-blur-sm sm:items-center">
-          <div className="w-full max-w-lg rounded-3xl border border-yellow-400/20 bg-surface-900 p-5 shadow-2xl">
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-yellow-300">Pause competition</p>
-            <h2 className="mt-1 text-xl font-black text-white">Pause {pausingComp.name}?</h2>
-            <p className="mt-2 text-sm leading-5 text-gray-400">Joining, payments, picks, reminders and automatic processing will stop. Fixture kickoff and gameweek lock times remain unchanged.</p>
-            <label className="mt-4 block">
-              <span className="text-xs font-semibold text-gray-300">Reason shown to participants</span>
-              <textarea value={pauseReason} onChange={(event) => setPauseReason(event.target.value)} maxLength={500} rows={4} placeholder="For example: Awaiting a corrected fixture result" className="input mt-1 w-full resize-none" />
-              <span className="mt-1 block text-right text-[11px] text-gray-500">{pauseReason.length}/500</span>
-            </label>
-            <div className="mt-4 flex gap-2">
-              <button type="button" onClick={() => setPausingComp(null)} className="btn-secondary flex-1">Cancel</button>
-              <button type="button" onClick={() => pauseMutation.mutate()} disabled={pauseMutation.isPending || !pauseReason.trim()} className="flex-1 rounded-xl border border-yellow-400/30 bg-yellow-500/15 px-4 py-2 text-sm font-bold text-yellow-100 disabled:opacity-40">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 p-4 backdrop-blur-sm sm:items-center">
+          <div className="w-full max-w-lg overflow-hidden rounded-[1.75rem] border border-white/10 bg-[linear-gradient(160deg,rgba(15,23,42,0.97),rgba(8,15,30,0.98))] shadow-[0_32px_80px_rgba(2,6,23,0.55)]">
+            <div className="border-b border-white/8 px-6 py-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-yellow-400/30 bg-yellow-500/15 text-xl">⏸</div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-yellow-400">Pause competition</p>
+                    <h2 className="text-lg font-black leading-tight text-white">Pause {pausingComp.name}?</h2>
+                  </div>
+                </div>
+                <button type="button" onClick={() => setPausingComp(null)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/12 bg-white/[0.06] text-gray-400 transition hover:bg-white/[0.12] hover:text-white" aria-label="Close">✕</button>
+              </div>
+              <p className="mt-2.5 text-xs text-gray-400">Joining, payments, picks, reminders and automatic processing will stop. Fixture kickoff and gameweek lock times remain unchanged.</p>
+            </div>
+            <div className="px-6 py-5">
+              <label className="block">
+                <span className="text-xs font-semibold text-gray-300">Reason shown to participants</span>
+                <textarea value={pauseReason} onChange={(event) => setPauseReason(event.target.value)} maxLength={500} rows={4} placeholder="For example: Awaiting a corrected fixture result" className="input-field mt-1.5 w-full resize-none" />
+                <span className="mt-1 block text-right text-[11px] text-gray-500">{pauseReason.length}/500</span>
+              </label>
+            </div>
+            <div className="flex gap-2.5 border-t border-white/8 px-6 py-4">
+              <button type="button" onClick={() => setPausingComp(null)} className="flex-1 rounded-xl border border-white/12 bg-white/[0.05] py-2.5 text-sm font-semibold text-gray-300 transition hover:bg-white/[0.1] hover:text-white">Cancel</button>
+              <button type="button" onClick={() => pauseMutation.mutate()} disabled={pauseMutation.isPending || !pauseReason.trim()} className="flex-1 rounded-xl border border-yellow-400/30 bg-yellow-500/15 py-2.5 text-sm font-black text-yellow-100 transition hover:bg-yellow-500/25 disabled:opacity-40 disabled:cursor-not-allowed">
                 {pauseMutation.isPending ? 'Pausing…' : 'Pause competition'}
               </button>
             </div>
@@ -1455,33 +1452,53 @@ export default function ClubAdminPage() {
       )}
 
       {announcingComp && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-3 backdrop-blur-sm sm:items-center">
-          <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-surface-900 p-5 shadow-2xl">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-amber-300">Competition announcement</p>
-                <h2 className="mt-1 text-xl font-black text-white">Message {announcingComp.name}</h2>
-                <p className="mt-1 text-sm text-gray-400">Saved in participants’ inboxes and sent by push when enabled.</p>
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 p-4 backdrop-blur-sm sm:items-center">
+          <div className="w-full max-w-lg overflow-hidden rounded-[1.75rem] border border-white/10 bg-[linear-gradient(160deg,rgba(15,23,42,0.97),rgba(8,15,30,0.98))] shadow-[0_32px_80px_rgba(2,6,23,0.55)]">
+            <div className="border-b border-white/8 px-6 py-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-400/30 bg-amber-500/15 text-xl">📢</div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-400">Announcement</p>
+                    <h2 className="text-lg font-black leading-tight text-white">{announcingComp.name}</h2>
+                  </div>
+                </div>
+                <button type="button" onClick={() => setAnnouncingComp(null)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/12 bg-white/[0.06] text-gray-400 transition hover:bg-white/[0.12] hover:text-white" aria-label="Close">✕</button>
               </div>
-              <button type="button" onClick={() => setAnnouncingComp(null)} className="rounded-full border border-white/10 px-3 py-1.5 text-gray-300">×</button>
+              <p className="mt-2.5 flex items-center gap-1.5 text-xs text-gray-400">
+                <span className="text-emerald-400">✓</span>
+                Saved in participants' inboxes and delivered by push notification when enabled.
+              </p>
             </div>
-            <div className="mt-5 space-y-4">
-              <label className="block">
-                <span className="text-xs font-semibold text-gray-300">Title</span>
-                <input value={announcementTitle} onChange={(event) => setAnnouncementTitle(event.target.value)} maxLength={120} placeholder="Fixture update" className="input mt-1 w-full" />
-                <span className="mt-1 block text-right text-[11px] text-gray-500">{announcementTitle.length}/120</span>
-              </label>
-              <label className="block">
-                <span className="text-xs font-semibold text-gray-300">Message</span>
-                <textarea value={announcementMessage} onChange={(event) => setAnnouncementMessage(event.target.value)} maxLength={2000} rows={5} placeholder="Tell participants what they need to know…" className="input mt-1 w-full resize-none" />
-                <span className="mt-1 block text-right text-[11px] text-gray-500">{announcementMessage.length}/2000</span>
-              </label>
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setAnnouncingComp(null)} className="btn-secondary flex-1">Cancel</button>
-                <button type="button" onClick={() => announcementMutation.mutate()} disabled={announcementMutation.isPending || !announcementTitle.trim() || !announcementMessage.trim()} className="btn-primary flex-1 disabled:opacity-40">
-                  {announcementMutation.isPending ? 'Sending…' : 'Send announcement'}
-                </button>
+            <div className="space-y-4 px-6 py-5">
+              <div>
+                <div className="mb-1.5 flex items-center justify-between">
+                  <label className="text-xs font-semibold text-gray-300">Title</label>
+                  <span className="text-[11px] text-gray-500">{announcementTitle.length}/120</span>
+                </div>
+                <input value={announcementTitle} onChange={(event) => setAnnouncementTitle(event.target.value)} maxLength={120} placeholder="e.g. Fixture update, Deadline reminder…" className="input-field w-full" />
               </div>
+              <div>
+                <div className="mb-1.5 flex items-center justify-between">
+                  <label className="text-xs font-semibold text-gray-300">Message</label>
+                  <span className="text-[11px] text-gray-500">{announcementMessage.length}/2000</span>
+                </div>
+                <textarea value={announcementMessage} onChange={(event) => setAnnouncementMessage(event.target.value)} maxLength={2000} rows={5} placeholder="Tell participants what they need to know…" className="input-field w-full resize-none" />
+              </div>
+            </div>
+            <div className="flex gap-2.5 border-t border-white/8 px-6 py-4">
+              <button type="button" onClick={() => setAnnouncingComp(null)} className="flex-1 rounded-xl border border-white/12 bg-white/[0.05] py-2.5 text-sm font-semibold text-gray-300 transition hover:bg-white/[0.1] hover:text-white">Cancel</button>
+              <button type="button" onClick={() => announcementMutation.mutate()} disabled={announcementMutation.isPending || !announcementTitle.trim() || !announcementMessage.trim()} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 py-2.5 text-sm font-black text-white shadow-[0_4px_18px_rgba(245,158,11,0.3)] transition hover:from-amber-400 hover:to-orange-400 disabled:opacity-40 disabled:cursor-not-allowed">
+                {announcementMutation.isPending ? (
+                  <>
+                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeOpacity="0.3" strokeWidth="3"/>
+                      <path d="M12 3a9 9 0 0 1 9 9" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+                    </svg>
+                    Sending…
+                  </>
+                ) : <>📢 Send announcement</>}
+              </button>
             </div>
           </div>
         </div>
@@ -1831,7 +1848,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
       </div>
 
       {/* Header row */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
         <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
           {activeTab === 'PAYMENTS' ? 'Payments' : 'Participants'} ({participants?.length ?? 0})
           {isManual && unpaidCount > 0 && (
@@ -2356,3 +2373,6 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
     </div>
   );
 }
+
+
+
