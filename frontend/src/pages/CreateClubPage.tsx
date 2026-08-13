@@ -42,6 +42,32 @@ export default function CreateClubPage() {
     return <Navigate to={`/login?returnTo=${encodeURIComponent('/create-club')}`} replace />;
   }
 
+  if (user.role === 'CLUB_ADMIN') {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-6">
+        <div className="w-full max-w-md rounded-[1.75rem] border border-amber-400/30 bg-[linear-gradient(145deg,rgba(120,53,15,0.22),rgba(8,15,30,0.9))] p-8 text-center shadow-[0_24px_60px_rgba(2,6,23,0.44)]">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/15 border border-amber-400/30 text-3xl">🏠</div>
+          <h1 className="text-2xl font-black tracking-tight text-white mb-2">You already manage a club</h1>
+          <p className="text-sm text-gray-300 leading-6 mb-6">
+            Your account is already set up as a Club Admin. You can only manage one club per account. Head to your Club Admin area to manage competitions, members, and payments.
+          </p>
+          <Link
+            to="/club-admin"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-400/35 bg-amber-500/15 px-4 py-3 text-sm font-black text-amber-100 transition hover:bg-amber-500/25 hover:text-white"
+          >
+            Go to Club Admin →
+          </Link>
+          <Link
+            to="/competitions"
+            className="mt-3 inline-flex w-full items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-semibold text-gray-400 transition hover:text-white"
+          >
+            Back to Competitions
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!clubName.trim()) {
