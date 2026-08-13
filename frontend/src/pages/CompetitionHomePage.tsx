@@ -10,6 +10,7 @@ import clsx from 'clsx';
 import { useCountdown } from '../hooks/useCountdown';
 import { useAuth } from '../context/AuthContext';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { MetricCard, StatusPill } from '../components/ui-primitives';
 
 interface PickStat {
@@ -196,6 +197,7 @@ export default function CompetitionHomePage() {
   const [selectedEntryId, setSelectedEntryId] = useState<number | null>(null);
   const [lifelineForGwId, setLifelineForGwId] = useState<number | null>(null);
   const [gameweekDisplayMode, setGameweekDisplayMode] = useState<GameweekDisplayMode>('cards');
+  const [resetOpenConfirmOpen, setResetOpenConfirmOpen] = useState(false);
 
   // Close share dropdown on outside click
   useEffect(() => {
@@ -357,6 +359,19 @@ export default function CompetitionHomePage() {
 
   const { map: pickStatsByGwId, isLoading: pickStatsLoading } = usePickStatsMap(compId, lockedGwIds);
   const resultsProcessing = hasPendingResultProcessing(fixtures);
+  const openSelectionIds = useMemo(() => {
+    if (!myStatus || !fixtures?.length) return [];
+    const fixtureByGameweekId = new Map(fixtures.map((fixture) => [fixture.gameweekId, fixture]));
+    return myStatus.picks
+      .filter((pick) => {
+        const gwFixture = fixtureByGameweekId.get(pick.gameweekId);
+        if (!gwFixture) return false;
+        if (gwFixture.gameweekStatus !== 'UPCOMING') return false;
+        return parseDate(gwFixture.gameweekLockAt).getTime() > Date.now();
+      })
+      .map((pick) => pick.pickId);
+  }, [fixtures, myStatus]);
+  const openSelectionCount = openSelectionIds.length;
 
   const joinMutation = useMutation({
     mutationFn: () => api.post(`/competitions/${compId}/join`),
@@ -459,6 +474,35 @@ export default function CompetitionHomePage() {
         queryClient.setQueryData(['myStatus', compId, selectedEntryId], context.previous);
       }
       toast.error(err.response?.data?.message || 'Failed to save pick');
+    },
+  });
+
+  const resetOpenSelectionsMutation = useMutation({
+    mutationFn: (_count: number) => api.delete(`/competitions/${compId}/picks/open`),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['myStatus', compId, selectedEntryId] });
+      const previous = queryClient.getQueryData<MyStatus>(['myStatus', compId, selectedEntryId]);
+      if (previous && openSelectionIds.length > 0) {
+        const remainingPicks = previous.picks.filter((pick) => !openSelectionIds.includes(pick.pickId));
+        queryClient.setQueryData<MyStatus>(['myStatus', compId, selectedEntryId], {
+          ...previous,
+          picks: remainingPicks,
+          usedTeamIds: Array.from(new Set(remainingPicks.map((pick) => pick.teamId))),
+        });
+      }
+      return { previous };
+    },
+    onSuccess: (_data, count: number) => {
+      toast.success(count === 1 ? 'Reset 1 open selection' : `Reset ${count} open selections`);
+      queryClient.invalidateQueries({ queryKey: ['myStatus', compId, selectedEntryId] });
+      queryClient.invalidateQueries({ queryKey: ['competitions', 'my', 'details'] });
+      queryClient.invalidateQueries({ queryKey: ['competitions', 'upcoming'] });
+    },
+    onError: (err: any, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['myStatus', compId, selectedEntryId], context.previous);
+      }
+      toast.error(err.response?.data?.message || 'Could not reset open selections');
     },
   });
 
@@ -2364,22 +2408,40 @@ export default function CompetitionHomePage() {
                   <div className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-200">Preference</div>
                   <div className="mt-1 text-sm font-black text-white">Gameweek display</div>
                 </div>
-                <div className="inline-flex rounded-2xl border border-slate-700 bg-slate-950/80 p-1">
-                  {(['cards', 'route'] as const).map((mode) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      onClick={() => updateGameweekDisplayMode(mode)}
-                      className={clsx(
-                        'rounded-xl px-4 py-2 text-xs font-black transition',
-                        gameweekDisplayMode === mode
-                          ? 'border border-brand-300/50 bg-brand-500/25 text-brand-100 shadow-sm shadow-brand-950/30'
-                          : 'text-slate-400 hover:text-slate-200'
-                      )}
-                    >
-                      {mode === 'cards' ? 'Cards' : 'My Route'}
-                    </button>
-                  ))}
+                <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:min-w-[18rem]">
+                  <div className="grid w-full grid-cols-2 rounded-2xl border border-slate-700 bg-slate-950/80 p-1">
+                    {(['cards', 'route'] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => updateGameweekDisplayMode(mode)}
+                        className={clsx(
+                          'flex w-full items-center justify-center rounded-xl px-3 py-2 text-center text-xs font-black transition sm:px-4',
+                          gameweekDisplayMode === mode
+                            ? 'border border-brand-300/50 bg-brand-500/25 text-brand-100 shadow-sm shadow-brand-950/30'
+                            : 'text-slate-400 hover:text-slate-200'
+                        )}
+                      >
+                        {mode === 'cards' ? 'Cards' : 'My Route'}
+                      </button>
+                    ))}
+                  </div>
+                  {isParticipant && openSelectionCount > 0 && (
+                    <div className="flex w-full flex-col items-stretch gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setResetOpenConfirmOpen(true)}
+                        disabled={resetOpenSelectionsMutation.isPending}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-white/8 bg-white/[0.03] px-3 py-2 text-xs font-semibold text-slate-300 transition hover:border-red-400/20 hover:bg-red-500/[0.06] hover:text-red-100 disabled:opacity-50"
+                      >
+                        <span className="text-sm leading-none">↺</span>
+                        {resetOpenSelectionsMutation.isPending ? 'Resetting…' : 'Reset open picks'}
+                      </button>
+                      <p className="px-1 text-center text-[11px] leading-4 text-slate-500 sm:text-right">
+                        Clears open weeks across {myEntries.length > 1 ? `all ${myEntries.length} entries` : 'your entry'}.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
               {sortedWeeks.map((wn) => {
@@ -3007,6 +3069,24 @@ export default function CompetitionHomePage() {
         </aside>
       </div>
 
+      <ConfirmDialog
+        isOpen={resetOpenConfirmOpen}
+        onClose={() => {
+          if (!resetOpenSelectionsMutation.isPending) setResetOpenConfirmOpen(false);
+        }}
+        onConfirm={() => resetOpenSelectionsMutation.mutate(openSelectionCount)}
+        title={`Reset ${openSelectionCount} open pick${openSelectionCount === 1 ? '' : 's'}?`}
+        message="This clears only selections for gameweeks that are still open. Locked, in-progress, and completed weeks are left unchanged."
+        items={[
+          myEntries.length > 1 ? `Applies across all ${myEntries.length} entries in this competition.` : 'Applies to your entry in this competition.',
+          'You can re-pick any cleared open weeks straight away.',
+        ]}
+        confirmText="Reset open picks"
+        variant="danger"
+        icon="↺"
+        isPending={resetOpenSelectionsMutation.isPending}
+        irreversible={false}
+      />
     </div>
   );
 }
@@ -3375,6 +3455,7 @@ function TeamButton({
         isMyPick ? `${name} — your pick${isClickable ? ' (click to change)' : ''}` :
         name
       }
+
       className={clsx(
         'flex h-full flex-col justify-center gap-0.5 rounded-xl px-2 py-2.5 sm:rounded-lg sm:px-3 lg:px-4 sm:py-0.5 w-full min-w-0 overflow-hidden transition-all min-h-[74px] sm:min-h-[30px] lg:min-h-[32px]',
         align === 'right' ? 'items-center sm:items-end sm:text-right' : 'items-center sm:items-start sm:text-left',

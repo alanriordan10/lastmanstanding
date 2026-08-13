@@ -35,6 +35,16 @@ public class PickService {
         this.teamRepository = teamRepository;
     }
 
+    private CompetitionParticipant resolveParticipant(Long competitionId, Long userId, Long entryId) {
+        if (entryId != null) {
+            return participantRepository.findByIdAndCompetitionIdAndUserId(entryId, competitionId, userId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Entry not found in this competition"));
+        }
+        return participantRepository.findByCompetitionIdAndUserIdOrderByEntryNumberAsc(competitionId, userId).stream()
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Not a participant in this competition"));
+    }
+
     /**
      * Create or update a pick for the given competition/gameweek.
      * Validates lock time, team reuse, and participant status.
@@ -63,15 +73,7 @@ public class PickService {
         }
 
         // Check participant is ACTIVE
-        CompetitionParticipant cp;
-        if (entryId != null) {
-            cp = participantRepository.findByIdAndCompetitionIdAndUserId(entryId, competitionId, userId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Entry not found in this competition"));
-        } else {
-            cp = participantRepository.findByCompetitionIdAndUserIdOrderByEntryNumberAsc(competitionId, userId).stream()
-                    .findFirst()
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Not a participant in this competition"));
-        }
+        CompetitionParticipant cp = resolveParticipant(competitionId, userId, entryId);
 
         if (cp.getStatus() != ParticipantStatus.ACTIVE && cp.getStatus() != ParticipantStatus.WINNER) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
@@ -164,12 +166,41 @@ public class PickService {
      */
     public List<Pick> getPickHistory(Long competitionId, Long userId, Long entryId) {
         if (entryId != null) {
-            CompetitionParticipant cp = participantRepository
-                    .findByIdAndCompetitionIdAndUserId(entryId, competitionId, userId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Entry not found"));
+            CompetitionParticipant cp = resolveParticipant(competitionId, userId, entryId);
             return pickRepository.findByCompetitionIdAndParticipantId(competitionId, cp.getId());
         }
         return pickRepository.findByCompetitionIdAndUserId(competitionId, userId);
+    }
+
+    /**
+     * Remove all picks that are still open across all of the user's entries.
+     * Only UPCOMING gameweeks that have not reached lock time are eligible.
+     */
+    @Transactional
+    public int resetOpenPicks(Long competitionId, Long userId) {
+        List<CompetitionParticipant> participants = participantRepository.findByCompetitionIdAndUserIdOrderByEntryNumberAsc(competitionId, userId);
+        if (participants.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not a participant in this competition");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+
+        List<Long> pickIdsToDelete = participants.stream()
+                .flatMap(cp -> pickRepository.findByCompetitionIdAndParticipantId(competitionId, cp.getId()).stream())
+                .filter(p -> p.getGameweek().getStatus() == GameweekStatus.UPCOMING)
+                .filter(p -> !p.getGameweek().isVoided())
+                .filter(p -> now.isBefore(p.getGameweek().getLockAt()))
+                .map(Pick::getId)
+                .distinct()
+                .toList();
+
+        if (pickIdsToDelete.isEmpty()) {
+            return 0;
+        }
+
+        pickResultRepository.deleteByPickIdIn(pickIdsToDelete);
+        pickRepository.deleteAllByIdInBatch(pickIdsToDelete);
+        return pickIdsToDelete.size();
     }
 
     /**

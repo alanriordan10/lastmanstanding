@@ -27,6 +27,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -597,6 +598,14 @@ public class CompetitionController {
         Pick pick = pickService.makePick(id, gwId, request.teamId(), userDetails.getId(), request.entryId(), request.useLifeline());
         competitionCacheService.evictCompetition(id);
         return ResponseEntity.ok(PickResponse.from(pick));
+    }
+
+    @DeleteMapping("/{id}/picks/open")
+    public ResponseEntity<Void> resetOpenPicks(@PathVariable Long id,
+                                               @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        pickService.resetOpenPicks(id, userDetails.getId());
+        competitionCacheService.evictCompetition(id);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}/gameweeks/{gwId}/my-pick")

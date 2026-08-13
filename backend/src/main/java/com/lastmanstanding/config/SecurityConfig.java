@@ -84,6 +84,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/competitions/*/join",
                                 "/competitions/*/gameweeks/*/pick",
+                                "/competitions/*/picks/open",
                                 "/competitions/*/picks/history",
                                 "/competitions/*/gameweeks/*/my-pick"
                         ).authenticated()
