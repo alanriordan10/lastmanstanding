@@ -1341,6 +1341,18 @@ export default function ClubAdminPage() {
                           {comp.status !== 'COMPLETED' && (
                             <button
                               onClick={() => {
+                                setAnnouncingComp(comp);
+                                setAnnouncementTitle('');
+                                setAnnouncementMessage('');
+                              }}
+                              className="text-xs px-3 py-1.5 rounded-lg border border-amber-400/25 bg-amber-500/15 text-amber-200 transition hover:bg-amber-500/25"
+                            >
+                              Announce
+                            </button>
+                          )}
+                          {comp.status !== 'COMPLETED' && (
+                            <button
+                              onClick={() => {
                                 if (comp.paused) {
                                   setResumingComp(comp);
                                 } else {

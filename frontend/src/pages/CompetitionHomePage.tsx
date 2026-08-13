@@ -2405,13 +2405,13 @@ export default function CompetitionHomePage() {
                   <div
                     id={`gw-card-${wn}`}
                     key={wn}
-                    className={clsx('card overflow-hidden', {
+                    className={clsx('card overflow-hidden transition-[border-color,box-shadow] duration-200', {
                       'border-brand-500/40': myPickForGw && !isCompleted,
                       'border-gray-700/30 opacity-75': isCompleted,
                     })}
                     style={myPickForGw && !isCompleted && comp.clubPrimaryColor ? {
                       borderColor: `${comp.clubPrimaryColor}66`,
-                      boxShadow: `0 0 0 1px ${comp.clubPrimaryColor}20`,
+                      boxShadow: `0 0 0 1px ${comp.clubPrimaryColor}1f`,
                     } : undefined}
                   >
                     {/* ── Gameweek header — clickable toggle ── */}
@@ -2620,7 +2620,7 @@ export default function CompetitionHomePage() {
 
                             return (
                               <div key={f.id} className="space-y-0">
-                                <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-2xl bg-surface-700/55 px-3 py-4 sm:rounded-lg sm:gap-3 sm:px-4 sm:py-2.5 lg:gap-4">
+                                <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-xl bg-surface-700/50 px-3 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] transition-colors duration-150 hover:bg-surface-700/56 sm:rounded-lg sm:gap-3 sm:px-4 sm:py-2.5 lg:gap-4">
                                   <TeamButton
                                     name={f.homeTeamName}
                                   logoUrl={f.homeTeamLogoUrl}
