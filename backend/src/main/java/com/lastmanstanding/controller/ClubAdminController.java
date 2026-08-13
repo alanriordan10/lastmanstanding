@@ -276,6 +276,20 @@ public class ClubAdminController {
         return ResponseEntity.ok(new SlotCheckoutResponse(url));
     }
 
+    /**
+     * Called by the client after returning from a successful Stripe Checkout.
+     * Verifies the session with Stripe and credits the competition slot immediately,
+     * acting as a reliable fallback to the async webhook.
+     */
+    @PostMapping("/my-club/billing/confirm-session")
+    public ResponseEntity<BillingService.BillingStatus> confirmSlotSession(
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            @RequestParam(name = "sessionId") String sessionId) {
+        Club club = resolveClub(userDetails);
+        BillingService.BillingStatus status = billingService.confirmSession(sessionId, club.getId());
+        return ResponseEntity.ok(status);
+    }
+
     @PutMapping("/competitions/{id}")
     public CompetitionResponse updateCompetition(@PathVariable Long id,
                                                  @Valid @RequestBody UpdateCompetitionRequest request,

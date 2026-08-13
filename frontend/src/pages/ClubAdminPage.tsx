@@ -149,15 +149,42 @@ export default function ClubAdminPage() {
     const params = new URLSearchParams(window.location.search);
     const billingResult = params.get('billing');
     if (!billingResult) return;
+
     if (billingResult === 'success') {
-      toast.success('Payment received — a competition slot has been added to your club.');
-      queryClient.invalidateQueries({ queryKey: ['club-admin', 'billing'] });
+      const sessionId = params.get('session_id');
+
+      // Clean up URL params before any async work
+      params.delete('billing');
+      params.delete('session_id');
+      const newSearch = params.toString();
+      window.history.replaceState({}, '', window.location.pathname + (newSearch ? `?${newSearch}` : ''));
+
+      if (sessionId) {
+        // Confirm with the backend synchronously — credits the slot without depending
+        // on the async Stripe webhook arriving first.
+        api.post(`/club-admin/my-club/billing/confirm-session`, null, { params: { sessionId } })
+          .then(() => {
+            toast.success('Payment received — a competition slot has been added to your club.');
+            queryClient.invalidateQueries({ queryKey: ['club-admin', 'billing'] });
+          })
+          .catch((err: any) => {
+            const msg: string = err?.response?.data?.message ?? err?.message ?? 'Unknown error';
+            // Still refresh billing — webhook may have already processed it
+            queryClient.invalidateQueries({ queryKey: ['club-admin', 'billing'] });
+            // Show real error so the issue is visible
+            toast.error(`Payment went through but slot confirmation failed: ${msg}. Please contact support if the slot count does not update.`);
+          });
+      } else {
+        // No session_id in return URL — rely on webhook to credit the slot
+        toast.success('Payment received — your slot will be credited shortly.');
+        queryClient.invalidateQueries({ queryKey: ['club-admin', 'billing'] });
+      }
     } else if (billingResult === 'cancel') {
       toast('Checkout cancelled — no charge was made.');
+      params.delete('billing');
+      const newSearch = params.toString();
+      window.history.replaceState({}, '', window.location.pathname + (newSearch ? `?${newSearch}` : ''));
     }
-    params.delete('billing');
-    const newSearch = params.toString();
-    window.history.replaceState({}, '', window.location.pathname + (newSearch ? `?${newSearch}` : ''));
   }, [queryClient]);
 
   const pauseMutation = useMutation({

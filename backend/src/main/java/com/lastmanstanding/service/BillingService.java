@@ -150,9 +150,10 @@ public class BillingService {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
                     "Competition-slot price is not configured (STRIPE_SLOT_PRICE_ID)");
         }
-        String successUrl = client == CheckoutClient.MOBILE && slotMobileSuccessUrl != null && !slotMobileSuccessUrl.isBlank()
-                ? slotMobileSuccessUrl
-                : slotSuccessUrl;
+        String successUrl = appendSessionIdTemplate(
+                client == CheckoutClient.MOBILE && slotMobileSuccessUrl != null && !slotMobileSuccessUrl.isBlank()
+                        ? slotMobileSuccessUrl
+                        : slotSuccessUrl);
         String cancelUrl = client == CheckoutClient.MOBILE && slotMobileCancelUrl != null && !slotMobileCancelUrl.isBlank()
                 ? slotMobileCancelUrl
                 : slotCancelUrl;
@@ -213,5 +214,74 @@ public class BillingService {
     private Club requireClub(Long clubId) {
         return clubRepository.findById(clubId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Club not found"));
+    }
+
+    /**
+     * Appends {@code &session_id={CHECKOUT_SESSION_ID}} to a success URL if not already present.
+     * Stripe will substitute the literal template string with the real session ID on redirect.
+     */
+    private static String appendSessionIdTemplate(String url) {
+        if (url == null || url.contains("{CHECKOUT_SESSION_ID}")) {
+            return url;
+        }
+        return url + (url.contains("?") ? "&" : "?") + "session_id={CHECKOUT_SESSION_ID}";
+    }
+
+    /**
+     * Client-side confirmation: verifies a completed Stripe Checkout Session and credits
+     * the slot immediately. Idempotent — safe to call even if the webhook already ran.
+     *
+     * @param sessionId the Stripe checkout session ID supplied by the redirect success URL
+     * @param clubId    the club that initiated the purchase
+     * @return updated billing status after crediting
+     */
+    @Transactional
+    public BillingStatus confirmSession(String sessionId, Long clubId) {
+        // Fast-path: already processed by webhook
+        ClubSlotPurchase purchase = slotPurchaseRepository.findByStripeSessionId(sessionId).orElse(null);
+        if (purchase != null) {
+            if (!purchase.getClub().getId().equals(clubId)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Session does not belong to this club");
+            }
+            if (purchase.getStatus() == ClubSlotPurchase.Status.COMPLETED) {
+                return getStatus(clubId);
+            }
+        }
+
+        // Verify with Stripe that the session is paid
+        if (stripeSecretKey == null || stripeSecretKey.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Billing is not configured");
+        }
+        Stripe.apiKey = stripeSecretKey;
+        try {
+            Session session = Session.retrieve(sessionId);
+
+            // Ownership check via metadata
+            java.util.Map<String, String> metadata = session.getMetadata();
+            if (metadata == null || !"competition_slot".equals(metadata.get("type"))) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid session type");
+            }
+            String sessionClubId = metadata.get("clubId");
+            if (!String.valueOf(clubId).equals(sessionClubId)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Session does not belong to this club");
+            }
+
+            // Require payment to have succeeded before crediting
+            if (!"paid".equals(session.getPaymentStatus())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Payment not yet completed (status: " + session.getPaymentStatus() + ")");
+            }
+
+            Integer amount = session.getAmountTotal() != null ? session.getAmountTotal().intValue() : null;
+            creditSlotForCompletedSession(sessionId, clubId, amount, session.getCurrency());
+            return getStatus(clubId);
+
+        } catch (ResponseStatusException e) {
+            throw e;
+        } catch (StripeException e) {
+            log.error("Stripe error confirming slot session {} for club {}: {}", sessionId, clubId, e.getMessage());
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
+                    "Payment verification error: " + e.getMessage());
+        }
     }
 }
