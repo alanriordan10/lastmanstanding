@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 interface SocialAuthButtonsProps {
   mode: 'signup' | 'login';
 }
@@ -25,8 +27,11 @@ const providers = [
 
 export default function SocialAuthButtons({ mode }: SocialAuthButtonsProps) {
   const verb = mode === 'signup' ? 'Sign up' : 'Sign in';
+  const [oauthBusyProvider, setOauthBusyProvider] = useState<string | null>(null);
 
   const handleClick = (providerName: string) => {
+    if (oauthBusyProvider) return;
+    setOauthBusyProvider(providerName);
     const base = apiBaseUrl.replace(/\/+$/, '');
     const returnTo = new URLSearchParams(window.location.search).get('returnTo');
     const query = returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : '';
@@ -44,26 +49,40 @@ export default function SocialAuthButtons({ mode }: SocialAuthButtonsProps) {
 
       {/* Provider buttons */}
       <div className="grid grid-cols-1 gap-3">
-        {providers.map((provider) => (
+        {providers.map((provider) => {
+          const isBusy = oauthBusyProvider === provider.name;
+          return (
           <button
             key={provider.id}
             type="button"
             onClick={() => handleClick(provider.name)}
-            className={`group flex items-center justify-center gap-2.5 rounded-xl px-4 py-3 text-sm font-semibold tracking-tight transition-all shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${provider.bg} ${provider.border} ${provider.textColor}`}
+            disabled={Boolean(oauthBusyProvider)}
+            className={`group flex items-center justify-center gap-2.5 rounded-xl px-4 py-3 text-sm font-semibold tracking-tight transition-all shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${provider.bg} ${provider.border} ${provider.textColor} ${oauthBusyProvider ? 'cursor-not-allowed opacity-80' : ''}`}
             aria-label={`${verb} with ${provider.name}`}
+            aria-busy={isBusy}
           >
-            {provider.icon}
-            <span>{verb} with {provider.name}</span>
-            <svg
-              className="h-4 w-4 text-brand-300/80 transition-transform group-hover:translate-x-0.5"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              aria-hidden="true"
-            >
-              <path fillRule="evenodd" d="M3 10a1 1 0 011-1h9.586l-2.293-2.293a1 1 0 111.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L13.586 11H4a1 1 0 01-1-1z" clipRule="evenodd" />
-            </svg>
+            {isBusy ? (
+              <svg className="h-5 w-5 animate-spin text-brand-300" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
+                <path d="M12 3a9 9 0 0 1 9 9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+              </svg>
+            ) : (
+              provider.icon
+            )}
+            <span>{isBusy ? `Opening ${provider.name}...` : `${verb} with ${provider.name}`}</span>
+            {isBusy ? null : (
+              <svg
+                className="h-4 w-4 text-brand-300/80 transition-transform group-hover:translate-x-0.5"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <path fillRule="evenodd" d="M3 10a1 1 0 011-1h9.586l-2.293-2.293a1 1 0 111.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L13.586 11H4a1 1 0 01-1-1z" clipRule="evenodd" />
+              </svg>
+            )}
           </button>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
