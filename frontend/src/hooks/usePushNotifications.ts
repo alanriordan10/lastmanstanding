@@ -10,6 +10,7 @@ export function usePushNotifications() {
     isSupported ? Notification.permission : 'default'
   );
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
     const localEnabled = typeof window !== 'undefined' && localStorage.getItem(LOCAL_BROWSER_ALERTS_KEY) === 'true';
@@ -37,28 +38,29 @@ export function usePushNotifications() {
   };
 
   const subscribe = async (): Promise<boolean> => {
+    if (isUpdating) return false;
+    setIsUpdating(true);
     try {
       const granted = permission === 'granted' || await requestPermission();
       if (!granted) return false;
 
       localStorage.setItem(LOCAL_BROWSER_ALERTS_KEY, 'true');
+      // Flip UI immediately so mobile web users see instant feedback.
+      setIsSubscribed(true);
 
       if (!('serviceWorker' in navigator)) {
-        setIsSubscribed(true);
         return true;
       }
 
       const reg = await navigator.serviceWorker.ready.catch(() => null);
       if (!reg) {
         // Fallback: browser notifications are still enabled for this device/session.
-        setIsSubscribed(true);
         return true;
       }
 
       const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
       if (!vapidPublicKey) {
         // No VAPID key configured: enable local browser alerts without remote push delivery.
-        setIsSubscribed(true);
         return true;
       }
 
@@ -69,25 +71,43 @@ export function usePushNotifications() {
       });
 
       await api.post('/notifications/subscribe', sub.toJSON()).catch(() => {});
-      setIsSubscribed(true);
       return true;
     } catch {
+      setIsSubscribed(false);
+      localStorage.removeItem(LOCAL_BROWSER_ALERTS_KEY);
       return false;
+    } finally {
+      setIsUpdating(false);
     }
   };
 
-  const unsubscribe = async () => {
+  const unsubscribe = async (): Promise<boolean> => {
+    if (isUpdating) return false;
+    setIsUpdating(true);
+    const wasSubscribed = isSubscribed;
     localStorage.removeItem(LOCAL_BROWSER_ALERTS_KEY);
-
-    if ('serviceWorker' in navigator) {
-      const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.getSubscription();
-      if (sub) {
-        await sub.unsubscribe();
-        await api.delete('/notifications/subscribe').catch(() => {});
-      }
-    }
+    // Optimistically update UI first for immediate toggle response.
     setIsSubscribed(false);
+
+    try {
+      if ('serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) {
+          await sub.unsubscribe();
+          await api.delete('/notifications/subscribe').catch(() => {});
+        }
+      }
+      return true;
+    } catch {
+      if (wasSubscribed) {
+        setIsSubscribed(true);
+        localStorage.setItem(LOCAL_BROWSER_ALERTS_KEY, 'true');
+      }
+      return false;
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   /** Show a local (non-push) notification immediately */
@@ -112,7 +132,7 @@ export function usePushNotifications() {
     }
   };
 
-  return { isSupported, permission, isSubscribed, subscribe, unsubscribe, notify };
+  return { isSupported, permission, isSubscribed, isUpdating, subscribe, unsubscribe, notify };
 }
 
 function showInAppNotification(title: string, body: string, url?: string) {

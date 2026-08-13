@@ -22,7 +22,7 @@ export default function ProfilePage() {
   const [deleting, setDeleting] = useState(false);
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [deleteSectionOpen, setDeleteSectionOpen] = useState(false);
-  const { isSupported, permission, isSubscribed, subscribe, unsubscribe, notify } = usePushNotifications();
+  const { isSupported, permission, isSubscribed, isUpdating: browserAlertsUpdating, subscribe, unsubscribe, notify } = usePushNotifications();
 
   const getApiErrorMessage = (err: any, fallback: string) =>
     err?.response?.data?.message ||
@@ -31,13 +31,25 @@ export default function ProfilePage() {
     fallback;
 
   const handleNotificationPreferenceToggle = async (key: keyof typeof notificationPrefs) => {
+    const previousPrefs = notificationPrefs;
     const nextPrefs = { ...notificationPrefs, [key]: !notificationPrefs[key] };
     if (key === 'notificationResultUpdates') nextPrefs.emailResultsOptIn = nextPrefs.notificationResultUpdates;
     if (key === 'emailResultsOptIn') nextPrefs.notificationResultUpdates = nextPrefs.emailResultsOptIn;
+
+    // Update locally first so mobile web toggles feel responsive.
+    setNotificationPrefs(nextPrefs);
     setSavingPreference(key);
+
+    const updatePayload: Partial<typeof notificationPrefs> = { [key]: nextPrefs[key] };
+    if (key === 'notificationResultUpdates') updatePayload.emailResultsOptIn = nextPrefs.notificationResultUpdates;
+    if (key === 'emailResultsOptIn') updatePayload.notificationResultUpdates = nextPrefs.emailResultsOptIn;
+
     try {
-      const { data } = await api.put('/auth/notification-preferences', nextPrefs);
-      setNotificationPrefs(data);
+      const { data } = await api.put('/auth/notification-preferences', updatePayload);
+      setNotificationPrefs((current) => ({
+        ...current,
+        ...data,
+      }));
       if (user) loginWithData({
         ...user,
         emailResultsOptIn: data.emailResultsOptIn,
@@ -47,8 +59,9 @@ export default function ProfilePage() {
         notificationPaymentUpdates: data.notificationPaymentUpdates,
       });
       toast.success('Notification preference updated');
-    } catch {
-      toast.error('Failed to update preference. Please try again.');
+    } catch (err: any) {
+      setNotificationPrefs(previousPrefs);
+      toast.error(getApiErrorMessage(err, 'Failed to update preference. Please try again.'));
     } finally {
       setSavingPreference(null);
     }
@@ -113,9 +126,14 @@ export default function ProfilePage() {
   const badge = roleBadge[user?.role ?? 'USER'] ?? roleBadge.USER;
 
   const handleBrowserAlertsToggle = async () => {
+    if (browserAlertsUpdating) return;
     try {
       if (isSubscribed) {
-        await unsubscribe();
+        const ok = await unsubscribe();
+        if (!ok) {
+          toast.error('Could not update browser alerts. Please try again.');
+          return;
+        }
         toast.success('Browser alerts turned off');
         return;
       }
@@ -240,14 +258,15 @@ export default function ProfilePage() {
 
             <button
               onClick={handleBrowserAlertsToggle}
-              disabled={!isSupported}
+              disabled={!isSupported || browserAlertsUpdating}
               role="switch"
               aria-checked={isSubscribed}
+              aria-busy={browserAlertsUpdating}
               className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent
                 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2
                 focus:ring-offset-surface-800
                 ${isSubscribed ? 'bg-brand-500' : 'bg-gray-600'}
-                ${!isSupported ? 'cursor-not-allowed opacity-40' : ''}`}
+                ${(!isSupported || browserAlertsUpdating) ? 'cursor-not-allowed opacity-40' : ''}`}
             >
               <span
                 className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md
