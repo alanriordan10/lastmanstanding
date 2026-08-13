@@ -10,7 +10,9 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnTo = searchParams.get('returnTo');
-  const hideClubCta = returnTo === '/create-club' || returnTo === encodeURIComponent('/create-club');
+  const decodedReturnTo = returnTo ? decodeURIComponent(returnTo) : null;
+  const isCreateClubReturn = decodedReturnTo === '/create-club';
+  const hideClubCta = isCreateClubReturn;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -57,7 +59,9 @@ export default function LoginPage() {
           </div>
           <h1 className="mt-6 text-4xl font-black tracking-tight text-slate-100 sm:text-[44px]">Welcome Back</h1>
           <p className="mt-3 max-w-lg text-sm leading-6 text-slate-300 sm:text-[16px]">
-            Sign in to manage your picks, review results, and stay ahead of the next lock.
+            {isCreateClubReturn
+              ? 'Sign in to continue your club setup. We will take you straight back to Create Club.'
+              : 'Sign in to manage your picks, review results, and stay ahead of the next lock.'}
           </p>
           <div className="mt-8 grid grid-cols-3 gap-3 sm:gap-4">
             <AuthMetric label="Picks" value="Live" />
@@ -72,6 +76,11 @@ export default function LoginPage() {
           onSubmit={handleSubmit}
           className="rounded-[1.4rem] border border-white/12 bg-[linear-gradient(150deg,rgba(15,23,42,0.84),rgba(9,16,34,0.88))] p-5 shadow-[0_20px_50px_rgba(2,6,23,0.42)] backdrop-blur-md sm:p-6"
         >
+          {isCreateClubReturn ? (
+            <div className="mb-4 rounded-xl border border-cyan-400/35 bg-cyan-500/10 px-3.5 py-2.5 text-sm text-cyan-100">
+              Continue club setup: once you sign in, you will land on <span className="font-semibold">Create Club</span>.
+            </div>
+          ) : null}
           <div>
             <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-gray-300">
               Email
@@ -119,11 +128,11 @@ export default function LoginPage() {
           </div>
           <div className="h-4" />
           <button type="submit" disabled={loading} className="btn-primary w-full">
-            {loading ? 'Signing in…' : 'Sign In'}
+            {loading ? 'Signing in…' : isCreateClubReturn ? 'Sign In & Continue to Create Club' : 'Sign In'}
           </button>
         </form>
         <div className="rounded-[1.4rem] border border-white/12 bg-[linear-gradient(150deg,rgba(15,23,42,0.84),rgba(9,16,34,0.88))] p-5 shadow-[0_20px_50px_rgba(2,6,23,0.42)] backdrop-blur-md sm:p-6">
-          <SocialAuthButtons mode="login" />
+          <SocialAuthButtons mode="login" continuationHint={isCreateClubReturn ? 'to continue to Create Club' : undefined} />
         </div>
 
         <p className="text-center text-sm text-gray-400">

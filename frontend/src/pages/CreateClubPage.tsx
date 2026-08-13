@@ -88,11 +88,17 @@ export default function CreateClubPage() {
             </div>
           </section>
 
-          <form onSubmit={handleSubmit} className="card w-full max-w-lg lg:max-w-none mx-auto space-y-5">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-100">Tell us about your club</h2>
-              <p className="text-sm text-gray-400 mt-1">This is how your club will appear to participants.</p>
-            </div>
+           <form onSubmit={handleSubmit} className="card w-full max-w-lg lg:max-w-none mx-auto space-y-5">
+             <div className="flex items-center gap-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2.5">
+               <span className="text-emerald-400 text-base leading-none">✓</span>
+               <p className="text-sm text-emerald-200">
+                 Signed in as <span className="font-semibold">{user.email}</span>
+               </p>
+             </div>
+             <div>
+               <h2 className="text-lg font-semibold text-gray-100">Tell us about your club</h2>
+               <p className="text-sm text-gray-400 mt-1">This is how your club will appear to participants.</p>
+             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1.5">

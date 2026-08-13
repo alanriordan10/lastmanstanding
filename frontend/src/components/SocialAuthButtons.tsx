@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 interface SocialAuthButtonsProps {
   mode: 'signup' | 'login';
+  continuationHint?: string;
 }
 
 const apiBaseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8080';
@@ -25,7 +26,7 @@ const providers = [
   },
 ];
 
-export default function SocialAuthButtons({ mode }: SocialAuthButtonsProps) {
+export default function SocialAuthButtons({ mode, continuationHint }: SocialAuthButtonsProps) {
   const verb = mode === 'signup' ? 'Sign up' : 'Sign in';
   const [oauthBusyProvider, setOauthBusyProvider] = useState<string | null>(null);
 
@@ -69,7 +70,7 @@ export default function SocialAuthButtons({ mode }: SocialAuthButtonsProps) {
             ) : (
               provider.icon
             )}
-            <span>{isBusy ? `Opening ${provider.name}...` : `${verb} with ${provider.name}`}</span>
+            <span>{isBusy ? `Opening ${provider.name}...` : `${verb} with ${provider.name}${continuationHint ? ` ${continuationHint}` : ''}`}</span>
             {isBusy ? null : (
               <svg
                 className="h-4 w-4 text-brand-300/80 transition-transform group-hover:translate-x-0.5"

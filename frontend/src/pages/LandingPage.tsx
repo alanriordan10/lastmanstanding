@@ -80,7 +80,9 @@ export default function LandingPage() {
       {/* Navbar */}
       <nav className="sticky top-0 z-50 flex items-center justify-between border-b border-white/8 bg-[linear-gradient(180deg,rgba(8,15,30,0.92),rgba(8,15,30,0.78))] px-6 py-4 backdrop-blur-xl">
         <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-brand-300/25 bg-gradient-to-br from-brand-500 to-cyan-400 text-[11px] font-black text-slate-950 shadow-[0_10px_28px_rgba(56,189,248,0.18)]">LMS</div>
+          <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl border border-brand-300/25 shadow-[0_10px_28px_rgba(56,189,248,0.18)]">
+              <img src="/app-logo.png?v=20260511" alt="Last Man Standing logo" className="h-full w-full object-cover" />
+            </div>
           <div>
             <span className="block text-lg font-black tracking-tight">Last Man Standing</span>
             <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-200/75">Survivor pool</span>
@@ -272,7 +274,9 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="border-t border-gray-800 py-6 px-4 text-center text-xs text-gray-600">
         <div className="flex items-center justify-center gap-2 mb-2">
-          <div className="flex h-6 w-6 items-center justify-center rounded bg-brand-600 text-[10px] font-bold">LMS</div>
+          <div className="flex h-6 w-6 items-center justify-center overflow-hidden rounded border border-brand-300/25">
+            <img src="/app-logo.png?v=20260511" alt="Last Man Standing logo" className="h-full w-full object-cover" />
+          </div>
           <span className="font-medium text-gray-400">Last Man Standing</span>
         </div>
         <div className="mb-2">
