@@ -37,6 +37,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import com.lastmanstanding.security.UserDetailsImpl;
 import org.springframework.web.server.ResponseStatusException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -45,6 +47,8 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthController.class);
 
     private final UserRepository userRepository;
     private final ClubRepository clubRepository;
@@ -343,20 +347,35 @@ public class AuthController {
     public record DeleteTokenRequest(String password) {}
     public record DeleteTokenResponse(String deleteToken, long expiresInSeconds) {}
 
+    private void logMissingPrincipal(String endpoint, HttpServletRequest request) {
+        String userAgent = request != null ? request.getHeader("User-Agent") : null;
+        log.warn("auth_preference_unauthorized endpoint={} userAgent={} reason=principal_null", endpoint, userAgent);
+    }
+
     @PutMapping("/email-preferences")
     public ResponseEntity<EmailPreferencesResponse> updateEmailPreferences(
             @AuthenticationPrincipal UserDetailsImpl principal,
-            @RequestBody EmailPreferencesRequest request) {
+            HttpServletRequest request,
+            @RequestBody EmailPreferencesRequest requestBody) {
+        if (principal == null) {
+            logMissingPrincipal("/auth/email-preferences", request);
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
+        }
         User user = userRepository.findById(principal.getId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
-        user.setEmailResultsOptIn(request.emailResultsOptIn());
+        user.setEmailResultsOptIn(requestBody.emailResultsOptIn());
         userRepository.save(user);
         return ResponseEntity.ok(new EmailPreferencesResponse(user.isEmailResultsOptIn()));
     }
 
     @GetMapping("/email-preferences")
     public ResponseEntity<EmailPreferencesResponse> getEmailPreferences(
-            @AuthenticationPrincipal UserDetailsImpl principal) {
+            @AuthenticationPrincipal UserDetailsImpl principal,
+            HttpServletRequest request) {
+        if (principal == null) {
+            logMissingPrincipal("/auth/email-preferences", request);
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
+        }
         User user = userRepository.findById(principal.getId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
         return ResponseEntity.ok(new EmailPreferencesResponse(user.isEmailResultsOptIn()));
@@ -364,7 +383,12 @@ public class AuthController {
 
     @GetMapping("/notification-preferences")
     public ResponseEntity<NotificationPreferencesResponse> getNotificationPreferences(
-            @AuthenticationPrincipal UserDetailsImpl principal) {
+            @AuthenticationPrincipal UserDetailsImpl principal,
+            HttpServletRequest request) {
+        if (principal == null) {
+            logMissingPrincipal("/auth/notification-preferences", request);
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
+        }
         User user = userRepository.findById(principal.getId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
         return ResponseEntity.ok(NotificationPreferencesResponse.from(user));
@@ -373,14 +397,19 @@ public class AuthController {
     @PutMapping("/notification-preferences")
     public ResponseEntity<NotificationPreferencesResponse> updateNotificationPreferences(
             @AuthenticationPrincipal UserDetailsImpl principal,
-            @RequestBody NotificationPreferencesRequest request) {
+            HttpServletRequest request,
+            @RequestBody NotificationPreferencesRequest requestBody) {
+        if (principal == null) {
+            logMissingPrincipal("/auth/notification-preferences", request);
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
+        }
         User user = userRepository.findById(principal.getId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
-        if (request.emailResultsOptIn() != null) user.setEmailResultsOptIn(request.emailResultsOptIn());
-        if (request.notificationPickReminders() != null) user.setNotificationPickReminders(request.notificationPickReminders());
-        if (request.notificationResultUpdates() != null) user.setNotificationResultUpdates(request.notificationResultUpdates());
-        if (request.notificationCompetitionAnnouncements() != null) user.setNotificationCompetitionAnnouncements(request.notificationCompetitionAnnouncements());
-        if (request.notificationPaymentUpdates() != null) user.setNotificationPaymentUpdates(request.notificationPaymentUpdates());
+        if (requestBody.emailResultsOptIn() != null) user.setEmailResultsOptIn(requestBody.emailResultsOptIn());
+        if (requestBody.notificationPickReminders() != null) user.setNotificationPickReminders(requestBody.notificationPickReminders());
+        if (requestBody.notificationResultUpdates() != null) user.setNotificationResultUpdates(requestBody.notificationResultUpdates());
+        if (requestBody.notificationCompetitionAnnouncements() != null) user.setNotificationCompetitionAnnouncements(requestBody.notificationCompetitionAnnouncements());
+        if (requestBody.notificationPaymentUpdates() != null) user.setNotificationPaymentUpdates(requestBody.notificationPaymentUpdates());
         userRepository.save(user);
         return ResponseEntity.ok(NotificationPreferencesResponse.from(user));
     }

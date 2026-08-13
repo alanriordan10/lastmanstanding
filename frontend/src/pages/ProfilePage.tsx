@@ -30,6 +30,27 @@ export default function ProfilePage() {
     err?.response?.data?.error ||
     fallback;
 
+  const logPreferenceUpdateDebug = (key: keyof typeof notificationPrefs, err: any) => {
+    const isProdMobileWeb = import.meta.env.PROD
+      && typeof navigator !== 'undefined'
+      && /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+
+    if (!isProdMobileWeb) return;
+
+    // Temporary production diagnostics for mobile-web preference update failures.
+    console.warn('[notification-preferences:update-failed]', {
+      key,
+      status: err?.response?.status,
+      code: err?.code,
+      method: err?.config?.method,
+      url: err?.config?.url,
+      message: getApiErrorMessage(err, 'Unknown error'),
+      apiError: err?.response?.data,
+      userAgent: navigator.userAgent,
+      timestamp: new Date().toISOString(),
+    });
+  };
+
   const handleNotificationPreferenceToggle = async (key: keyof typeof notificationPrefs) => {
     const previousPrefs = notificationPrefs;
     const nextPrefs = { ...notificationPrefs, [key]: !notificationPrefs[key] };
@@ -61,6 +82,7 @@ export default function ProfilePage() {
       toast.success('Notification preference updated');
     } catch (err: any) {
       setNotificationPrefs(previousPrefs);
+      logPreferenceUpdateDebug(key, err);
       toast.error(getApiErrorMessage(err, 'Failed to update preference. Please try again.'));
     } finally {
       setSavingPreference(null);
