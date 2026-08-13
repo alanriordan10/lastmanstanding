@@ -48,6 +48,7 @@ export default function LoginPage() {
         title="Sign In | Last Man Standing"
         description="Sign in to manage picks, view results, and run football survivor pool competitions."
         canonicalPath="/login"
+        noindex
       />
       <div className="relative grid w-full max-w-6xl gap-6 lg:grid-cols-[1.08fr_0.92fr]">
         <section className="relative overflow-hidden rounded-[2.1rem] border border-white/8 bg-[linear-gradient(145deg,rgba(15,23,42,0.84),rgba(8,15,30,0.8))] px-6 py-8 shadow-[0_22px_56px_rgba(2,6,23,0.42)] backdrop-blur-sm sm:px-8 sm:py-10">

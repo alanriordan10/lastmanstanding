@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { FilterPill, MetricCard } from '../components/ui-primitives';
+import SeoMeta from '../components/SeoMeta';
 
 function parseDate(value: unknown): Date | null {
   if (Array.isArray(value)) {
@@ -539,6 +540,12 @@ export default function CompetitionsPage() {
 
   return (
     <div className="space-y-5 sm:space-y-6">
+      <SeoMeta
+        title="Competitions | Last Man Standing"
+        description="Browse available Last Man Standing competitions, view your entries, and keep up with upcoming gameweeks."
+        canonicalPath="/competitions"
+        noindex
+      />
       {/* ── Page header ── */}
       <div className="relative overflow-visible rounded-[1.75rem] border border-white/8 bg-[radial-gradient(circle_at_10%_0%,rgba(251,191,36,0.18),transparent_28rem),radial-gradient(circle_at_85%_15%,rgba(56,189,248,0.18),transparent_24rem),linear-gradient(135deg,rgba(15,23,42,0.92),rgba(8,15,30,0.9))] px-4 py-5 shadow-[0_28px_70px_rgba(2,6,23,0.42)] sm:px-6 sm:py-6">
         <div className="absolute right-0 top-0 h-24 w-24 translate-x-8 -translate-y-8 rounded-full bg-amber-300/15 blur-2xl" />

@@ -2,11 +2,20 @@ import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
+import SeoMeta from '../components/SeoMeta';
 
 export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const token = searchParams.get('token') ?? '';
+  const seoMeta = (
+    <SeoMeta
+      title="Reset Password | Last Man Standing"
+      description="Set a new password for your Last Man Standing account using your secure reset link."
+      canonicalPath="/reset-password"
+      noindex
+    />
+  );
 
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -16,6 +25,7 @@ export default function ResetPasswordPage() {
   if (!token) {
     return (
       <div className="flex min-h-screen items-center justify-center px-4 py-10">
+        {seoMeta}
         <div className="rounded-[1.9rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(248,113,113,0.12),transparent_24rem),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))] px-6 py-8 text-center shadow-[0_30px_75px_rgba(2,6,23,0.48)]">
           <p className="text-red-400 font-medium">Invalid or missing reset token.</p>
           <Link to="/forgot-password" className="text-brand-400 hover:text-brand-300 text-sm">
@@ -50,6 +60,7 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-10">
+      {seoMeta}
       <div className="grid w-full max-w-5xl gap-6 lg:grid-cols-[1.05fr_0.95fr]">
         <section className="relative overflow-hidden rounded-[1.9rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.22),transparent_24rem),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))] px-6 py-8 shadow-[0_30px_75px_rgba(2,6,23,0.48)]">
           <div className="inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-200">

@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import api from '../api';
 import type { AuthResponse } from '../types';
 import { useAuth } from '../context/AuthContext';
+import SeoMeta from '../components/SeoMeta';
 
 interface CreateClubResponse {
   auth: AuthResponse;
@@ -79,6 +80,12 @@ export default function CreateClubPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <SeoMeta
+        title="Create Club | Last Man Standing"
+        description="Finish setting up your club and launch football survivor competitions with Last Man Standing organiser tools."
+        canonicalPath="/create-club"
+        noindex
+      />
       <nav className="border-b border-white/8 bg-[linear-gradient(180deg,rgba(8,15,30,0.92),rgba(8,15,30,0.78))] backdrop-blur-xl px-6 py-4 flex items-center justify-between">
         <Link to="/competitions" className="flex items-center gap-2">
           <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl border border-brand-300/25 bg-white shadow-[0_10px_28px_rgba(56,189,248,0.18)]">

@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api';
 import toast from 'react-hot-toast';
 import SocialAuthButtons from '../components/SocialAuthButtons';
+import SeoMeta from '../components/SeoMeta';
 
 type UsernameCheckState = 'idle' | 'checking' | 'available' | 'taken' | 'error';
 type EmailCheckState = 'idle' | 'checking' | 'available' | 'taken' | 'error';
@@ -151,6 +152,12 @@ export default function SignupPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-10">
+      <SeoMeta
+        title="Create Your Account | Last Man Standing"
+        description="Create a Last Man Standing account to join football survivor pools, track picks, and receive competition updates."
+        canonicalPath="/signup"
+        noindex
+      />
       
       <div className="grid w-full max-w-5xl gap-6 lg:grid-cols-[1.05fr_0.95fr]">
         <section className="relative overflow-hidden rounded-[1.9rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.22),transparent_24rem),radial-gradient(circle_at_85%_16%,rgba(250,204,21,0.08),transparent_18rem),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))] px-6 py-8 shadow-[0_30px_75px_rgba(2,6,23,0.48)]">

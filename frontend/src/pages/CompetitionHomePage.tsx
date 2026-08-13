@@ -13,6 +13,7 @@ import { useAuth } from '../context/AuthContext';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { MetricCard, StatusPill } from '../components/ui-primitives';
+import SeoMeta from '../components/SeoMeta';
 
 interface PickStat {
   teamId: number;
@@ -1914,6 +1915,12 @@ export default function CompetitionHomePage() {
 
   return (
     <div className="space-y-8">
+      <SeoMeta
+        title={`${comp.name} | Last Man Standing`}
+        description={`View fixtures, picks, standings, reminders, and competition updates for ${comp.name}.`}
+        canonicalPath={`/competitions/${compId}`}
+        noindex
+      />
       {/* ── Header ── */}
       <section
         className="relative overflow-hidden rounded-[1.9rem] border border-white/8 px-5 py-5 shadow-[0_30px_75px_rgba(2,6,23,0.48)] sm:px-6 sm:py-6 lg:px-8 lg:py-7"

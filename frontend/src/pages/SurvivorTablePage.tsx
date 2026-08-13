@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState, useMemo } from 'react';
 import api from '../api';
 import type { Competition } from '../types';
+import SeoMeta from '../components/SeoMeta';
 
 interface SurvivorRow {
   participantId: number;
@@ -122,6 +123,12 @@ export default function SurvivorTablePage() {
 
   return (
     <div className="space-y-6">
+      <SeoMeta
+        title={`${comp?.name ? `${comp.name} Survivor Table` : 'Survivor Table'} | Last Man Standing`}
+        description="View the current survivor table, active entries, eliminations, and pick history for this competition."
+        canonicalPath={`/competitions/${compId}/survivor-table`}
+        noindex
+      />
       {/* Header */}
       <div
         className="relative overflow-hidden rounded-[1.75rem] border border-white/8 px-4 py-5 shadow-[0_28px_70px_rgba(2,6,23,0.42)] sm:px-6 sm:py-6"

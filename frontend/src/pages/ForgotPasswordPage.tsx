@@ -2,11 +2,20 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
+import SeoMeta from '../components/SeoMeta';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const seoMeta = (
+    <SeoMeta
+      title="Forgot Password | Last Man Standing"
+      description="Request a secure password reset email for your Last Man Standing account."
+      canonicalPath="/forgot-password"
+      noindex
+    />
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,6 +33,7 @@ export default function ForgotPasswordPage() {
   if (submitted) {
     return (
       <div className="flex min-h-screen items-center justify-center px-4 py-10">
+        {seoMeta}
         <div className="w-full max-w-lg rounded-[1.9rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_24rem),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))] px-6 py-8 text-center shadow-[0_30px_75px_rgba(2,6,23,0.48)]">
           <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-2xl border border-green-400/20 bg-green-500/15 text-3xl">
             📧
@@ -53,6 +63,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-10">
+      {seoMeta}
       <div className="grid w-full max-w-5xl gap-6 lg:grid-cols-[1.05fr_0.95fr]">
         <section className="relative overflow-hidden rounded-[1.9rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.22),transparent_24rem),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))] px-6 py-8 shadow-[0_30px_75px_rgba(2,6,23,0.48)]">
           <div className="inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-200">

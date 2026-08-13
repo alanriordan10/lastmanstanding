@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+
+Disallow: /oauth2/
+Disallow: /admin
+Disallow: /club-admin
+Disallow: /profile
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /invite/
+
+Sitemap: https://www.runlastmanstanding.com/sitemap.xml
+

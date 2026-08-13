@@ -12,6 +12,7 @@ export default function AccountDeletionPage() {
         title="Delete Account | Last Man Standing"
         description="How to request deletion of your Last Man Standing account and associated data."
         canonicalPath="/account-deletion"
+        noindex
       />
 
       <section className="relative overflow-hidden rounded-[1.85rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_24rem),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))] px-5 py-6 shadow-[0_30px_75px_rgba(2,6,23,0.48)] sm:px-6">
