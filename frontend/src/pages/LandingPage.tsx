@@ -213,7 +213,7 @@ export default function LandingPage() {
             <div className="card space-y-3">
               <p className="text-xs font-black uppercase tracking-[0.22em] text-gray-400">Payment model</p>
               <p className="text-sm leading-6 text-gray-300">
-                Platform access is currently free during beta. Club organisers may configure free competitions or manual/offline payment tracking.
+                The first competition for each club is free. Additional competitions require a paid plan. Club organisers may configure free competitions or manual/offline payment tracking.
               </p>
               <p className="text-sm leading-6 text-gray-300">
                 Entry fees are collected outside the app when manual payment tracking is used.

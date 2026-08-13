@@ -624,7 +624,7 @@ export default function GameweekResultsPage() {
                       {picks.map((sel) => (
                         <span
                           key={`${sel.participantId ?? sel.userId}-${sel.teamId}`}
-                          className={`inline-flex max-w-full items-center gap-1.5 text-xs px-2.5 py-1 rounded font-medium ${
+                          className={`inline-flex max-w-full items-center text-xs px-2.5 py-1 rounded font-medium ${
                             sel.outcome === 'ADVANCE' || sel.outcome === 'POSTPONED_ADVANCE'
                               ? 'bg-green-600/20 text-green-400'
                               : sel.outcome === 'ELIMINATED'
@@ -632,11 +632,6 @@ export default function GameweekResultsPage() {
                               : 'bg-yellow-600/20 text-yellow-400'
                           }`}
                         >
-                          {teamLogoUrl ? (
-                            <img src={teamLogoUrl} alt={`${teamName} crest`} className="h-3.5 w-3.5 shrink-0 rounded-full border border-white/20 object-cover" loading="lazy" />
-                          ) : (
-                            <span className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border border-white/20 bg-slate-700 text-[7px] font-black text-slate-300">{teamName.slice(0, 1)}</span>
-                          )}
                           <span className="truncate">{displayName(sel)}</span>
                           {sel.source === 'AUTO' && ' (auto)'}
                           {sel.useLifeline && ' (lifeline)'}

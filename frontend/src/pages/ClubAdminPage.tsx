@@ -492,6 +492,8 @@ export default function ClubAdminPage() {
     );
   }
 
+  const createBlocked = Boolean(billing && !billing.canCreateNow && !editingComp && !showForm);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -605,10 +607,16 @@ export default function ClubAdminPage() {
                 }
                 setShowForm(true);
               }}
-              className="btn-primary w-full whitespace-nowrap xl:min-w-[220px] xl:w-auto"
+              disabled={createBlocked}
+              className={`btn-primary w-full whitespace-nowrap xl:min-w-[220px] xl:w-auto ${createBlocked ? 'cursor-not-allowed opacity-60' : ''}`}
             >
               {editingComp ? 'Cancel Edit' : showForm ? 'Cancel' : '+ New Competition'}
             </button>
+            {createBlocked ? (
+              <p className="mt-1 text-xs text-amber-300 xl:max-w-[360px] xl:text-right">
+                Purchase a competition slot to enable creating another competition.
+              </p>
+            ) : null}
           </div>
         </div>
       </section>
