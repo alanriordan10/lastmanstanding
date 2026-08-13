@@ -3388,8 +3388,8 @@ function TeamButton({
       aria-label={`Pick ${name}`}
     >
       {/* Mobile: app-style centered team column */}
-      <div className="flex sm:hidden w-full min-w-0 flex-col items-center justify-center text-center gap-1">
-        <div className={clsx('flex max-w-full min-w-0 flex-wrap items-center justify-center gap-1.5', align === 'right' ? 'flex-row-reverse' : 'flex-row')}>
+      <div className="flex sm:hidden w-full min-w-0 flex-col items-center justify-center text-center">
+        <div className={clsx('flex max-w-full min-w-0 items-center justify-center gap-1.5', align === 'right' ? 'flex-row-reverse' : 'flex-row')}>
           {showLogo ? (
             <img
               src={trimmedLogoUrl}
@@ -3406,7 +3406,9 @@ function TeamButton({
             <span className={clsx('shrink-0 font-black text-base leading-tight', isMyPick ? 'text-white' : isUsed ? 'line-through text-amber-200' : '')}>
             {shortName}
           </span>
-          {showStatusPill && (
+        </div>
+        <div className="mt-0.5 min-h-[16px] flex items-center justify-center">
+          {showStatusPill ? (
             <span
               className={clsx(
                 'inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.08em]',
@@ -3416,6 +3418,9 @@ function TeamButton({
             >
               {statusPillLabel}
             </span>
+          ) : (
+            // Reserve the same vertical space even when there's no status pill.
+            <span className="invisible inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.08em]">Label</span>
           )}
         </div>
         <span className={clsx('max-w-[7.5rem] truncate text-xs leading-tight text-gray-400', isMyPick && 'text-white/70', isUsed && !isMyPick && 'text-amber-200/75 line-through')}>
