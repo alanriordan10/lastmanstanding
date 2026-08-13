@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import api from '../api';
 import type { Competition, GameweekSelectionsData, MyStatus, Fixture, Participant, PickHistoryItem } from '../types';
+import type { AuthResponse } from '../types';
 import toast from 'react-hot-toast';
 import { formatDistanceToNow, isPast } from 'date-fns';
 import clsx from 'clsx';
@@ -68,6 +69,12 @@ function parseDate(value: string | number[]): Date {
   }
   const str = (value.endsWith('Z') || value.includes('+')) ? value : value + 'Z';
   return new Date(str);
+}
+
+function formatLockBadgeLabel(value: string | number[]): string {
+  return `Locks ${formatDistanceToNow(parseDate(value), { addSuffix: true })
+    .replace(/\bin about\b/i, 'in')
+    .replace(/\babout\b\s*/i, '')}`;
 }
 
 /** Format a kickoff date in the browser's local timezone — e.g. "Apr 26" */
@@ -182,7 +189,7 @@ export default function CompetitionHomePage() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
   const compId = Number(id);
-  const { user } = useAuth();
+  const { user, loginWithData } = useAuth();
   const { isSupported: browserAlertsSupported, isSubscribed: browserAlertsEnabled, subscribe, notify, permission } = usePushNotifications();
 
   // ── ALL hooks must be declared before any early returns ──────────
@@ -209,6 +216,17 @@ export default function CompetitionHomePage() {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [shareOpen]);
+
+  // Refresh user data on mount to ensure latest notification preferences are displayed
+  useEffect(() => {
+    // Silently refresh user data from server to pick up any changes made on other pages (e.g., profile updates)
+    api.get<AuthResponse>('/auth/me').then(({ data }) => {
+      loginWithData(data);
+    }).catch(() => {
+      // Ignore errors - use cached data if refresh fails
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const stored = window.localStorage.getItem('lms.sidebarCollapsed');
@@ -1394,6 +1412,7 @@ export default function CompetitionHomePage() {
   // Keep the skeleton short-lived: fixtures define the narrative structure.
   // Pick stats and selections can fill in without blocking the whole pulse area.
   const narrativeFirstLoad = fixturesLoading;
+  const emailReminderEnabled = user?.notificationPickReminders ?? user?.emailResultsOptIn ?? false;
 
   const reminderPanel = showReminderSetup ? (
     <section className="card p-4 sm:p-5">
@@ -1411,11 +1430,11 @@ export default function CompetitionHomePage() {
         <div className="grid w-full gap-3 sm:w-[22rem]">
           <div className="rounded-xl border border-gray-700/50 bg-surface-800/70 px-3 py-3">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">Email reminders</p>
-            <p className="mt-1 text-sm text-gray-100">{user?.emailResultsOptIn ? 'Enabled' : 'Disabled'}</p>
+            <p className="mt-1 text-sm text-gray-100">{emailReminderEnabled ? 'Enabled' : 'Disabled'}</p>
             <p className="mt-1 text-xs text-gray-400">
-              Uses your profile notification setting for lock reminders and result updates.
+              Uses your profile setting for pick deadline reminder emails.
             </p>
-            {!user?.emailResultsOptIn && (
+            {!emailReminderEnabled && (
               <Link to="/profile" className="mt-3 inline-flex text-xs font-medium text-brand-400 hover:text-brand-300">
                 Turn on in profile →
               </Link>
@@ -2484,28 +2503,28 @@ export default function CompetitionHomePage() {
                       aria-controls={`gw-${wn}-fixtures`}
                     >
                       <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-3 min-w-0">
+                        <div className="flex min-w-0 items-center gap-2 overflow-hidden sm:gap-3">
                           <h3 className="text-lg font-semibold shrink-0">Gameweek {wn}</h3>
                           {gwVoided ? (
-                            <span className="badge-brand text-xs">Voided</span>
+                            <span className="badge-brand shrink-0 text-xs">Voided</span>
                           ) : isCompleted ? (
-                            <span className="badge-gray text-xs">Completed</span>
+                            <span className="badge-gray shrink-0 text-xs">Completed</span>
                           ) : isLocked ? (
-                            <span className="badge-red text-xs">🔒 Locked</span>
+                            <span className="badge-red shrink-0 text-xs">🔒 Locked</span>
                           ) : (
-                            <span className="badge-yellow text-xs">
-                              Locks {formatDistanceToNow(parseDate(lockAt), { addSuffix: true })}
+                            <span className="badge-yellow shrink-0 text-xs">
+                              {formatLockBadgeLabel(lockAt)}
                             </span>
                           )}
                           {isCollapsed && !myPickForGw && isParticipant && !isEliminated && !isWinner && !isLocked && (
-                            <span className="hidden sm:inline text-xs text-yellow-400 italic">— no pick yet</span>
+                            <span className="hidden truncate text-xs text-yellow-400 italic sm:inline">— no pick yet</span>
                           )}
                         </div>
 
                         {myPickForGw && (
-                          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-gray-400 sm:text-sm">
-                            <span>{isCollapsed ? 'Selected:' : 'Your pick:'}</span>
-                            <span className={clsx('font-semibold', {
+                          <div className="mt-1 flex items-center gap-1.5 overflow-hidden text-xs text-gray-400 sm:text-sm">
+                            <span className="shrink-0">{isCollapsed ? 'Selected:' : 'Your pick:'}</span>
+                            <span className={clsx('truncate font-semibold', {
                               'text-green-400': myPickForGw.outcome === 'ADVANCE',
                               'text-red-400': myPickForGw.outcome === 'ELIMINATED',
                               'text-yellow-400': myPickForGw.outcome === 'POSTPONED_ADVANCE',
@@ -2513,11 +2532,11 @@ export default function CompetitionHomePage() {
                             })}>
                               {myPickForGw.teamShortName}
                             </span>
-                            {myPickForGw.outcome !== 'PENDING' && <OutcomeBadge outcome={myPickForGw.outcome} />}
+                            {myPickForGw.outcome !== 'PENDING' && <span className="shrink-0"><OutcomeBadge outcome={myPickForGw.outcome} /></span>}
                           </div>
                         )}
                         {isCollapsed && !myPickForGw && isParticipant && !isEliminated && !isWinner && !isLocked && (
-                          <div className="sm:hidden mt-1 text-xs text-yellow-400 italic">No pick yet</div>
+                          <div className="mt-1 truncate text-xs text-yellow-400 italic sm:hidden">— no pick yet</div>
                         )}
                       </div>
                       <div className="flex flex-wrap items-center gap-2 sm:gap-3 ml-2">
