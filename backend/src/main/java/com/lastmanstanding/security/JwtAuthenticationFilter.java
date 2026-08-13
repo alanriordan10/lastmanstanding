@@ -34,6 +34,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // These routes require authentication — don't skip JWT processing for them
         if (path.equals("/auth/me")
                 || path.equals("/auth/email-preferences")
+                || path.equals("/auth/notification-preferences")
                 || path.equals("/auth/delete-token")
                 || path.equals("/auth/create-club")) {
             return false;
