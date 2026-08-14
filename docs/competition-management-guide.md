@@ -78,7 +78,7 @@
 ### 3.0 Competition Pricing (First Free, Then Paid)
 Each club can create its **first competition for free (one-time, lifetime)**.
 Every additional competition requires purchasing a one-time **competition
-creation credit** (a flat fee paid to the platform).
+creation credit** at **€29** (a flat fee paid to the platform).
 
 How it works:
 - **First competition:** created immediately, no charge.
@@ -88,7 +88,7 @@ How it works:
 
 Admin experience:
 - The Club Admin dashboard shows either `First competition is free` or your
-  current `Slot credits: N`.
+  current `Competition slots: N`.
 - When a purchase is required, a `Buy competition slot` button appears.
 - Clicking it opens **Stripe Checkout**; after paying you return to the
   dashboard and a success message confirms the credit was added.
@@ -97,6 +97,8 @@ Admin experience:
 Notes:
 - The creation fee is a **software/hosting fee** paid to the platform. It is
   separate from any **player entry fees** (see `Payment Mode` in 3.3).
+- The platform charges a fixed slot fee and does **not** take a per-player cut
+  from your competition entry fees.
 - Credits do not expire and are tied to the club.
 - Deleting a competition does **not** restore the free competition or return a
   credit.
@@ -105,7 +107,7 @@ Notes:
 - Blocked creation message: `Your club's free competition has been used.
   Purchase a competition slot to create another.`
 
-See also: [How to Use Last Man Standing, section 17](how-to-use-app-and-web.md#17-competition-slots-creation-credits).
+See also: [How to Use Last Man Standing, section 17](how-to-use-app-and-web.md#17-competition-slots).
 
 **Screenshot placeholder:**
 - `assets/screenshots/admin-billing-buy-slot.png`
@@ -247,7 +249,7 @@ See also: [How to Use Last Man Standing, section 17](how-to-use-app-and-web.md#1
 - Credits do not expire and belong to the club.
 
 ### The create button is blocked / I got a "payment required" message. Why?
-- Your club's free competition has already been used and you have no credits.
+- Your club's free competition has already been used and you have no competition slots.
 - Buy a competition slot, then create the competition.
 
 ### How does lifeline work exactly?

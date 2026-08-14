@@ -137,14 +137,14 @@ const adminSections: GuideSection[] = [
   {
     id: 'competition-slots',
     eyebrow: 'Competition slots',
-    title: 'Your free competition and buying slot credits',
-    summary: 'Every club can create one competition free of charge. Each competition after that consumes one competition slot credit, bought once-off through Stripe Checkout.',
+    title: 'Your free competition and buying competition slots',
+    summary: 'Every club can create one competition free of charge. Each competition after that consumes one competition slot at €29, bought once-off through Stripe Checkout.',
     items: [
       {
         title: '1. How the allowance works',
         points: [
           'Each club gets one free competition. This is a lifetime allowance, not a yearly or monthly reset.',
-          'Once the free competition has been created, every further competition requires one competition slot credit.',
+          'Once the free competition has been created, every further competition requires one competition slot priced at €29.',
           'Creating a competition consumes exactly one credit at the moment it is saved.',
           'Credits do not expire, and they are held at club level so any club admin can use them.',
           'Deleting or completing a competition does not return the free allowance or a spent credit.',
@@ -155,8 +155,8 @@ const adminSections: GuideSection[] = [
         points: [
           'Open Club Admin. The Competition Slots card shows your current position on both web and mobile.',
           'Free competition available means you can create your first competition at no cost.',
-          'A credit count means you have that many extra competitions ready to create.',
-          'Payment required means the free competition is used and there are no credits left, so + New Competition is blocked until you buy a slot.',
+          'A competition slot count means you have that many extra competitions ready to create.',
+          'Payment required means the free competition is used and there are no competition slots left, so + New Competition is blocked until you buy a slot.',
         ],
       },
       {
@@ -165,23 +165,24 @@ const adminSections: GuideSection[] = [
           'Select Buy competition slot on the Competition Slots card.',
           'On web you are redirected to Stripe Checkout in the browser. On mobile the app opens Stripe Checkout in your browser and returns you to the app afterwards.',
           'Pay securely by card. Last Man Standing never stores your card details; Stripe handles the payment.',
-          'On success you return to Club Admin with a confirmation message and the credit balance refreshes automatically.',
-          'If you cancel at the payment screen nothing is charged, no credit is added, and you can retry at any time.',
+          'On success you return to Club Admin with a confirmation message and the competition slot balance refreshes automatically.',
+          'If you cancel at the payment screen nothing is charged, no competition slot is added, and you can retry at any time.',
           'You can buy several slots in advance if you plan to run multiple competitions in a season.',
         ],
       },
       {
         title: '4. Slot fees versus player entry fees',
         points: [
-          'The competition slot fee is a platform fee paid to Last Man Standing for creating a competition.',
+          'The competition slot fee is a fixed low platform fee (€29) paid to Last Man Standing for creating a competition.',
           'Player entry fees are separate and are collected by your club under the competition Payment mode (Free or Manual).',
+          'The platform does not take a per-player cut from your competition entry fees.',
           'Buying a slot does not change how you collect money from players, and it does not enable online entry-fee collection.',
         ],
       },
       {
         title: '5. If creation is blocked',
         points: [
-          'The message "Your club\u2019s free competition has been used. Purchase a competition slot to create another." means you need a credit.',
+          'The message "Your club\u2019s free competition has been used. Purchase a competition slot to create another." means you need a competition slot.',
           'Buy a slot, wait for the balance to update on the Competition Slots card, then create the competition again.',
           'If you paid but the balance has not moved, refresh Club Admin. Stripe confirms the payment to the app in the background, which can take a few seconds.',
         ],
@@ -453,7 +454,7 @@ const competitionOptions: OptionRow[] = [
 
 const troubleshooting = [
   ['Fixtures are missing', 'Check fixture competition code, start date, provider availability, and whether fixture sync has run. For edited competitions, trigger or wait for a resync.'],
-  ['New Competition is blocked', 'Your club has used its free competition and has no slot credits. Open the Competition Slots card on Club Admin and buy a competition slot, then try again.'],
+  ['New Competition is blocked', 'Your club has used its free competition and has no competition slots. Open the Competition Slots card on Club Admin and buy a competition slot, then try again.'],
   ['I paid for a slot but the balance did not change', 'Refresh Club Admin. Stripe confirms the payment to the app in the background, so the credit can take a few seconds to appear. If it still does not appear, contact support with the Stripe receipt.'],
   ['A player appears twice', 'This is expected only when they have multiple entries. The UI should show entry numbers only for users with multiple entries.'],
   ['Picks are stale', 'Use refresh. The app intentionally avoids aggressive polling to reduce Render and Supabase usage. Live information updates in a reasonable timeframe, not instantly.'],
@@ -487,7 +488,7 @@ export default function UserGuidePage() {
           <div className="mt-6 grid gap-3 sm:grid-cols-4">
             <GuideMetric label="Player guide" value="Join, pick, track" />
             <GuideMetric label="Club admin guide" value="Create, invite, manage" />
-            <GuideMetric label="Competition slots" value="1 free, then credits" />
+            <GuideMetric label="Competition slots" value="1 free, then paid slots" />
             <GuideMetric label="Payments" value="Free, manual" />
           </div>
         </section>

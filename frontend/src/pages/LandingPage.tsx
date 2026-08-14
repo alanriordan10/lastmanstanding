@@ -180,7 +180,7 @@ export default function LandingPage() {
           <div className="grid sm:grid-cols-3 gap-8">
             {[
               { icon: '⚙️', title: 'Set Rules That Fit Your Competition', desc: 'Configure lock times, entry limits, missed-pick behavior, and optional lifeline rules for each competition.' },
-              { icon: '💳', title: 'Manage Entries and Payment Status', desc: 'Track each entry separately with free competitions or manual/offline payment tracking.' },
+              { icon: '💳', title: 'Manage Entries and Payment Status', desc: 'Run your first competition free, then expand with fixed-price €29 competition slots while tracking entries and manual/offline payments.' },
               { icon: '📊', title: 'Track Results and Survivor Table Live', desc: 'Reveal all picks after lock, process outcomes quickly, and keep the full survivor table visible to players.' },
             ].map(({ icon, title, desc }) => (
               <div key={title} className="rounded-2xl border border-white/8 bg-white/[0.035] p-6 text-center space-y-3 shadow-[0_20px_50px_rgba(2,6,23,0.28)]">
@@ -215,10 +215,10 @@ export default function LandingPage() {
             <div className="card space-y-3">
               <p className="text-xs font-black uppercase tracking-[0.22em] text-gray-400">Payment model</p>
               <p className="text-sm leading-6 text-gray-300">
-                The first competition for each club is free. Additional competitions require a paid plan. Club organisers may configure free competitions or manual/offline payment tracking.
+                The first competition for each club is free. After that, each additional competition uses one fixed-price competition slot at €29.
               </p>
               <p className="text-sm leading-6 text-gray-300">
-                Entry fees are collected outside the app when manual payment tracking is used.
+                This keeps costs predictable with no per-player platform cut. Entry fees are collected outside the app when manual payment tracking is used.
               </p>
             </div>
           </div>

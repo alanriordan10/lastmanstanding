@@ -119,7 +119,7 @@ const FAQ_SECTIONS = [
     items: [
       {
         q: 'How much does it cost to run a competition?',
-        a: 'Every club gets its first competition free. After that, each additional competition requires one competition slot credit, purchased once-off through Stripe Checkout from the Club Admin page.',
+        a: 'Every club gets its first competition free. After that, each additional competition requires one competition slot at €29, purchased once-off through Stripe Checkout from the Club Admin page.',
       },
       {
         q: 'What is a competition slot?',
@@ -139,11 +139,11 @@ const FAQ_SECTIONS = [
       },
       {
         q: 'Why am I being told payment is required when I try to create a competition?',
-        a: 'That means your club has already used its free competition and has no remaining slot credits. Buy a competition slot from the Club Admin page and then create the competition again.',
+        a: 'That means your club has already used its free competition and has no remaining competition slots. Buy a competition slot from the Club Admin page and then create the competition again.',
       },
       {
         q: 'Is the slot fee the same as player entry fees?',
-        a: "No. The competition slot fee is a platform fee paid to Last Man Standing for creating a competition. Player entry fees are collected separately by your club under the competition's payment mode.",
+        a: "No. The competition slot fee is a fixed low platform fee paid to Last Man Standing for creating a competition. Player entry fees are collected separately by your club under the competition's payment mode, and the platform does not take a per-player cut.",
       },
       {
         q: 'What happens if I cancel at the Stripe payment screen?',
@@ -155,7 +155,7 @@ const FAQ_SECTIONS = [
       },
       {
         q: 'Do I get a slot back if I delete a competition?',
-        a: 'No. A slot credit is consumed at the moment a competition is created and is not refunded if the competition is later deleted or abandoned.',
+        a: 'No. A competition slot is consumed at the moment a competition is created and is not refunded if the competition is later deleted or abandoned.',
       },
     ],
   },

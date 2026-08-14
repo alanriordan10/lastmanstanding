@@ -34,7 +34,7 @@ The screenshots below are guide mockups based on the current UI structure. They 
 | [Competition detail](assets/screenshots/guide-player-competition-detail.svg) | Pulse, next action, gameweeks, cards/My Route |
 | [My Route](assets/screenshots/guide-player-my-route.svg) | Available, used, and reserved team tracking |
 | [Survivor table](assets/screenshots/guide-player-survivor-table.svg) | Standings, filters, pick history, lifeline status |
-| [Club Admin dashboard](assets/screenshots/guide-admin-dashboard.svg) | Setup checklist, branding, competitions, slot credits |
+| [Club Admin dashboard](assets/screenshots/guide-admin-dashboard.svg) | Setup checklist, branding, competitions, competition slots |
 | [Competition slots](assets/screenshots/guide-admin-billing-slots.svg) | First free competition, buying slots, credit rules |
 | [Create competition](assets/screenshots/guide-admin-create-competition.svg) | Rules, visibility, payment, fixture source, lifeline |
 | [Participants and payments](assets/screenshots/guide-admin-participants-payments.svg) | Participant actions, mark paid, revert, export |
@@ -242,7 +242,7 @@ Club admins can manage their own club only.
 Main sections:
 
 - Setup Checklist: quick readiness status.
-- Competition Slots: your free competition or purchased slot credits.
+- Competition Slots: your free competition or purchased competition slots.
 - Club Settings: transfer or manage club ownership.
 - Club Branding: logo and colours used on competition pages.
 - Competitions: create, edit, pause, announce, view, and delete competitions.
@@ -298,7 +298,7 @@ The `Club Admin` dashboard shows one of the following:
 | Dashboard state | Meaning |
 |---|---|
 | `Free competition ready` | Your free competition has not been used yet. |
-| `Slot credits: N` | Your free competition is used. You have N purchased credits. |
+| `Competition slots: N` | Your free competition is used. You have N purchased competition slots. |
 | `Buy competition slot` button | A purchase is required (or you want to stock up) before creating. |
 
 ### Buying a slot
@@ -309,7 +309,7 @@ The `Club Admin` dashboard shows one of the following:
 4. You are returned to the dashboard with a confirmation:
    - success: `Payment received - a competition slot has been added to your club.`
    - cancelled: `Checkout cancelled - no charge was made.`
-5. Your slot credit count updates, and `+ New Competition` becomes available.
+5. Your competition slot count updates, and `+ New Competition` becomes available.
 
 You can buy several slots in advance if you plan to run multiple competitions.
 
@@ -338,21 +338,14 @@ Buy a slot and try again.
 4. Fill in required fields.
 5. Choose fixture settings and rules.
 6. Choose payment mode and visibility.
-7. Save. If this is not your first competition, one slot credit is used.
+7. Save. If this is not your first competition, one competition slot is used.
 
 > **Pricing:** Your club's **first competition is free**. Creating additional
-> competitions requires a one-time **competition slot** bought through Stripe
+> competitions requires a one-time **competition slot** at **€29** via Stripe
 > Checkout. When required, the dashboard shows a `Buy competition slot` button
-> and your current slot credits. This creation fee is separate from any player
-> entry fees you may collect. See section 17 above, and the Competition
-> Management Guide, section 3.0, for full details.
-
-> **Pricing:** Your club's **first competition is free**. Creating additional
-> competitions requires buying a one-time **competition slot** via Stripe
-> Checkout. When required, the dashboard shows a `Buy competition slot` button
-> and your current slot credits. This creation fee is separate from any player
-> entry fees you may collect. See the Competition Management Guide, section 3.0,
-> for full details.
+> and your current competition slots. This is a fixed low platform fee (no per-player
+> platform cut) and is separate from any player entry fees you may collect. See
+> section 17 above, and the Competition Management Guide, section 3.0, for full details.
 
 Required fields normally include:
 
@@ -562,7 +555,7 @@ Avoid sharing exports publicly if they contain personal data.
 
 ### I cannot create a new competition
 
-Your club's free competition has probably been used and you have no slot credits left. Open `Club Admin`, select `Buy competition slot`, complete Stripe Checkout, then create the competition. See section 17.
+Your club's free competition has probably been used and you have no competition slots left. Open `Club Admin`, select `Buy competition slot`, complete Stripe Checkout, then create the competition. See section 17.
 
 ### I paid for a slot but the credit is not showing
 
@@ -634,5 +627,5 @@ That user likely has multiple entries. Entry numbers are shown when there is mor
 | Manual payment strict mode | Unpaid entries may be blocked from picking. |
 | Private competition | Requires invite code. |
 | First competition | Free, once per club, for life. |
-| Additional competitions | Need one purchased competition slot credit each. |
-| Slot credits | Never expire, belong to the club, not refunded by deleting a competition. |
+| Additional competitions | Need one purchased competition slot each. |
+| Competition slots | Never expire, belong to the club, not refunded by deleting a competition. |

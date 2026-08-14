@@ -16,7 +16,7 @@ const serviceCards = [
   },
   {
     title: 'Payments support',
-    body: 'Competitions can be free or manually tracked by the club organiser. Admins can mark entries as paid after collecting payment outside the app.',
+    body: 'Every club gets one free competition. Additional competitions use fixed-price €29 competition slots, and admins can still mark entries as paid after collecting payment outside the app.',
   },
 ];
 
@@ -59,7 +59,7 @@ export default function ServicesPage() {
           ))}
         </div>
         <p>
-          Clubs are responsible for their own competition rules and for ensuring their use of the platform complies with local laws. Any entry fees are collected outside the app and manually tracked by the organiser.
+          Clubs are responsible for their own competition rules and for ensuring their use of the platform complies with local laws. Any entry fees are collected outside the app and manually tracked by the organiser, and the platform does not take a per-player cut.
         </p>
       </section>
 

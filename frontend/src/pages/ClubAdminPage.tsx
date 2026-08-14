@@ -545,7 +545,7 @@ export default function ClubAdminPage() {
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">
-                          {!billing.freeCompetitionUsed ? 'Free competition' : 'Slot credits'}
+                          {!billing.freeCompetitionUsed ? 'Free competition' : 'Competition slots'}
                         </div>
                         {!billing.freeCompetitionUsed && (
                           <span className="rounded-full border border-emerald-400/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-100">
@@ -561,13 +561,13 @@ export default function ClubAdminPage() {
                       <div className="mt-1 text-base font-semibold text-white">
                         {!billing.freeCompetitionUsed
                           ? 'Your first competition is ready to launch'
-                          : `${billing.paidCredits} credit${billing.paidCredits === 1 ? '' : 's'} available`}
+                          : `${billing.paidCredits} competition slot${billing.paidCredits === 1 ? '' : 's'} available`}
                       </div>
                       <p className="mt-1 text-xs leading-5 text-gray-400 sm:max-w-[320px]">
                         {!billing.freeCompetitionUsed
-                          ? 'Your club includes one free competition. Extra competitions can be added later with slot credits.'
+                          ? 'Your club includes one free competition. Extra competitions can be added later with competition slots.'
                           : billing.paidCredits > 0
-                            ? 'Keep credits on hand so you can create another competition whenever you need it.'
+                            ? 'Keep competition slots on hand so you can create another competition whenever you need it.'
                             : 'You have used your free competition. Purchase a slot to create another competition.'}
                       </p>
                     </div>
@@ -588,7 +588,7 @@ export default function ClubAdminPage() {
                     )}
                     {billing.freeCompetitionUsed && (
                       <span className="text-[11px] text-gray-500 sm:text-right">
-                        1 slot credit = 1 extra competition
+                        1 competition slot = 1 extra competition
                       </span>
                     )}
                   </div>
