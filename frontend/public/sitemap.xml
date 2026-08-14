@@ -45,5 +45,30 @@
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
+  <url>
+    <loc>https://www.runlastmanstanding.com/login</loc>
+    <changefreq>never</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://www.runlastmanstanding.com/signup</loc>
+    <changefreq>never</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://www.runlastmanstanding.com/register-club</loc>
+    <changefreq>never</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://www.runlastmanstanding.com/create-club</loc>
+    <changefreq>never</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://www.runlastmanstanding.com/forgot-password</loc>
+    <changefreq>never</changefreq>
+    <priority>0.2</priority>
+  </url>
 </urlset>
 
