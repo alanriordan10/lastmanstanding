@@ -2,4 +2,22 @@
 /icons/* /icons/:splat 200
 /manifest.json /manifest.json 200
 /sw.js /sw.js 200
+/robots.txt /robots.txt 200
+/sitemap.xml /sitemap.xml 200
+
+# Serve prerendered public pages as static HTML
+/faq /faq.html 200
+/guide /guide.html 200
+/services /services.html 200
+/pricing /pricing.html 200
+/contact /contact.html 200
+/refund-policy /refund-policy.html 200
+/privacy /privacy.html 200
+/terms /terms.html 200
+/login /login.html 200
+/signup /signup.html 200
+/register-club /register-club.html 200
+/create-club /create-club.html 200
+/forgot-password /forgot-password.html 200
+
 /* / 200
