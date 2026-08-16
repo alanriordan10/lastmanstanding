@@ -52,7 +52,7 @@ public class AuthCookieService {
             cookie.setHttpOnly(true);
             cookie.setSecure(secure);
             cookie.setMaxAge(0);
-            cookie.setAttribute("SameSite", "Strict");
+            cookie.setAttribute("SameSite", "None");
             response.addCookie(cookie);
         }
     }
@@ -71,7 +71,7 @@ public class AuthCookieService {
         cookie.setHttpOnly(true);
         cookie.setSecure(secure);
         cookie.setMaxAge((int) maxAgeSeconds);
-        cookie.setAttribute("SameSite", "Strict");
+        cookie.setAttribute("SameSite", "None");
         response.addCookie(cookie);
     }
 
