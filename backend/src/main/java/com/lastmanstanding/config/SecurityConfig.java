@@ -81,13 +81,13 @@ public class SecurityConfig {
                             .includeSubDomains(true)
                             .maxAgeInSeconds(31_536_000)
                             .preload(true));
-                    headers.permissionsPolicy(perms -> perms.policy(
-                            "accelerometer=(), ambient-light-sensor=(), autoplay=(), " +
+                   /* headers.permissionsPolicyHeader(perms -> perms.policy(
+                        "accelerometer=(), ambient-light-sensor=(), autoplay=(), " +
                             "battery=(), camera=(), display-capture=(), document-domain=(), " +
                             "encrypted-media=(), fullscreen=(self), geolocation=(), gyroscope=(), " +
                             "magnetometer=(), microphone=(), midi=(), payment=(self \"https://js.stripe.com\"), " +
                             "picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), " +
-                            "sync-xhr=(), usb=(), xr-spatial-tracking=()"));
+                            "sync-xhr=(), usb=(), xr-spatial-tracking=()"));*/
                 })
                 .addFilterBefore(cspHeaderFilter, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
                 .sessionManagement(session ->
