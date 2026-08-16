@@ -81,15 +81,15 @@ public class SecurityConfig {
                             .includeSubDomains(true)
                             .maxAgeInSeconds(31_536_000)
                             .preload(true));
-                   /* headers.permissionsPolicyHeader(perms -> perms.policy(
-                        "accelerometer=(), ambient-light-sensor=(), autoplay=(), " +
+                    headers.permissionsPolicy(perms -> perms.policy(
+                            "accelerometer=(), ambient-light-sensor=(), autoplay=(), " +
                             "battery=(), camera=(), display-capture=(), document-domain=(), " +
                             "encrypted-media=(), fullscreen=(self), geolocation=(), gyroscope=(), " +
                             "magnetometer=(), microphone=(), midi=(), payment=(self \"https://js.stripe.com\"), " +
                             "picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), " +
-                            "sync-xhr=(), usb=(), xr-spatial-tracking=()"));*/
+                            "sync-xhr=(), usb=(), xr-spatial-tracking=()"));
                 })
-                //.addFilterBefore(cspHeaderFilter, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(cspHeaderFilter, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(auth -> auth
@@ -102,9 +102,6 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/competitions/code/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/competitions/upcoming").permitAll()
                         .requestMatchers(HttpMethod.GET, "/competitions/clubs").permitAll()
-                    .requestMatchers(HttpMethod.GET, "/competitions/details").permitAll()
-                    .requestMatchers(HttpMethod.GET, "/competitions/announcements").permitAll()
-                    .requestMatchers(HttpMethod.GET, "/competitions/my").permitAll()
                         .requestMatchers(HttpMethod.GET, "/competitions/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/competitions/*/fixtures").permitAll()
                         .requestMatchers(HttpMethod.GET, "/competitions/*/participants").permitAll()
