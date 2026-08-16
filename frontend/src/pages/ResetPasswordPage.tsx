@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
 import SeoMeta from '../components/SeoMeta';
+import { PasswordStrengthMeter, isPasswordStrongEnough } from '../components/PasswordStrengthMeter';
 
 export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
@@ -46,6 +47,10 @@ export default function ResetPasswordPage() {
       toast.error('Password must be at least 8 characters');
       return;
     }
+    if (!isPasswordStrongEnough(password)) {
+      toast.error('Please choose a stronger password.');
+      return;
+    }
     setLoading(true);
     try {
       await api.post('/auth/reset-password', { token, newPassword: password });
@@ -63,7 +68,7 @@ export default function ResetPasswordPage() {
       {seoMeta}
       <div className="grid w-full max-w-5xl gap-6 lg:grid-cols-[1.05fr_0.95fr]">
         <section className="relative overflow-hidden rounded-[1.9rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.22),transparent_24rem),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))] px-6 py-8 shadow-[0_30px_75px_rgba(2,6,23,0.48)]">
-          <div className="inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-200">
+          <div className="inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-200">
             Secure reset
           </div>
           <div className="mt-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-brand-300/25 bg-gradient-to-br from-brand-500 to-cyan-400 text-xl font-black text-slate-950 shadow-[0_10px_28px_rgba(56,189,248,0.18)]">
@@ -98,6 +103,7 @@ export default function ResetPasswordPage() {
                 {showPassword ? 'Hide' : 'Show'}
               </button>
             </div>
+            <PasswordStrengthMeter password={password} />
           </div>
 
           <div>
@@ -119,7 +125,7 @@ export default function ResetPasswordPage() {
 
           <button
             type="submit"
-            disabled={loading || password !== confirm || password.length < 8}
+            disabled={loading || password !== confirm || password.length < 8 || (!!password && !isPasswordStrongEnough(password))}
             className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Updating…' : 'Update password'}

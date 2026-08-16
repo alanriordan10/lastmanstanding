@@ -79,7 +79,7 @@ export default function CreateClubPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="relative min-h-screen flex flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.10),transparent_36rem),linear-gradient(180deg,#0a1224_0%,#0b1322_100%)]">
       <SeoMeta
         title="Create Club | Last Man Standing"
         description="Finish setting up your club and launch football survivor competitions with Last Man Standing organiser tools."
@@ -93,7 +93,7 @@ export default function CreateClubPage() {
           </div>
           <div className="hidden sm:block">
             <span className="block text-lg font-black tracking-tight">Last Man Standing</span>
-            <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-200/75">Club setup</span>
+            <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-200/75">Club setup</span>
           </div>
         </Link>
         <Link to="/competitions" className="rounded-lg border border-white/10 bg-white/[0.05] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-200 transition hover:bg-white/[0.1] hover:text-white">
@@ -103,8 +103,8 @@ export default function CreateClubPage() {
 
       <div className="flex flex-1 items-center justify-center p-4">
         <div className="w-full max-w-5xl grid gap-6 lg:grid-cols-[1fr_1.05fr]">
-          <section className="relative overflow-hidden rounded-[1.9rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.22),transparent_24rem),radial-gradient(circle_at_85%_16%,rgba(250,204,21,0.08),transparent_18rem),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))] px-6 py-8 shadow-[0_30px_75px_rgba(2,6,23,0.48)]">
-            <div className="inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-200">
+          <section className="relative overflow-hidden rounded-[1.9rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_24rem),linear-gradient(135deg,rgba(15,23,42,0.96),rgba(8,15,30,0.94))] px-6 py-8 shadow-[0_30px_75px_rgba(2,6,23,0.48)]">
+            <div className="inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-200">
               Existing account
             </div>
             <div className="mt-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-brand-300/25 bg-gradient-to-br from-brand-500 to-cyan-400 text-3xl font-black text-slate-950 shadow-[0_10px_28px_rgba(56,189,248,0.18)]">
@@ -203,7 +203,7 @@ function SetupMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-white/8 bg-white/[0.045] px-3 py-2.5 text-center backdrop-blur-sm">
       <div className="text-sm font-black text-white sm:text-base">{value}</div>
-      <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">{label}</div>
+      <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400">{label}</div>
     </div>
   );
 }

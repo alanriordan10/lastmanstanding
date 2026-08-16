@@ -65,7 +65,7 @@ export default function AdminPage() {
       <section className="relative overflow-hidden rounded-[1.85rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_24rem),radial-gradient(circle_at_85%_16%,rgba(248,113,113,0.10),transparent_18rem),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))] px-5 py-5 shadow-[0_30px_75px_rgba(2,6,23,0.48)] sm:px-6 sm:py-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
-            <div className="inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-200">
+            <div className="inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-200">
               Control room
             </div>
             <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">Admin Panel</h1>
@@ -104,7 +104,7 @@ export default function AdminPage() {
 
       {/* Tabs */}
       <div className="sm:hidden">
-        <label className="block text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Admin section</label>
+        <label className="block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Admin section</label>
         <div className="mt-2">
           <AdminSelect
             value={tab}
@@ -144,7 +144,7 @@ function AdminHeroStat({ label, value, accent }: { label: string; value: string;
   return (
     <div className="min-w-0 rounded-2xl border border-white/8 bg-white/[0.045] px-3 py-2 text-center backdrop-blur-sm">
       <div className={`text-base sm:text-lg font-black leading-tight ${accent}`}>{value}</div>
-      <div className="mt-0.5 text-[8px] sm:text-[10px] font-semibold uppercase tracking-[0.06em] sm:tracking-[0.18em] text-gray-400 leading-tight break-words">
+      <div className="mt-0.5 text-[8px] sm:text-[10px] font-semibold uppercase tracking-[0.06em] sm:tracking-[0.14em] text-gray-400 leading-tight break-words">
         <span className="sm:hidden">
           {label === 'Competitions' ? 'Comps' : label === 'Fixture Sync' ? 'Sync' : label}
         </span>
@@ -3538,7 +3538,7 @@ function SectionIntro({
 }) {
   return (
     <div className="rounded-2xl border border-white/8 bg-white/[0.035] px-4 py-4 shadow-[0_16px_40px_rgba(2,6,23,0.28)]">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-200/80">{eyebrow}</div>
+      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-200/80">{eyebrow}</div>
       <h2 className="mt-2 text-xl font-semibold tracking-tight text-white">{title}</h2>
       <p className="mt-1 text-sm leading-6 text-gray-400">{description}</p>
     </div>

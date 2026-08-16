@@ -454,7 +454,7 @@ function MiniStat({
       aria-pressed={onClick ? isActive : undefined}
     >
       <div className={`text-lg font-black ${accent}`}>{value}</div>
-      <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">{label}</div>
+      <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400">{label}</div>
     </button>
   );
 }

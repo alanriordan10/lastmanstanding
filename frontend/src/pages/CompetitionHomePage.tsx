@@ -1951,7 +1951,7 @@ export default function CompetitionHomePage() {
               </StatusPill>
               {selectedEntryLabel && <StatusPill tone="neutral">{selectedEntryLabel}</StatusPill>}
               {myEntries.length > 1 && (
-                <label className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/20 px-3 py-1 text-[11px] font-semibold text-gray-200">
+                <label className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[11px] font-semibold text-gray-200">
                   <span className="uppercase tracking-[0.14em] text-gray-400">Entry</span>
                   <select
                     value={selectedEntryId ?? ''}
@@ -2014,7 +2014,7 @@ export default function CompetitionHomePage() {
                 {comp.joinCode ? (
                   <div className="rounded-lg border border-brand-500/20 bg-brand-500/10 px-3 py-2 text-xs text-brand-100">
                     <span className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-brand-300">Join code</span>
-                    <span className="mt-1 block text-sm font-bold tracking-[0.22em]">{comp.joinCode}</span>
+                    <span className="mt-1 block text-sm font-bold tracking-[0.14em]">{comp.joinCode}</span>
                   </div>
                 ) : (
                   <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-gray-300">
@@ -2096,7 +2096,7 @@ export default function CompetitionHomePage() {
               <CompetitionPulseSkeleton />
             ) : (
               <>
-            <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-200/80">
+            <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-200/80">
               {comp.clubLogoUrl && (
                 <img src={comp.clubLogoUrl} alt="" className="h-6 w-6 rounded-md object-cover border border-white/20" />
               )}
@@ -2196,7 +2196,7 @@ export default function CompetitionHomePage() {
           <CompetitionSnapshotSkeleton />
         ) : (
           <>
-        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-200">What Changed This Gameweek</div>
+        <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-200">What Changed This Gameweek</div>
         <h2 className="mt-1 text-lg font-semibold text-white">
           {narrativeWeekLabel ?? 'Latest gameweek'} snapshot
         </h2>
@@ -2236,7 +2236,7 @@ export default function CompetitionHomePage() {
         )}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <div className={clsx('text-[11px] font-semibold uppercase tracking-[0.18em]', stateBanner.tone === 'warn' ? 'text-amber-300' : 'text-brand-200')}>{stateBanner.eyebrow}</div>
+              <div className={clsx('text-[11px] font-semibold uppercase tracking-[0.14em]', stateBanner.tone === 'warn' ? 'text-amber-300' : 'text-brand-200')}>{stateBanner.eyebrow}</div>
               <h2 className="mt-1 text-lg font-semibold text-white">{stateBanner.title}</h2>
               <p className="mt-1 text-sm text-gray-200">{stateBanner.detail}</p>
             </div>
@@ -2255,7 +2255,7 @@ export default function CompetitionHomePage() {
         <section className="rounded-[1.35rem] border border-yellow-500/30 bg-yellow-500/10 px-4 py-4 sm:px-5">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-yellow-300">Processing Update</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-yellow-300">Processing Update</div>
               <h2 className="mt-1 text-lg font-semibold text-white">Simulated results are still being finalized</h2>
               <p className="mt-1 text-sm text-gray-300">
                 Fixture outcomes are in, but eliminations and survivor counts are still syncing. This page will refresh automatically when processing completes.
@@ -3130,7 +3130,7 @@ function NarrativeCard({
 }) {
   return (
     <div className="rounded-[1.35rem] border border-white/8 bg-white/[0.045] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">{eyebrow}</div>
+      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">{eyebrow}</div>
       <div className={clsx('mt-2 text-lg font-black tracking-tight', accent)}>{title}</div>
       <p className="mt-2 text-sm leading-6 text-gray-400">{detail}</p>
     </div>
@@ -3156,7 +3156,7 @@ function InsightPanel({
 
   return (
     <div className={clsx('rounded-[1.4rem] border p-4 sm:p-5', toneClasses[tone])}>
-      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] opacity-70">{eyebrow}</div>
+      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] opacity-70">{eyebrow}</div>
       <h3 className="mt-2 text-lg font-semibold tracking-tight text-white">{title}</h3>
       <p className="mt-2 text-sm leading-6 text-gray-300">{detail}</p>
     </div>
@@ -3298,7 +3298,7 @@ function MyRoutePanel({
   return (
     <div className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 sm:p-4">
       <div className="rounded-2xl border border-sky-300/25 bg-sky-500/10 p-4">
-        <div className="text-[10px] font-black uppercase tracking-[0.22em] text-sky-200">Your route</div>
+        <div className="text-[10px] font-black uppercase tracking-[0.14em] text-sky-200">Your route</div>
         {currentPick ? (
           <>
             <div className="mt-2 inline-flex max-w-full items-center gap-2 overflow-hidden">
@@ -3351,7 +3351,7 @@ function MyRoutePanel({
 
       {usedTeams.length > 0 ? (
         <div className="mt-4">
-          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-300">Used before</div>
+          <div className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-300">Used before</div>
           <div className="mt-2 flex flex-wrap gap-2">
             {usedTeams.map((team) => <span key={team.teamId} className="inline-flex items-center gap-1.5 rounded-full border border-yellow-400/30 bg-yellow-500/10 px-3 py-1.5 text-xs font-black text-yellow-200 line-through"><RouteTeamLogo teamName={team.teamName} shortName={team.teamShortName} logoUrl={team.logoUrl} size="xs" />{team.teamShortName}</span>)}
           </div>
@@ -3360,7 +3360,7 @@ function MyRoutePanel({
 
       {reservedTeams.length > 0 ? (
         <div className="mt-4">
-          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-300">Reserved in another gameweek</div>
+          <div className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-300">Reserved in another gameweek</div>
           <div className="mt-2 flex flex-wrap gap-2">
             {reservedTeams.map((team) => <span key={team.teamId} className="inline-flex items-center gap-1.5 rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-black text-cyan-200"><RouteTeamLogo teamName={team.teamName} shortName={team.teamShortName} logoUrl={team.logoUrl} size="xs" />{team.teamShortName}</span>)}
           </div>
@@ -3368,7 +3368,7 @@ function MyRoutePanel({
       ) : null}
 
       <div className="mt-4">
-        <div className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-300">Available teams this gameweek</div>
+        <div className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-300">Available teams this gameweek</div>
         <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
           {availableTeams.map((team) => {
             const picked = currentPick?.teamId === team.teamId;
@@ -3779,7 +3779,7 @@ function ActionPanel({
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">Next Action</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">Next Action</div>
           <h2 className="mt-2 text-lg font-semibold tracking-tight text-white">{title}</h2>
           <p className="mt-1 text-sm font-medium text-gray-400">{statusLabel}</p>
         </div>

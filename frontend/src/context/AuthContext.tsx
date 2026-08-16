@@ -5,56 +5,50 @@ import type { AuthResponse } from '../types';
 interface AuthContextType {
   user: AuthResponse | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<AuthResponse>;
   loginWithToken: (token: string) => Promise<void>;
   loginWithData: (data: AuthResponse) => void;
   markClubAdminRevoked: () => void;
-  signup: (email: string, username: string, password: string) => Promise<void>;
-  logout: () => void;
+  signup: (email: string, username: string, password: string) => Promise<AuthResponse>;
+  logout: () => Promise<void>;
   isAdmin: boolean;
   isClubAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+type StoredUser = Omit<AuthResponse, 'accessToken' | 'refreshToken'>;
+
+function stripTokens(data: AuthResponse): StoredUser {
+  const { accessToken, refreshToken, ...rest } = data;
+  return rest;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [clubAdminRevoked, setClubAdminRevoked] = useState(() => localStorage.getItem('clubAdminRevoked') === '1');
 
-  // Load user from localStorage on mount, then validate + refresh role from server
   useEffect(() => {
-    const token = localStorage.getItem('accessToken');
     const stored = localStorage.getItem('user');
 
-    if (token && stored) {
+    if (stored) {
       try {
-        const userData = JSON.parse(stored);
-        setUser(userData); // set immediately from cache so UI doesn't flash
+        const userData = JSON.parse(stored) as StoredUser;
+        setUser(userData as AuthResponse);
 
-        // Check if JWT is expired
-        try {
-          const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
-          if (payload.exp && Date.now() >= payload.exp * 1000) {
-            localStorage.clear();
-            setUser(null);
-            setIsLoading(false);
-            return;
-          }
-        } catch {
-          localStorage.clear();
-          setUser(null);
-          setIsLoading(false);
-          return;
-        }
-
-        // Refresh role from server — picks up any role changes made since last login
         api.get<AuthResponse>('/auth/me')
           .then(({ data }) => {
             persistUser(data);
           })
-          .catch(() => {
-            // If /auth/me fails (e.g. token revoked), keep cached user — they'll get errors on next API call
+          .catch((err) => {
+            const status = err?.response?.status;
+            if (status === 401 || status === 403) {
+              // Cookie is stale or invalid — clear the cached user so the
+              // next render treats them as logged out.
+              localStorage.removeItem('user');
+              setUser(null);
+            }
           })
           .finally(() => setIsLoading(false));
         return;
@@ -66,12 +60,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const persistUser = (data: AuthResponse) => {
-    localStorage.setItem('accessToken', data.accessToken);
-    localStorage.setItem('refreshToken', data.refreshToken);
-    localStorage.setItem('user', JSON.stringify(data));
+    const cleaned = stripTokens(data);
+    localStorage.setItem('user', JSON.stringify(cleaned));
     localStorage.removeItem('clubAdminRevoked');
     setClubAdminRevoked(false);
-    setUser(data);
+    setUser(cleaned as AuthResponse);
   };
 
   const markClubAdminRevoked = useCallback(() => {
@@ -79,9 +72,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setClubAdminRevoked(true);
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string): Promise<AuthResponse> => {
     const { data } = await api.post<AuthResponse>('/auth/login', { email, password });
     persistUser(data);
+    return data;
   }, []);
 
   const loginWithToken = useCallback(async (token: string) => {
@@ -94,13 +88,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     persistUser(data);
   }, []);
 
-  const signup = useCallback(async (email: string, username: string, password: string) => {
+  const signup = useCallback(async (email: string, username: string, password: string): Promise<AuthResponse> => {
     const { data } = await api.post<AuthResponse>('/auth/signup', { email, username, password });
     persistUser(data);
+    return data;
   }, []);
 
-  const logout = useCallback(() => {
-    api.post('/auth/logout').catch(() => {});
+  const logout = useCallback(async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch {
+      // ignore — clear local state regardless
+    }
     localStorage.clear();
     setClubAdminRevoked(false);
     setUser(null);

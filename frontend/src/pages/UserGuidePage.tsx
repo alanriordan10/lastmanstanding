@@ -476,7 +476,7 @@ export default function UserGuidePage() {
             <Link to="/faq" className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-gray-200 hover:bg-white/[0.08]">FAQ</Link>
           </div>
           <div className="mt-6 max-w-4xl">
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-brand-200">Detailed user guide</p>
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-200">Detailed user guide</p>
             <h1 className="mt-3 text-4xl font-black tracking-tight sm:text-5xl">How to use Last Man Standing</h1>
             <p className="mt-4 text-base leading-7 text-slate-300">
               A complete walkthrough for players and club admins using the web portal or mobile app. It covers joining competitions,
@@ -493,7 +493,7 @@ export default function UserGuidePage() {
         </section>
 
         <nav className="rounded-[1.5rem] border border-white/10 bg-white/[0.035] p-4">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-brand-200">Jump to</p>
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-200">Jump to</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {quickLinks.map(([label, href]) => (
               <a key={href} href={href} className="rounded-full border border-white/10 bg-surface-800 px-3 py-1.5 text-xs font-semibold text-gray-200 hover:border-brand-300/40 hover:text-brand-100">
@@ -606,7 +606,7 @@ function GuideMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
       <div className="text-lg font-black text-white">{value}</div>
-      <div className="mt-1 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">{label}</div>
+      <div className="mt-1 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">{label}</div>
     </div>
   );
 }

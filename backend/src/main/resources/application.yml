@@ -37,6 +37,19 @@ spring:
     username: ${MAIL_USERNAME:}
     password: ${MAIL_PASSWORD:}
   security:
+    login:
+      max-attempts-per-email: ${LOGIN_MAX_ATTEMPTS_PER_EMAIL:5}
+      max-attempts-per-ip: ${LOGIN_MAX_ATTEMPTS_PER_IP:30}
+      email-window-minutes: ${LOGIN_EMAIL_WINDOW_MINUTES:15}
+      ip-window-minutes: ${LOGIN_IP_WINDOW_MINUTES:60}
+    forgot:
+      max-attempts-per-email: ${FORGOT_MAX_ATTEMPTS_PER_EMAIL:5}
+      max-attempts-per-ip: ${FORGOT_MAX_ATTEMPTS_PER_IP:20}
+      email-window-minutes: ${FORGOT_EMAIL_WINDOW_MINUTES:60}
+      ip-window-minutes: ${FORGOT_IP_WINDOW_MINUTES:60}
+    signup:
+      max-attempts-per-ip: ${SIGNUP_MAX_ATTEMPTS_PER_IP:5}
+      ip-window-minutes: ${SIGNUP_IP_WINDOW_MINUTES:60}
     oauth2:
       client:
         registration:
@@ -134,6 +147,8 @@ app:
   mail-enabled: ${MAIL_ENABLED:false}
   resend-api-key: ${RESEND_API_KEY:}
   support-email: ${SUPPORT_EMAIL:support@runlastmanstanding.com}
+  cookies:
+    secure: ${COOKIE_SECURE:false}
   perf:
     endpoint-metrics-enabled: ${ENDPOINT_METRICS_ENABLED:true}
   vapid-public-key: ${VAPID_PUBLIC_KEY:}

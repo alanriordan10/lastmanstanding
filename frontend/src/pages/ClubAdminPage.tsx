@@ -500,7 +500,7 @@ export default function ClubAdminPage() {
       <section className="relative overflow-hidden rounded-[1.85rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_24rem),radial-gradient(circle_at_85%_16%,rgba(250,204,21,0.10),transparent_18rem),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))] px-5 py-5 shadow-[0_30px_75px_rgba(2,6,23,0.48)] sm:px-6 sm:py-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
-            <div className="inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-200">
+            <div className="inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-200">
               Club control
             </div>
             <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">Club Admin</h1>
@@ -544,7 +544,7 @@ export default function ClubAdminPage() {
                     </div>
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400">
                           {!billing.freeCompetitionUsed ? 'Free competition' : 'Slot credits'}
                         </div>
                         {!billing.freeCompetitionUsed && (
@@ -679,7 +679,7 @@ export default function ClubAdminPage() {
           </div>
           <button
             onClick={() => { setShowAssignAdmin((v) => !v); setAdminSearchQuery(''); setAdminSearchResults([]); }}
-            className="w-full sm:w-auto text-xs px-3 py-1.5 rounded-xl border border-white/10 bg-white/[0.04] text-gray-300 transition hover:border-white/15 hover:bg-white/[0.08]"
+            className="w-full sm:w-auto text-xs px-3 py-1.5 rounded-xl border border-white/10 bg-white/[0.04] text-gray-300 transition hover:border-white/10 hover:bg-white/[0.08]"
           >
             {showAssignAdmin ? '✕ Cancel' : '👤 Assign New Admin'}
           </button>
@@ -736,7 +736,7 @@ export default function ClubAdminPage() {
           </div>
           <button
             onClick={() => setShowBrandingForm((v) => !v)}
-            className="w-full sm:w-auto text-xs px-3 py-1.5 rounded-xl border border-white/10 bg-white/[0.04] text-gray-300 transition hover:border-white/15 hover:bg-white/[0.08]"
+            className="w-full sm:w-auto text-xs px-3 py-1.5 rounded-xl border border-white/10 bg-white/[0.04] text-gray-300 transition hover:border-white/10 hover:bg-white/[0.08]"
           >
             {showBrandingForm ? '✕ Cancel' : '🎨 Edit Branding'}
           </button>
@@ -859,7 +859,7 @@ export default function ClubAdminPage() {
                   </div>
                 )}
                 <div className="min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em]" style={{ color: brandingPreviewPrimary }}>Live preview</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em]" style={{ color: brandingPreviewPrimary }}>Live preview</p>
                   <p className="mt-0.5 truncate text-base font-black text-white">{myClub?.name ?? 'Your Club'}</p>
                 </div>
               </div>
@@ -1438,11 +1438,11 @@ export default function ClubAdminPage() {
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-yellow-400/30 bg-yellow-500/15 text-xl">⏸</div>
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-yellow-400">Pause competition</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-yellow-400">Pause competition</p>
                     <h2 className="text-lg font-black leading-tight text-white">Pause {pausingComp.name}?</h2>
                   </div>
                 </div>
-                <button type="button" onClick={() => setPausingComp(null)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/12 bg-white/[0.06] text-gray-400 transition hover:bg-white/[0.12] hover:text-white" aria-label="Close">✕</button>
+                <button type="button" onClick={() => setPausingComp(null)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-gray-400 transition hover:bg-white/[0.12] hover:text-white" aria-label="Close">✕</button>
               </div>
               <p className="mt-2.5 text-xs text-gray-400">Joining, payments, picks, reminders and automatic processing will stop. Fixture kickoff and gameweek lock times remain unchanged.</p>
             </div>
@@ -1454,7 +1454,7 @@ export default function ClubAdminPage() {
               </label>
             </div>
             <div className="flex gap-2.5 border-t border-white/8 px-6 py-4">
-              <button type="button" onClick={() => setPausingComp(null)} className="flex-1 rounded-xl border border-white/12 bg-white/[0.05] py-2.5 text-sm font-semibold text-gray-300 transition hover:bg-white/[0.1] hover:text-white">Cancel</button>
+              <button type="button" onClick={() => setPausingComp(null)} className="flex-1 rounded-xl border border-white/10 bg-white/[0.05] py-2.5 text-sm font-semibold text-gray-300 transition hover:bg-white/[0.1] hover:text-white">Cancel</button>
               <button type="button" onClick={() => pauseMutation.mutate()} disabled={pauseMutation.isPending || !pauseReason.trim()} className="flex-1 rounded-xl border border-yellow-400/30 bg-yellow-500/15 py-2.5 text-sm font-black text-yellow-100 transition hover:bg-yellow-500/25 disabled:opacity-40 disabled:cursor-not-allowed">
                 {pauseMutation.isPending ? 'Pausing…' : 'Pause competition'}
               </button>
@@ -1471,11 +1471,11 @@ export default function ClubAdminPage() {
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-400/30 bg-amber-500/15 text-xl">📢</div>
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-400">Announcement</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-amber-400">Announcement</p>
                     <h2 className="text-lg font-black leading-tight text-white">{announcingComp.name}</h2>
                   </div>
                 </div>
-                <button type="button" onClick={() => setAnnouncingComp(null)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/12 bg-white/[0.06] text-gray-400 transition hover:bg-white/[0.12] hover:text-white" aria-label="Close">✕</button>
+                <button type="button" onClick={() => setAnnouncingComp(null)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-gray-400 transition hover:bg-white/[0.12] hover:text-white" aria-label="Close">✕</button>
               </div>
               <p className="mt-2.5 flex items-center gap-1.5 text-xs text-gray-400">
                 <span className="text-emerald-400">✓</span>
@@ -1499,7 +1499,7 @@ export default function ClubAdminPage() {
               </div>
             </div>
             <div className="flex gap-2.5 border-t border-white/8 px-6 py-4">
-              <button type="button" onClick={() => setAnnouncingComp(null)} className="flex-1 rounded-xl border border-white/12 bg-white/[0.05] py-2.5 text-sm font-semibold text-gray-300 transition hover:bg-white/[0.1] hover:text-white">Cancel</button>
+              <button type="button" onClick={() => setAnnouncingComp(null)} className="flex-1 rounded-xl border border-white/10 bg-white/[0.05] py-2.5 text-sm font-semibold text-gray-300 transition hover:bg-white/[0.1] hover:text-white">Cancel</button>
               <button type="button" onClick={() => announcementMutation.mutate()} disabled={announcementMutation.isPending || !announcementTitle.trim() || !announcementMessage.trim()} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 py-2.5 text-sm font-black text-white shadow-[0_4px_18px_rgba(245,158,11,0.3)] transition hover:from-amber-400 hover:to-orange-400 disabled:opacity-40 disabled:cursor-not-allowed">
                 {announcementMutation.isPending ? (
                   <>
@@ -1539,7 +1539,7 @@ function AdminHeroStat({ label, value, accent }: { label: ReactNode; value: stri
   return (
     <div className="rounded-2xl border border-white/8 bg-white/[0.045] px-3 py-2 text-center backdrop-blur-sm">
       <div className={`text-lg font-black ${accent}`}>{value}</div>
-      <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">{label}</div>
+      <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400">{label}</div>
     </div>
   );
 }
@@ -1887,7 +1887,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                 setManualHintDismissed(true);
                 try { localStorage.setItem(manualHintKey, '1'); } catch {}
               }}
-              className="sm:hidden shrink-0 text-[11px] rounded border border-white/15 px-1.5 py-0.5 text-gray-400"
+              className="sm:hidden shrink-0 text-[11px] rounded border border-white/10 px-1.5 py-0.5 text-gray-400"
             >
               Dismiss
             </button>

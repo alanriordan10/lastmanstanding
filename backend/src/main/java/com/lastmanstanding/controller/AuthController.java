@@ -11,8 +11,10 @@ import com.lastmanstanding.entity.User;
 import com.lastmanstanding.repository.ClubRepository;
 import com.lastmanstanding.repository.PasswordResetTokenRepository;
 import com.lastmanstanding.repository.UserRepository;
+import com.lastmanstanding.security.AuthCookieService;
 import com.lastmanstanding.security.JwtService;
 import com.lastmanstanding.service.GameweekEmailService;
+import com.lastmanstanding.service.RateLimitService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
@@ -57,6 +59,8 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final GameweekEmailService gameweekEmailService;
+    private final RateLimitService rateLimitService;
+    private final AuthCookieService authCookieService;
 
     @Value("${app.frontend-url:http://localhost:5173}")
     private String frontendUrl;
@@ -67,7 +71,9 @@ public class AuthController {
                           PasswordEncoder passwordEncoder,
                           AuthenticationManager authenticationManager,
                           PasswordResetTokenRepository passwordResetTokenRepository,
-                          GameweekEmailService gameweekEmailService) {
+                          GameweekEmailService gameweekEmailService,
+                          RateLimitService rateLimitService,
+                          AuthCookieService authCookieService) {
         this.userRepository = userRepository;
         this.clubRepository = clubRepository;
         this.jwtService = jwtService;
@@ -75,6 +81,8 @@ public class AuthController {
         this.authenticationManager = authenticationManager;
         this.passwordResetTokenRepository = passwordResetTokenRepository;
         this.gameweekEmailService = gameweekEmailService;
+        this.rateLimitService = rateLimitService;
+        this.authCookieService = authCookieService;
     }
 
     // ── Club self-registration ───────────────────────────────────────────
@@ -159,14 +167,29 @@ public class AuthController {
     }
 
     @PostMapping("/signup")
-    public ResponseEntity<AuthResponse> signup(@Valid @RequestBody SignupRequest request) {
+    public ResponseEntity<AuthResponse> signup(@Valid @RequestBody SignupRequest request, HttpServletRequest httpRequest) {
         String normalizedUsername = normalizeUsername(request.username());
         String normalizedEmail = request.email().trim();
-        if (userRepository.existsByEmail(normalizedEmail)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email is already in use");
+        String ip = resolveClientIp(httpRequest);
+
+        // Rate limit by IP first.
+        if (rateLimitService.isSignupIpLimited(ip)) {
+            long retryAfter = rateLimitService.signupIpRetryAfterSeconds(ip);
+            throw new RateLimitedException(
+                    "Too many signup attempts. Try again in " + formatMinutes(retryAfter) + ".",
+                    retryAfter);
         }
-        if (userRepository.existsByUsernameIgnoreCase(normalizedUsername)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Username is already taken");
+        rateLimitService.recordSignupAttempt(ip);
+
+        // Generic outcome: don't leak whether email or username is taken.
+        // The frontend already checks /email-availability and
+        // /username-availability before submitting, so the user will see
+        // the conflict via those endpoints in the normal happy path.
+        boolean emailTaken = userRepository.existsByEmail(normalizedEmail);
+        boolean usernameTaken = userRepository.existsByUsernameIgnoreCase(normalizedUsername);
+        if (emailTaken || usernameTaken) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "If the details are valid, your account will be created.");
         }
 
         User user = new User(
@@ -177,7 +200,8 @@ public class AuthController {
 
         user = userRepository.save(user);
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(buildAuthResponse(user));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(buildAuthResponseAndSetCookies(user, httpRequest, null));
     }
 
     private static String normalizeUsername(String username) {
@@ -269,32 +293,99 @@ public class AuthController {
     // ── Login ───────────────────────────────────────────────────────────
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.email(), request.password()));
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
+        String email = request.email() == null ? null : request.email().trim().toLowerCase();
+        String ip = resolveClientIp(httpRequest);
 
-        User user = userRepository.findByEmail(request.email())
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.UNAUTHORIZED, "Invalid credentials"));
+        if (rateLimitService.isEmailLimited(email)) {
+            long retryAfter = rateLimitService.emailRetryAfterSeconds(email);
+            throw new RateLimitedException(
+                    "Too many failed login attempts for this account. Try again in " + formatMinutes(retryAfter) + ".",
+                    retryAfter);
+        }
+        if (rateLimitService.isIpLimited(ip)) {
+            long retryAfter = rateLimitService.ipRetryAfterSeconds(ip);
+            throw new RateLimitedException(
+                    "Too many failed login attempts from this network. Try again in " + formatMinutes(retryAfter) + ".",
+                    retryAfter);
+        }
 
-        return ResponseEntity.ok(buildAuthResponse(user));
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(email, request.password()));
+        } catch (org.springframework.security.core.AuthenticationException ex) {
+            rateLimitService.recordFailedAttempt(email, ip);
+            int remaining = rateLimitService.remainingAttemptsForEmail(email);
+            throw new LoginFailedException("Invalid credentials", remaining);
+        }
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> {
+                    rateLimitService.recordFailedAttempt(email, ip);
+                    int remaining = rateLimitService.remainingAttemptsForEmail(email);
+                    return new LoginFailedException("Invalid credentials", remaining);
+                });
+
+        rateLimitService.recordSuccessfulLogin(email, ip);
+
+        java.time.LocalDateTime previousLoginAt = user.getLastLoginAt();
+        String previousLoginIp = user.getLastLoginIp();
+        user.setLastLoginAt(java.time.LocalDateTime.now());
+        user.setLastLoginIp(ip);
+        userRepository.save(user);
+
+        return ResponseEntity.ok(buildAuthResponseAndSetCookies(user, httpRequest, new java.util.AbstractMap.SimpleEntry<>(previousLoginAt, previousLoginIp)));
+    }
+
+    private static String resolveClientIp(HttpServletRequest request) {
+        if (request == null) return null;
+        String xff = request.getHeader("X-Forwarded-For");
+        if (xff != null && !xff.isBlank()) {
+            int comma = xff.indexOf(',');
+            return normaliseIp(comma > 0 ? xff.substring(0, comma).trim() : xff.trim());
+        }
+        String real = request.getHeader("X-Real-IP");
+        if (real != null && !real.isBlank()) return normaliseIp(real.trim());
+        return normaliseIp(request.getRemoteAddr());
+    }
+
+    private static String normaliseIp(String ip) {
+        if (ip == null || ip.isBlank()) return null;
+        if (ip.equals("127.0.0.1") || ip.equals("0:0:0:0:0:0:0:1") || ip.equals("::1")) return "localhost";
+        if (ip.startsWith("::ffff:")) {
+            String v4 = ip.substring(7);
+            if (v4.equals("127.0.0.1")) return "localhost";
+            return v4;
+        }
+        return ip;
+    }
+
+    private static String formatMinutes(long totalSeconds) {
+        long minutes = totalSeconds / 60;
+        long seconds = totalSeconds % 60;
+        if (minutes <= 0) return seconds + " second" + (seconds == 1 ? "" : "s");
+        return minutes + " minute" + (minutes == 1 ? "" : "s");
     }
 
     // ── Refresh token ───────────────────────────────────────────────────
 
     @PostMapping("/refresh")
-    public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshRequest request) {
-        if (!jwtService.isTokenValid(request.refreshToken())) {
+    public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshRequest request, HttpServletRequest httpRequest) {
+        String refreshToken = request.refreshToken() != null && !request.refreshToken().isBlank()
+                ? request.refreshToken()
+                : authCookieService.readRefreshToken(httpRequest);
+
+        if (refreshToken == null || !jwtService.isTokenValid(refreshToken)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired refresh token");
         }
 
-        Long userId = jwtService.extractUserId(request.refreshToken());
+        Long userId = jwtService.extractUserId(refreshToken);
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.UNAUTHORIZED, "User not found"));
 
-        return ResponseEntity.ok(buildAuthResponse(user));
+        return ResponseEntity.ok(buildAuthResponseAndSetCookies(user, httpRequest, null));
     }
 
     // ── Me ───────────────────────────────────────────────────────────────
@@ -312,9 +403,8 @@ public class AuthController {
     // ── Logout (stateless — no server-side work needed) ─────────────────
 
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout() {
-        // With stateless JWT there is no server-side session to invalidate.
-        // The client should discard its tokens.
+    public ResponseEntity<Void> logout(jakarta.servlet.http.HttpServletResponse response) {
+        authCookieService.clearAll(response);
         return ResponseEntity.ok().build();
     }
 
@@ -487,10 +577,29 @@ public class AuthController {
 
     @PostMapping("/forgot-password")
     @Transactional
-    public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
-        // Always return 200 to avoid leaking whether an email exists
-        userRepository.findByEmail(request.email()).ifPresent(user -> {
-            // Invalidate any existing tokens for this user
+    public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request,
+                                              HttpServletRequest httpRequest) {
+        String email = request.email() == null ? null : request.email().trim().toLowerCase();
+        String ip = resolveClientIp(httpRequest);
+
+        if (rateLimitService.isForgotPasswordIpLimited(ip)) {
+            long retryAfter = rateLimitService.forgotPasswordIpRetryAfterSeconds(ip);
+            throw new RateLimitedException(
+                    "Too many reset attempts from this network. Try again in " + formatMinutes(retryAfter) + ".",
+                    retryAfter);
+        }
+        if (rateLimitService.isForgotPasswordEmailLimited(email)) {
+            long retryAfter = rateLimitService.forgotPasswordEmailRetryAfterSeconds(email);
+            throw new RateLimitedException(
+                    "Too many reset attempts for this account. Try again in " + formatMinutes(retryAfter) + ".",
+                    retryAfter);
+        }
+        rateLimitService.recordForgotPasswordAttempt(email, ip);
+
+        // Always return 200 with a generic-sounding success, but record the
+        // attempt either way so attackers can't enumerate by timing.
+        final String effectiveEmail = email;
+        userRepository.findByEmail(effectiveEmail).ifPresent(user -> {
             passwordResetTokenRepository.deleteByUserId(user.getId());
 
             String token = UUID.randomUUID().toString();
@@ -533,6 +642,10 @@ public class AuthController {
     // ── Helper ──────────────────────────────────────────────────────────
 
     private AuthResponse buildAuthResponse(User user) {
+        return buildAuthResponseWithLastLogin(user, user.getLastLoginAt(), user.getLastLoginIp());
+    }
+
+    private AuthResponse buildAuthResponseWithLastLogin(User user, java.time.LocalDateTime lastLoginAt, String lastLoginIp) {
         String accessToken = jwtService.generateAccessToken(user);
         String refreshToken = jwtService.generateRefreshToken(user);
 
@@ -547,6 +660,55 @@ public class AuthController {
                 user.isNotificationPickReminders(),
                 user.isNotificationResultUpdates(),
                 user.isNotificationCompetitionAnnouncements(),
-                user.isNotificationPaymentUpdates());
+                user.isNotificationPaymentUpdates(),
+                lastLoginAt,
+                lastLoginIp);
+    }
+
+    /**
+     * Issue fresh tokens, set them as httpOnly cookies, and return the user
+     * summary. The body still includes tokens so non-cookie clients (mobile app)
+     * keep working — the SPA frontend ignores them.
+     */
+    private AuthResponse buildAuthResponseAndSetCookies(
+            User user,
+            HttpServletRequest httpRequest,
+            java.util.Map.Entry<java.time.LocalDateTime, String> previousLogin) {
+        String accessToken = jwtService.generateAccessToken(user);
+        String refreshToken = jwtService.generateRefreshToken(user);
+
+        jakarta.servlet.http.HttpServletResponse response = currentHttpResponse();
+        if (response != null) {
+            authCookieService.writeAccessToken(response, accessToken);
+            authCookieService.writeRefreshToken(response, refreshToken);
+        }
+
+        java.time.LocalDateTime lastLoginAt = previousLogin != null ? previousLogin.getKey() : user.getLastLoginAt();
+        String lastLoginIp = previousLogin != null ? previousLogin.getValue() : user.getLastLoginIp();
+
+        return new AuthResponse(
+                accessToken,
+                refreshToken,
+                user.getId(),
+                user.getEmail(),
+                user.getUsername(),
+                user.getRole().name(),
+                user.isEmailResultsOptIn(),
+                user.isNotificationPickReminders(),
+                user.isNotificationResultUpdates(),
+                user.isNotificationCompetitionAnnouncements(),
+                user.isNotificationPaymentUpdates(),
+                lastLoginAt,
+                lastLoginIp);
+    }
+
+    /**
+     * Spring's RequestContextHolder lets us reach the current HttpServletResponse
+     * from a controller method without taking it as a parameter everywhere.
+     */
+    private static jakarta.servlet.http.HttpServletResponse currentHttpResponse() {
+        org.springframework.web.context.request.ServletRequestAttributes attrs = (org.springframework.web.context.request.ServletRequestAttributes)
+                org.springframework.web.context.request.RequestContextHolder.getRequestAttributes();
+        return attrs != null ? attrs.getResponse() : null;
     }
 }

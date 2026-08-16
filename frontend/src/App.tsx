@@ -24,6 +24,10 @@ const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const ContactPage = lazy(() => import('./pages/ContactPage'));
 const FaqPage = lazy(() => import('./pages/FaqPage'));
 const UserGuidePage = lazy(() => import('./pages/UserGuidePage'));
+const BlogIndexPage = lazy(() => import('./pages/BlogIndexPage'));
+const BlogPostPage = lazy(() => import('./pages/BlogPostPage'));
+const GuidesIndexPage = lazy(() => import('./pages/GuidesIndexPage'));
+const GuidePage = lazy(() => import('./pages/GuidePage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 const TermsPage = lazy(() => import('./pages/TermsPage'));
 const ServicesPage = lazy(() => import('./pages/ServicesPage'));
@@ -100,15 +104,19 @@ export default function App() {
         <Route path="/oauth2/callback" element={<OAuth2CallbackPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
-        <Route path="/faq" element={<FaqPage />} />
-        <Route path="/guide" element={<UserGuidePage />} />
-        <Route path="/services" element={<ServicesPage />} />
-        <Route path="/pricing" element={<PricingPage />} />
-        <Route path="/refund-policy" element={<RefundPolicyPage />} />
-        <Route path="/privacy" element={<PrivacyPage />} />
-        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/faq" element={<Layout><FaqPage /></Layout>} />
+        <Route path="/guide" element={<Layout><UserGuidePage /></Layout>} />
+        <Route path="/blog" element={<Layout><BlogIndexPage /></Layout>} />
+        <Route path="/blog/:slug" element={<Layout><BlogPostPage /></Layout>} />
+        <Route path="/guides" element={<Layout><GuidesIndexPage /></Layout>} />
+        <Route path="/guides/:slug" element={<Layout><GuidePage /></Layout>} />
+        <Route path="/services" element={<Layout><ServicesPage /></Layout>} />
+        <Route path="/pricing" element={<Layout><PricingPage /></Layout>} />
+        <Route path="/refund-policy" element={<Layout><RefundPolicyPage /></Layout>} />
+        <Route path="/privacy" element={<Layout><PrivacyPage /></Layout>} />
+        <Route path="/terms" element={<Layout><TermsPage /></Layout>} />
         <Route path="/contact" element={<Layout><ContactPage /></Layout>} />
-        <Route path="/account-deletion" element={<AccountDeletionPage />} />
+        <Route path="/account-deletion" element={<Layout><AccountDeletionPage /></Layout>} />
         <Route path="/invite/:code" element={<InviteRedirect />} />
         <Route
           path="/competitions"

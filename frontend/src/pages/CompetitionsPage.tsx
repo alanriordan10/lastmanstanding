@@ -553,9 +553,9 @@ export default function CompetitionsPage() {
           backgroundImage: 'radial-gradient(rgba(255,255,255,0.5) 0.5px, transparent 0.5px)',
           backgroundSize: '12px 12px',
         }} />
-        <div className="relative flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-2xl">
-            <div className="inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-200">
+        <div className="relative flex flex-col gap-5">
+          <div>
+            <div className="inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-200">
               Matchday hub
             </div>
             <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">Competitions</h1>
@@ -563,7 +563,7 @@ export default function CompetitionsPage() {
               Find public pools, return to your active runs, or jump straight in with an invite code. Every surface here is tuned around the next pick.
             </p>
           </div>
-          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          <div className="grid grid-cols-3 gap-2 sm:max-w-md sm:gap-3">
             <MetricCard label="Live" value={String(activeCountForHeader)} />
             <MetricCard label="Open" value={String(openCountForHeader)} />
             <MetricCard label="Yours" value={String(myComps.length)} />
@@ -575,7 +575,7 @@ export default function CompetitionsPage() {
         <section className="rounded-2xl border border-amber-400/20 bg-[linear-gradient(135deg,rgba(120,53,15,0.18),rgba(15,23,42,0.88))] p-4 shadow-[0_20px_45px_rgba(2,6,23,0.32)]">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300">From your organisers</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-300">From your organisers</p>
               <h2 className="mt-1 text-lg font-black text-white">Announcements</h2>
             </div>
             <span className="rounded-full border border-amber-300/20 bg-amber-400/10 px-2.5 py-1 text-xs font-bold text-amber-200">{unreadAnnouncements.length} new</span>
@@ -1032,7 +1032,7 @@ export default function CompetitionsPage() {
             )}
             {listView ? (
               <div className="space-y-5">
-                <Section label={`Joinable Competitions (${filteredAvailable.length})`} collapsible collapsed={availableSections.open} onToggle={() => setAvailableSections((s) => ({ ...s, open: !s.open }))}>
+                <Section label={`Joinable Competitions (${filteredAvailable.length})`} collapsible collapsed={!availableSections.open} onToggle={() => setAvailableSections((s) => ({ ...s, open: !s.open }))}>
                   {filteredAvailable.length > 0 ? (
                     <>
                       <CompListView comps={paginatedAvailable} joinedSet={joinedSet} onJoin={(c) => handleJoin(c)} isPending={joinMutation.isPending} entryCounts={myEntryCountByCompetition} />
@@ -1043,7 +1043,7 @@ export default function CompetitionsPage() {
                   )}
                 </Section>
 
-                <Section label={`Live Now · View Only (${filteredLiveAvailable.length})`} icon="●" iconColor="bg-green-600" collapsible collapsed={availableSections.live} onToggle={() => setAvailableSections((s) => ({ ...s, live: !s.live }))}>
+                <Section label={`Live Now · View Only (${filteredLiveAvailable.length})`} icon="●" iconColor="bg-green-600" collapsible collapsed={!availableSections.live} onToggle={() => setAvailableSections((s) => ({ ...s, live: !s.live }))}>
                   {filteredLiveAvailable.length > 0 ? (
                     <>
                       <div className="rounded-lg border border-green-500/25 bg-green-500/10 px-3 py-2 text-xs text-green-200">
@@ -1058,7 +1058,7 @@ export default function CompetitionsPage() {
               </div>
             ) : (
               <div className="space-y-5">
-                <Section label={`Joinable Competitions (${filteredAvailable.length})`} collapsible collapsed={availableSections.open} onToggle={() => setAvailableSections((s) => ({ ...s, open: !s.open }))}>
+                <Section label={`Joinable Competitions (${filteredAvailable.length})`} collapsible collapsed={!availableSections.open} onToggle={() => setAvailableSections((s) => ({ ...s, open: !s.open }))}>
                   {filteredAvailable.length > 0 ? (
                     <>
                       <CompListView comps={paginatedAvailable} joinedSet={joinedSet} onJoin={(c) => handleJoin(c)} isPending={joinMutation.isPending} entryCounts={myEntryCountByCompetition} />
@@ -1069,7 +1069,7 @@ export default function CompetitionsPage() {
                   )}
                 </Section>
 
-                <Section label={`Live Now · View Only (${filteredLiveAvailable.length})`} icon="●" iconColor="bg-green-600" collapsible collapsed={availableSections.live} onToggle={() => setAvailableSections((s) => ({ ...s, live: !s.live }))}>
+                <Section label={`Live Now · View Only (${filteredLiveAvailable.length})`} icon="●" iconColor="bg-green-600" collapsible collapsed={!availableSections.live} onToggle={() => setAvailableSections((s) => ({ ...s, live: !s.live }))}>
                   {filteredLiveAvailable.length > 0 ? (
                     <>
                       <div className="rounded-lg border border-green-500/25 bg-green-500/10 px-3 py-2 text-xs text-green-200">
@@ -1118,35 +1118,35 @@ export default function CompetitionsPage() {
         ) : (
           <div className="space-y-8">
             {mineNeedsAction.length > 0 && (
-              <Section label={`Needs Action (${mineNeedsAction.length})`} icon="!" iconColor="bg-amber-500" collapsible collapsed={mineSections.needsAction} onToggle={() => setMineSections((s) => ({ ...s, needsAction: !s.needsAction }))}>
+              <Section label={`Needs Action (${mineNeedsAction.length})`} icon="!" iconColor="bg-amber-500" collapsible collapsed={!mineSections.needsAction} onToggle={() => setMineSections((s) => ({ ...s, needsAction: !s.needsAction }))}>
                 {compactMineView
                   ? <div className="space-y-2">{mineNeedsAction.map((mc) => <MyCompetitionRow key={getMyCompetitionKey(mc)} myComp={mc} expanded={expandedMineRows.has(getMyCompetitionKey(mc))} onToggleExpand={() => setExpandedMineRows((prev) => { const next = new Set(prev); const rowKey = getMyCompetitionKey(mc); if (next.has(rowKey)) next.delete(rowKey); else next.add(rowKey); return next; })} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
                   : <CompGrid>{mineNeedsAction.map((mc) => <MyCompetitionCard key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</CompGrid>}
               </Section>
             )}
             {mineActive.length > 0 && (
-              <Section label={`Active (${mineActive.length})`} icon="✓" iconColor="bg-green-600" collapsible collapsed={mineSections.active} onToggle={() => setMineSections((s) => ({ ...s, active: !s.active }))}>
+              <Section label={`Active (${mineActive.length})`} icon="✓" iconColor="bg-green-600" collapsible collapsed={!mineSections.active} onToggle={() => setMineSections((s) => ({ ...s, active: !s.active }))}>
                 {compactMineView
                   ? <div className="space-y-2">{mineActive.map((mc) => <MyCompetitionRow key={getMyCompetitionKey(mc)} myComp={mc} expanded={expandedMineRows.has(getMyCompetitionKey(mc))} onToggleExpand={() => setExpandedMineRows((prev) => { const next = new Set(prev); const rowKey = getMyCompetitionKey(mc); if (next.has(rowKey)) next.delete(rowKey); else next.add(rowKey); return next; })} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
                   : <CompGrid>{mineActive.map((mc) => <MyCompetitionCard key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</CompGrid>}
               </Section>
             )}
             {mineUpcoming.length > 0 && (mineFilter === 'ALL' || mineFilter === 'UPCOMING') && (
-              <Section label={`Upcoming (${mineUpcoming.length})`} icon="○" iconColor="bg-blue-500" collapsible collapsed={mineSections.upcoming} onToggle={() => setMineSections((s) => ({ ...s, upcoming: !s.upcoming }))}>
+              <Section label={`Upcoming (${mineUpcoming.length})`} icon="○" iconColor="bg-blue-500" collapsible collapsed={!mineSections.upcoming} onToggle={() => setMineSections((s) => ({ ...s, upcoming: !s.upcoming }))}>
                 {compactMineView
                   ? <div className="space-y-2">{mineUpcoming.map((mc) => <MyCompetitionRow key={getMyCompetitionKey(mc)} myComp={mc} expanded={expandedMineRows.has(getMyCompetitionKey(mc))} onToggleExpand={() => setExpandedMineRows((prev) => { const next = new Set(prev); const rowKey = getMyCompetitionKey(mc); if (next.has(rowKey)) next.delete(rowKey); else next.add(rowKey); return next; })} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
                   : <CompGrid>{mineUpcoming.map((mc) => <MyCompetitionCard key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</CompGrid>}
               </Section>
             )}
             {mineEliminated.length > 0 && (
-              <Section label={`Eliminated (${mineEliminated.length})`} icon="✕" iconColor="bg-gray-600" collapsible collapsed={mineSections.eliminated} onToggle={() => setMineSections((s) => ({ ...s, eliminated: !s.eliminated }))}>
+              <Section label={`Eliminated (${mineEliminated.length})`} icon="✕" iconColor="bg-gray-600" collapsible collapsed={!mineSections.eliminated} onToggle={() => setMineSections((s) => ({ ...s, eliminated: !s.eliminated }))}>
                 {compactMineView
                   ? <div className="space-y-2">{mineEliminated.map((mc) => <MyCompetitionRow key={getMyCompetitionKey(mc)} myComp={mc} expanded={expandedMineRows.has(getMyCompetitionKey(mc))} onToggleExpand={() => setExpandedMineRows((prev) => { const next = new Set(prev); const rowKey = getMyCompetitionKey(mc); if (next.has(rowKey)) next.delete(rowKey); else next.add(rowKey); return next; })} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
                   : <CompGrid>{mineEliminated.map((mc) => <MyCompetitionCard key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</CompGrid>}
               </Section>
             )}
             {mineFinished.length > 0 && (
-              <Section label={`Finished (${mineFinished.length})`} icon="🏁" iconColor="bg-gray-700" collapsible collapsed={mineSections.finished} onToggle={() => setMineSections((s) => ({ ...s, finished: !s.finished }))}>
+              <Section label={`Finished (${mineFinished.length})`} icon="🏁" iconColor="bg-gray-700" collapsible collapsed={!mineSections.finished} onToggle={() => setMineSections((s) => ({ ...s, finished: !s.finished }))}>
                 {compactMineView
                   ? <div className="space-y-2">{mineFinished.map((mc) => <MyCompetitionRow key={getMyCompetitionKey(mc)} myComp={mc} expanded={expandedMineRows.has(getMyCompetitionKey(mc))} onToggleExpand={() => setExpandedMineRows((prev) => { const next = new Set(prev); const rowKey = getMyCompetitionKey(mc); if (next.has(rowKey)) next.delete(rowKey); else next.add(rowKey); return next; })} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
                   : <CompGrid>{mineFinished.map((mc) => <MyCompetitionCard key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</CompGrid>}
@@ -1201,7 +1201,7 @@ function CompListView({ comps, joinedSet, onJoin, isPending, entryCounts }: {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-medium text-sm text-white truncate">{c.name}</span>
-                {c.clubLogoUrl && <img src={c.clubLogoUrl} alt="" className="h-5 w-5 rounded-md object-cover border border-white/15 shrink-0" />}
+                {c.clubLogoUrl && <img src={c.clubLogoUrl} alt="" className="h-5 w-5 rounded-md object-cover border border-white/10 shrink-0" />}
                 {c.clubName && <span className="badge-yellow badge-soft shrink-0">{c.clubName}</span>}
                 <span className="shrink-0 rounded-full border border-cyan-400/35 bg-cyan-500/12 px-2 py-0.5 text-[10px] font-semibold text-cyan-200">
                   {fixtureSourceLabel(c)}
@@ -1504,7 +1504,7 @@ function CompetitionCard({ comp, joined, onJoin, isPending, actionHint, isHighli
 
       <h3 className="text-lg sm:text-xl font-bold leading-snug line-clamp-2">{comp.name}</h3>
       <div className="mt-1.5 min-h-[20px] flex items-center gap-1.5">
-        {comp.clubLogoUrl && <img src={comp.clubLogoUrl} alt="" className="h-5 w-5 rounded-md object-cover border border-white/15 shrink-0" />}
+        {comp.clubLogoUrl && <img src={comp.clubLogoUrl} alt="" className="h-5 w-5 rounded-md object-cover border border-white/10 shrink-0" />}
         {comp.clubName && (
           <span
             className="inline-flex max-w-full truncate badge-yellow badge-soft align-top"
@@ -1671,7 +1671,7 @@ function MyCompetitionCard({ myComp, actionHint }: { myComp: MyCompetition; acti
         </div>
       )}
       <div className="mt-1 min-h-[18px] flex items-center gap-1.5">
-        {comp.clubLogoUrl && <img src={comp.clubLogoUrl} alt="" className="h-5 w-5 rounded-md object-cover border border-white/15 shrink-0" />}
+        {comp.clubLogoUrl && <img src={comp.clubLogoUrl} alt="" className="h-5 w-5 rounded-md object-cover border border-white/10 shrink-0" />}
         {comp.clubName && (
           <span
             className="inline-flex max-w-full truncate badge-yellow badge-soft align-top"
@@ -1864,7 +1864,7 @@ function PastCompetitionCard({ comp }: { comp: Competition }) {
       <div className="mb-2.5"><span className="badge-gray">FINISHED</span></div>
       <h3 className="text-base sm:text-lg font-bold leading-snug line-clamp-2">{comp.name}</h3>
       <div className="mt-1 min-h-[18px] flex items-center gap-1.5">
-        {comp.clubLogoUrl && <img src={comp.clubLogoUrl} alt="" className="h-5 w-5 rounded-md object-cover border border-white/15 shrink-0" />}
+        {comp.clubLogoUrl && <img src={comp.clubLogoUrl} alt="" className="h-5 w-5 rounded-md object-cover border border-white/10 shrink-0" />}
         {comp.clubName && (
           <span
             className="inline-flex max-w-full truncate badge-yellow badge-soft align-top"

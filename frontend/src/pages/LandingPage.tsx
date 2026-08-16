@@ -14,15 +14,19 @@ export default function LandingPage() {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
     name: 'Last Man Standing',
+    alternateName: 'Last Man Standing Software',
     applicationCategory: 'SportsApplication',
-    operatingSystem: 'Web',
+    applicationSubCategory: 'Competition Management Software',
+    operatingSystem: 'Web, iOS, Android',
     url: window.location.origin,
     description:
-      'Competition management software for clubs and private groups running football survivor competitions with picks, reminders, results, and organiser tools.',
+      'Last man standing software for running football survivor pool competitions. Manage picks, lifelines, results, payments and standings for clubs, GAA groups, workplaces and friend groups.',
     offers: {
       '@type': 'Offer',
       price: '0',
       priceCurrency: 'EUR',
+      availability: 'https://schema.org/InStock',
+      description: 'First competition for every club is free.',
     },
     publisher: {
       '@type': 'Organization',
@@ -39,15 +43,15 @@ export default function LandingPage() {
         name: 'How does a last man standing competition work?',
         acceptedAnswer: {
           '@type': 'Answer',
-          text: 'Players pick one eligible team each gameweek before lock. Competition rules determine how wins, draws, postponed fixtures, lifelines, and missed picks are handled.',
+          text: 'Each player picks one team per gameweek. If the team wins or draws they advance. If it loses they are eliminated. The last player still in wins the pot.',
         },
       },
       {
         '@type': 'Question',
-        name: 'Can I allow multiple entries per user?',
+        name: 'Can I use this software to run last man standing competitions for my club?',
         acceptedAnswer: {
           '@type': 'Answer',
-          text: 'Yes. You can configure maximum entries per user and track each entry separately in club admin.',
+          text: 'Yes. The first competition for every club is free and additional competitions can be added with one-off slot purchases. The software handles picks, lifelines, results, and standings automatically.',
         },
       },
       {
@@ -55,7 +59,7 @@ export default function LandingPage() {
         name: 'How does the lifeline feature work?',
         acceptedAnswer: {
           '@type': 'Answer',
-          text: 'If enabled, each entry can play one lifeline before a gameweek starts. A win or draw survives; a loss still eliminates.',
+          text: 'If enabled, each entry can play one lifeline before a gameweek starts. A win or draw survives the round; a loss still eliminates.',
         },
       },
       {
@@ -63,7 +67,15 @@ export default function LandingPage() {
         name: 'Can clubs track payments?',
         acceptedAnswer: {
           '@type': 'Answer',
-          text: 'Yes. Clubs can use free competitions or manual/offline payment tracking.',
+          text: 'Yes. Clubs can use free competitions or manual/offline payment tracking. Stripe integration is also available.',
+        },
+      },
+      {
+        '@type': 'Question',
+        name: 'Do you support GAA survivor pools and football survivor pools?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'Yes. The software supports Premier League and World Cup fixtures. You can run a survivor pool for any football competition the fixtures cover.',
         },
       },
     ],
@@ -72,8 +84,8 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen text-white flex flex-col">
       <SeoMeta
-        title="Last Man Standing App for Football Survivor Pools | Last Man Standing"
-        description="Run football survivor pools with picks, lifelines, reminders, and club admin tools. Create your last man standing competition in minutes."
+        title="Last Man Standing Software | Football Survivor Pool App for Clubs"
+        description="Last man standing software for clubs, GAA, workplaces and friend groups. Run football survivor pool competitions online with picks, lifelines, automated scoring and payment tracking."
         canonicalPath="/"
         jsonLd={[organizationSchema, softwareSchema, faqSchema]}
       />
@@ -85,7 +97,7 @@ export default function LandingPage() {
             </div>
           <div>
             <span className="block text-lg font-black tracking-tight">Last Man Standing</span>
-            <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-200/75">Survivor pool</span>
+            <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-200/75">Survivor pool</span>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -122,7 +134,7 @@ export default function LandingPage() {
               to="/create-club"
               className="rounded-2xl border border-brand-300/35 bg-brand-500/15 px-5 py-4 text-left transition hover:bg-brand-500/25"
             >
-              <span className="block text-[11px] font-black uppercase tracking-[0.18em] text-brand-200">Already have an account?</span>
+              <span className="block text-[11px] font-black uppercase tracking-[0.14em] text-brand-200">Already have an account?</span>
               <span className="mt-1 block text-lg font-black text-white">Sign in & create a club</span>
               <span className="mt-1 block text-sm text-gray-300">Use your existing account and add club admin tools.</span>
             </Link>
@@ -130,7 +142,7 @@ export default function LandingPage() {
               to="/register-club"
               className="rounded-2xl border border-white/10 bg-white/[0.05] px-5 py-4 text-left transition hover:bg-white/[0.09]"
             >
-              <span className="block text-[11px] font-black uppercase tracking-[0.18em] text-gray-400">New club admin?</span>
+              <span className="block text-[11px] font-black uppercase tracking-[0.14em] text-gray-400">New club admin?</span>
               <span className="mt-1 block text-lg font-black text-white">Create account & club</span>
               <span className="mt-1 block text-sm text-gray-300">Set up your login and club together.</span>
             </Link>
@@ -184,7 +196,9 @@ export default function LandingPage() {
               { icon: '📊', title: 'Track Results and Survivor Table Live', desc: 'Reveal all picks after lock, process outcomes quickly, and keep the full survivor table visible to players.' },
             ].map(({ icon, title, desc }) => (
               <div key={title} className="rounded-2xl border border-white/8 bg-white/[0.035] p-6 text-center space-y-3 shadow-[0_20px_50px_rgba(2,6,23,0.28)]">
-                <div className="text-5xl">{icon}</div>
+                <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-xl border border-white/10 bg-slate-900 text-2xl">
+                  {icon}
+                </div>
                 <h3 className="text-lg font-semibold">{title}</h3>
                 <p className="text-gray-400 text-sm leading-relaxed">{desc}</p>
               </div>
@@ -198,8 +212,8 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto">
           <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
             <div className="card space-y-4">
-              <p className="text-xs font-black uppercase tracking-[0.22em] text-brand-200">What we sell</p>
-              <h2 className="text-3xl font-black text-white">Software for club organisers</h2>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-brand-200">What we sell</p>
+              <h2 className="text-3xl font-semibold text-white">Software for club organisers</h2>
               <p className="text-sm leading-6 text-gray-300">
                 Last Man Standing provides web and mobile software that helps clubs and private groups create competitions, invite participants, manage entries, track picks, send reminders, publish results, and view standings.
               </p>
@@ -213,7 +227,7 @@ export default function LandingPage() {
               </div>
             </div>
             <div className="card space-y-3">
-              <p className="text-xs font-black uppercase tracking-[0.22em] text-gray-400">Payment model</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Payment model</p>
               <p className="text-sm leading-6 text-gray-300">
                 The first competition for each club is free. Additional competitions require a paid plan. Club organisers may configure free competitions or manual/offline payment tracking.
               </p>
@@ -306,7 +320,7 @@ function LandingMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-white/8 bg-white/[0.045] px-3 py-3 backdrop-blur-sm">
       <div className="text-sm font-black text-white sm:text-base">{value}</div>
-      <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">{label}</div>
+      <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400">{label}</div>
     </div>
   );
 }

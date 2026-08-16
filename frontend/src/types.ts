@@ -12,6 +12,8 @@ export interface AuthResponse {
   notificationResultUpdates?: boolean;
   notificationCompetitionAnnouncements?: boolean;
   notificationPaymentUpdates?: boolean;
+  lastLoginAt?: string | null;
+  lastLoginIp?: string | null;
 }
 
 export interface Club {

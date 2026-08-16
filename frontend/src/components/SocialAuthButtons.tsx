@@ -14,7 +14,7 @@ const providers = [
     name: 'Google',
     textColor: 'text-gray-100',
     bg: 'bg-[linear-gradient(135deg,rgba(30,41,59,0.88),rgba(15,23,42,0.92))] hover:bg-[linear-gradient(135deg,rgba(51,65,85,0.92),rgba(30,41,59,0.92))]',
-    border: 'border border-white/12 hover:border-brand-400/45',
+    border: 'border border-white/10 hover:border-brand-400/45',
     icon: (
       <svg className="h-5 w-5" viewBox="0 0 24 24">
         <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>

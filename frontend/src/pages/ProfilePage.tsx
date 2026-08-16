@@ -4,6 +4,29 @@ import api from '../api';
 import toast from 'react-hot-toast';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { Link, useNavigate } from 'react-router-dom';
+import { formatDistanceToNow, parseISO } from 'date-fns';
+
+function formatLastLogin(iso: string, ip?: string | null): string {
+  try {
+    const date = parseISO(iso);
+    if (Number.isNaN(date.getTime())) return iso;
+    const relative = formatDistanceToNow(date, { addSuffix: true });
+    const source = ip ? ` from ${prettyIp(ip)}` : '';
+    return `${relative}${source}`;
+  } catch {
+    return iso;
+  }
+}
+
+function prettyIp(ip: string): string {
+  if (ip === '127.0.0.1' || ip === '0:0:0:0:0:0:0:1' || ip === '::1' || ip === 'localhost') return 'localhost';
+  if (ip.startsWith('::ffff:')) {
+    const v4 = ip.substring(7);
+    if (v4 === '127.0.0.1') return 'localhost';
+    return v4;
+  }
+  return ip;
+}
 
 export default function ProfilePage() {
   const { user, loginWithData, logout } = useAuth();
@@ -159,7 +182,7 @@ export default function ProfilePage() {
         {/* decorative blob */}
         <div className="pointer-events-none absolute -top-10 -right-10 h-48 w-48 rounded-full bg-brand-500/10 blur-3xl" />
 
-        <div className="mb-5 inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-200">
+        <div className="mb-5 inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-200">
           Account centre
         </div>
 
@@ -175,6 +198,11 @@ export default function ProfilePage() {
             <span className={`mt-2 inline-block ${badge.cls}`}>
               {badge.label}
             </span>
+            {user?.lastLoginAt ? (
+              <p className="mt-2 text-xs text-slate-500">
+                Last sign-in: {formatLastLogin(user.lastLoginAt, user.lastLoginIp)}
+              </p>
+            ) : null}
           </div>
         </div>
         <div className="mt-6 grid grid-cols-3 gap-3">
@@ -287,10 +315,10 @@ export default function ProfilePage() {
           <Link to="/guide" className="rounded-lg border border-brand-300/30 bg-brand-500/15 px-4 py-2 text-sm font-medium text-brand-100 hover:bg-brand-500/25">
             User Guide
           </Link>
-          <Link to="/faq" className="rounded-lg border border-white/15 bg-surface-700 px-4 py-2 text-sm font-medium text-gray-200 hover:bg-surface-600">
+          <Link to="/faq" className="rounded-lg border border-white/10 bg-surface-700 px-4 py-2 text-sm font-medium text-gray-200 hover:bg-surface-600">
             FAQ
           </Link>
-          <Link to="/contact" className="rounded-lg border border-white/15 bg-surface-700 px-4 py-2 text-sm font-medium text-gray-200 hover:bg-surface-600">
+          <Link to="/contact" className="rounded-lg border border-white/10 bg-surface-700 px-4 py-2 text-sm font-medium text-gray-200 hover:bg-surface-600">
             Contact Us
           </Link>
         </div>
@@ -331,12 +359,12 @@ export default function ProfilePage() {
                   setDeleteToken(null);
                 }}
                 placeholder="Enter your password"
-                className="w-full rounded-lg border border-white/15 bg-surface-800 px-3 py-2 text-sm text-white placeholder:text-gray-500 focus:border-red-400/50 focus:outline-none"
+                className="w-full rounded-lg border border-white/10 bg-surface-800 px-3 py-2 text-sm text-white placeholder:text-gray-500 focus:border-red-400/50 focus:outline-none"
               />
               <button
                 type="button"
                 onClick={handleVerifyDeletePassword}
-                className="shrink-0 rounded-lg border border-white/15 bg-surface-700 px-3 py-2 text-xs text-gray-200 hover:bg-surface-600"
+                className="shrink-0 rounded-lg border border-white/10 bg-surface-700 px-3 py-2 text-xs text-gray-200 hover:bg-surface-600"
               >
                 Verify
               </button>
@@ -352,7 +380,7 @@ export default function ProfilePage() {
               value={deleteConfirmText}
               onChange={(e) => setDeleteConfirmText(e.target.value)}
               placeholder="DELETE ACCOUNT"
-              className="w-full rounded-lg border border-white/15 bg-surface-800 px-3 py-2 text-sm uppercase tracking-[0.06em] text-white placeholder:text-gray-500 focus:border-red-400/50 focus:outline-none"
+              className="w-full rounded-lg border border-white/10 bg-surface-800 px-3 py-2 text-sm uppercase tracking-[0.06em] text-white placeholder:text-gray-500 focus:border-red-400/50 focus:outline-none"
             />
           </div>
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-red-300">This action cannot be undone.</p>
@@ -380,7 +408,7 @@ export default function ProfilePage() {
                 type="button"
                 onClick={() => setShowDeleteConfirmModal(false)}
                 disabled={deleting}
-                className="rounded-lg border border-white/15 px-3 py-2 text-sm text-gray-300 hover:bg-white/10"
+                className="rounded-lg border border-white/10 px-3 py-2 text-sm text-gray-300 hover:bg-white/10"
               >
                 Cancel
               </button>
@@ -433,7 +461,7 @@ function ProfileMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-white/8 bg-white/[0.045] px-3 py-2.5 text-center backdrop-blur-sm">
       <div className="text-sm font-black text-white sm:text-base">{value}</div>
-      <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">{label}</div>
+      <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400">{label}</div>
     </div>
   );
 }

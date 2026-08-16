@@ -6,6 +6,7 @@ import type { AuthResponse } from '../types';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import SeoMeta from '../components/SeoMeta';
+import { PasswordStrengthMeter, isPasswordStrongEnough } from '../components/PasswordStrengthMeter';
 
 interface RegisterClubResponse {
   auth: AuthResponse;
@@ -160,7 +161,8 @@ export default function RegisterClubPage() {
     e.preventDefault();
     if (!clubName.trim()) { toast.error('Club name is required'); return; }
     if (password !== confirmPassword) { toast.error('Passwords do not match'); return; }
-    if (password.length < 6) { toast.error('Password must be at least 6 characters'); return; }
+    if (password.length < 8) { toast.error('Password must be at least 8 characters'); return; }
+    if (!isPasswordStrongEnough(password, email, username)) { toast.error('Please choose a stronger password.'); return; }
     checkUsernameAvailability().then((usernameAvailable) => {
       if (!usernameAvailable) {
         if (usernameStatus !== 'taken') toast.error('Please fix the username before creating your club.');
@@ -177,7 +179,7 @@ export default function RegisterClubPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="relative min-h-screen flex flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.10),transparent_36rem),linear-gradient(180deg,#0a1224_0%,#0b1322_100%)]">
       <SeoMeta
         title="Register Your Club | Last Man Standing"
         description="Set up a club organiser account and start running football survivor competitions online with Last Man Standing."
@@ -191,7 +193,7 @@ export default function RegisterClubPage() {
           </div>
           <div className="hidden sm:block">
             <span className="block text-lg font-black tracking-tight">Last Man Standing</span>
-            <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-200/75">Club onboarding</span>
+            <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-200/75">Club onboarding</span>
           </div>
         </Link>
         <div className="flex items-center gap-4 text-sm text-gray-400">
@@ -207,8 +209,8 @@ export default function RegisterClubPage() {
 
       <div className="flex flex-1 items-center justify-center p-4">
         <div className="w-full max-w-5xl grid gap-6 lg:grid-cols-[1fr_1.05fr]">
-          <section className="relative overflow-hidden rounded-[1.9rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.22),transparent_24rem),radial-gradient(circle_at_85%_16%,rgba(250,204,21,0.08),transparent_18rem),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))] px-6 py-8 shadow-[0_30px_75px_rgba(2,6,23,0.48)]">
-            <div className="inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-200">Club launch</div>
+          <section className="relative overflow-hidden rounded-[1.9rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_24rem),linear-gradient(135deg,rgba(15,23,42,0.96),rgba(8,15,30,0.94))] px-6 py-8 shadow-[0_30px_75px_rgba(2,6,23,0.48)]">
+            <div className="inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-200">Club launch</div>
             <div className="mt-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-brand-300/25 bg-gradient-to-br from-brand-500 to-cyan-400 text-3xl font-black text-slate-950 shadow-[0_10px_28px_rgba(56,189,248,0.18)]">🏠</div>
             <h1 className="mt-6 text-4xl font-black tracking-tight text-white">Register Your Club</h1>
             <p className="mt-3 max-w-md text-sm leading-6 text-gray-300 sm:text-[15px]">Set up your club, create competitions, and start inviting members with private or public join flows.</p>
@@ -281,10 +283,13 @@ export default function RegisterClubPage() {
                     {emailStatus !== 'idle' && <p className={`mt-1 text-xs ${emailStatus === 'available' ? 'text-green-400' : emailStatus === 'checking' ? 'text-gray-400' : 'text-red-400'}`}>{emailStatus === 'checking' ? 'Checking email...' : emailMessage}</p>}
                   </div>
                 </div>
-                <PasswordField label="Password" value={password} onChange={setPassword} show={showPassword} onToggle={() => setShowPassword(!showPassword)} placeholder="Min. 6 characters" />
+                <div>
+                  <PasswordField label="Password" value={password} onChange={setPassword} show={showPassword} onToggle={() => setShowPassword(!showPassword)} placeholder="Min. 8 characters" />
+                  <PasswordStrengthMeter password={password} email={email} username={username} />
+                </div>
                 <PasswordField label="Confirm Password" value={confirmPassword} onChange={setConfirmPassword} show={showConfirmPassword} onToggle={() => setShowConfirmPassword(!showConfirmPassword)} placeholder="Repeat your password" error={!!confirmPassword && confirmPassword !== password} />
                 {confirmPassword && confirmPassword !== password && <p className="text-xs text-red-400 mt-1">Passwords do not match</p>}
-                <button type="submit" disabled={registerClubMutation.isPending || usernameStatus === 'checking' || usernameStatus === 'taken' || emailStatus === 'checking' || emailStatus === 'taken' || (!!confirmPassword && confirmPassword !== password)} className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed">
+                <button type="submit" disabled={registerClubMutation.isPending || usernameStatus === 'checking' || usernameStatus === 'taken' || emailStatus === 'checking' || emailStatus === 'taken' || (!!confirmPassword && confirmPassword !== password) || (!!password && !isPasswordStrongEnough(password, email, username))} className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed">
                   {registerClubMutation.isPending ? 'Creating your club...' : 'Create Club & Account'}
                 </button>
                 <p className="text-xs text-center text-gray-500">By registering you agree to our terms of service. Your account will have Club Admin access immediately.</p>
@@ -333,7 +338,7 @@ function SignupMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-white/8 bg-white/[0.045] px-3 py-2.5 text-center backdrop-blur-sm">
       <div className="text-sm font-black text-white sm:text-base">{value}</div>
-      <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">{label}</div>
+      <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400">{label}</div>
     </div>
   );
 }

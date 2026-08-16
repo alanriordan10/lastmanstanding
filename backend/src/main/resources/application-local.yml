@@ -47,6 +47,24 @@ app:
   support-email: ${LOCAL_SUPPORT_EMAIL:support@runlastmanstanding.com}
   perf:
     endpoint-metrics-enabled: ${LOCAL_ENDPOINT_METRICS_ENABLED:false}
+  cookies:
+    secure: ${LOCAL_COOKIE_SECURE:false}
+
+security:
+  # Looser limits in local dev so manual testing doesn't hit walls.
+  login:
+    max-attempts-per-email: ${LOCAL_LOGIN_MAX_ATTEMPTS_PER_EMAIL:5}
+    max-attempts-per-ip: ${LOCAL_LOGIN_MAX_ATTEMPTS_PER_IP:30}
+    email-window-minutes: ${LOCAL_LOGIN_EMAIL_WINDOW_MINUTES:15}
+    ip-window-minutes: ${LOCAL_LOGIN_IP_WINDOW_MINUTES:60}
+  forgot:
+    max-attempts-per-email: ${LOCAL_FORGOT_MAX_ATTEMPTS_PER_EMAIL:5}
+    max-attempts-per-ip: ${LOCAL_FORGOT_MAX_ATTEMPTS_PER_IP:20}
+    email-window-minutes: ${LOCAL_FORGOT_EMAIL_WINDOW_MINUTES:60}
+    ip-window-minutes: ${LOCAL_FORGOT_IP_WINDOW_MINUTES:60}
+  signup:
+    max-attempts-per-ip: ${LOCAL_SIGNUP_MAX_ATTEMPTS_PER_IP:5}
+    ip-window-minutes: ${LOCAL_SIGNUP_IP_WINDOW_MINUTES:60}
 
 logging:
   level:

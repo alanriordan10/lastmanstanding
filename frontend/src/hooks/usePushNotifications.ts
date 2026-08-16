@@ -165,7 +165,7 @@ function showInAppNotification(title: string, body: string, url?: string) {
             { className: 'min-w-0 flex-1' },
             createElement(
               'p',
-              { className: 'text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-300' },
+              { className: 'text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-300' },
               'Last Man Standing'
             ),
             createElement(

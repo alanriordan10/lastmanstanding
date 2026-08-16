@@ -1,6 +1,8 @@
 package com.lastmanstanding.config;
 
 import com.lastmanstanding.repository.UserRepository;
+import com.lastmanstanding.security.CspHeaderFilter;
+import com.lastmanstanding.security.CsrfFilter;
 import com.lastmanstanding.security.OAuth2AuthenticationSuccessHandler;
 import com.lastmanstanding.security.HttpCookieOAuth2AuthorizationRequestRepository;
 import com.lastmanstanding.security.OAuth2AuthenticationFailureRedirectHandler;
@@ -13,6 +15,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -36,6 +39,8 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final CsrfFilter csrfFilter;
+    private final CspHeaderFilter cspHeaderFilter;
     private final UserRepository userRepository;
     private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
     private final OAuth2AuthenticationFailureRedirectHandler oAuth2AuthenticationFailureRedirectHandler;
@@ -43,12 +48,16 @@ public class SecurityConfig {
     private final String frontendUrl;
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
+                          CsrfFilter csrfFilter,
+                          CspHeaderFilter cspHeaderFilter,
                           UserRepository userRepository,
                           OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler,
                           OAuth2AuthenticationFailureRedirectHandler oAuth2AuthenticationFailureRedirectHandler,
                           HttpCookieOAuth2AuthorizationRequestRepository oAuth2AuthorizationRequestRepository,
                           @Value("${app.frontend-url:http://localhost:5173}") String frontendUrl) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.csrfFilter = csrfFilter;
+        this.cspHeaderFilter = cspHeaderFilter;
         this.userRepository = userRepository;
         this.oAuth2AuthenticationSuccessHandler = oAuth2AuthenticationSuccessHandler;
         this.oAuth2AuthenticationFailureRedirectHandler = oAuth2AuthenticationFailureRedirectHandler;
@@ -63,6 +72,24 @@ public class SecurityConfig {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
+                .headers(headers -> {
+                    headers.frameOptions(frame -> frame.deny());
+                    headers.contentTypeOptions(Customizer.withDefaults());
+                    headers.referrerPolicy(referrer -> referrer.policy(
+                            org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN));
+                    headers.httpStrictTransportSecurity(hsts -> hsts
+                            .includeSubDomains(true)
+                            .maxAgeInSeconds(31_536_000)
+                            .preload(true));
+                    headers.permissionsPolicy(perms -> perms.policy(
+                            "accelerometer=(), ambient-light-sensor=(), autoplay=(), " +
+                            "battery=(), camera=(), display-capture=(), document-domain=(), " +
+                            "encrypted-media=(), fullscreen=(self), geolocation=(), gyroscope=(), " +
+                            "magnetometer=(), microphone=(), midi=(), payment=(self \"https://js.stripe.com\"), " +
+                            "picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), " +
+                            "sync-xhr=(), usb=(), xr-spatial-tracking=()"));
+                })
+                .addFilterBefore(cspHeaderFilter, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(auth -> auth
@@ -104,6 +131,7 @@ public class SecurityConfig {
                         // For API calls, return 401 instead of redirecting to OAuth provider.
                         .authenticationEntryPoint(new HttpStatusEntryPoint(org.springframework.http.HttpStatus.UNAUTHORIZED)))
                 .authenticationProvider(authenticationProvider())
+                .addFilterBefore(csrfFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class);
 

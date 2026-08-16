@@ -20,10 +20,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserRepository userRepository;
+    private final AuthCookieService authCookieService;
 
-    public JwtAuthenticationFilter(JwtService jwtService, UserRepository userRepository) {
+    public JwtAuthenticationFilter(JwtService jwtService,
+                                   UserRepository userRepository,
+                                   AuthCookieService authCookieService) {
         this.jwtService = jwtService;
         this.userRepository = userRepository;
+        this.authCookieService = authCookieService;
     }
 
     // ── Skip authentication for public auth endpoints ───────────────────
@@ -31,7 +35,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
-        // These routes require authentication — don't skip JWT processing for them
         if (path.equals("/auth/me")
                 || path.equals("/auth/email-preferences")
                 || path.equals("/auth/notification-preferences")
@@ -53,24 +56,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain) throws ServletException, IOException {
 
-        String authHeader = request.getHeader("Authorization");
-
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        String token = resolveToken(request);
+        if (token == null) {
+            // No JWT — let session-based auth (OAuth2) take over.
             filterChain.doFilter(request, response);
             return;
         }
 
-        String token = authHeader.substring(7);
-
         if (!jwtService.isTokenValid(token)) {
-            filterChain.doFilter(request, response);
+            // A JWT cookie / header was present but invalid. Invalidate any
+            // existing session (so a stale JSESSIONID can't keep the user
+            // authenticated) and reject the request.
+            invalidateSession(request);
+            writeUnauthorized(response);
             return;
         }
 
         Long userId = jwtService.extractUserId(token);
 
-        // If a valid Bearer JWT is present, prefer JWT auth for this request.
-        // This avoids OAuth2 session principal type mismatches on endpoints expecting UserDetailsImpl.
         User user = userRepository.findById(userId).orElse(null);
         if (user != null) {
             UserDetailsImpl userDetails = new UserDetailsImpl(user);
@@ -88,5 +91,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private static void invalidateSession(HttpServletRequest request) {
+        try {
+            var session = request.getSession(false);
+            if (session != null) session.invalidate();
+        } catch (IllegalStateException ignored) {
+            // already invalidated
+        }
+        SecurityContextHolder.clearContext();
+    }
+
+    private static void writeUnauthorized(HttpServletResponse response) throws IOException {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType("application/json");
+        response.getWriter().write(
+                "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Invalid or expired token\"}");
+    }
+
+    private String resolveToken(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7);
+        }
+        return authCookieService.readAccessToken(request);
     }
 }

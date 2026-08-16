@@ -54,6 +54,8 @@ public final class AuthDtos {
             boolean notificationPickReminders,
             boolean notificationResultUpdates,
             boolean notificationCompetitionAnnouncements,
-            boolean notificationPaymentUpdates
+            boolean notificationPaymentUpdates,
+            java.time.LocalDateTime lastLoginAt,
+            String lastLoginIp
     ) {}
 }

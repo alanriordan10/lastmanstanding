@@ -5,20 +5,114 @@
     <link rel="icon" type="image/png" href="/icons/icon-192.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0f172a" />
-    <meta name="description" content="Run football survivor pools with picks, lifelines, reminders, and club admin tools." />
-    <meta property="og:title" content="Last Man Standing App for Football Survivor Pools" />
-    <meta property="og:description" content="Run football survivor pools with picks, lifelines, reminders, and club admin tools." />
+
+    <title>Last Man Standing Software | Football Survivor Pool App for Clubs</title>
+    <meta name="description" content="Last man standing software for clubs, GAA, workplaces and friend groups. Run football survivor pool competitions online with picks, lifelines, automated scoring and payment tracking." />
+    <meta name="keywords" content="last man standing, last man standing software, last man standing competition, last man standing competitions, football survivor pool, survivor pool app, football pool manager, GAA survivor, premier league survivor" />
+    <meta name="author" content="Last Man Standing" />
+    <link rel="canonical" href="https://www.runlastmanstanding.com/" />
+
+    <meta property="og:title" content="Last Man Standing Software | Run Football Survivor Pools" />
+    <meta property="og:description" content="Run last man standing competitions online. Software for clubs, GAA, workplaces and friend groups to manage football survivor pools." />
     <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://www.runlastmanstanding.com/" />
     <meta property="og:site_name" content="Last Man Standing" />
-    <meta property="og:image" content="/app-logo.png" />
+    <meta property="og:image" content="https://www.runlastmanstanding.com/app-logo.png" />
+    <meta property="og:locale" content="en_GB" />
+
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Last Man Standing App for Football Survivor Pools" />
-    <meta name="twitter:description" content="Run football survivor pools with picks, lifelines, reminders, and club admin tools." />
-    <meta name="twitter:image" content="/app-logo.png" />
+    <meta name="twitter:title" content="Last Man Standing Software | Football Survivor Pool App" />
+    <meta name="twitter:description" content="Run last man standing competitions online. Software for clubs, GAA, workplaces and friend groups to manage football survivor pools." />
+    <meta name="twitter:image" content="https://www.runlastmanstanding.com/app-logo.png" />
+
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-    <title>Last Man Standing App for Football Survivor Pools</title>
+
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self' ws: wss: http://localhost:8080 https://api.stripe.com; frame-src 'self' https://js.stripe.com; base-uri 'self'; form-action 'self'; object-src 'none';" />
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- ── Structured data (JSON-LD) ────────────────────────────────────
+         Static defaults — LandingPage.tsx injects more specific schemas
+         at runtime, but crawlers see this before React mounts. -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Last Man Standing",
+      "alternateName": "Last Man Standing Software",
+      "url": "https://www.runlastmanstanding.com/",
+      "applicationCategory": "SportsApplication",
+      "applicationSubCategory": "Competition Management Software",
+      "operatingSystem": "Web, iOS, Android",
+      "description": "Software for running last man standing competitions and football survivor pools. Manage picks, lifelines, payments, and standings for clubs, GAA groups, workplaces, and friend groups.",
+      "url": "https://www.runlastmanstanding.com/",
+      "image": "https://www.runlastmanstanding.com/app-logo.png",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "EUR",
+        "availability": "https://schema.org/InStock",
+        "description": "First competition for every club is free."
+      },
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "5",
+        "ratingCount": "1"
+      }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "Last Man Standing",
+      "url": "https://www.runlastmanstanding.com/",
+      "logo": "https://www.runlastmanstanding.com/app-logo.png"
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "How does a last man standing competition work?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Players pick one team each gameweek. If the team wins or draws they advance. If it loses they are eliminated. The last player still in wins."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I use this software to run last man standing competitions for my club?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. The first competition for every club is free and additional competitions can be added with one-off slot purchases. The software handles picks, lifelines, results, and standings automatically."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Do you support GAA survivor pools and football survivor pools?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. The software supports Premier League and World Cup fixtures. You can run a survivor pool for any football competition the fixtures cover."
+          }
+        }
+      ]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Last Man Standing",
+      "url": "https://www.runlastmanstanding.com/"
+    }
+    </script>
   </head>
   <body class="bg-surface-900 text-white">
     <div id="root"></div>

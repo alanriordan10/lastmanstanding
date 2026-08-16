@@ -1,9 +1,27 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, Navigate, useSearchParams } from 'react-router-dom';
+import { formatDistanceToNow } from 'date-fns';
 import { useAuth } from '../context/AuthContext';
+import { getErrorMessage } from '../api';
 import toast from 'react-hot-toast';
 import SocialAuthButtons from '../components/SocialAuthButtons';
 import SeoMeta from '../components/SeoMeta';
+
+function prettyIp(ip?: string | null): string | null {
+  if (!ip) return null;
+  if (ip === '127.0.0.1' || ip === '0:0:0:0:0:0:0:1' || ip === '::1' || ip === 'localhost') return 'localhost';
+  if (ip.startsWith('::ffff:')) {
+    const v4 = ip.substring(7);
+    if (v4 === '127.0.0.1') return 'localhost';
+    return v4;
+  }
+  return ip;
+}
+
+type LoginStatus =
+  | { kind: 'idle' }
+  | { kind: 'error'; message: string; attemptsRemaining: number }
+  | { kind: 'locked'; retryAfterSeconds: number; message: string };
 
 export default function LoginPage() {
   const { login, user } = useAuth();
@@ -17,8 +35,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<LoginStatus>({ kind: 'idle' });
 
-  // Show OAuth2 error if redirected back with ?error=
   useEffect(() => {
     const error = searchParams.get('error');
     if (error) {
@@ -31,19 +49,54 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setStatus({ kind: 'idle' });
     try {
       await login(email, password);
+      const stored = localStorage.getItem('user');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (parsed.lastLoginAt) {
+            const date = new Date(parsed.lastLoginAt);
+            if (!Number.isNaN(date.getTime())) {
+              const relative = formatDistanceToNow(date, { addSuffix: true });
+              const ip = prettyIp(parsed.lastLoginIp);
+              toast(`Last sign-in: ${relative}${ip ? ` from ${ip}` : ''}`, {
+                icon: '🕒',
+                duration: 5000,
+              });
+            }
+          }
+        } catch {
+          // ignore parse errors
+        }
+      }
       navigate(returnTo || '/competitions');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Invalid credentials');
+      const responseStatus = err.response?.status;
+      if (responseStatus === 429) {
+        const retryAfter = Number(err.response?.headers?.['retry-after']) || 60;
+        const message = err.response?.data?.message || 'Too many attempts. Please wait and try again.';
+        setStatus({ kind: 'locked', retryAfterSeconds: retryAfter, message });
+      } else {
+        const message = err.response?.data?.message || 'Invalid credentials';
+        const remaining = err.response?.data?.attemptsRemaining;
+        setStatus({
+          kind: 'error',
+          message,
+          attemptsRemaining: typeof remaining === 'number' ? remaining : 0,
+        });
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  const inputInvalid = status.kind === 'error' || status.kind === 'locked';
+
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_16%_20%,rgba(37,99,235,0.16),transparent_34rem),linear-gradient(170deg,#070f22_0%,#0a1731_56%,#0a1730_100%)] px-4 py-10">
-      
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.12),transparent_36rem),linear-gradient(180deg,#0a1224_0%,#0b1322_100%)] px-4 py-10">
+
       <SeoMeta
         title="Sign In | Last Man Standing"
         description="Sign in to manage picks, view results, and run football survivor pool competitions."
@@ -52,7 +105,7 @@ export default function LoginPage() {
       />
       <div className="relative grid w-full max-w-6xl gap-6 lg:grid-cols-[1.08fr_0.92fr]">
         <section className="relative overflow-hidden rounded-[2.1rem] border border-white/8 bg-[linear-gradient(145deg,rgba(15,23,42,0.84),rgba(8,15,30,0.8))] px-6 py-8 shadow-[0_22px_56px_rgba(2,6,23,0.42)] backdrop-blur-sm sm:px-8 sm:py-10">
-          <div className="inline-flex rounded-full border border-brand-300/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-100">
+          <div className="inline-flex rounded-full border border-brand-300/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-100">
             Member access
           </div>
           <div className="mt-6 flex h-20 w-20 items-center justify-center overflow-hidden rounded-3xl bg-transparent p-0 shadow-[0_10px_24px_rgba(2,6,23,0.35)]">
@@ -72,10 +125,9 @@ export default function LoginPage() {
         </section>
 
         <div className="w-full space-y-5 lg:space-y-6">
-        {/* Email / password form */}
         <form
           onSubmit={handleSubmit}
-          className="rounded-[1.4rem] border border-white/12 bg-[linear-gradient(150deg,rgba(15,23,42,0.84),rgba(9,16,34,0.88))] p-5 shadow-[0_20px_50px_rgba(2,6,23,0.42)] backdrop-blur-md sm:p-6"
+          className="rounded-[1.4rem] border border-white/10 bg-[linear-gradient(150deg,rgba(15,23,42,0.84),rgba(9,16,34,0.88))] p-5 shadow-[0_20px_50px_rgba(2,6,23,0.42)] backdrop-blur-md sm:p-6"
         >
           {isCreateClubReturn ? (
             <div className="mb-4 rounded-xl border border-cyan-400/35 bg-cyan-500/10 px-3.5 py-2.5 text-sm text-cyan-100">
@@ -113,9 +165,11 @@ export default function LoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="input-field pr-12"
+                className={`input-field pr-12 ${inputInvalid ? 'border-red-500/60 focus:border-red-400 focus:ring-red-400' : ''}`}
                 placeholder="••••••••"
                 autoComplete="current-password"
+                aria-invalid={inputInvalid}
+                aria-describedby={status.kind !== 'idle' ? 'login-status' : undefined}
               />
               <button
                 type="button"
@@ -126,13 +180,14 @@ export default function LoginPage() {
                 {showPassword ? 'Hide' : 'Show'}
               </button>
             </div>
+            <LoginStatusLine status={status} />
           </div>
           <div className="h-4" />
-          <button type="submit" disabled={loading} className="btn-primary w-full">
-            {loading ? 'Signing in…' : isCreateClubReturn ? 'Sign In & Continue to Create Club' : 'Sign In'}
+          <button type="submit" disabled={loading || status.kind === 'locked'} className="btn-primary w-full">
+            {loading ? 'Signing in…' : status.kind === 'locked' ? 'Locked out' : isCreateClubReturn ? 'Sign In & Continue to Create Club' : 'Sign In'}
           </button>
         </form>
-        <div className="rounded-[1.4rem] border border-white/12 bg-[linear-gradient(150deg,rgba(15,23,42,0.84),rgba(9,16,34,0.88))] p-5 shadow-[0_20px_50px_rgba(2,6,23,0.42)] backdrop-blur-md sm:p-6">
+        <div className="rounded-[1.4rem] border border-white/10 bg-[linear-gradient(150deg,rgba(15,23,42,0.84),rgba(9,16,34,0.88))] p-5 shadow-[0_20px_50px_rgba(2,6,23,0.42)] backdrop-blur-md sm:p-6">
           <SocialAuthButtons mode="login" continuationHint={isCreateClubReturn ? 'to continue to Create Club' : undefined} />
         </div>
 
@@ -163,7 +218,7 @@ export default function LoginPage() {
 
         {!hideClubCta ? (
           <div className="rounded-[1.4rem] border border-brand-300/25 bg-[linear-gradient(145deg,rgba(14,165,233,0.14),rgba(15,23,42,0.9))] p-5 shadow-[0_18px_42px_rgba(2,6,23,0.34)]">
-            <div className="inline-flex rounded-full border border-brand-300/25 bg-brand-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-brand-100">
+            <div className="inline-flex rounded-full border border-brand-300/25 bg-brand-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-brand-100">
               Running a club?
             </div>
             <h2 className="mt-3 text-xl font-black tracking-tight text-white">Create your club</h2>
@@ -181,11 +236,36 @@ export default function LoginPage() {
   );
 }
 
+function LoginStatusLine({ status }: { status: LoginStatus }) {
+  if (status.kind === 'idle') return null;
+  const id = 'login-status';
+  if (status.kind === 'locked') {
+    const minutes = Math.ceil(status.retryAfterSeconds / 60);
+    return (
+      <p id={id} role="alert" className="mt-2 text-xs font-medium text-red-300">
+        ⚠️ {status.message} Try again in {minutes} minute{minutes === 1 ? '' : 's'}.
+      </p>
+    );
+  }
+  if (status.attemptsRemaining <= 2) {
+    return (
+      <p id={id} role="alert" className="mt-2 text-xs font-medium text-amber-300">
+        ⚠️ {status.message} {status.attemptsRemaining} attempt{status.attemptsRemaining === 1 ? '' : 's'} remaining before lockout.
+      </p>
+    );
+  }
+  return (
+    <p id={id} role="alert" className="mt-2 text-xs font-medium text-red-300">
+      {status.message}
+    </p>
+  );
+}
+
 function AuthMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3 text-center backdrop-blur-sm">
       <div className="text-lg font-black text-slate-100">{value}</div>
-      <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</div>
+      <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">{label}</div>
     </div>
   );
 }

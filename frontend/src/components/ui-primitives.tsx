@@ -4,7 +4,7 @@ import type { CSSProperties, ReactNode } from 'react';
 type PillTone = 'neutral' | 'brand' | 'success' | 'danger' | 'warn' | 'info';
 
 const toneClasses: Record<PillTone, string> = {
-  neutral: 'border-white/14 bg-white/8 text-gray-200',
+  neutral: 'border-white/10 bg-white/8 text-gray-200',
   brand: 'border-brand-400/35 bg-brand-500/12 text-brand-100',
   success: 'border-green-400/35 bg-green-500/12 text-green-200',
   danger: 'border-red-400/35 bg-red-500/12 text-red-200',
@@ -39,9 +39,9 @@ export function StatusPill({
 
 export function MetricCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.09),rgba(255,255,255,0.03))] px-3 py-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+    <div className="rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.09),rgba(255,255,255,0.03))] px-3 py-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
       <div className="text-xl font-black text-white sm:text-2xl">{value}</div>
-      <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-200/85">{label}</div>
+      <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-200/85">{label}</div>
     </div>
   );
 }

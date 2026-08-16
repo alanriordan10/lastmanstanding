@@ -1,7 +1,7 @@
 {
   "name": "Last Man Standing",
   "short_name": "LMS",
-  "description": "Premier League survival game — pick a team each gameweek and survive!",
+  "description": "Last man standing software for clubs, GAA, workplaces and friend groups. Run football survivor pool competitions online.",
   "id": "/",
   "start_url": "/",
   "scope": "/",
