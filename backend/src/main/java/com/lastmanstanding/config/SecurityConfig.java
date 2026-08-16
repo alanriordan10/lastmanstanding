@@ -89,7 +89,7 @@ public class SecurityConfig {
                             "picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), " +
                             "sync-xhr=(), usb=(), xr-spatial-tracking=()"));*/
                 })
-                .addFilterBefore(cspHeaderFilter, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
+                //.addFilterBefore(cspHeaderFilter, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(auth -> auth
