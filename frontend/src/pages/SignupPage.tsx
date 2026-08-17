@@ -5,7 +5,7 @@ import api from '../api';
 import toast from 'react-hot-toast';
 import SocialAuthButtons from '../components/SocialAuthButtons';
 import SeoMeta from '../components/SeoMeta';
-import { PasswordStrengthMeter, isPasswordStrongEnough } from '../components/PasswordStrengthMeter';
+import { PasswordStrengthMeter, isPasswordStrongEnough, validatePasswordStrength } from '../components/PasswordStrengthMeter';
 
 type UsernameCheckState = 'idle' | 'checking' | 'available' | 'taken' | 'error';
 type EmailCheckState = 'idle' | 'checking' | 'available' | 'taken' | 'error';
@@ -126,7 +126,7 @@ export default function SignupPage() {
       toast.error('Passwords do not match');
       return;
     }
-    if (!isPasswordStrongEnough(password, email, username)) {
+    if (!await validatePasswordStrength(password, email, username)) {
       toast.error('Please choose a stronger password.');
       return;
     }

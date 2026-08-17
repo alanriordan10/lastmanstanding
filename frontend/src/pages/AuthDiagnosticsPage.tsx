@@ -19,11 +19,17 @@ type ProbeCheckResult = {
   ok: boolean;
 };
 
+type AuthPathHint = {
+  message: string;
+  tone: 'good' | 'warn' | 'bad' | 'neutral';
+};
+
 type StepStatus = {
   firstProbe?: ProbePayload;
   secondProbe?: ProbePayload;
   meStatus?: number;
   meMessage?: string;
+  authPathHint?: AuthPathHint;
   error?: string;
 };
 
@@ -55,6 +61,7 @@ export default function AuthDiagnosticsPage() {
         secondProbe: second.data,
         meStatus,
         meMessage,
+        authPathHint: inferAuthPathHint(second.data, meStatus),
       });
     } catch (err: any) {
       setStatus({ error: getErrorMessage(err, 'Failed to run diagnostics') });
@@ -79,7 +86,7 @@ export default function AuthDiagnosticsPage() {
         ok: status.secondProbe.secure && status.secondProbe.sameSite === 'None',
       },
       {
-        label: '/auth/me authenticated',
+        label: '/auth/me authenticated (cookie path or bearer fallback)',
         ok: status.meStatus === 200,
       },
     ];
@@ -125,6 +132,11 @@ export default function AuthDiagnosticsPage() {
           <p className="text-xs text-gray-400">
             If probe cookie fails on request #2, browser/storage settings are blocking cookies for this origin.
           </p>
+          {status.authPathHint ? (
+            <p className={`inline-flex rounded-full px-2 py-1 text-xs ${hintToneClass(status.authPathHint.tone)}`}>
+              Auth path hint: {status.authPathHint.message}
+            </p>
+          ) : null}
         </section>
       ) : null}
 
@@ -155,5 +167,55 @@ function JsonPanel({ title, payload }: { title: string; payload: unknown }) {
       <pre className="overflow-x-auto text-xs text-gray-200">{JSON.stringify(payload ?? {}, null, 2)}</pre>
     </div>
   );
+}
+
+function inferAuthPathHint(secondProbe: ProbePayload, meStatus?: number): AuthPathHint {
+  const hasAuthCookies = secondProbe.hasAccessTokenCookie && secondProbe.hasRefreshTokenCookie;
+
+  if (meStatus === 200 && hasAuthCookies) {
+    return {
+      message: 'Authenticated and AT/RT cookies are present on request; cookie auth path is healthy.',
+      tone: 'good',
+    };
+  }
+
+  if (meStatus === 200 && !hasAuthCookies) {
+    return {
+      message: 'Authenticated without AT/RT cookie visibility; likely bearer-token fallback path.',
+      tone: 'warn',
+    };
+  }
+
+  if (meStatus === 401 && hasAuthCookies) {
+    return {
+      message: 'AT/RT cookies are present but /auth/me is unauthorized; token validity/rotation issue is likely.',
+      tone: 'bad',
+    };
+  }
+
+  if (meStatus === 401 && !hasAuthCookies) {
+    return {
+      message: 'Unauthorized and AT/RT cookies are absent; login cookie write or persistence likely failed.',
+      tone: 'bad',
+    };
+  }
+
+  return {
+    message: 'Unable to infer auth path from current probe data.',
+    tone: 'neutral',
+  };
+}
+
+function hintToneClass(tone: AuthPathHint['tone']): string {
+  switch (tone) {
+    case 'good':
+      return 'bg-emerald-500/15 text-emerald-300 border border-emerald-400/30';
+    case 'warn':
+      return 'bg-amber-500/15 text-amber-300 border border-amber-400/30';
+    case 'bad':
+      return 'bg-red-500/15 text-red-300 border border-red-400/30';
+    default:
+      return 'bg-slate-500/15 text-slate-300 border border-slate-400/30';
+  }
 }
 

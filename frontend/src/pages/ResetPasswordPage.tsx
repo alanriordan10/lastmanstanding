@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
 import SeoMeta from '../components/SeoMeta';
-import { PasswordStrengthMeter, isPasswordStrongEnough } from '../components/PasswordStrengthMeter';
+import { PasswordStrengthMeter, isPasswordStrongEnough, validatePasswordStrength } from '../components/PasswordStrengthMeter';
 
 export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
@@ -47,7 +47,7 @@ export default function ResetPasswordPage() {
       toast.error('Password must be at least 8 characters');
       return;
     }
-    if (!isPasswordStrongEnough(password)) {
+    if (!await validatePasswordStrength(password)) {
       toast.error('Please choose a stronger password.');
       return;
     }

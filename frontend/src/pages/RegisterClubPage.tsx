@@ -6,7 +6,7 @@ import type { AuthResponse } from '../types';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import SeoMeta from '../components/SeoMeta';
-import { PasswordStrengthMeter, isPasswordStrongEnough } from '../components/PasswordStrengthMeter';
+import { PasswordStrengthMeter, isPasswordStrongEnough, validatePasswordStrength } from '../components/PasswordStrengthMeter';
 
 interface RegisterClubResponse {
   auth: AuthResponse;
@@ -157,25 +157,26 @@ export default function RegisterClubPage() {
     setStep(2);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clubName.trim()) { toast.error('Club name is required'); return; }
     if (password !== confirmPassword) { toast.error('Passwords do not match'); return; }
     if (password.length < 8) { toast.error('Password must be at least 8 characters'); return; }
-    if (!isPasswordStrongEnough(password, email, username)) { toast.error('Please choose a stronger password.'); return; }
-    checkUsernameAvailability().then((usernameAvailable) => {
-      if (!usernameAvailable) {
-        if (usernameStatus !== 'taken') toast.error('Please fix the username before creating your club.');
-        return;
-      }
-      checkEmailAvailability().then((emailAvailable) => {
-        if (!emailAvailable) {
-          if (emailStatus !== 'taken') toast.error('Please fix the email before creating your club.');
-          return;
-        }
-        registerClubMutation.mutate();
-      });
-    });
+    if (!await validatePasswordStrength(password, email, username)) { toast.error('Please choose a stronger password.'); return; }
+
+    const usernameAvailable = await checkUsernameAvailability();
+    if (!usernameAvailable) {
+      if (usernameStatus !== 'taken') toast.error('Please fix the username before creating your club.');
+      return;
+    }
+
+    const emailAvailable = await checkEmailAvailability();
+    if (!emailAvailable) {
+      if (emailStatus !== 'taken') toast.error('Please fix the email before creating your club.');
+      return;
+    }
+
+    registerClubMutation.mutate();
   };
 
   return (

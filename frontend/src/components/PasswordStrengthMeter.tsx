@@ -1,19 +1,116 @@
-import { useMemo } from 'react';
-import { ZxcvbnFactory, type ZxcvbnResult } from '@zxcvbn-ts/core';
-import * as zxcvbnCommonPackage from '@zxcvbn-ts/language-common';
-import * as zxcvbnEnPackage from '@zxcvbn-ts/language-en';
+import { useEffect, useMemo, useState } from 'react';
 
-const zxcvbn = new ZxcvbnFactory({
-  dictionary: {
-    ...zxcvbnCommonPackage.dictionary,
-    ...zxcvbnEnPackage.dictionary,
-  },
-  translations: zxcvbnEnPackage.translations,
-});
+type PasswordFeedback = {
+  warning: string;
+  suggestions: string[];
+};
+
+type PasswordEvaluation = {
+  score: number;
+  feedback: PasswordFeedback;
+};
+
+type ZxcvbnModule = {
+  check(password: string, userInputs?: string[]): PasswordEvaluation;
+};
+
+let zxcvbnPromise: Promise<ZxcvbnModule> | null = null;
+
+function normalizePasswordEvaluation(result: {
+  score: number;
+  feedback?: {
+    warning?: string | null;
+    suggestions?: string[] | null;
+  } | null;
+}): PasswordEvaluation {
+  return {
+    score: result.score,
+    feedback: {
+      warning: result.feedback?.warning ?? '',
+      suggestions: result.feedback?.suggestions ?? [],
+    },
+  };
+}
+
+async function loadZxcvbn(): Promise<ZxcvbnModule> {
+  if (!zxcvbnPromise) {
+    zxcvbnPromise = Promise.all([
+      import('@zxcvbn-ts/core'),
+      import('@zxcvbn-ts/language-common'),
+      import('@zxcvbn-ts/language-en'),
+    ]).then(([core, common, en]) => {
+      const factory = new core.ZxcvbnFactory({
+        dictionary: {
+          ...common.dictionary,
+          ...en.dictionary,
+        },
+        translations: en.translations,
+      });
+
+      return {
+        check(password: string, userInputs: string[] = []) {
+          return normalizePasswordEvaluation(factory.check(password, userInputs));
+        },
+      } satisfies ZxcvbnModule;
+    });
+  }
+  return zxcvbnPromise;
+}
 
 export type Strength = 0 | 1 | 2 | 3 | 4;
 
-function scoreFromResult(result: ZxcvbnResult): Strength {
+function evaluatePasswordHeuristically(password: string, userInputs: string[] = []): PasswordEvaluation {
+  const value = password ?? '';
+  const lowered = value.toLowerCase();
+  const normalizedInputs = userInputs.map((entry) => entry.toLowerCase()).filter(Boolean);
+
+  const suggestions: string[] = [];
+  let warning = '';
+  let score = 0;
+
+  if (value.length >= 8) score += 1;
+  else suggestions.push('Use at least 8 characters.');
+
+  if (value.length >= 12) score += 1;
+  else suggestions.push('Use 12+ characters for better protection.');
+
+  const hasLower = /[a-z]/.test(value);
+  const hasUpper = /[A-Z]/.test(value);
+  const hasDigit = /\d/.test(value);
+  const hasSymbol = /[^a-zA-Z0-9]/.test(value);
+
+  if (hasLower && hasUpper) score += 1;
+  else suggestions.push('Mix uppercase and lowercase letters.');
+
+  if (hasDigit && hasSymbol) score += 1;
+  else suggestions.push('Add at least one number and one symbol.');
+
+  if (/(.)\1\1/.test(value)) {
+    score = Math.max(0, score - 1);
+    warning = 'Avoid repeating the same character several times.';
+  }
+
+  const containsPersonalInfo = normalizedInputs.some((input) => input.length >= 3 && lowered.includes(input));
+  if (containsPersonalInfo) {
+    score = Math.max(0, score - 2);
+    warning = 'Avoid using your email, username, or personal details in your password.';
+  }
+
+  if (/^(password|qwerty|123456|letmein|welcome)/i.test(value)) {
+    score = Math.max(0, score - 2);
+    warning = 'This password pattern is too common.';
+  }
+
+  return {
+    score: Math.min(4, Math.max(0, score)),
+    feedback: {
+      warning,
+      suggestions,
+    },
+  };
+}
+
+function scoreFromResult(result: PasswordEvaluation): Strength {
   return Math.min(4, Math.max(0, result.score)) as Strength;
 }
 
@@ -49,12 +146,24 @@ export function evaluatePassword(password: string, userInputs?: string[]): {
   if (!password) {
     return { score: 0, warning: null, suggestions: [] };
   }
-  const result = zxcvbn.check(password, userInputs ?? []);
+  const result = evaluatePasswordHeuristically(password, userInputs ?? []);
   return {
     score: scoreFromResult(result),
     warning: result.feedback.warning || null,
     suggestions: result.feedback.suggestions || [],
   };
+}
+
+export async function validatePasswordStrength(
+  password: string,
+  email?: string,
+  username?: string,
+  minScore: Strength = 3,
+): Promise<boolean> {
+  if (!password) return false;
+  const zxcvbn = await loadZxcvbn();
+  const result = zxcvbn.check(password, [email, username].filter(Boolean) as string[]);
+  return result.score >= minScore;
 }
 
 export function PasswordStrengthMeter({
@@ -68,10 +177,38 @@ export function PasswordStrengthMeter({
   username?: string;
   minScore?: Strength;
 }) {
-  const evalResult = useMemo<ZxcvbnResult | null>(() => {
+  const [preciseResult, setPreciseResult] = useState<PasswordEvaluation | null>(null);
+
+  const fallbackResult = useMemo<PasswordEvaluation | null>(() => {
     if (!password) return null;
-    return zxcvbn.check(password, [email, username].filter(Boolean) as string[]);
+    return evaluatePasswordHeuristically(password, [email, username].filter(Boolean) as string[]);
   }, [password, email, username]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!password) {
+      setPreciseResult(null);
+      return;
+    }
+
+    setPreciseResult(null);
+    loadZxcvbn()
+      .then((zxcvbn) => {
+        if (cancelled) return;
+        setPreciseResult(zxcvbn.check(password, [email, username].filter(Boolean) as string[]));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setPreciseResult(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [password, email, username]);
+
+  const evalResult = preciseResult ?? fallbackResult;
 
   if (!password || !evalResult) return null;
 
@@ -108,6 +245,6 @@ export function PasswordStrengthMeter({
 
 export function isPasswordStrongEnough(password: string, email?: string, username?: string, minScore: Strength = 3): boolean {
   if (!password) return false;
-  const result = zxcvbn.check(password, [email, username].filter(Boolean) as string[]);
+  const result = evaluatePasswordHeuristically(password, [email, username].filter(Boolean) as string[]);
   return result.score >= minScore;
 }
