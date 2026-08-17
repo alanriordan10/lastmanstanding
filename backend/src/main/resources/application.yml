@@ -149,6 +149,7 @@ app:
   support-email: ${SUPPORT_EMAIL:support@runlastmanstanding.com}
   cookies:
     secure: ${COOKIE_SECURE:false}
+    same-site: ${COOKIE_SAME_SITE:Lax}
   perf:
     endpoint-metrics-enabled: ${ENDPOINT_METRICS_ENABLED:true}
   vapid-public-key: ${VAPID_PUBLIC_KEY:}

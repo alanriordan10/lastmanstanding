@@ -6,51 +6,53 @@ services:
     dockerContext: ./backend
     autoDeployTrigger: commit
     healthCheckPath: /actuator/health
-     envVars:
-       - key: DB_URL
-         sync: false
-       - key: DB_USERNAME
-         sync: false
-       - key: DB_PASSWORD
-         sync: false
-       - key: JWT_SECRET
-         sync: false
-       - key: FRONTEND_URL
-         value: https://runlastmanstanding.com
-       - key: PUBLIC_APP_URL
-         value: https://runlastmanstanding.com
-       - key: FOOTBALL_DATA_API_KEY
-         sync: false
-       - key: STRIPE_SECRET_KEY
-         sync: false
-       - key: STRIPE_PUBLISHABLE_KEY
-         sync: false
-       - key: STRIPE_SLOT_PRICE_ID
-         sync: false
-       - key: STRIPE_SLOT_SUCCESS_URL
-         value: https://runlastmanstanding.com/club-admin?billing=success
-       - key: STRIPE_SLOT_CANCEL_URL
-         value: https://runlastmanstanding.com/club-admin?billing=cancel
-       - key: STRIPE_SLOT_MOBILE_SUCCESS_URL
-         value: lastmanstanding://billing/callback?billing=success
-       - key: STRIPE_SLOT_MOBILE_CANCEL_URL
-         value: lastmanstanding://billing/callback?billing=cancel
-       - key: STRIPE_WEBHOOK_SECRET
-         sync: false
-       - key: VAPID_PUBLIC_KEY
-         sync: false
-       - key: VAPID_PRIVATE_KEY
-         sync: false
-       - key: VAPID_SUBJECT
-         sync: false
-       - key: MAIL_ENABLED
-         value: "false"
-       - key: MAIL_TEST_CONNECTION
-         value: "false"
-       - key: MAIL_PROTOCOL
-         value: smtp
-       - key: COOKIE_SECURE
-         value: "true"
+    envVars:
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        value: https://runlastmanstanding.com
+      - key: PUBLIC_APP_URL
+        value: https://runlastmanstanding.com
+      - key: FOOTBALL_DATA_API_KEY
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_SLOT_PRICE_ID
+        sync: false
+      - key: STRIPE_SLOT_SUCCESS_URL
+        value: https://runlastmanstanding.com/club-admin?billing=success
+      - key: STRIPE_SLOT_CANCEL_URL
+        value: https://runlastmanstanding.com/club-admin?billing=cancel
+      - key: STRIPE_SLOT_MOBILE_SUCCESS_URL
+        value: lastmanstanding://billing/callback?billing=success
+      - key: STRIPE_SLOT_MOBILE_CANCEL_URL
+        value: lastmanstanding://billing/callback?billing=cancel
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        sync: false
+      - key: MAIL_ENABLED
+        value: "false"
+      - key: MAIL_TEST_CONNECTION
+        value: "false"
+      - key: MAIL_PROTOCOL
+        value: smtp
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: COOKIE_SAME_SITE
+        value: None
 
 
 
