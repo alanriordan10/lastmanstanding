@@ -5,6 +5,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -81,16 +83,14 @@ public class CsrfFilter extends OncePerRequestFilter {
     private void ensureCsrfCookie(HttpServletRequest request, HttpServletResponse response) {
         if (request.getCookies() == null || readCookie(request, CSRF_COOKIE) == null) {
             String token = cookieService.generateCsrfToken();
-            Cookie cookie = new Cookie(CSRF_COOKIE, token);
-            cookie.setPath("/");
-            cookie.setHttpOnly(false);
-            cookie.setSecure(cookieService.isSecure());
-            cookie.setMaxAge(60 * 60 * 24);
-            // Use SameSite=Lax to allow the cookie to be sent in cross-origin requests
-            // (same as OAuth2 cookies). CSRF protection still applies because we validate
-            // the header token for state-changing requests with auth cookies.
-            cookie.setAttribute("SameSite", "Lax");
-            response.addCookie(cookie);
+            ResponseCookie cookie = ResponseCookie.from(CSRF_COOKIE, token)
+                    .path("/")
+                    .httpOnly(false)
+                    .secure(cookieService.isSecure())
+                    .sameSite("Lax")
+                    .maxAge(60 * 60 * 24)
+                    .build();
+            response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
         }
     }
 

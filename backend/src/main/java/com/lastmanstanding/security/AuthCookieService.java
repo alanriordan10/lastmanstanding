@@ -6,6 +6,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
@@ -57,13 +59,7 @@ public class AuthCookieService {
 
     public void clearAll(HttpServletResponse response) {
         for (String name : new String[]{ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE}) {
-            Cookie cookie = new Cookie(name, "");
-            cookie.setPath("/");
-            cookie.setHttpOnly(true);
-            cookie.setSecure(secure);
-            cookie.setMaxAge(0);
-            cookie.setAttribute("SameSite", sameSite);
-            response.addCookie(cookie);
+            writeCookie(response, name, "", 0, true);
         }
     }
 
@@ -84,13 +80,18 @@ public class AuthCookieService {
     }
 
     private void writeToken(HttpServletResponse response, String name, String token, long maxAgeSeconds) {
-        Cookie cookie = new Cookie(name, token);
-        cookie.setPath("/");
-        cookie.setHttpOnly(true);
-        cookie.setSecure(secure);
-        cookie.setMaxAge((int) maxAgeSeconds);
-        cookie.setAttribute("SameSite", sameSite);
-        response.addCookie(cookie);
+        writeCookie(response, name, token, maxAgeSeconds, true);
+    }
+
+    private void writeCookie(HttpServletResponse response, String name, String value, long maxAgeSeconds, boolean httpOnly) {
+        ResponseCookie cookie = ResponseCookie.from(name, value)
+                .path("/")
+                .httpOnly(httpOnly)
+                .secure(secure)
+                .sameSite(sameSite)
+                .maxAge(maxAgeSeconds)
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 
     private static String resolveSameSite(String configured, boolean secure) {
