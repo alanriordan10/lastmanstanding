@@ -206,6 +206,7 @@ export default function CompetitionHomePage() {
   const [lifelineForGwId, setLifelineForGwId] = useState<number | null>(null);
   const [gameweekDisplayMode, setGameweekDisplayMode] = useState<GameweekDisplayMode>('cards');
   const [resetOpenConfirmOpen, setResetOpenConfirmOpen] = useState(false);
+  const [joinedOptimistically, setJoinedOptimistically] = useState(false);
 
   // Close share dropdown on outside click
   useEffect(() => {
@@ -395,6 +396,7 @@ export default function CompetitionHomePage() {
   const joinMutation = useMutation({
     mutationFn: () => api.post(`/competitions/${compId}/join`),
     onSuccess: () => {
+      setJoinedOptimistically(true);
       const competitionName = comp?.name ?? 'competition';
       if ((comp?.entryFee ?? 0) > 0 && comp?.paymentMode !== 'FREE') {
         toast(`You've registered for ${competitionName}. Please pay the organiser directly.`, { icon: '💸', duration: 8000 });
@@ -408,13 +410,28 @@ export default function CompetitionHomePage() {
       queryClient.invalidateQueries({ queryKey: ['competitions', 'upcoming'] });
       queryClient.invalidateQueries({ queryKey: ['competitions'] });
     },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to join competition'),
+    onError: (err: any) => {
+      setJoinedOptimistically(false);
+      toast.error(err.response?.data?.message || 'Failed to join competition');
+    },
   });
 
   const handleDirectJoin = () => {
     if (!comp) return;
     joinMutation.mutate();
   };
+
+  const hasParticipantRecord = Boolean(myStatus?.participant);
+
+  useEffect(() => {
+    setJoinedOptimistically(false);
+  }, [compId]);
+
+  useEffect(() => {
+    if (hasParticipantRecord && joinedOptimistically) {
+      setJoinedOptimistically(false);
+    }
+  }, [hasParticipantRecord, joinedOptimistically]);
 
   const pickMutation = useMutation({
     mutationFn: ({ gwId, teamId, useLifeline }: { gwId: number; teamId: number; useLifeline: boolean }) =>
@@ -621,6 +638,7 @@ export default function CompetitionHomePage() {
   const selectedEntryNumber = participant?.entryNumber ?? myEntries.find((entry) => entry.id === selectedEntryId)?.entryNumber ?? null;
   const selectedEntryLabel = myEntries.length > 1 && selectedEntryNumber ? `Entry #${selectedEntryNumber}` : null;
   const isParticipant = !!participant;
+  const hasConfirmedParticipation = isParticipant || joinedOptimistically;
   const maxEntriesPerUser = Math.max(1, comp.maxEntriesPerUser ?? 1);
   const canAddAnotherEntry = comp.status === 'UPCOMING' && myEntries.length > 0 && myEntries.length < maxEntriesPerUser;
   const additionalEntriesRemaining = Math.max(maxEntriesPerUser - myEntries.length, 0);
@@ -1494,7 +1512,7 @@ export default function CompetitionHomePage() {
         ctaKind: 'none' as const,
       };
     }
-    if (!isParticipant && comp.status === 'UPCOMING') {
+    if (!hasConfirmedParticipation && comp.status === 'UPCOMING') {
       return {
         tone: 'brand' as const,
         eyebrow: 'Next Step',
@@ -2297,11 +2315,11 @@ export default function CompetitionHomePage() {
               body={sidebarSummary}
               meta={sidebarMeta}
               accentColor={comp.clubPrimaryColor}
-              cta={!isParticipant && comp.status === 'UPCOMING' ? (
+              cta={!hasConfirmedParticipation && comp.status === 'UPCOMING' ? (
                 <button
                   type="button"
                   onClick={handleDirectJoin}
-                  disabled={joinMutation.isPending}
+                  disabled={joinMutation.isPending || joinedOptimistically}
                   className="btn-primary w-full sm:w-auto text-sm disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {joinMutation.isPending ? 'Joining...' : comp.entryFee > 0 && comp.paymentMode !== 'FREE' ? `Register · €${comp.entryFee} to organiser` : 'Join competition'}
@@ -2899,11 +2917,11 @@ export default function CompetitionHomePage() {
               body={sidebarSummary}
               meta={sidebarMeta}
               accentColor={comp.clubPrimaryColor}
-              cta={!isParticipant && comp.status === 'UPCOMING' ? (
+              cta={!hasConfirmedParticipation && comp.status === 'UPCOMING' ? (
                 <button
                   type="button"
                   onClick={handleDirectJoin}
-                  disabled={joinMutation.isPending}
+                  disabled={joinMutation.isPending || joinedOptimistically}
                   className="btn-primary w-full sm:w-auto text-sm disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {joinMutation.isPending ? 'Joining...' : comp.entryFee > 0 && comp.paymentMode !== 'FREE' ? `Register · €${comp.entryFee} to organiser` : 'Join competition'}
