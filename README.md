@@ -38,6 +38,20 @@ the club one slot idempotently when the session metadata `type=competition_slot`
 
 ---
 
+## 🔒 Security Configuration
+
+### Cookies and HTTPS in Production
+
+**CRITICAL**: The application uses secure cookies with `SameSite=None` for cross-origin requests. These cookies **require HTTPS** and the `COOKIE_SECURE` environment variable to be set to `true`:
+
+```bash
+COOKIE_SECURE=true
+```
+
+**Without this setting, cookies will be rejected by modern browsers and all authenticated requests will return 401 errors.**
+
+---
+
 ## 🚀 Local Development with PostgreSQL
 
 The local profile uses a Docker PostgreSQL database and is isolated from the

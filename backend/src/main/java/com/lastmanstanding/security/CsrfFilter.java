@@ -86,7 +86,10 @@ public class CsrfFilter extends OncePerRequestFilter {
             cookie.setHttpOnly(false);
             cookie.setSecure(cookieService.isSecure());
             cookie.setMaxAge(60 * 60 * 24);
-            cookie.setAttribute("SameSite", "Strict");
+            // Use SameSite=Lax to allow the cookie to be sent in cross-origin requests
+            // (same as OAuth2 cookies). CSRF protection still applies because we validate
+            // the header token for state-changing requests with auth cookies.
+            cookie.setAttribute("SameSite", "Lax");
             response.addCookie(cookie);
         }
     }

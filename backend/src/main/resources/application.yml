@@ -161,6 +161,13 @@ server:
     enabled: true
     min-response-size: 1024
     mime-types: application/json,application/problem+json,text/html,text/plain,text/css,application/javascript
+  servlet:
+    session:
+      cookie:
+        secure: ${COOKIE_SECURE:false}
+        http-only: true
+        same-site: lax
+        path: /
 
 management:
   endpoints:
