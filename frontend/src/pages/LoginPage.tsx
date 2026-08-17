@@ -200,6 +200,7 @@ export default function LoginPage() {
         <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs font-semibold text-gray-500">
           <Link to="/guide" className="hover:text-brand-300">User guide</Link>
           <Link to="/faq" className="hover:text-brand-300">FAQ</Link>
+          <Link to="/auth-diagnostics" className="hover:text-brand-300">Auth diagnostics</Link>
           <Link to="/privacy" className="hover:text-brand-300">Privacy</Link>
           <Link to="/terms" className="hover:text-brand-300">Terms</Link>
         </div>

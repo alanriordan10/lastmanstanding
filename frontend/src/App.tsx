@@ -34,6 +34,7 @@ const ServicesPage = lazy(() => import('./pages/ServicesPage'));
 const PricingPage = lazy(() => import('./pages/PricingPage'));
 const RefundPolicyPage = lazy(() => import('./pages/RefundPolicyPage'));
 const AccountDeletionPage = lazy(() => import('./pages/AccountDeletionPage'));
+const AuthDiagnosticsPage = lazy(() => import('@/pages/AuthDiagnosticsPage'));
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -117,6 +118,7 @@ export default function App() {
         <Route path="/terms" element={<Layout><TermsPage /></Layout>} />
         <Route path="/contact" element={<Layout><ContactPage /></Layout>} />
         <Route path="/account-deletion" element={<Layout><AccountDeletionPage /></Layout>} />
+        <Route path="/auth-diagnostics" element={<Layout><AuthDiagnosticsPage /></Layout>} />
         <Route path="/invite/:code" element={<InviteRedirect />} />
         <Route
           path="/competitions"
