@@ -1193,30 +1193,32 @@ function CompListView({ comps, joinedSet, onJoin, isPending, entryCounts }: {
         const canAddEntry = c.status === 'UPCOMING' && joinedCount < maxEntries;
         const dateStr = c.firstGameweekDate ?? c.startDate;
         return (
-          <div key={c.id} className="flex items-center gap-3 px-4 py-3 hover:bg-surface-700/30 transition-colors">
-            {/* Status dot */}
-            <span className={`shrink-0 w-2 h-2 rounded-full ${c.status === 'ACTIVE' ? 'bg-green-400' : 'bg-blue-400'}`} />
+          <div key={c.id} className="flex flex-col gap-2 px-4 py-3 hover:bg-surface-700/30 transition-colors sm:flex-row sm:items-center sm:gap-3">
+            {/* Top row: dot + info */}
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+              <span className={`shrink-0 mt-1 w-2 h-2 rounded-full ${c.status === 'ACTIVE' ? 'bg-green-400' : 'bg-blue-400'}`} />
 
-            {/* Main info */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-medium text-sm text-white truncate">{c.name}</span>
-                {c.clubLogoUrl && <img src={c.clubLogoUrl} alt="" className="h-5 w-5 rounded-md object-cover border border-white/10 shrink-0" />}
-                {c.clubName && <span className="badge-yellow badge-soft shrink-0">{c.clubName}</span>}
-                <span className="shrink-0 rounded-full border border-cyan-400/35 bg-cyan-500/12 px-2 py-0.5 text-[10px] font-semibold text-cyan-200">
-                  {fixtureSourceLabel(c)}
-                </span>
-                {joined && <span className="badge-brand shrink-0">Joined {joinedCount}/{maxEntries}</span>}
-              </div>
-              <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-500">
-                {dateStr && <span>{formatDateSafe(dateStr, 'MMM d, yyyy', '')}</span>}
-                <span>{c.participantCount} players{c.status === 'ACTIVE' ? ` · ${c.activeCount} surviving` : ''}</span>
-                <span className={c.entryFee > 0 ? 'text-brand-400 font-medium' : 'text-green-400'}>{c.entryFee > 0 ? `€${c.entryFee}` : 'Free'}</span>
+              {/* Main info */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-medium text-sm text-white truncate max-w-[12rem] sm:max-w-none">{c.name}</span>
+                  {c.clubLogoUrl && <img src={c.clubLogoUrl} alt="" className="h-5 w-5 rounded-md object-cover border border-white/10 shrink-0" />}
+                  {c.clubName && <span className="badge-yellow badge-soft shrink-0">{c.clubName}</span>}
+                  <span className="shrink-0 rounded-full border border-cyan-400/35 bg-cyan-500/12 px-2 py-0.5 text-[10px] font-semibold text-cyan-200">
+                    {fixtureSourceLabel(c)}
+                  </span>
+                  {joined && <span className="badge-brand shrink-0">Joined {joinedCount}/{maxEntries}</span>}
+                </div>
+                <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-500 flex-wrap">
+                  {dateStr && <span>{formatDateSafe(dateStr, 'MMM d, yyyy', '')}</span>}
+                  <span>{c.participantCount} players{c.status === 'ACTIVE' ? ` · ${c.activeCount} surviving` : ''}</span>
+                  <span className={c.entryFee > 0 ? 'text-brand-400 font-medium' : 'text-green-400'}>{c.entryFee > 0 ? `€${c.entryFee}` : 'Free'}</span>
+                </div>
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="shrink-0 flex gap-2">
+            {/* Actions — below info on mobile, inline on sm+ */}
+            <div className="flex gap-2 pl-5 sm:pl-0 sm:shrink-0">
               <Link to={`/competitions/${c.id}`} className="text-xs px-3 py-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 text-gray-300 transition">
                 {joined ? 'Open' : 'View'}
               </Link>
