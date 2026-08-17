@@ -27,6 +27,7 @@ public class AuthCookieService {
 
     public static final String ACCESS_TOKEN_COOKIE = "AT";
     public static final String REFRESH_TOKEN_COOKIE = "RT";
+    public static final String COOKIE_PROBE = "LMS_COOKIE_PROBE";
 
     private final SecureRandom random = new SecureRandom();
     private final boolean secure;
@@ -72,6 +73,14 @@ public class AuthCookieService {
 
     public String readRefreshToken(HttpServletRequest request) {
         return readCookie(request, REFRESH_TOKEN_COOKIE);
+    }
+
+    public boolean hasCookie(HttpServletRequest request, String name) {
+        return readCookie(request, name) != null;
+    }
+
+    public void writeProbeCookie(HttpServletResponse response) {
+        writeToken(response, COOKIE_PROBE, "1", 300);
     }
 
     private void writeToken(HttpServletResponse response, String name, String token, long maxAgeSeconds) {
@@ -123,5 +132,9 @@ public class AuthCookieService {
 
     public boolean isSecure() {
         return secure;
+    }
+
+    public String getSameSite() {
+        return sameSite;
     }
 }

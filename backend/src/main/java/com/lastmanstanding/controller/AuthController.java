@@ -16,6 +16,7 @@ import com.lastmanstanding.security.JwtService;
 import com.lastmanstanding.service.GameweekEmailService;
 import com.lastmanstanding.service.RateLimitService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -436,6 +437,36 @@ public class AuthController {
     public record DeleteAccountRequest(String deleteToken, String confirmText) {}
     public record DeleteTokenRequest(String password) {}
     public record DeleteTokenResponse(String deleteToken, long expiresInSeconds) {}
+    public record CookieProbeResponse(
+            boolean hadProbeCookie,
+            boolean hasAccessTokenCookie,
+            boolean hasRefreshTokenCookie,
+            boolean secure,
+            String sameSite,
+            String host,
+            String origin,
+            String forwardedProto,
+            String userAgent) {}
+
+    @GetMapping("/cookie-probe")
+    public ResponseEntity<CookieProbeResponse> cookieProbe(HttpServletRequest request, HttpServletResponse response) {
+        boolean hadProbeCookie = authCookieService.hasCookie(request, AuthCookieService.COOKIE_PROBE);
+        boolean hasAccessTokenCookie = authCookieService.hasCookie(request, AuthCookieService.ACCESS_TOKEN_COOKIE);
+        boolean hasRefreshTokenCookie = authCookieService.hasCookie(request, AuthCookieService.REFRESH_TOKEN_COOKIE);
+
+        authCookieService.writeProbeCookie(response);
+
+        return ResponseEntity.ok(new CookieProbeResponse(
+                hadProbeCookie,
+                hasAccessTokenCookie,
+                hasRefreshTokenCookie,
+                authCookieService.isSecure(),
+                authCookieService.getSameSite(),
+                request.getHeader("Host"),
+                request.getHeader("Origin"),
+                request.getHeader("X-Forwarded-Proto"),
+                request.getHeader("User-Agent")));
+    }
 
     private void logMissingPrincipal(String endpoint, HttpServletRequest request) {
         String userAgent = request != null ? request.getHeader("User-Agent") : null;
