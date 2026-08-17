@@ -1,22 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, Navigate, useSearchParams } from 'react-router-dom';
-import { formatDistanceToNow } from 'date-fns';
 import { useAuth } from '../context/AuthContext';
 import { getErrorMessage } from '../api';
 import toast from 'react-hot-toast';
 import SocialAuthButtons from '../components/SocialAuthButtons';
 import SeoMeta from '../components/SeoMeta';
-
-function prettyIp(ip?: string | null): string | null {
-  if (!ip) return null;
-  if (ip === '127.0.0.1' || ip === '0:0:0:0:0:0:0:1' || ip === '::1' || ip === 'localhost') return 'localhost';
-  if (ip.startsWith('::ffff:')) {
-    const v4 = ip.substring(7);
-    if (v4 === '127.0.0.1') return 'localhost';
-    return v4;
-  }
-  return ip;
-}
 
 type LoginStatus =
   | { kind: 'idle' }
@@ -39,7 +27,12 @@ export default function LoginPage() {
 
   useEffect(() => {
     const error = searchParams.get('error');
-    if (error) {
+    if (error === 'session_expired') {
+      toast('Your session has expired. Please sign in again.', {
+        icon: '⏰',
+        duration: 5000,
+      });
+    } else if (error) {
       toast.error(`Sign in failed: ${error}`, { duration: 6000 });
     }
   }, [searchParams]);
@@ -52,26 +45,7 @@ export default function LoginPage() {
     setStatus({ kind: 'idle' });
     try {
       await login(email, password);
-      const stored = localStorage.getItem('user');
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          if (parsed.lastLoginAt) {
-            const date = new Date(parsed.lastLoginAt);
-            if (!Number.isNaN(date.getTime())) {
-              const relative = formatDistanceToNow(date, { addSuffix: true });
-              const ip = prettyIp(parsed.lastLoginIp);
-              toast(`Last sign-in: ${relative}${ip ? ` from ${ip}` : ''}`, {
-                icon: '🕒',
-                duration: 5000,
-              });
-            }
-          }
-        } catch {
-          // ignore parse errors
-        }
-      }
-      navigate(returnTo || '/competitions');
+      navigate(returnTo ? decodeURIComponent(returnTo) : '/competitions');
     } catch (err: any) {
       const responseStatus = err.response?.status;
       if (responseStatus === 429) {

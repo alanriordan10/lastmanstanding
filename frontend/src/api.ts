@@ -51,6 +51,21 @@ function broadcastLogout() {
   logoutChannel?.postMessage('logout');
 }
 
+// ── Auth-failure handler (registered by AuthContext) ──────────────────────────
+//
+// The response interceptor calls onAuthFailure() (when registered) so React
+// state is cleared BEFORE the page navigates. This avoids the brief window
+// where the React app still thinks the user is logged in, which can cause
+// ProtectedRoute to redirect back to /login and create a loop.
+
+let onAuthFailure: (() => void) | null = null;
+
+export function setAuthFailureHandler(handler: (() => void) | null) {
+  onAuthFailure = handler;
+}
+
+let isHandlingAuthFailure = false;
+
 function readCookie(name: string): string | null {
   const cookies = document.cookie ? document.cookie.split('; ') : [];
   for (const entry of cookies) {
@@ -112,8 +127,7 @@ api.interceptors.response.use(
         originalRequest._retry = true;
         const refreshed = await refreshAccessToken();
         if (!refreshed) {
-          clearAuthTokens();
-          if (!isOnAuthPage) forceLogout('Your session has expired. Please log in again.');
+          triggerAuthFailure(isOnAuthPage);
           return Promise.reject(error);
         }
 
@@ -121,20 +135,35 @@ api.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${refreshed}`;
         return api(originalRequest);
       } catch {
-        clearAuthTokens();
-        if (!isOnAuthPage) forceLogout('Your session has expired. Please log in again.');
+        triggerAuthFailure(isOnAuthPage);
         return Promise.reject(error);
       }
     }
 
     if (status === 401 && !skipAuthRedirect && !isOnAuthPage) {
-      clearAuthTokens();
-      forceLogout('Your session has expired. Please log in again.');
+      triggerAuthFailure(isOnAuthPage);
     }
 
     return Promise.reject(error);
   },
 );
+
+function triggerAuthFailure(isOnAuthPage: boolean) {
+  if (isHandlingAuthFailure) return;
+  isHandlingAuthFailure = true;
+  clearAuthTokens();
+  // Prefer the React-context handler so state is cleared before navigation.
+  if (onAuthFailure) {
+    try {
+      onAuthFailure();
+    } catch {
+      // ignore — fall through to the navigation
+    }
+  } else {
+    forceLogout();
+  }
+  setTimeout(() => { isHandlingAuthFailure = false; }, 1000);
+}
 
 function shouldAttemptRefresh(originalRequest: any): boolean {
   if (!originalRequest || originalRequest._retry) return false;

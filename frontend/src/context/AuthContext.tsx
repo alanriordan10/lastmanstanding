@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import api, { storeAuthTokens, clearAuthTokens } from '../api';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import api, { storeAuthTokens, clearAuthTokens, setAuthFailureHandler } from '../api';
 import type { AuthResponse } from '../types';
 
 interface AuthContextType {
@@ -63,6 +63,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(false);
   }, []);
 
+  // Bridge for the api.ts response interceptor: when a 401 comes back, the
+  // interceptor can't reach React state, so we register a handler that
+  // routes the failure through logout(). This clears React state
+  // synchronously before navigation, preventing the brief window where
+  // ProtectedRoute still thinks the user is authenticated and redirects back.
+  const logoutRef = useRef<(() => void) | null>(null);
+
   const persistUser = (data: AuthResponse) => {
     const cleaned = stripTokens(data);
     localStorage.setItem('user', JSON.stringify(cleaned));
@@ -103,15 +110,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    try {
-      await api.post('/auth/logout');
-    } catch {
-      // ignore — clear local state regardless
-    }
+    // Clear local state synchronously so the UI updates immediately — the
+    // server-side logout is best-effort and may take longer (or fail).
     clearAuthTokens();
     localStorage.clear();
     setClubAdminRevoked(false);
     setUser(null);
+    try {
+      await api.post('/auth/logout');
+    } catch {
+      // ignore — local state is already cleared
+    }
+  }, []);
+
+  // Keep the ref pointing at the latest logout so the api.ts interceptor can
+  // call it when it sees a 401. (Keeps logout the single source of truth.)
+  useEffect(() => {
+    logoutRef.current = logout;
+  }, [logout]);
+  useEffect(() => {
+    setAuthFailureHandler(() => {
+      logoutRef.current?.();
+    });
+    return () => setAuthFailureHandler(null);
   }, []);
 
   const isAdmin = user?.role === 'ADMIN';
