@@ -103,10 +103,11 @@ api.interceptors.response.use(
 
     const status = error.response?.status;
     const originalRequest = error.config as any;
+    const skipAuthRedirect = Boolean(originalRequest?._skipAuthRedirect);
     const isOnAuthPage =
       window.location.pathname === '/login' || window.location.pathname === '/signup';
 
-    if (status === 401 && shouldAttemptRefresh(originalRequest)) {
+    if (status === 401 && !skipAuthRedirect && shouldAttemptRefresh(originalRequest)) {
       try {
         originalRequest._retry = true;
         const refreshed = await refreshAccessToken();
@@ -126,7 +127,7 @@ api.interceptors.response.use(
       }
     }
 
-    if (status === 401 && !isOnAuthPage) {
+    if (status === 401 && !skipAuthRedirect && !isOnAuthPage) {
       clearAuthTokens();
       forceLogout('Your session has expired. Please log in again.');
     }

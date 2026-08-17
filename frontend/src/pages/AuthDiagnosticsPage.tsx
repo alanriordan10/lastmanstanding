@@ -42,7 +42,7 @@ export default function AuthDiagnosticsPage() {
       let meStatus: number | undefined;
       let meMessage: string | undefined;
       try {
-        await api.get('/auth/me');
+        await api.get('/auth/me', { _skipAuthRedirect: true } as any);
         meStatus = 200;
         meMessage = 'Authenticated';
       } catch (err: any) {
