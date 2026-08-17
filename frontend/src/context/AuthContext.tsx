@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import api from '../api';
+import api, { storeAuthTokens, clearAuthTokens } from '../api';
 import type { AuthResponse } from '../types';
 
 interface AuthContextType {
@@ -22,6 +22,10 @@ type StoredUser = Omit<AuthResponse, 'accessToken' | 'refreshToken'>;
 function stripTokens(data: AuthResponse): StoredUser {
   const { accessToken, refreshToken, ...rest } = data;
   return rest;
+}
+
+function persistTokens(data: AuthResponse) {
+  storeAuthTokens(data.accessToken, data.refreshToken);
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -74,6 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (email: string, password: string): Promise<AuthResponse> => {
     const { data } = await api.post<AuthResponse>('/auth/login', { email, password });
+    persistTokens(data);
     persistUser(data);
     return data;
   }, []);
@@ -81,15 +86,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginWithToken = useCallback(async (token: string) => {
     localStorage.setItem('accessToken', token);
     const { data } = await api.get<AuthResponse>('/auth/me');
+    persistTokens(data);
     persistUser(data);
   }, []);
 
   const loginWithData = useCallback((data: AuthResponse) => {
+    persistTokens(data);
     persistUser(data);
   }, []);
 
   const signup = useCallback(async (email: string, username: string, password: string): Promise<AuthResponse> => {
     const { data } = await api.post<AuthResponse>('/auth/signup', { email, username, password });
+    persistTokens(data);
     persistUser(data);
     return data;
   }, []);
@@ -100,6 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // ignore — clear local state regardless
     }
+    clearAuthTokens();
     localStorage.clear();
     setClubAdminRevoked(false);
     setUser(null);

@@ -2,6 +2,13 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
+const ACCESS_TOKEN_KEY = 'accessToken';
+const REFRESH_TOKEN_KEY = 'refreshToken';
+
+type RefreshResponse = {
+  accessToken: string;
+  refreshToken: string;
+};
 
 const api = axios.create({
   baseURL: API_BASE,
@@ -9,6 +16,24 @@ const api = axios.create({
   timeout: 15_000,
   withCredentials: true,
 });
+
+export function storeAuthTokens(accessToken?: string | null, refreshToken?: string | null) {
+  if (accessToken) localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+  if (refreshToken) localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+}
+
+export function clearAuthTokens() {
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+}
+
+function getStoredAccessToken(): string | null {
+  return localStorage.getItem(ACCESS_TOKEN_KEY);
+}
+
+function getStoredRefreshToken(): string | null {
+  return localStorage.getItem(REFRESH_TOKEN_KEY);
+}
 
 // ── Cross-tab logout via BroadcastChannel ────────────────────────────────────
 const logoutChannel = typeof BroadcastChannel !== 'undefined'
@@ -44,6 +69,11 @@ const STATE_CHANGING = new Set(['post', 'put', 'patch', 'delete']);
 
 // ── Request interceptor: attach CSRF token on state-changing requests ──────────
 api.interceptors.request.use((config) => {
+  const accessToken = getStoredAccessToken();
+  if (accessToken && !config.headers?.Authorization) {
+    config.headers.Authorization = `Bearer ${accessToken}`;
+  }
+
   if (config.method && STATE_CHANGING.has(config.method.toLowerCase())) {
     const csrf = readCookie('XSRF-TOKEN');
     if (csrf) {
@@ -72,16 +102,66 @@ api.interceptors.response.use(
     }
 
     const status = error.response?.status;
+    const originalRequest = error.config as any;
     const isOnAuthPage =
       window.location.pathname === '/login' || window.location.pathname === '/signup';
 
+    if (status === 401 && shouldAttemptRefresh(originalRequest)) {
+      try {
+        originalRequest._retry = true;
+        const refreshed = await refreshAccessToken();
+        if (!refreshed) {
+          clearAuthTokens();
+          if (!isOnAuthPage) forceLogout('Your session has expired. Please log in again.');
+          return Promise.reject(error);
+        }
+
+        if (!originalRequest.headers) originalRequest.headers = {};
+        originalRequest.headers.Authorization = `Bearer ${refreshed}`;
+        return api(originalRequest);
+      } catch {
+        clearAuthTokens();
+        if (!isOnAuthPage) forceLogout('Your session has expired. Please log in again.');
+        return Promise.reject(error);
+      }
+    }
+
     if (status === 401 && !isOnAuthPage) {
+      clearAuthTokens();
       forceLogout('Your session has expired. Please log in again.');
     }
 
     return Promise.reject(error);
   },
 );
+
+function shouldAttemptRefresh(originalRequest: any): boolean {
+  if (!originalRequest || originalRequest._retry) return false;
+  const url = String(originalRequest.url ?? '');
+  if (url.includes('/auth/login') || url.includes('/auth/refresh') || url.includes('/auth/logout')) {
+    return false;
+  }
+  return Boolean(getStoredRefreshToken());
+}
+
+async function refreshAccessToken(): Promise<string | null> {
+  const refreshToken = getStoredRefreshToken();
+  if (!refreshToken) return null;
+
+  const { data } = await axios.post<RefreshResponse>(
+    `${API_BASE}/auth/refresh`,
+    { refreshToken },
+    {
+      withCredentials: true,
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 15_000,
+    },
+  );
+
+  if (!data?.accessToken || !data?.refreshToken) return null;
+  storeAuthTokens(data.accessToken, data.refreshToken);
+  return data.accessToken;
+}
 
 function forceLogout(message = 'Your session has expired. Please log in again.') {
   localStorage.clear();
