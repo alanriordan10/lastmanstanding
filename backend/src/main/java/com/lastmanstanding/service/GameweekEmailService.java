@@ -9,6 +9,7 @@ import com.lastmanstanding.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -364,6 +365,7 @@ public class GameweekEmailService {
      * Send a password reset link email. Always sends regardless of mailEnabled
      * since users explicitly requested it.
      */
+    @Async("notificationExecutor")
     public void sendPasswordResetEmail(String toEmail, String username, String resetLink) {
         if (!mailEnabled) {
             log.warn("Mail is disabled — cannot send password reset email to {}. " +

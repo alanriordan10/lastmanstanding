@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import api, { getErrorMessage } from '../api';
+import { getErrorMessage, postPublicAuth } from '../api';
 import toast from 'react-hot-toast';
 import SeoMeta from '../components/SeoMeta';
 
@@ -21,7 +21,7 @@ export default function ForgotPasswordPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.post('/auth/forgot-password', { email }, { _skipAuthRedirect: true } as any);
+      await postPublicAuth('/auth/forgot-password', { email });
       setSubmitted(true);
     } catch (err) {
       toast.error(getErrorMessage(err, 'Could not send reset email. Please try again.'));

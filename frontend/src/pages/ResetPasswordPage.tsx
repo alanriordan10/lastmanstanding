@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import api from '../api';
+import { postPublicAuth } from '../api';
 import toast from 'react-hot-toast';
 import SeoMeta from '../components/SeoMeta';
 import { PasswordStrengthMeter, isPasswordStrongEnough, validatePasswordStrength } from '../components/PasswordStrengthMeter';
@@ -60,7 +60,7 @@ export default function ResetPasswordPage() {
     }
     setLoading(true);
     try {
-      await api.post('/auth/reset-password', { token, newPassword: password }, { _skipAuthRedirect: true } as any);
+      await postPublicAuth('/auth/reset-password', { token, newPassword: password });
       toast.success('Password updated! Please log in with your new password.');
       navigate('/login');
     } catch (err: any) {

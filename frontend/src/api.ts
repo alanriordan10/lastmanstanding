@@ -17,6 +17,13 @@ const api = axios.create({
   withCredentials: true,
 });
 
+const publicAuthApi = axios.create({
+  baseURL: API_BASE,
+  headers: { 'Content-Type': 'application/json' },
+  timeout: 20_000,
+  withCredentials: false,
+});
+
 export function storeAuthTokens(accessToken?: string | null, refreshToken?: string | null) {
   if (accessToken) localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
   if (refreshToken) localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
@@ -25,6 +32,11 @@ export function storeAuthTokens(accessToken?: string | null, refreshToken?: stri
 export function clearAuthTokens() {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
+}
+
+export async function postPublicAuth<TResponse = unknown, TRequest = unknown>(url: string, body?: TRequest): Promise<TResponse> {
+  const response = await publicAuthApi.post<TResponse>(url, body);
+  return response.data;
 }
 
 function getStoredAccessToken(): string | null {
