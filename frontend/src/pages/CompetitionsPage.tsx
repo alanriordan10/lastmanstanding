@@ -151,9 +151,8 @@ export default function CompetitionsPage() {
   const [compactMineView, setCompactMineView] = useState(() => {
     if (typeof window === 'undefined') return false;
     const saved = window.localStorage.getItem('lms.competitions.compactMineView');
-    return saved == null ? true : saved === 'true';
+    return saved == null ? false : saved === 'true';
   });
-  const [expandedMineRows, setExpandedMineRows] = useState<Set<string>>(new Set());
   const [showMineAdvancedFilters, setShowMineAdvancedFilters] = useState(false);
   const [availableSections, setAvailableSections] = useState({
     open: true,
@@ -1120,35 +1119,35 @@ export default function CompetitionsPage() {
             {mineNeedsAction.length > 0 && (
               <Section label={`Needs Action (${mineNeedsAction.length})`} icon="!" iconColor="bg-amber-500" collapsible collapsed={!mineSections.needsAction} onToggle={() => setMineSections((s) => ({ ...s, needsAction: !s.needsAction }))}>
                 {compactMineView
-                  ? <div className="space-y-2">{mineNeedsAction.map((mc) => <MyCompetitionRow key={getMyCompetitionKey(mc)} myComp={mc} expanded={expandedMineRows.has(getMyCompetitionKey(mc))} onToggleExpand={() => setExpandedMineRows((prev) => { const next = new Set(prev); const rowKey = getMyCompetitionKey(mc); if (next.has(rowKey)) next.delete(rowKey); else next.add(rowKey); return next; })} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
+                  ? <div className="space-y-2">{mineNeedsAction.map((mc) => <MyCompetitionRow key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
                   : <CompGrid>{mineNeedsAction.map((mc) => <MyCompetitionCard key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</CompGrid>}
               </Section>
             )}
             {mineActive.length > 0 && (
               <Section label={`Active (${mineActive.length})`} icon="✓" iconColor="bg-green-600" collapsible collapsed={!mineSections.active} onToggle={() => setMineSections((s) => ({ ...s, active: !s.active }))}>
                 {compactMineView
-                  ? <div className="space-y-2">{mineActive.map((mc) => <MyCompetitionRow key={getMyCompetitionKey(mc)} myComp={mc} expanded={expandedMineRows.has(getMyCompetitionKey(mc))} onToggleExpand={() => setExpandedMineRows((prev) => { const next = new Set(prev); const rowKey = getMyCompetitionKey(mc); if (next.has(rowKey)) next.delete(rowKey); else next.add(rowKey); return next; })} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
+                  ? <div className="space-y-2">{mineActive.map((mc) => <MyCompetitionRow key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
                   : <CompGrid>{mineActive.map((mc) => <MyCompetitionCard key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</CompGrid>}
               </Section>
             )}
             {mineUpcoming.length > 0 && (mineFilter === 'ALL' || mineFilter === 'UPCOMING') && (
               <Section label={`Upcoming (${mineUpcoming.length})`} icon="○" iconColor="bg-blue-500" collapsible collapsed={!mineSections.upcoming} onToggle={() => setMineSections((s) => ({ ...s, upcoming: !s.upcoming }))}>
                 {compactMineView
-                  ? <div className="space-y-2">{mineUpcoming.map((mc) => <MyCompetitionRow key={getMyCompetitionKey(mc)} myComp={mc} expanded={expandedMineRows.has(getMyCompetitionKey(mc))} onToggleExpand={() => setExpandedMineRows((prev) => { const next = new Set(prev); const rowKey = getMyCompetitionKey(mc); if (next.has(rowKey)) next.delete(rowKey); else next.add(rowKey); return next; })} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
+                  ? <div className="space-y-2">{mineUpcoming.map((mc) => <MyCompetitionRow key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
                   : <CompGrid>{mineUpcoming.map((mc) => <MyCompetitionCard key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</CompGrid>}
               </Section>
             )}
             {mineEliminated.length > 0 && (
               <Section label={`Eliminated (${mineEliminated.length})`} icon="✕" iconColor="bg-gray-600" collapsible collapsed={!mineSections.eliminated} onToggle={() => setMineSections((s) => ({ ...s, eliminated: !s.eliminated }))}>
                 {compactMineView
-                  ? <div className="space-y-2">{mineEliminated.map((mc) => <MyCompetitionRow key={getMyCompetitionKey(mc)} myComp={mc} expanded={expandedMineRows.has(getMyCompetitionKey(mc))} onToggleExpand={() => setExpandedMineRows((prev) => { const next = new Set(prev); const rowKey = getMyCompetitionKey(mc); if (next.has(rowKey)) next.delete(rowKey); else next.add(rowKey); return next; })} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
+                  ? <div className="space-y-2">{mineEliminated.map((mc) => <MyCompetitionRow key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
                   : <CompGrid>{mineEliminated.map((mc) => <MyCompetitionCard key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</CompGrid>}
               </Section>
             )}
             {mineFinished.length > 0 && (
               <Section label={`Finished (${mineFinished.length})`} icon="🏁" iconColor="bg-gray-700" collapsible collapsed={!mineSections.finished} onToggle={() => setMineSections((s) => ({ ...s, finished: !s.finished }))}>
                 {compactMineView
-                  ? <div className="space-y-2">{mineFinished.map((mc) => <MyCompetitionRow key={getMyCompetitionKey(mc)} myComp={mc} expanded={expandedMineRows.has(getMyCompetitionKey(mc))} onToggleExpand={() => setExpandedMineRows((prev) => { const next = new Set(prev); const rowKey = getMyCompetitionKey(mc); if (next.has(rowKey)) next.delete(rowKey); else next.add(rowKey); return next; })} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
+                  ? <div className="space-y-2">{mineFinished.map((mc) => <MyCompetitionRow key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
                   : <CompGrid>{mineFinished.map((mc) => <MyCompetitionCard key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</CompGrid>}
               </Section>
             )}
@@ -1764,13 +1763,9 @@ function MyCompetitionCard({ myComp, actionHint }: { myComp: MyCompetition; acti
 function MyCompetitionRow({
   myComp,
   actionHint,
-  expanded,
-  onToggleExpand,
 }: {
   myComp: MyCompetition;
   actionHint?: string | null;
-  expanded: boolean;
-  onToggleExpand: () => void;
 }) {
   const comp = myComp.competition;
   const effectiveActiveCount = comp.activeCount ?? comp.participantCount ?? 0;
@@ -1803,55 +1798,49 @@ function MyCompetitionRow({
     : { icon: '✓', label: 'OK', tone: 'text-green-300 border-green-500/30 bg-green-500/10' };
 
   return (
-    <div
-      className={`card px-3.5 py-3 ${isDueSoon ? 'border-amber-400/45 bg-[linear-gradient(135deg,rgba(245,158,11,0.12),rgba(245,158,11,0.02))]' : ''}`}
+    <Link
+      to={`/competitions/${comp.id}`}
+      className={`card group block px-4 py-3.5 transition-colors hover:border-white/30 hover:bg-white/[0.07] active:bg-white/[0.10] ${isDueSoon ? 'border-amber-400/45 bg-[linear-gradient(135deg,rgba(245,158,11,0.12),rgba(245,158,11,0.02))]' : ''}`}
       style={competitionCardStyle(comp)}
     >
-      <div className="flex items-center gap-3">
-      <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${isFinished ? 'bg-gray-500' : myComp.myStatus === 'ELIMINATED' ? 'bg-red-500' : myComp.myStatus === 'WINNER' ? 'bg-yellow-400' : 'bg-green-500'}`} />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="truncate text-[15px] font-semibold text-white">{comp.name}</p>
-          {myComp.entryNumber && <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-gray-300">#{myComp.entryNumber}</span>}
-          {comp.clubName && <span className="hidden rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-gray-300 sm:inline-flex">{comp.clubName}</span>}
+      {/* ── Row 1: status dot + name + entry badge + status pill ── */}
+      <div className="flex items-start gap-3">
+        <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${isFinished ? 'bg-gray-500' : myComp.myStatus === 'ELIMINATED' ? 'bg-red-500' : myComp.myStatus === 'WINNER' ? 'bg-yellow-400' : 'bg-green-500'}`} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-[15px] font-semibold text-white leading-snug">{comp.name}</p>
+            {myComp.entryNumber && <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-gray-300">#{myComp.entryNumber}</span>}
+          </div>
+          {comp.clubName && <p className="mt-0.5 text-xs text-gray-500">{comp.clubName}</p>}
+          {/* Status line */}
+          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+            <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] ${quickAction.tone}`}>
+              <span>{quickAction.icon}</span>
+              <span>{quickAction.label}</span>
+            </span>
+            <p className="text-xs text-gray-400">
+              {isFinished ? 'Finished' : myComp.myStatus === 'ELIMINATED' ? 'Eliminated' : myComp.myStatus === 'WINNER' ? 'Winner' : 'Active'}
+              {isAwaitingPayment ? ' · Awaiting payment' : ''}
+              {isDueSoon ? ' · Pick due soon' : ''}
+            </p>
+          </div>
+          {/* Meta row: players / surviving / fee / date — each on its own readable chip */}
+          <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] text-gray-300">
+            <span className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5">👥 {comp.participantCount ?? 0} players</span>
+            {comp.status === 'ACTIVE' && <span className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5">🛡 {survivingLabel} surviving</span>}
+            <span className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5">{comp.entryFee > 0 ? `€${comp.entryFee}` : 'Free entry'}</span>
+            <span className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5">📅 {startFieldLabel}: {startLabel}</span>
+          </div>
+          {actionHint && (
+            <p className="mt-2 text-xs font-medium text-amber-300">⚠ {actionHint}</p>
+          )}
         </div>
-        <div className="mt-1 flex items-center gap-2">
-          <p className="text-xs text-gray-400">
-            {isFinished ? 'Finished' : myComp.myStatus === 'ELIMINATED' ? 'Eliminated' : myComp.myStatus === 'WINNER' ? 'Winner' : 'Active'}
-            {isAwaitingPayment ? ' · Awaiting payment' : ''}
-            {isDueSoon ? ' · Pick due soon' : ''}
-          </p>
-          <span className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.1em] sm:hidden ${quickAction.tone}`}>
-            <span>{quickAction.icon}</span>
-            <span>{quickAction.label}</span>
-          </span>
-        </div>
-        <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] text-gray-300">
-          <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">👥 {comp.participantCount ?? 0}</span>
-          <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">🛡 {survivingLabel}</span>
-          <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">€ {comp.entryFee > 0 ? `${comp.entryFee}` : 'Free'}</span>
-          <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">📅 {startFieldLabel}: {startLabel}</span>
-        </div>
-        {actionHint && <p className="mt-1 text-xs font-medium text-amber-300">Action required: {actionHint}</p>}
+        {/* Chevron affordance */}
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="mt-1 h-4 w-4 shrink-0 text-gray-500 transition-colors group-hover:text-gray-300">
+          <path d="M9.29 6.71a1 1 0 0 0 0 1.41L13.17 12l-3.88 3.88a1 1 0 1 0 1.41 1.41l4.59-4.59a1 1 0 0 0 0-1.41L10.7 6.71a1 1 0 0 0-1.41 0Z"/>
+        </svg>
       </div>
-      <span className={`hidden sm:inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${quickAction.tone}`}>
-        <span>{quickAction.icon}</span>
-        <span>{quickAction.label}</span>
-      </span>
-      <button type="button" onClick={onToggleExpand} className="shrink-0 rounded-md border border-white/10 px-2 py-1 text-xs text-gray-300 hover:bg-white/10">
-        {expanded ? 'Less' : 'Details'}
-      </button>
-      <Link to={`/competitions/${comp.id}`} className="shrink-0 text-xs text-gray-300 underline-offset-2 hover:text-white hover:underline">Open</Link>
-      </div>
-      {expanded && (
-        <div className="mt-2.5 grid grid-cols-2 gap-2.5 border-t border-white/10 pt-2.5 text-xs text-gray-300">
-          <span>Players: {comp.participantCount}</span>
-          <span>Status: {isFinished ? 'Finished' : myComp.myStatus}</span>
-          <span>Payment: {myComp.paymentState}</span>
-          <span>Entry: {comp.entryFee > 0 ? `€${comp.entryFee}` : 'Free'}</span>
-        </div>
-      )}
-    </div>
+    </Link>
   );
 }
 
