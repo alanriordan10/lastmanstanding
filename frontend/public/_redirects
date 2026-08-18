@@ -10,5 +10,7 @@
 # Adding a rewrite rule creates a redirect loop because Cloudflare Pages
 # also redirects /faq.html → /faq as a canonical redirect.
 
-# SPA fallback — serves index.html for any route not matched by a static file.
-/* /index.html 200
+# SPA fallback — serves root (index.html) for any route not matched by a static file.
+# Must use /* / 200 (root proxy), NOT /* /index.html 200 — Cloudflare Pages rejects
+# the latter because its pretty-URL engine would strip .html and re-trigger the rule.
+/* / 200
