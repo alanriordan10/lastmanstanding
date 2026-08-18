@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.List;
 
@@ -324,7 +325,10 @@ public class GameweekEmailService {
             if (user == null || !user.isNotificationPickReminders()) continue;
             attempted++;
             try {
-                String pickUrl = publicAppUrl + "/competitions/" + comp.getId();
+                String pickUrl = UriComponentsBuilder.fromHttpUrl(publicAppUrl)
+                        .path("/competitions/{id}")
+                        .buildAndExpand(comp.getId())
+                        .toUriString();
                 String missedPickConsequence = comp.getMissedPickMode() == MissedPickMode.AUTO_ASSIGN
                         ? "If you don't pick before it locks, an automatic selection will be made for you."
                         : "If you don't pick before it locks, your entry will be eliminated.";

@@ -25,6 +25,7 @@ import jakarta.validation.constraints.Size;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.util.UriComponentsBuilder;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -637,7 +638,10 @@ public class AuthController {
             LocalDateTime expiresAt = LocalDateTime.now().plusHours(1);
             passwordResetTokenRepository.save(new PasswordResetToken(user, token, expiresAt));
 
-            String resetLink = frontendUrl + "/reset-password?token=" + token;
+            String resetLink = UriComponentsBuilder.fromHttpUrl(frontendUrl)
+                    .path("/reset-password")
+                    .queryParam("token", token)
+                    .toUriString();
             gameweekEmailService.sendPasswordResetEmail(user.getEmail(), user.getUsername(), resetLink);
         });
         return ResponseEntity.ok().build();
