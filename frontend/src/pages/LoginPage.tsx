@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getErrorMessage } from '../api';
 import toast from 'react-hot-toast';
 import SocialAuthButtons from '../components/SocialAuthButtons';
 import SeoMeta from '../components/SeoMeta';
@@ -69,7 +68,7 @@ export default function LoginPage() {
   const inputInvalid = status.kind === 'error' || status.kind === 'locked';
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.12),transparent_36rem),linear-gradient(180deg,#0a1224_0%,#0b1322_100%)] px-4 py-10">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_8%_-8%,rgba(56,189,248,0.16),transparent_34rem),linear-gradient(180deg,#0a1220_0%,#09101d_100%)] px-4 py-10">
 
       <SeoMeta
         title="Sign In | Last Man Standing"
@@ -78,8 +77,8 @@ export default function LoginPage() {
         noindex
       />
       <div className="relative grid w-full max-w-6xl gap-6 lg:grid-cols-[1.08fr_0.92fr]">
-        <section className="relative overflow-hidden rounded-[2.1rem] border border-white/8 bg-[linear-gradient(145deg,rgba(15,23,42,0.84),rgba(8,15,30,0.8))] px-6 py-8 shadow-[0_22px_56px_rgba(2,6,23,0.42)] backdrop-blur-sm sm:px-8 sm:py-10">
-          <div className="inline-flex rounded-full border border-brand-300/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-100">
+        <section className="relative overflow-hidden rounded-[2rem] border border-white/15 bg-[linear-gradient(145deg,rgba(17,27,46,0.9),rgba(10,17,32,0.86))] px-6 py-8 shadow-[0_18px_42px_rgba(2,6,23,0.34)] backdrop-blur-sm sm:px-8 sm:py-10">
+          <div className="inline-flex rounded-full border border-sky-300/35 bg-sky-400/12 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-sky-100">
             Member access
           </div>
           <div className="mt-6 flex h-20 w-20 items-center justify-center overflow-hidden rounded-3xl bg-transparent p-0 shadow-[0_10px_24px_rgba(2,6,23,0.35)]">
@@ -101,7 +100,7 @@ export default function LoginPage() {
         <div className="w-full space-y-5 lg:space-y-6">
         <form
           onSubmit={handleSubmit}
-          className="rounded-[1.4rem] border border-white/10 bg-[linear-gradient(150deg,rgba(15,23,42,0.84),rgba(9,16,34,0.88))] p-5 shadow-[0_20px_50px_rgba(2,6,23,0.42)] backdrop-blur-md sm:p-6"
+          className="rounded-[1.4rem] border border-white/15 bg-[linear-gradient(150deg,rgba(17,27,46,0.9),rgba(10,17,32,0.88))] p-5 shadow-[0_14px_34px_rgba(2,6,23,0.3)] backdrop-blur-md sm:p-6"
         >
           {isCreateClubReturn ? (
             <div className="mb-4 rounded-xl border border-cyan-400/35 bg-cyan-500/10 px-3.5 py-2.5 text-sm text-cyan-100">
@@ -161,7 +160,7 @@ export default function LoginPage() {
             {loading ? 'Signing in…' : status.kind === 'locked' ? 'Locked out' : isCreateClubReturn ? 'Sign In & Continue to Create Club' : 'Sign In'}
           </button>
         </form>
-        <div className="rounded-[1.4rem] border border-white/10 bg-[linear-gradient(150deg,rgba(15,23,42,0.84),rgba(9,16,34,0.88))] p-5 shadow-[0_20px_50px_rgba(2,6,23,0.42)] backdrop-blur-md sm:p-6">
+        <div className="rounded-[1.4rem] border border-white/15 bg-[linear-gradient(150deg,rgba(17,27,46,0.9),rgba(10,17,32,0.88))] p-5 shadow-[0_14px_34px_rgba(2,6,23,0.3)] backdrop-blur-md sm:p-6">
           <SocialAuthButtons mode="login" continuationHint={isCreateClubReturn ? 'to continue to Create Club' : undefined} />
         </div>
 
@@ -174,7 +173,6 @@ export default function LoginPage() {
         <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs font-semibold text-gray-500">
           <Link to="/guide" className="hover:text-brand-300">User guide</Link>
           <Link to="/faq" className="hover:text-brand-300">FAQ</Link>
-          <Link to="/auth-diagnostics" className="hover:text-brand-300">Auth diagnostics</Link>
           <Link to="/privacy" className="hover:text-brand-300">Privacy</Link>
           <Link to="/terms" className="hover:text-brand-300">Terms</Link>
         </div>
@@ -184,7 +182,7 @@ export default function LoginPage() {
             href="https://play.google.com/store/apps/details?id=com.lastmanstanding.app"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-1.5 text-xs font-semibold text-gray-300 transition hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
+            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.05] px-3.5 py-1.5 text-xs font-semibold text-gray-200 transition hover:border-white/25 hover:bg-white/[0.1] hover:text-white"
           >
             <span>📱</span>
             <span>Using Android? Get the app on Google Play</span>
@@ -192,15 +190,15 @@ export default function LoginPage() {
         </div>
 
         {!hideClubCta ? (
-          <div className="rounded-[1.4rem] border border-brand-300/25 bg-[linear-gradient(145deg,rgba(14,165,233,0.14),rgba(15,23,42,0.9))] p-5 shadow-[0_18px_42px_rgba(2,6,23,0.34)]">
-            <div className="inline-flex rounded-full border border-brand-300/25 bg-brand-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-brand-100">
+          <div className="rounded-[1.4rem] border border-sky-300/30 bg-[linear-gradient(145deg,rgba(14,165,233,0.16),rgba(14,24,42,0.9))] p-5 shadow-[0_14px_34px_rgba(2,6,23,0.3)]">
+            <div className="inline-flex rounded-full border border-sky-300/35 bg-sky-400/12 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-sky-100">
               Running a club?
             </div>
             <h2 className="mt-3 text-xl font-black tracking-tight text-white">Create your club</h2>
             <p className="mt-2 text-sm leading-6 text-slate-300">
               Use your existing account to create a club, launch competitions, invite members, and manage payments from one admin area.
             </p>
-            <Link to="/create-club" className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-brand-300/35 bg-brand-500/15 px-4 py-3 text-sm font-black text-brand-100 transition hover:bg-brand-500/25 hover:text-white">
+            <Link to="/create-club" className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-sky-300/40 bg-sky-400/16 px-4 py-3 text-sm font-black text-sky-100 transition hover:border-sky-200/55 hover:bg-sky-400/22 hover:text-white">
               Create club
             </Link>
           </div>

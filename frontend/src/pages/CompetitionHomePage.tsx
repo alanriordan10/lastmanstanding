@@ -43,12 +43,6 @@ function riskLabelText(risk: TeamRisk): string {
   return 'High risk';
 }
 
-function riskLabelTextMobile(risk: TeamRisk): string {
-  if (risk.label === 'Safe') return 'Low';
-  if (risk.label === 'Balanced') return 'Medium';
-  return 'High';
-}
-
 function buildRiskExplanation(label: RiskLabel, hasOdds: boolean, marketChance?: number | null, pickShare?: number | null): string {
   const marketText = marketChance != null ? `Market gives this pick about ${marketChance}% to win.` : null;
   const crowdText = pickShare != null ? `${pickShare}% of players are on this team.` : null;
@@ -378,7 +372,7 @@ export default function CompetitionHomePage() {
     return ids;
   }, [fixtures]);
 
-  const { map: pickStatsByGwId, isLoading: pickStatsLoading } = usePickStatsMap(compId, lockedGwIds);
+  const { map: pickStatsByGwId } = usePickStatsMap(compId, lockedGwIds);
   const resolvedGwIdsForBye = useMemo(() => {
     if (!fixtures) return [] as number[];
     const seen = new Set<number>();
@@ -1053,8 +1047,7 @@ export default function CompetitionHomePage() {
     storylineBody = latestNarrativeWeek.data.gwVoidReason
       || 'The competition was paused when this gameweek locked. No results were applied, nobody was eliminated, and all active entries move on.';
   } else if (hasWinner) {
-    const winnerLabel = isWinner ? 'You won this competition' : 'We have a winner';
-    storylineTitle = winnerLabel;
+    storylineTitle = isWinner ? 'You won this competition' : 'We have a winner';
     const winnerName = comp.winnerUsername ?? (isWinner ? 'You' : 'One player');
     storylineBody = comp.activeCount === 1
       ? `${winnerName} is the last survivor standing after ${latestNarrativeWeek ? `Gameweek ${latestNarrativeWeek.weekNumber}` : 'the final gameweek'}. Every round survived, every pick paid off.`
@@ -1259,120 +1252,42 @@ export default function CompetitionHomePage() {
   };
 
   let actionTone: 'brand' | 'warning' | 'danger' | 'success' = 'brand';
-  let actionTitle = pickCopyVariant(['Competition overview', 'Competition status', 'Current competition snapshot'], 201);
-  let actionBody = pickCopyVariant([
-    'Review the rules, then expand the next gameweek when you are ready.',
-    'Check your status, then open the next relevant gameweek below.',
-    'Use this panel to confirm status and move to your next decision point.',
-  ], 202);
   let actionMeta: string | null = null;
 
   if (comp.paused) {
     actionTone = 'warning';
-    actionTitle = 'Competition paused';
-    actionBody = comp.pauseReason || 'The organiser has temporarily paused this competition.';
     actionMeta = 'Joining, payments, picks, reminders and automatic processing will resume when the competition is unpaused.';
   } else if (!isParticipant) {
     if (comp.status === 'UPCOMING') {
       actionTone = 'warning';
-      actionTitle = comp.entryFee > 0 && comp.paymentMode !== 'FREE'
-        ? pickCopyVariant(['Register and pay the organiser', 'Join now and pay the organiser', 'Register, then settle payment with organiser'], 203)
-        : comp.entryFee > 0
-        ? pickCopyVariant(['Join before the next lock', 'Secure your place before lock', 'Enter before the next deadline'], 204)
-        : pickCopyVariant(['Join this competition', 'Register for this competition', 'Enter this competition now'], 205);
-      actionBody = comp.entryFee > 0 && comp.paymentMode !== 'FREE'
-        ? `Registration is open. Entry is €${comp.entryFee} and the organiser confirms payment manually.`
-        : comp.entryFee > 0
-        ? `Entry is €${comp.entryFee}. Join before the next gameweek locks so you can make your first pick.`
-        : 'Registration is still open. Join now so you can make your first pick before the next lock.';
       actionMeta = upcomingWeek
         ? `Next lock: Gameweek ${upcomingWeek.weekNumber} ${formatDistanceToNow(parseDate(upcomingWeek.data.lockAt), { addSuffix: true })}`
         : null;
     } else {
       actionTone = 'warning';
-      actionTitle = pickCopyVariant(['Viewing only', 'Read-only view', 'Tracking mode'], 206);
-      actionBody = pickCopyVariant([
-        'This competition has already started. You can follow fixtures, selections, and results, but new entries are closed.',
-        'Entries are closed, but you can still follow picks, fixtures, and outcomes in full.',
-        'The competition is underway, so this view is for tracking only, not joining.',
-      ], 207);
     }
   } else if (awaitingPayment) {
     actionTone = 'warning';
-    actionTitle = pickCopyVariant(['Awaiting payment confirmation', 'Payment still pending confirmation', 'Waiting on payment approval'], 208);
-    actionBody = comp.paymentMode === 'MANUAL'
-      ? 'You are registered, but your entry is still waiting for the organiser to confirm payment before everything is fully settled.'
-      : 'Your entry is not fully settled yet. Please check your payment status.';
     actionMeta = comp.paymentMode === 'MANUAL'
       ? 'If you have already paid, the organiser still needs to mark you as paid.'
       : null;
   } else if (isWinner) {
     actionTone = 'success';
-    actionTitle = pickCopyVariant(['You won this competition', 'Competition won', 'You are the final survivor'], 209);
-    actionBody = pickCopyVariant([
-      'You can still review every gameweek, inspect the survivor table, and share the result with other players.',
-      'Your run is complete; you can revisit each round and share the final outcome.',
-      'The title is secured. Review the full path and final standings anytime.',
-    ], 210);
     actionMeta = latestResolvedPick ? `Winning path included ${latestResolvedPick.teamShortName} in GW${latestResolvedPick.weekNumber}.` : null;
   } else if (isEliminated) {
     actionTone = 'danger';
-    actionTitle = `Eliminated in Gameweek ${participant?.eliminatedWeek}`;
-    actionBody = pickCopyVariant([
-      'You can no longer make picks, but fixtures, selections, and results stay available so you can follow the rest of the competition.',
-      'Your entry is out, but you can still track every fixture, pick trend, and remaining survivor.',
-      'Picking is finished for this entry; monitoring the competition remains fully available.',
-    ], 211);
     actionMeta = latestResolvedPick ? `Latest resolved pick: ${latestResolvedPick.teamShortName} in GW${latestResolvedPick.weekNumber}.` : null;
   } else if (inProgressWeek) {
-    const livePick = pickByGwId.get(inProgressWeek.data.gwId);
     actionTone = 'brand';
-    actionTitle = `Gameweek ${inProgressWeek.weekNumber} is underway`;
-    actionBody = livePick
-      ? pickCopyVariant([
-          `${livePick.teamShortName} is locked in for the live round. Follow the current fixtures before the next pick window opens.`,
-          `${livePick.teamShortName} is your active pick for this round. Watch results now, then prepare for the next window.`,
-          `${livePick.teamShortName} is already committed. This phase is about survival until the next lock opens.`,
-        ], 212)
-      : pickCopyVariant([
-          'This gameweek is already in progress, so there is no next pick to make right now.',
-          'The round is live now, so your next pick window opens only after completion.',
-          'No immediate pick action is available while this gameweek is in play.',
-        ], 213);
     actionMeta = 'The next pick window will open after the current round is completed.';
   } else if (openWeekWithoutPick) {
     actionTone = countdown.totalSeconds < 7200 ? 'warning' : 'brand';
-    actionTitle = `Pick needed for Gameweek ${openWeekWithoutPick.weekNumber}`;
-    actionBody = pickCopyVariant([
-      'You have not selected a team for the next open gameweek yet. Expand that gameweek below and choose before it locks.',
-      'A pick is still required for the next lock. Open that gameweek and submit before deadline.',
-      'Your next selection is outstanding. Choose a team now to avoid a lock miss.',
-    ], 214);
     actionMeta = `Locks ${formatDistanceToNow(parseDate(openWeekWithoutPick.data.lockAt), { addSuffix: true })}`;
   } else if (openWeekWithPick) {
-    const openPick = pickByGwId.get(openWeekWithPick.data.gwId);
     actionTone = 'success';
-    actionTitle = `Your pick is in for Gameweek ${openWeekWithPick.weekNumber}`;
-    actionBody = openPick
-      ? pickCopyVariant([
-          `${openPick.teamShortName} is currently selected. You can still change it until the lock time if you want.`,
-          `${openPick.teamShortName} is locked as your current choice for now, and can still be changed before deadline.`,
-          `${openPick.teamShortName} is your saved pick. You still have edit flexibility until lock.`,
-        ], 215)
-      : pickCopyVariant([
-          'Your next pick is already saved.',
-          'A valid pick is already on file for the next lock.',
-          'Your upcoming selection is already submitted.',
-        ], 216);
     actionMeta = `Locks ${formatDistanceToNow(parseDate(openWeekWithPick.data.lockAt), { addSuffix: true })}`;
   } else if (upcomingWeek) {
     actionTone = 'brand';
-    actionTitle = pickCopyVariant(['Waiting for the next gameweek', 'Stand by for next gameweek', 'Next round pending'], 217);
-    actionBody = pickCopyVariant([
-      'The current open gameweek is already handled. Check back when the next fixtures unlock or when results are processed.',
-      'Current actions are complete. Return when the next fixture set opens or once outcomes post.',
-      'No new move is needed now; the next decision point arrives with the upcoming unlock.',
-    ], 218);
     actionMeta = `Next scheduled lock is for Gameweek ${upcomingWeek.weekNumber}.`;
   }
 
@@ -1981,7 +1896,7 @@ export default function CompetitionHomePage() {
       />
       {/* ── Header ── */}
       <section
-        className="relative overflow-hidden rounded-[1.9rem] border border-white/8 px-5 py-5 shadow-[0_30px_75px_rgba(2,6,23,0.48)] sm:px-6 sm:py-6 lg:px-8 lg:py-7"
+        className="relative overflow-hidden rounded-[1.9rem] border border-white/15 px-5 py-5 shadow-[0_22px_52px_rgba(2,6,23,0.34)] sm:px-6 sm:py-6 lg:px-8 lg:py-7"
         style={{
           background: comp.clubPrimaryColor
             ? `radial-gradient(circle at top left, ${comp.clubPrimaryColor}38, transparent 24rem), radial-gradient(circle at 85% 18%, ${comp.clubSecondaryColor ?? comp.clubPrimaryColor}22, transparent 18rem), linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))`
@@ -2000,7 +1915,7 @@ export default function CompetitionHomePage() {
         <div className="absolute inset-y-0 right-0 hidden w-1/3 bg-[linear-gradient(180deg,transparent,rgba(255,255,255,0.02),transparent)] lg:block" />
         <div className="relative flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-2xl">
-            <Link to="/competitions" className="mb-3 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-brand-200/85 transition hover:text-white">
+            <Link to="/competitions" className="mb-3 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-sky-200/90 transition hover:text-white">
               <span>←</span> Competition lobby
             </Link>
             <div className="flex flex-wrap items-center gap-2">
@@ -2009,7 +1924,7 @@ export default function CompetitionHomePage() {
               </StatusPill>
               {selectedEntryLabel && <StatusPill tone="neutral">{selectedEntryLabel}</StatusPill>}
               {myEntries.length > 1 && (
-                <label className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[11px] font-semibold text-gray-200">
+                <label className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.08] px-3 py-1 text-[11px] font-semibold text-gray-200">
                   <span className="uppercase tracking-[0.14em] text-gray-400">Entry</span>
                   <select
                     value={selectedEntryId ?? ''}
@@ -2035,9 +1950,9 @@ export default function CompetitionHomePage() {
               <MetricCard label="Prize" value={comp.prizePool && comp.prizePool > 0 ? `€${comp.prizePool}` : comp.entryFee > 0 ? `€${comp.entryFee}` : 'Free'} />
             </div>
             <div className="mt-3 flex flex-wrap gap-2 text-xs">
-              <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-gray-200">{sidebarStatusLabel}</span>
-              {sidebarMeta && <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-gray-300">{sidebarMeta}</span>}
-              {secondaryMeta && <span className="rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1.5 text-brand-100">{secondaryMeta}</span>}
+              <span className="chip-muted">{sidebarStatusLabel}</span>
+              {sidebarMeta && <span className="chip-muted text-gray-300">{sidebarMeta}</span>}
+              {secondaryMeta && <span className="rounded-full border border-sky-300/35 bg-sky-400/14 px-3 py-1.5 text-sky-100">{secondaryMeta}</span>}
               <span className={clsx('rounded-full border px-3 py-1.5', lifelineStatusToneClass)}>
                 {lifelineStatusLabel}
               </span>
@@ -2057,7 +1972,7 @@ export default function CompetitionHomePage() {
           <div className="relative w-full sm:w-auto" data-share-menu>
             <button
               onClick={() => setShareOpen((v) => !v)}
-              className="inline-flex w-full items-center justify-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white transition border border-white/20 sm:w-auto sm:py-1.5"
+              className="inline-flex w-full items-center justify-center gap-1.5 text-sm px-3 py-2 rounded-lg bg-white/[0.11] hover:bg-white/[0.16] text-white transition border border-white/25 sm:w-auto sm:py-1.5"
               style={comp.clubPrimaryColor ? {
                 borderColor: `${comp.clubPrimaryColor}44`,
                 backgroundColor: `${comp.clubPrimaryColor}14`,
@@ -2067,8 +1982,8 @@ export default function CompetitionHomePage() {
               📨 Invite
             </button>
             {shareOpen && (
-              <div className="absolute left-0 right-auto top-full mt-1 z-50 w-[min(20rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] rounded-xl border border-gray-700 bg-surface-800 shadow-xl p-3 space-y-2 sm:left-auto sm:right-0 sm:w-64 sm:max-w-64">
-                <p className="text-xs font-semibold text-gray-300 mb-1">Share this competition</p>
+              <div className="absolute left-0 right-auto top-full mt-1 z-50 w-[min(20rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] rounded-xl border border-white/15 bg-surface-800 shadow-[0_14px_30px_rgba(2,6,23,0.42)] p-3 space-y-2 sm:left-auto sm:right-0 sm:w-64 sm:max-w-64">
+                <p className="text-sm font-semibold text-gray-300 mb-1">Share this competition</p>
                 {comp.joinCode ? (
                   <div className="rounded-lg border border-brand-500/20 bg-brand-500/10 px-3 py-2 text-xs text-brand-100">
                     <span className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-brand-300">Join code</span>
@@ -2092,7 +2007,7 @@ export default function CompetitionHomePage() {
                 )}
                 <button
                   onClick={handleNativeShare}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-brand-600/20 hover:bg-brand-600/35 text-brand-100 text-xs transition"
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-brand-600/20 hover:bg-brand-600/35 text-brand-100 text-sm transition"
                 >
                   <span>📲</span> Share
                 </button>
@@ -2104,7 +2019,7 @@ export default function CompetitionHomePage() {
                       setShareOpen(false);
                     }).catch(() => toast.error('Could not copy'));
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-700 hover:bg-surface-600 text-gray-200 text-xs transition"
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-700 hover:bg-surface-600 text-gray-200 text-sm transition"
                 >
                   <span>🔗</span> Copy link
                 </button>
@@ -2114,7 +2029,7 @@ export default function CompetitionHomePage() {
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => setShareOpen(false)}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-green-700/30 hover:bg-green-700/50 text-green-300 text-xs transition"
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-green-700/30 hover:bg-green-700/50 text-green-300 text-sm transition"
                 >
                   <span>💬</span> Share on WhatsApp
                 </a>
@@ -2122,11 +2037,11 @@ export default function CompetitionHomePage() {
                 <a
                   href={`mailto:?subject=${encodeURIComponent(`Join ${comp.name} — Last Man Standing`)}&body=${encodeURIComponent(`Hi,\n\nI'd like to invite you to join my Last Man Standing competition: ${comp.name}.\n${comp.entryFee > 0 ? `Entry fee: €${comp.entryFee}\n` : ''}${comp.description ? `\n${comp.description}\n` : ''}${comp.joinCode ? `\nJoin code: ${comp.joinCode}\n` : ''}\nSign up and join here:\n${joinLink}\n\nGood luck!`)}`}
                   onClick={() => setShareOpen(false)}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-700 hover:bg-surface-600 text-gray-200 text-xs transition"
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-700 hover:bg-surface-600 text-gray-200 text-sm transition"
                 >
                   <span>✉️</span> Send via Email
                 </a>
-                <button onClick={() => setShareOpen(false)} className="w-full text-xs text-gray-500 hover:text-gray-300 pt-1">Dismiss</button>
+                <button onClick={() => setShareOpen(false)} className="w-full text-sm text-gray-500 hover:text-gray-300 pt-1">Dismiss</button>
               </div>
             )}
           </div>
@@ -2343,7 +2258,7 @@ export default function CompetitionHomePage() {
         <button
           type="button"
           onClick={() => setSidebarCollapsed((prev) => !prev)}
-          className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-gray-300 transition hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
+          className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/[0.06] px-3 py-2 text-sm font-semibold text-gray-200 transition hover:border-white/30 hover:bg-white/[0.11] hover:text-white"
           aria-pressed={sidebarCollapsed}
           aria-label={sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
         >
@@ -2414,10 +2329,10 @@ export default function CompetitionHomePage() {
 
           {reminderPanel && (
             <div className="lg:hidden">
-              <button
+                <button
                 type="button"
                 onClick={() => setMobileReminderOpen((v) => !v)}
-                className="w-full flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left text-sm font-semibold text-gray-200"
+                  className="w-full flex min-h-[44px] items-center justify-between rounded-xl border border-white/15 bg-white/[0.06] px-4 py-3 text-left text-sm font-semibold text-gray-200"
                 aria-expanded={mobileReminderOpen}
                 aria-controls="mobile-reminder"
               >
@@ -2499,20 +2414,20 @@ export default function CompetitionHomePage() {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-surface-800/70 p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-3 rounded-2xl border border-white/15 bg-surface-800/75 p-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-200">Preference</div>
-                  <div className="mt-1 text-sm font-black text-white">Gameweek display</div>
+                  <div className="text-[11px] font-black uppercase tracking-[0.18em] text-brand-200">Preference</div>
+                  <div className="mt-1 text-base font-black text-white">Gameweek display</div>
                 </div>
                 <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:min-w-[18rem]">
-                  <div className="grid w-full grid-cols-2 rounded-2xl border border-slate-700 bg-slate-950/80 p-1">
+                    <div className="grid w-full grid-cols-2 rounded-2xl border border-white/15 bg-slate-950/80 p-1">
                     {(['cards', 'route'] as const).map((mode) => (
                       <button
                         key={mode}
                         type="button"
                         onClick={() => updateGameweekDisplayMode(mode)}
                         className={clsx(
-                          'flex w-full items-center justify-center rounded-xl px-3 py-2 text-center text-xs font-black transition sm:px-4',
+                          'flex min-h-[42px] w-full items-center justify-center rounded-xl px-3 py-2 text-center text-sm font-black transition sm:px-4',
                           gameweekDisplayMode === mode
                             ? 'border border-brand-300/50 bg-brand-500/25 text-brand-100 shadow-sm shadow-brand-950/30'
                             : 'text-slate-400 hover:text-slate-200'
@@ -2528,7 +2443,7 @@ export default function CompetitionHomePage() {
                         type="button"
                         onClick={() => setResetOpenConfirmOpen(true)}
                         disabled={resetOpenSelectionsMutation.isPending}
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-white/8 bg-white/[0.03] px-3 py-2 text-xs font-semibold text-slate-300 transition hover:border-red-400/20 hover:bg-red-500/[0.06] hover:text-red-100 disabled:opacity-50"
+                        className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-white/8 bg-white/[0.03] px-3 py-2 text-sm font-semibold text-slate-300 transition hover:border-red-400/20 hover:bg-red-500/[0.06] hover:text-red-100 disabled:opacity-50"
                       >
                         <span className="text-sm leading-none">↺</span>
                         {resetOpenSelectionsMutation.isPending ? 'Resetting…' : 'Reset open picks'}
@@ -2565,8 +2480,8 @@ export default function CompetitionHomePage() {
                     id={`gw-card-${wn}`}
                     key={wn}
                     className={clsx('card overflow-hidden transition-[border-color,box-shadow] duration-200', {
-                      'border-brand-500/40': myPickForGw && !isCompleted,
-                      'border-gray-700/30 opacity-75': isCompleted,
+                      'border-sky-300/45': myPickForGw && !isCompleted,
+                      'border-white/15 opacity-75': isCompleted,
                     })}
                     style={myPickForGw && !isCompleted && comp.clubPrimaryColor ? {
                       borderColor: `${comp.clubPrimaryColor}66`,

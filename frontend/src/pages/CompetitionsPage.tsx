@@ -329,6 +329,9 @@ export default function CompetitionsPage() {
     }
     return counts;
   }, [myComps]);
+  const hasMultipleEntries = useCallback((competitionId: number) => {
+    return (myEntryCountByCompetition.get(competitionId) ?? 0) > 1;
+  }, [myEntryCountByCompetition]);
   const canAddEntry = (comp: Competition) => {
     const limit = comp.maxEntriesPerUser ?? 1;
     const current = myEntryCountByCompetition.get(comp.id) ?? 0;
@@ -1119,36 +1122,36 @@ export default function CompetitionsPage() {
             {mineNeedsAction.length > 0 && (
               <Section label={`Needs Action (${mineNeedsAction.length})`} icon="!" iconColor="bg-amber-500" collapsible collapsed={!mineSections.needsAction} onToggle={() => setMineSections((s) => ({ ...s, needsAction: !s.needsAction }))}>
                 {compactMineView
-                  ? <div className="space-y-2">{mineNeedsAction.map((mc) => <MyCompetitionRow key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
-                  : <CompGrid>{mineNeedsAction.map((mc) => <MyCompetitionCard key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</CompGrid>}
+                  ? <div className="space-y-2">{mineNeedsAction.map((mc) => <MyCompetitionRow key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} showEntryBadge={hasMultipleEntries(mc.competition.id)} />)}</div>
+                  : <CompGrid>{mineNeedsAction.map((mc) => <MyCompetitionCard key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} showEntryBadge={hasMultipleEntries(mc.competition.id)} />)}</CompGrid>}
               </Section>
             )}
             {mineActive.length > 0 && (
               <Section label={`Active (${mineActive.length})`} icon="✓" iconColor="bg-green-600" collapsible collapsed={!mineSections.active} onToggle={() => setMineSections((s) => ({ ...s, active: !s.active }))}>
                 {compactMineView
-                  ? <div className="space-y-2">{mineActive.map((mc) => <MyCompetitionRow key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
-                  : <CompGrid>{mineActive.map((mc) => <MyCompetitionCard key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</CompGrid>}
+                  ? <div className="space-y-2">{mineActive.map((mc) => <MyCompetitionRow key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} showEntryBadge={hasMultipleEntries(mc.competition.id)} />)}</div>
+                  : <CompGrid>{mineActive.map((mc) => <MyCompetitionCard key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} showEntryBadge={hasMultipleEntries(mc.competition.id)} />)}</CompGrid>}
               </Section>
             )}
             {mineUpcoming.length > 0 && (mineFilter === 'ALL' || mineFilter === 'UPCOMING') && (
               <Section label={`Upcoming (${mineUpcoming.length})`} icon="○" iconColor="bg-blue-500" collapsible collapsed={!mineSections.upcoming} onToggle={() => setMineSections((s) => ({ ...s, upcoming: !s.upcoming }))}>
                 {compactMineView
-                  ? <div className="space-y-2">{mineUpcoming.map((mc) => <MyCompetitionRow key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
-                  : <CompGrid>{mineUpcoming.map((mc) => <MyCompetitionCard key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</CompGrid>}
+                  ? <div className="space-y-2">{mineUpcoming.map((mc) => <MyCompetitionRow key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} showEntryBadge={hasMultipleEntries(mc.competition.id)} />)}</div>
+                  : <CompGrid>{mineUpcoming.map((mc) => <MyCompetitionCard key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} showEntryBadge={hasMultipleEntries(mc.competition.id)} />)}</CompGrid>}
               </Section>
             )}
             {mineEliminated.length > 0 && (
               <Section label={`Eliminated (${mineEliminated.length})`} icon="✕" iconColor="bg-gray-600" collapsible collapsed={!mineSections.eliminated} onToggle={() => setMineSections((s) => ({ ...s, eliminated: !s.eliminated }))}>
                 {compactMineView
-                  ? <div className="space-y-2">{mineEliminated.map((mc) => <MyCompetitionRow key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
-                  : <CompGrid>{mineEliminated.map((mc) => <MyCompetitionCard key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</CompGrid>}
+                  ? <div className="space-y-2">{mineEliminated.map((mc) => <MyCompetitionRow key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} showEntryBadge={hasMultipleEntries(mc.competition.id)} />)}</div>
+                  : <CompGrid>{mineEliminated.map((mc) => <MyCompetitionCard key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} showEntryBadge={hasMultipleEntries(mc.competition.id)} />)}</CompGrid>}
               </Section>
             )}
             {mineFinished.length > 0 && (
               <Section label={`Finished (${mineFinished.length})`} icon="🏁" iconColor="bg-gray-700" collapsible collapsed={!mineSections.finished} onToggle={() => setMineSections((s) => ({ ...s, finished: !s.finished }))}>
                 {compactMineView
-                  ? <div className="space-y-2">{mineFinished.map((mc) => <MyCompetitionRow key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</div>
-                  : <CompGrid>{mineFinished.map((mc) => <MyCompetitionCard key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} />)}</CompGrid>}
+                  ? <div className="space-y-2">{mineFinished.map((mc) => <MyCompetitionRow key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} showEntryBadge={hasMultipleEntries(mc.competition.id)} />)}</div>
+                  : <CompGrid>{mineFinished.map((mc) => <MyCompetitionCard key={getMyCompetitionKey(mc)} myComp={mc} actionHint={getCompetitionActionHint(mc.competition, mc, hasPickDueAction(mc))} showEntryBadge={hasMultipleEntries(mc.competition.id)} />)}</CompGrid>}
               </Section>
             )}
           </div>
@@ -1628,11 +1631,12 @@ function CompetitionCard({ comp, joined, onJoin, isPending, actionHint, isHighli
   );
 }
 
-function MyCompetitionCard({ myComp, actionHint }: { myComp: MyCompetition; actionHint?: string | null }) {
+function MyCompetitionCard({ myComp, actionHint, showEntryBadge = false }: { myComp: MyCompetition; actionHint?: string | null; showEntryBadge?: boolean }) {
   const comp = myComp.competition;
   const myStatus = myComp.myStatus;
   const paymentState = myComp.paymentState;
   const eliminatedWeek = myComp.eliminatedWeek;
+  const entryBadgeVisible = showEntryBadge && Boolean(myComp.entryNumber);
   const clubSupport = comp.clubSecondaryColor ?? comp.clubPrimaryColor ?? null;
   const effectiveActiveCount = comp.activeCount ?? comp.participantCount;
   const urgencyDueSoon = useMemo(() => {
@@ -1648,10 +1652,10 @@ function MyCompetitionCard({ myComp, actionHint }: { myComp: MyCompetition; acti
   return (
     <Link
       to={`/competitions/${comp.id}`}
-      className="card group block flex flex-col !border-white/24 p-3 sm:p-3.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06),0_10px_24px_rgba(2,6,23,0.24)] transition-all hover:!border-white/38 hover:bg-white/[0.04] hover:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.10),0_14px_30px_rgba(2,6,23,0.30)]"
+      className="card group block flex flex-col !border-white/30 p-3 sm:p-3.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08),0_12px_28px_rgba(2,6,23,0.24)] transition-all hover:!border-white/45 hover:bg-white/[0.055] hover:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12),0_16px_34px_rgba(2,6,23,0.3)]"
       style={competitionCardStyle(comp)}
     >
-      <div className="mb-2 flex flex-wrap items-center gap-1.5">
+      <div className={`${entryBadgeVisible ? 'mb-2' : 'mb-1.5'} flex flex-wrap items-center gap-1.5`}>
         <span className={comp.status === 'UPCOMING' ? 'badge-blue' : comp.status === 'ACTIVE' ? 'badge-green' : 'badge-gray'}>
           {comp.status === 'COMPLETED' ? 'FINISHED' : comp.status}
         </span>
@@ -1666,12 +1670,12 @@ function MyCompetitionCard({ myComp, actionHint }: { myComp: MyCompetition; acti
       </div>
 
       <h3 className="text-base sm:text-lg font-bold leading-snug line-clamp-2">{comp.name}</h3>
-      {myComp.entryNumber && (
+      {entryBadgeVisible && (
         <div className="mt-0.5 inline-flex items-center rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-300">
           Entry #{myComp.entryNumber}
         </div>
       )}
-      <div className="mt-1 flex min-h-[18px] items-center gap-1.5">
+      <div className={`${entryBadgeVisible ? 'mt-1' : 'mt-0.5'} flex min-h-[18px] items-center gap-1.5`}>
         {comp.clubLogoUrl && <img src={comp.clubLogoUrl} alt="" className="h-5 w-5 rounded-md object-cover border border-white/10 shrink-0" />}
         {comp.clubName && (
           <span
@@ -1696,7 +1700,7 @@ function MyCompetitionCard({ myComp, actionHint }: { myComp: MyCompetition; acti
         )}
       </div>
 
-      <div className="mt-2 grid grid-cols-2 gap-x-2.5 gap-y-1.5 text-xs text-gray-400">
+      <div className="mt-2 grid grid-cols-2 gap-x-2.5 gap-y-1.5 text-xs text-gray-300">
         <div className="min-h-[30px]">
           <span className="block text-gray-500">Players</span>
           <span className="text-gray-200 font-medium">{comp.participantCount}</span>
@@ -1751,7 +1755,7 @@ function MyCompetitionCard({ myComp, actionHint }: { myComp: MyCompetition; acti
         )}
       </div>
 
-      <div className="mt-auto pt-2">
+      <div className={`mt-auto ${entryBadgeVisible ? 'pt-2' : 'pt-1.5'}`}>
         <div className="btn-secondary w-full py-1.5 text-center text-sm group-hover:border-white/20 group-hover:bg-surface-600/90">
           View Competition →
         </div>
@@ -1763,9 +1767,11 @@ function MyCompetitionCard({ myComp, actionHint }: { myComp: MyCompetition; acti
 function MyCompetitionRow({
   myComp,
   actionHint,
+  showEntryBadge = false,
 }: {
   myComp: MyCompetition;
   actionHint?: string | null;
+  showEntryBadge?: boolean;
 }) {
   const comp = myComp.competition;
   const effectiveActiveCount = comp.activeCount ?? comp.participantCount ?? 0;
@@ -1800,7 +1806,7 @@ function MyCompetitionRow({
   return (
     <Link
       to={`/competitions/${comp.id}`}
-      className={`card group block px-4 py-3.5 transition-colors hover:border-white/30 hover:bg-white/[0.07] active:bg-white/[0.10] ${isDueSoon ? 'border-amber-400/45 bg-[linear-gradient(135deg,rgba(245,158,11,0.12),rgba(245,158,11,0.02))]' : ''}`}
+      className={`card group block px-4 py-3.5 transition-colors hover:border-white/40 hover:bg-white/[0.1] active:bg-white/[0.12] ${isDueSoon ? 'border-amber-400/45 bg-[linear-gradient(135deg,rgba(245,158,11,0.12),rgba(245,158,11,0.02))]' : ''}`}
       style={competitionCardStyle(comp)}
     >
       {/* ── Row 1: status dot + name + entry badge + status pill ── */}
@@ -1809,7 +1815,7 @@ function MyCompetitionRow({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-[15px] font-semibold text-white leading-snug">{comp.name}</p>
-            {myComp.entryNumber && <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-gray-300">#{myComp.entryNumber}</span>}
+            {showEntryBadge && myComp.entryNumber && <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-gray-300">#{myComp.entryNumber}</span>}
           </div>
           {comp.clubName && <p className="mt-0.5 text-xs text-gray-500">{comp.clubName}</p>}
           {/* Status line */}
@@ -1825,11 +1831,11 @@ function MyCompetitionRow({
             </p>
           </div>
           {/* Meta row: players / surviving / fee / date — each on its own readable chip */}
-          <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] text-gray-300">
-            <span className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5">👥 {comp.participantCount ?? 0} players</span>
-            {comp.status === 'ACTIVE' && <span className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5">🛡 {survivingLabel} surviving</span>}
-            <span className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5">{comp.entryFee > 0 ? `€${comp.entryFee}` : 'Free entry'}</span>
-            <span className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5">📅 {startFieldLabel}: {startLabel}</span>
+          <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] text-gray-200">
+            <span className="rounded-md border border-white/15 bg-white/10 px-2 py-0.5">👥 {comp.participantCount ?? 0} players</span>
+            {comp.status === 'ACTIVE' && <span className="rounded-md border border-white/15 bg-white/10 px-2 py-0.5">🛡 {survivingLabel} surviving</span>}
+            <span className="rounded-md border border-white/15 bg-white/10 px-2 py-0.5">{comp.entryFee > 0 ? `€${comp.entryFee}` : 'Free entry'}</span>
+            <span className="rounded-md border border-white/15 bg-white/10 px-2 py-0.5">📅 {startFieldLabel}: {startLabel}</span>
           </div>
           {actionHint && (
             <p className="mt-2 text-xs font-medium text-amber-300">⚠ {actionHint}</p>

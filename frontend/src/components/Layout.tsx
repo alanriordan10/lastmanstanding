@@ -16,16 +16,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   useInactivityLogout({ onLogout: handleLogout });
 
   const navItemClass =
-    'inline-flex h-8 items-center justify-center gap-1 rounded-xl border border-white/8 bg-white/[0.03] px-2 text-[10px] font-medium text-gray-300 transition-all hover:border-white/15 hover:bg-white/[0.08] hover:text-white sm:h-8 sm:shrink-0 sm:w-auto sm:gap-1.5 sm:px-3 sm:text-sm';
+    'inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-white/15 bg-white/[0.05] px-2.5 text-[11px] font-medium text-gray-200 transition-all hover:border-white/25 hover:bg-white/[0.11] hover:text-white sm:shrink-0 sm:w-auto sm:gap-1.5 sm:px-3.5 sm:text-sm';
   const navTextClass = 'inline';
   const navClass = (active: boolean) =>
-    `${navItemClass} ${active ? 'border-brand-400/40 bg-brand-500/12 text-brand-100' : ''}`;
+    `${navItemClass} ${active ? 'border-sky-300/45 bg-sky-400/14 text-sky-100 shadow-[inset_0_0_0_1px_rgba(56,189,248,0.22)]' : ''}`;
 
   // ── Public nav (logged-out) ───────────────────────────────────────────
   if (!user) {
     return (
       <div className="min-h-screen bg-surface-900">
-        <nav className="sticky top-0 z-50 border-b border-white/8 bg-[linear-gradient(180deg,rgba(8,15,30,0.92),rgba(8,15,30,0.78))] backdrop-blur-xl">
+        <nav className="panel-shell sticky top-0 z-50 rounded-none border-x-0 border-t-0 backdrop-blur-xl">
           <div className="mx-auto flex max-w-7xl flex-col items-stretch gap-3 px-3 py-3 md:flex-row md:items-center md:justify-between sm:px-6 lg:px-8">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2 shrink-0">
@@ -44,7 +44,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Link to="/login" className={navClass(location.pathname.startsWith('/login'))}>Log in</Link>
               <Link
                 to="/signup"
-                className="inline-flex h-8 items-center justify-center gap-1 rounded-xl border border-brand-400/40 bg-brand-500/15 px-3 text-[10px] font-semibold text-brand-100 transition-all hover:bg-brand-500/25 sm:px-4 sm:text-sm"
+                className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-sky-300/40 bg-sky-400/16 px-3.5 text-[11px] font-semibold text-sky-100 transition-all hover:border-sky-200/55 hover:bg-sky-400/22 sm:px-4 sm:text-sm"
               >
                 Sign up
               </Link>
@@ -62,7 +62,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-surface-900">
       {/* ── Navbar ──────────────────────────────────────────────�� */}
-      <nav className="sticky top-0 z-50 border-b border-white/8 bg-[linear-gradient(180deg,rgba(8,15,30,0.92),rgba(8,15,30,0.78))] backdrop-blur-xl">
+      <nav className="panel-shell sticky top-0 z-50 rounded-none border-x-0 border-t-0 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl flex-col items-stretch gap-2 px-3 py-3 sm:px-6 lg:px-8">
           {/* Logo */}
           <div className="flex items-center justify-between gap-3">
@@ -81,7 +81,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </Link>
           <button
             onClick={handleLogout}
-            className="inline-flex h-8 items-center justify-center gap-1 rounded-xl border border-red-400/20 bg-red-500/[0.08] px-2 text-[10px] font-medium text-red-300 transition-all hover:border-red-400/35 hover:bg-red-500/12 lg:hidden"
+            className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-red-300/30 bg-red-500/[0.10] px-2.5 text-[11px] font-medium text-red-200 transition-all hover:border-red-200/45 hover:bg-red-500/16 lg:hidden"
             aria-label="Log out"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 shrink-0">
@@ -115,7 +115,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <span>Me</span>
               </Link>
             </div>
-            <div className="flex flex-wrap items-center gap-1 border-t border-white/8 pt-1.5 text-[11px] text-gray-400 md:justify-end">
+            <div className="flex flex-wrap items-center gap-1 border-t border-white/15 pt-1.5 text-[11px] text-gray-400 md:justify-end">
               {isAdmin && (
                 <Link
                   to="/admin"
@@ -210,7 +210,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               </Link>
               <button
                 onClick={handleLogout}
-                className="inline-flex h-8 items-center justify-center gap-1 rounded-xl border border-red-400/15 bg-red-500/[0.05] px-2 text-[10px] font-medium text-red-300 transition-all hover:border-red-400/30 hover:bg-red-500/10 hover:text-red-200 sm:h-8 sm:shrink-0 sm:w-auto sm:gap-1.5 sm:px-3 sm:text-sm sm:whitespace-nowrap"
+                className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-red-300/25 bg-red-500/[0.09] px-2.5 text-[11px] font-medium text-red-200 transition-all hover:border-red-200/40 hover:bg-red-500/16 hover:text-red-100 sm:shrink-0 sm:w-auto sm:gap-1.5 sm:px-3.5 sm:text-sm sm:whitespace-nowrap"
                 aria-label="Log out"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 shrink-0">

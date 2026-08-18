@@ -59,7 +59,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Toaster
             position="top-right"
             toastOptions={{
-              style: { background: '#1e293b', color: '#f1f5f9', border: '1px solid #334155' },
+              style: { background: '#111a2e', color: '#f3f6ff', border: '1px solid rgba(255,255,255,0.14)' },
             }}
           />
         </AuthProvider>

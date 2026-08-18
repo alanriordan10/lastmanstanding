@@ -462,8 +462,7 @@ export default function ClubAdminPage() {
   }
 
   if (clubError || !myClub) {
-    const is403 = isClub403;
-    const showRevokedMessage = is403 && !isAdmin;
+    const showRevokedMessage = isClub403 && !isAdmin;
     return (
       <div className="card py-16 text-center space-y-3">
         <div className="text-4xl">{showRevokedMessage ? '🔒' : '🏠'}</div>
@@ -497,10 +496,10 @@ export default function ClubAdminPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <section className="relative overflow-hidden rounded-[1.85rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_24rem),radial-gradient(circle_at_85%_16%,rgba(250,204,21,0.10),transparent_18rem),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))] px-5 py-5 shadow-[0_30px_75px_rgba(2,6,23,0.48)] sm:px-6 sm:py-6">
+      <section className="relative overflow-hidden rounded-[1.85rem] border border-white/15 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_24rem),radial-gradient(circle_at_85%_16%,rgba(59,130,246,0.08),transparent_18rem),linear-gradient(135deg,rgba(17,27,46,0.94),rgba(10,17,32,0.9))] px-5 py-5 shadow-[0_20px_48px_rgba(2,6,23,0.34)] sm:px-6 sm:py-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
-            <div className="inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-200">
+            <div className="inline-flex rounded-full border border-sky-300/35 bg-sky-400/12 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-sky-100">
               Club control
             </div>
             <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">Club Admin</h1>
@@ -525,12 +524,12 @@ export default function ClubAdminPage() {
           </div>
         </div>
         <div className="relative mt-5 flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
-          <div className="text-xs uppercase tracking-[0.16em] text-gray-400">
+          <div className="text-sm uppercase tracking-[0.14em] text-gray-400">
             Admin: <span className="text-gray-200">{myClub.clubAdminUsername ?? '—'}</span>
           </div>
           <div className="flex flex-col items-stretch gap-3 xl:items-end">
             {billing && (
-              <div className="w-full max-w-[540px] rounded-2xl border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] px-4 py-3.5 shadow-[0_16px_36px_rgba(2,6,23,0.24)] backdrop-blur-sm">
+              <div className="w-full max-w-[540px] rounded-2xl border border-white/15 bg-[linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.04))] px-4 py-3.5 shadow-[0_14px_30px_rgba(2,6,23,0.22)] backdrop-blur-sm">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex min-w-0 items-start gap-3">
                     <div className={`mt-0.5 flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border text-base font-black shadow-inner ${
@@ -608,12 +607,12 @@ export default function ClubAdminPage() {
                 setShowForm(true);
               }}
               disabled={createBlocked}
-              className={`btn-primary w-full whitespace-nowrap xl:min-w-[220px] xl:w-auto ${createBlocked ? 'cursor-not-allowed opacity-60' : ''}`}
+                className={`btn-primary w-full whitespace-nowrap xl:min-w-[220px] xl:w-auto ${createBlocked ? 'cursor-not-allowed opacity-60' : ''}`}
             >
               {editingComp ? 'Cancel Edit' : showForm ? 'Cancel' : '+ New Competition'}
             </button>
             {createBlocked ? (
-              <p className="mt-1 text-xs text-amber-300 xl:max-w-[360px] xl:text-right">
+              <p className="mt-1 text-sm text-amber-300 xl:max-w-[360px] xl:text-right">
                 Purchase a competition slot to enable creating another competition.
               </p>
             ) : null}
@@ -628,15 +627,15 @@ export default function ClubAdminPage() {
             checklistUserToggledRef.current = true;
             setChecklistOpen((v) => !v);
           }}
-          className="flex w-full items-center justify-between rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2.5 text-left"
+          className="flex w-full items-center justify-between rounded-lg border border-white/15 bg-white/[0.05] px-3 py-2.5 text-left"
           aria-expanded={checklistOpen}
         >
           <div>
             <h2 className="text-sm font-semibold uppercase tracking-[0.16em] text-gray-200">Setup Checklist</h2>
-            <p className="mt-0.5 text-xs text-gray-500">Core club and payments setup progress.</p>
+            <p className="mt-0.5 text-sm text-gray-500">Core club and payments setup progress.</p>
           </div>
           <div className="flex items-center gap-2">
-            <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[11px] text-gray-300">
+            <span className="rounded-full border border-white/15 bg-white/[0.08] px-2 py-0.5 text-[11px] text-gray-200">
               {checklistDoneCount}/{onboardingSteps.length}
             </span>
             <span className="text-gray-400">{checklistOpen ? '▾' : '▸'}</span>
@@ -648,7 +647,7 @@ export default function ClubAdminPage() {
               {onboardingSteps.map((step) => (
                 <div
                   key={step.label}
-                  className={`rounded-lg border px-3 py-2 text-xs ${
+                  className={`rounded-lg border px-3 py-2 text-sm ${
                     step.done
                       ? 'border-green-400/25 bg-green-500/10 text-green-200'
                       : 'border-amber-400/25 bg-amber-500/10 text-amber-200'
@@ -660,7 +659,7 @@ export default function ClubAdminPage() {
             </div>
             <Link
               to="/guide"
-              className="inline-flex w-full items-center justify-center rounded-lg border border-brand-300/25 bg-brand-500/10 px-3 py-2 text-xs font-semibold text-brand-100 transition hover:bg-brand-500/20 sm:w-auto"
+              className="inline-flex w-full items-center justify-center rounded-lg border border-sky-300/35 bg-sky-400/12 px-3 py-2 text-sm font-semibold text-sky-100 transition hover:bg-sky-400/20 sm:w-auto"
             >
               Read club admin guide
             </Link>
@@ -679,7 +678,7 @@ export default function ClubAdminPage() {
           </div>
           <button
             onClick={() => { setShowAssignAdmin((v) => !v); setAdminSearchQuery(''); setAdminSearchResults([]); }}
-            className="w-full sm:w-auto text-xs px-3 py-1.5 rounded-xl border border-white/10 bg-white/[0.04] text-gray-300 transition hover:border-white/10 hover:bg-white/[0.08]"
+            className="w-full sm:w-auto text-sm px-3 py-1.5 rounded-xl border border-white/15 bg-white/[0.06] text-gray-200 transition hover:border-white/25 hover:bg-white/[0.11]"
           >
             {showAssignAdmin ? '✕ Cancel' : '👤 Assign New Admin'}
           </button>
@@ -736,7 +735,7 @@ export default function ClubAdminPage() {
           </div>
           <button
             onClick={() => setShowBrandingForm((v) => !v)}
-            className="w-full sm:w-auto text-xs px-3 py-1.5 rounded-xl border border-white/10 bg-white/[0.04] text-gray-300 transition hover:border-white/10 hover:bg-white/[0.08]"
+            className="w-full sm:w-auto text-sm px-3 py-1.5 rounded-xl border border-white/15 bg-white/[0.06] text-gray-200 transition hover:border-white/25 hover:bg-white/[0.11]"
           >
             {showBrandingForm ? '✕ Cancel' : '🎨 Edit Branding'}
           </button>
@@ -909,7 +908,7 @@ export default function ClubAdminPage() {
                 createMutation.mutate();
               }}
               ref={formRef}
-              className="card space-y-4 border border-white/10 shadow-[0_30px_80px_rgba(2,6,23,0.55)]"
+              className="card space-y-5 border border-white/15 shadow-[0_24px_60px_rgba(2,6,23,0.4)]"
             >
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -930,9 +929,9 @@ export default function ClubAdminPage() {
                   </button>
                 </div>
               </div>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-5 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-300">Name *</label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-300">Name *</label>
               <input
                 ref={nameInputRef}
                 value={name}
@@ -943,7 +942,7 @@ export default function ClubAdminPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-300">Start Date *</label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-300">Start Date *</label>
               <div className="relative">
                 <input
                   type="date"
@@ -959,7 +958,7 @@ export default function ClubAdminPage() {
                   </svg>
                 </span>
               </div>
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1.5 text-[13px] leading-5 text-gray-500">
                 The first gameweek will start from the next unstarted PL week on or after this date.
               </p>
             </div>
@@ -974,7 +973,7 @@ export default function ClubAdminPage() {
                     key={opt.value}
                     type="button"
                     onClick={() => setVisibility(opt.value)}
-                    className={`flex items-center gap-3 rounded-lg border p-3 text-left text-xs transition-colors ${
+                    className={`flex min-h-[88px] items-center gap-3 rounded-lg border p-3 text-left text-sm transition-colors ${
                       visibility === opt.value
                         ? 'border-brand-500 bg-brand-600/20 text-white'
                         : 'border-gray-600 bg-surface-700 text-gray-400 hover:border-gray-500'
@@ -1001,7 +1000,7 @@ export default function ClubAdminPage() {
                       setPaymentMode(opt.value);
                       if (opt.value === 'FREE') { setEntryFee('0'); setPassFeeToParticipant(false); }
                     }}
-                    className={`flex flex-col items-center gap-1 rounded-lg border p-3 text-xs transition-colors ${
+                    className={`flex min-h-[108px] flex-col items-center justify-center gap-1 rounded-lg border p-3 text-sm transition-colors ${
                       paymentMode === opt.value
                         ? 'border-brand-500 bg-brand-600/20 text-white'
                         : 'border-gray-600 bg-surface-700 text-gray-400 hover:border-gray-500'
@@ -1014,7 +1013,7 @@ export default function ClubAdminPage() {
               </div>
               {paymentMode === 'MANUAL' && (
                 <div className="mt-2 space-y-2">
-                  <p className="text-xs text-yellow-400/80">
+                  <p className="text-[13px] leading-5 text-yellow-300/90">
                     💡 Players join for free — you confirm their payment manually in the Participants panel and then mark them as paid to activate their entry.
                   </p>
                   <div>
@@ -1023,7 +1022,7 @@ export default function ClubAdminPage() {
                       <button
                         type="button"
                         onClick={() => setManualPaymentPolicy('STRICT')}
-                        className={`rounded-lg border px-3 py-2 text-left text-xs transition ${
+                        className={`min-h-[76px] rounded-lg border px-3 py-2 text-left text-sm transition ${
                           manualPaymentPolicy === 'STRICT'
                             ? 'border-brand-500 bg-brand-600/20 text-white'
                             : 'border-gray-600 bg-surface-700 text-gray-300 hover:border-gray-500'
@@ -1035,7 +1034,7 @@ export default function ClubAdminPage() {
                       <button
                         type="button"
                         onClick={() => setManualPaymentPolicy('LENIENT')}
-                        className={`rounded-lg border px-3 py-2 text-left text-xs transition ${
+                        className={`min-h-[76px] rounded-lg border px-3 py-2 text-left text-sm transition ${
                           manualPaymentPolicy === 'LENIENT'
                             ? 'border-brand-500 bg-brand-600/20 text-white'
                             : 'border-gray-600 bg-surface-700 text-gray-300 hover:border-gray-500'
@@ -1052,13 +1051,13 @@ export default function ClubAdminPage() {
 
             {paymentMode !== 'FREE' && (
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-300">Entry Fee (€)</label>
+                <label className="mb-1.5 block text-sm font-medium text-gray-300">Entry Fee (€)</label>
                 <input type="number" min="0" step="5" value={entryFee}
                   onChange={(e) => setEntryFee(e.target.value)} className="input-field" />
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {[5, 10, 20, 50].map((preset) => (
                     <button key={preset} type="button" onClick={() => setEntryFee(String(preset))}
-                      className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                      className={`min-h-[34px] px-2.5 py-1 rounded text-sm font-medium transition-colors ${
                         entryFee === String(preset) ? 'bg-brand-600 text-white' : 'bg-surface-700 hover:bg-surface-600 text-gray-300'
                       }`}>€{preset}</button>
                   ))}
@@ -1066,7 +1065,7 @@ export default function ClubAdminPage() {
               </div>
             )}
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-300">Prize Pool (€) <span className="text-gray-500 font-normal">— optional</span></label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-300">Prize Pool (€) <span className="text-gray-500 font-normal">— optional</span></label>
               <input
                 type="number"
                 min="0"
@@ -1082,7 +1081,7 @@ export default function ClubAdminPage() {
                     key={preset}
                     type="button"
                     onClick={() => setPrizePool(String(preset))}
-                    className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                    className={`min-h-[34px] px-2.5 py-1 rounded text-sm font-medium transition-colors ${
                       prizePool === String(preset) ? 'bg-brand-600 text-white' : 'bg-surface-700 hover:bg-surface-600 text-gray-300'
                     }`}
                   >
@@ -1090,10 +1089,10 @@ export default function ClubAdminPage() {
                   </button>
                 ))}
               </div>
-              <p className="mt-1 text-xs text-gray-500">Set a fixed prize amount to display on the competition card.</p>
+              <p className="mt-1.5 text-[13px] leading-5 text-gray-500">Set a fixed prize amount to display on the competition card.</p>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-300">Fixture Source</label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-300">Fixture Source</label>
               <select
                 value={fixtureCompetitionCode}
                 onChange={() => setFixtureCompetitionCode('PL')}
@@ -1103,14 +1102,14 @@ export default function ClubAdminPage() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-300">Missed Pick Rule</label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-300">Missed Pick Rule</label>
               <select value={missedPickMode} onChange={(e) => setMissedPickMode(e.target.value)} className="input-field">
                 <option value="ELIMINATE">Eliminate (no pick = out)</option>
                 <option value="AUTO_ASSIGN">Auto-Assign (pick best available)</option>
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-300">Max Entries Per User</label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-300">Max Entries Per User</label>
               <input
                 type="number"
                 min="1"
@@ -1120,11 +1119,11 @@ export default function ClubAdminPage() {
                 onChange={(e) => setMaxEntriesPerUser(e.target.value)}
                 className="input-field"
               />
-              <p className="mt-1 text-xs text-gray-500">Set to `2` to allow users to enter twice.</p>
+              <p className="mt-1.5 text-[13px] leading-5 text-gray-500">Set to `2` to allow users to enter twice.</p>
             </div>
             {editingComp && (
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-300">Status</label>
+                <label className="mb-1.5 block text-sm font-medium text-gray-300">Status</label>
                 <select value={status} onChange={(e) => setStatus(e.target.value as 'UPCOMING' | 'ACTIVE' | 'COMPLETED')} className="input-field">
                   <option value="UPCOMING">Upcoming</option>
                   <option value="ACTIVE">Active</option>
@@ -1164,13 +1163,13 @@ export default function ClubAdminPage() {
               </label>
             </div>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
-            <button type="submit" disabled={createMutation.isPending || updateMutation.isPending} className="btn-primary w-full sm:w-auto">
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end sm:gap-3">
+            <button type="submit" disabled={createMutation.isPending || updateMutation.isPending} className="btn-primary w-full sm:w-auto sm:min-w-[190px]">
               {editingComp
                 ? (updateMutation.isPending ? 'Saving…' : 'Save Changes')
                 : (createMutation.isPending ? 'Creating & syncing fixtures…' : 'Create Competition')}
             </button>
-            <button type="button" onClick={resetCompetitionForm} className="btn-secondary w-full sm:w-auto">
+            <button type="button" onClick={resetCompetitionForm} className="btn-secondary w-full sm:w-auto sm:min-w-[140px]">
               Cancel
             </button>
           </div>
@@ -1239,7 +1238,7 @@ export default function ClubAdminPage() {
                 {(['ALL', 'UPCOMING', 'ACTIVE', 'COMPLETED'] as const).map(s => (
                   counts[s] > 0 || s === 'ALL' ? (
                     <button key={s} onClick={() => { setCompStatusFilter(s); setCompPage(1); }}
-                      className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${compStatusFilter === s ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'}`}>
+                      className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors whitespace-nowrap ${compStatusFilter === s ? 'bg-brand-600 text-white' : 'text-gray-300 hover:text-white'}`}>
                       {s === 'ALL' ? `All (${counts.ALL})` : `${s.charAt(0) + s.slice(1).toLowerCase()} (${counts[s]})`}
                     </button>
                   ) : null
@@ -1250,7 +1249,7 @@ export default function ClubAdminPage() {
 
             {/* Result info */}
             {(compSearch || compStatusFilter !== 'ALL') && (
-              <p className="text-xs text-gray-500">{filtered.length} competition{filtered.length !== 1 ? 's' : ''} {compSearch ? `matching "${compSearch}"` : ''}</p>
+              <p className="text-sm text-gray-500">{filtered.length} competition{filtered.length !== 1 ? 's' : ''} {compSearch ? `matching "${compSearch}"` : ''}</p>
             )}
 
             {filtered.length === 0 ? (
@@ -1309,7 +1308,7 @@ export default function ClubAdminPage() {
                                   toast.success(`Invite link copied for ${comp.name}`);
                                 }).catch(() => toast.error('Could not copy invite link'));
                               }}
-                              className="text-xs px-3 py-1.5 rounded-lg bg-brand-600/15 hover:bg-brand-600/30 text-brand-300 transition"
+                              className="text-sm px-3 py-1.5 rounded-lg bg-brand-600/15 hover:bg-brand-600/30 text-brand-200 transition"
                             >
                               Copy Invite
                             </button>
@@ -1321,21 +1320,21 @@ export default function ClubAdminPage() {
                                   toast.success(`Public link copied for ${comp.name}`);
                                 }).catch(() => toast.error('Could not copy public link'));
                               }}
-                              className="text-xs px-3 py-1.5 rounded-lg bg-brand-600/15 hover:bg-brand-600/30 text-brand-300 transition"
+                              className="text-sm px-3 py-1.5 rounded-lg bg-brand-600/15 hover:bg-brand-600/30 text-brand-200 transition"
                             >
                               Copy Public Link
                             </button>
                           )}
                           <button
                             onClick={() => populateCompetitionForm(comp)}
-                            className="text-xs px-3 py-1.5 rounded-lg bg-cyan-600/20 hover:bg-cyan-600/40 text-cyan-300 transition"
+                            className="text-sm px-3 py-1.5 rounded-lg bg-cyan-600/20 hover:bg-cyan-600/40 text-cyan-200 transition"
                           >
                             Edit
                           </button>
-                          <Link to={`/competitions/${comp.id}`} className="btn-secondary text-xs px-3 py-1.5">View</Link>
+                          <Link to={`/competitions/${comp.id}`} className="btn-secondary text-sm px-3 py-1.5">View</Link>
                           <button
                             onClick={() => setManagingComp(managingComp?.id === comp.id ? null : comp)}
-                            className="text-xs px-3 py-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 text-gray-300 transition"
+                            className="text-sm px-3 py-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 text-gray-200 transition"
                           >
                             {managingComp?.id === comp.id ? 'Close ▲' : 'Participants ▼'}
                           </button>
@@ -1348,7 +1347,7 @@ export default function ClubAdminPage() {
                                 setAnnouncementTitle('');
                                 setAnnouncementMessage('');
                               }}
-                              className="text-xs px-3 py-1.5 rounded-lg border border-amber-400/25 bg-amber-500/15 text-amber-200 transition hover:bg-amber-500/25"
+                              className="text-sm px-3 py-1.5 rounded-lg border border-amber-400/25 bg-amber-500/15 text-amber-100 transition hover:bg-amber-500/25"
                             >
                               Announce
                             </button>
@@ -1558,7 +1557,6 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
   const actionButtonRefs = useRef<Record<number, HTMLButtonElement | null>>({});
   const mobileToolbarRef = useRef<HTMLDivElement | null>(null);
   const [search, setSearch] = useState('');
-  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'ELIMINATED' | 'WINNER'>('ALL');

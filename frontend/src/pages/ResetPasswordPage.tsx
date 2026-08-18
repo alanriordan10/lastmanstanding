@@ -28,6 +28,7 @@ export default function ResetPasswordPage() {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   if (!token) {
@@ -74,11 +75,11 @@ export default function ResetPasswordPage() {
     <div className="flex min-h-screen items-center justify-center px-4 py-10">
       {seoMeta}
       <div className="grid w-full max-w-5xl gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-        <section className="relative overflow-hidden rounded-[1.9rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.22),transparent_24rem),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))] px-6 py-8 shadow-[0_30px_75px_rgba(2,6,23,0.48)]">
-          <div className="inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-200">
+        <section className="relative overflow-hidden rounded-[1.9rem] border border-white/15 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.2),transparent_24rem),linear-gradient(135deg,rgba(17,27,46,0.94),rgba(10,17,32,0.9))] px-6 py-8 shadow-[0_18px_42px_rgba(2,6,23,0.34)]">
+          <div className="inline-flex rounded-full border border-sky-300/35 bg-sky-400/12 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-sky-100">
             Secure reset
           </div>
-          <div className="mt-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-brand-300/25 bg-gradient-to-br from-brand-500 to-cyan-400 text-xl font-black text-slate-950 shadow-[0_10px_28px_rgba(56,189,248,0.18)]">
+          <div className="mt-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-sky-300/35 bg-gradient-to-br from-sky-400 to-cyan-300 text-xl font-black text-slate-950 shadow-[0_8px_20px_rgba(56,189,248,0.2)]">
             LMS
           </div>
           <h1 className="mt-6 text-4xl font-black tracking-tight text-white">Set a new password</h1>
@@ -119,7 +120,7 @@ export default function ResetPasswordPage() {
              </label>
              <div className="relative">
                <input
-                 type={showPassword ? 'text' : 'password'}
+                 type={showConfirmPassword ? 'text' : 'password'}
                  value={confirm}
                  onChange={(e) => setConfirm(e.target.value)}
                  required
@@ -128,10 +129,10 @@ export default function ResetPasswordPage() {
                />
                <button
                  type="button"
-                 onClick={() => setShowPassword(!showPassword)}
+                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 text-sm"
                >
-                 {showPassword ? 'Hide' : 'Show'}
+                 {showConfirmPassword ? 'Hide' : 'Show'}
                </button>
              </div>
              {!confirm && password && (

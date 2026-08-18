@@ -5,6 +5,14 @@
 @layer base {
   :root {
     color-scheme: dark;
+    --app-bg: #0a111f;
+    --app-bg-mid: #0a1323;
+    --app-bg-deep: #070d18;
+    --surface-1: rgba(255, 255, 255, 0.05);
+    --surface-2: rgba(255, 255, 255, 0.08);
+    --text-primary: #f2f6ff;
+    --text-secondary: #b7c2d9;
+    --text-muted: #7e8aa6;
 
   }
 
@@ -14,10 +22,11 @@
 
   body {
     @apply min-h-screen bg-surface-900 text-gray-100 antialiased;
+    color: var(--text-primary);
     background-image:
-      radial-gradient(circle at top, rgba(56, 189, 248, 0.12), transparent 28rem),
-      radial-gradient(circle at 85% 12%, rgba(250, 204, 21, 0.08), transparent 22rem),
-      linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 1));
+      radial-gradient(circle at 8% -6%, rgba(56, 189, 248, 0.14), transparent 26rem),
+      radial-gradient(circle at 92% 0%, rgba(59, 130, 246, 0.08), transparent 20rem),
+      linear-gradient(180deg, var(--app-bg) 0%, var(--app-bg-mid) 52%, var(--app-bg-deep) 100%);
   }
 
   select {
@@ -38,7 +47,7 @@
   }
 
   select:focus {
-    @apply outline-none ring-1 ring-brand-500 border-brand-500;
+    @apply outline-none ring-1 ring-sky-300/70 border-sky-300/70;
   }
 
   select option {
@@ -49,25 +58,35 @@
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-xl border border-brand-400/30 bg-gradient-to-r from-brand-500 to-cyan-400 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-[0_10px_30px_rgba(56,189,248,0.18)]
-           hover:from-brand-400 hover:to-cyan-300 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 focus:ring-offset-surface-900
+    @apply inline-flex min-h-[42px] items-center justify-center rounded-xl border border-sky-300/35 bg-sky-400 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-[0_8px_24px_rgba(56,189,248,0.22)]
+           hover:border-sky-200/50 hover:bg-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-300 focus:ring-offset-2 focus:ring-offset-surface-900
            disabled:opacity-50 disabled:cursor-not-allowed transition-all;
   }
   .btn-secondary {
-    @apply inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-semibold text-gray-200 backdrop-blur-sm
-           hover:border-white/10 hover:bg-white/[0.08] focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 focus:ring-offset-surface-900
+    @apply inline-flex min-h-[42px] items-center justify-center rounded-xl border border-white/15 bg-white/[0.05] px-4 py-2.5 text-sm font-semibold text-gray-200 backdrop-blur-sm
+           hover:border-white/25 hover:bg-white/[0.10] focus:outline-none focus:ring-2 focus:ring-sky-300 focus:ring-offset-2 focus:ring-offset-surface-900
            disabled:opacity-50 disabled:cursor-not-allowed transition-all;
   }
   .btn-danger {
-    @apply inline-flex items-center justify-center rounded-xl border border-red-400/25 bg-red-500/90 px-4 py-2.5 text-sm font-semibold text-white
-           hover:bg-red-400 focus:outline-none focus:ring-2 focus:ring-red-500 transition-all;
+    @apply inline-flex min-h-[42px] items-center justify-center rounded-xl border border-red-300/35 bg-red-500/85 px-4 py-2.5 text-sm font-semibold text-white
+           hover:border-red-200/45 hover:bg-red-400 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all;
   }
   .card {
-    @apply rounded-2xl border border-white/10 bg-white/[0.035] p-4 sm:p-6 shadow-[0_24px_60px_rgba(2,6,23,0.45)] backdrop-blur-md;
+    @apply rounded-2xl border border-white/15 p-4 sm:p-6 shadow-[0_16px_36px_rgba(2,6,23,0.34)] backdrop-blur-md;
+    background-color: var(--surface-1);
+  }
+  .panel-shell {
+    @apply rounded-2xl border border-white/15 shadow-[0_14px_30px_rgba(2,6,23,0.28)] backdrop-blur-md;
+    background-color: var(--surface-2);
+  }
+  .chip-muted {
+    @apply inline-flex items-center rounded-full border border-white/15 px-3 py-1.5 text-xs font-medium;
+    background-color: var(--surface-2);
+    color: var(--text-secondary);
   }
   .input-field {
-    @apply block w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm text-gray-100
-           placeholder-gray-500 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 focus:outline-none transition-colors;
+    @apply block min-h-[44px] w-full rounded-xl border border-white/15 bg-white/[0.05] px-4 py-2.5 text-sm text-gray-100
+           placeholder-gray-500 focus:border-sky-300/70 focus:ring-1 focus:ring-sky-300/70 focus:outline-none transition-colors;
   }
   select.input-field {
     @apply appearance-none pr-10;
@@ -88,7 +107,7 @@
     color: #e5e7eb;
   }
   .badge {
-    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] ring-1 ring-inset shadow-none;
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] ring-1 ring-inset shadow-none;
   }
   .badge-green { @apply badge bg-green-400/15 text-green-200 ring-green-400/35; }
   .badge-red { @apply badge bg-red-400/15 text-red-200 ring-red-400/35; }
