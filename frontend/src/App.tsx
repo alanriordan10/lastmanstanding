@@ -105,6 +105,7 @@ export default function App() {
         <Route path="/oauth2/callback" element={<OAuth2CallbackPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
         <Route path="/faq" element={<Layout><FaqPage /></Layout>} />
         <Route path="/guide" element={<Layout><UserGuidePage /></Layout>} />
         <Route path="/blog" element={<Layout><BlogIndexPage /></Layout>} />

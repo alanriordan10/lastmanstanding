@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
 import SeoMeta from '../components/SeoMeta';
@@ -7,8 +7,15 @@ import { PasswordStrengthMeter, isPasswordStrongEnough, validatePasswordStrength
 
 export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
+  const params = useParams<{ token?: string }>();
   const navigate = useNavigate();
-  const token = searchParams.get('token') ?? '';
+  const hashToken = (() => {
+    const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
+    if (!hash) return '';
+    const parsed = new URLSearchParams(hash);
+    return parsed.get('token') ?? '';
+  })();
+  const token = searchParams.get('token') ?? params.token ?? hashToken;
   const seoMeta = (
     <SeoMeta
       title="Reset Password | Last Man Standing"
