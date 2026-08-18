@@ -113,12 +113,13 @@ public class PickService {
         // Check team reuse — exclude the current gameweek pick from reuse check
         Optional<Pick> existingPick = pickRepository.findByCompetitionIdAndParticipantIdAndGameweekId(
                 competitionId, cp.getId(), gameweekId);
+        boolean lifelineAlreadyOnCurrentPick = existingPick.map(Pick::isUseLifeline).orElse(false);
 
         boolean lifelineRequested = Boolean.TRUE.equals(useLifeline);
         if (lifelineRequested && !gw.getCompetition().isLifelineEnabled()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lifeline is not enabled for this competition");
         }
-        if (lifelineRequested && cp.isLifelineUsed()) {
+        if (lifelineRequested && cp.isLifelineUsed() && !lifelineAlreadyOnCurrentPick) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Lifeline already used for this entry");
         }
         if (lifelineRequested && pickRepository.existsOtherLifelinePick(competitionId, cp.getId(), gameweekId)) {
@@ -135,6 +136,7 @@ public class PickService {
 
         // Create or update
         Pick pick;
+        boolean previouslyUsedLifelineOnThisPick = existingPick.map(Pick::isUseLifeline).orElse(false);
         if (existingPick.isPresent()) {
             pick = existingPick.get();
             pick.setTeam(team);
@@ -143,6 +145,15 @@ public class PickService {
             pick = new Pick(gw.getCompetition(), cp.getUser(), cp, gw, team, PickSource.USER, false);
         }
         pick.setUseLifeline(lifelineRequested);
+
+        if (lifelineRequested) {
+            cp.setLifelineUsed(true);
+            cp.setLifelineUsedWeek(gw.getWeekNumber());
+        } else if (previouslyUsedLifelineOnThisPick
+                && !pickRepository.existsOtherLifelinePick(competitionId, cp.getId(), gameweekId)) {
+            cp.setLifelineUsed(false);
+            cp.setLifelineUsedWeek(null);
+        }
 
         pick = pickRepository.save(pick);
 

@@ -813,7 +813,8 @@ public class CompetitionController {
                         gw.getWeekNumber(),
                         gw.isVoided() ? "VOIDED" : gw.getStatus().name(),
                         gw.isVoided(),
-                        gw.getVoidReason()))
+                        gw.getVoidReason(),
+                        gw.isByeGranted()))
                 .toList();
 
         List<SurvivorRow> rows = participants.stream().map(cp -> {

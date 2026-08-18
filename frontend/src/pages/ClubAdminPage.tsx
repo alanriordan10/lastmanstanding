@@ -1299,45 +1299,48 @@ export default function ClubAdminPage() {
                           </div>
                         )}
                       </div>
-                      <div className="flex flex-wrap gap-2 sm:shrink-0 sm:justify-end">
-                        {comp.joinCode ? (
+                      <div className="flex flex-col gap-2 md:shrink-0 md:items-end">
+                        <div className="flex flex-wrap gap-2 md:justify-end">
+                          {comp.joinCode ? (
+                            <button
+                              onClick={() => {
+                                const inviteUrl = `${window.location.origin}/invite/${encodeURIComponent(comp.joinCode ?? '')}`;
+                                navigator.clipboard.writeText(inviteUrl).then(() => {
+                                  toast.success(`Invite link copied for ${comp.name}`);
+                                }).catch(() => toast.error('Could not copy invite link'));
+                              }}
+                              className="text-xs px-3 py-1.5 rounded-lg bg-brand-600/15 hover:bg-brand-600/30 text-brand-300 transition"
+                            >
+                              Copy Invite
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                const inviteUrl = `${window.location.origin}/competitions/${comp.id}`;
+                                navigator.clipboard.writeText(inviteUrl).then(() => {
+                                  toast.success(`Public link copied for ${comp.name}`);
+                                }).catch(() => toast.error('Could not copy public link'));
+                              }}
+                              className="text-xs px-3 py-1.5 rounded-lg bg-brand-600/15 hover:bg-brand-600/30 text-brand-300 transition"
+                            >
+                              Copy Public Link
+                            </button>
+                          )}
                           <button
-                            onClick={() => {
-                              const inviteUrl = `${window.location.origin}/invite/${encodeURIComponent(comp.joinCode ?? '')}`;
-                              navigator.clipboard.writeText(inviteUrl).then(() => {
-                                toast.success(`Invite link copied for ${comp.name}`);
-                              }).catch(() => toast.error('Could not copy invite link'));
-                            }}
-                            className="text-xs px-3 py-1.5 rounded-lg bg-brand-600/15 hover:bg-brand-600/30 text-brand-300 transition"
+                            onClick={() => populateCompetitionForm(comp)}
+                            className="text-xs px-3 py-1.5 rounded-lg bg-cyan-600/20 hover:bg-cyan-600/40 text-cyan-300 transition"
                           >
-                            Copy Invite
+                            Edit
                           </button>
-                        ) : (
+                          <Link to={`/competitions/${comp.id}`} className="btn-secondary text-xs px-3 py-1.5">View</Link>
                           <button
-                            onClick={() => {
-                              const inviteUrl = `${window.location.origin}/competitions/${comp.id}`;
-                              navigator.clipboard.writeText(inviteUrl).then(() => {
-                                toast.success(`Public link copied for ${comp.name}`);
-                              }).catch(() => toast.error('Could not copy public link'));
-                            }}
-                            className="text-xs px-3 py-1.5 rounded-lg bg-brand-600/15 hover:bg-brand-600/30 text-brand-300 transition"
-                          >
-                            Copy Public Link
-                          </button>
-                        )}
-                        <button
-                          onClick={() => populateCompetitionForm(comp)}
-                          className="text-xs px-3 py-1.5 rounded-lg bg-cyan-600/20 hover:bg-cyan-600/40 text-cyan-300 transition"
-                        >
-                          Edit
-                        </button>
-                        <Link to={`/competitions/${comp.id}`} className="btn-secondary text-xs px-3 py-1.5">View</Link>
-                        <button
-                          onClick={() => setManagingComp(managingComp?.id === comp.id ? null : comp)}
+                            onClick={() => setManagingComp(managingComp?.id === comp.id ? null : comp)}
                             className="text-xs px-3 py-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 text-gray-300 transition"
                           >
                             {managingComp?.id === comp.id ? 'Close ▲' : 'Participants ▼'}
                           </button>
+                        </div>
+                        <div className="flex flex-wrap gap-2 md:justify-end">
                           {comp.status !== 'COMPLETED' && (
                             <button
                               onClick={() => {
@@ -1374,6 +1377,7 @@ export default function ClubAdminPage() {
                             Delete
                           </button>
                         </div>
+                      </div>
                       </div>
                       {managingComp?.id === comp.id && <ParticipantsPanel competitionId={comp.id} paymentMode={comp.paymentMode} />}
                     </div>

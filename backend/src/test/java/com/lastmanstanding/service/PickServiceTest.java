@@ -48,6 +48,7 @@ class PickServiceTest {
                 CompetitionStatus.ACTIVE, MissedPickMode.ELIMINATE, true,
                 LocalDate.of(2026, 4, 4), user);
         competition.setId(1L);
+        competition.setLifelineEnabled(true);
 
         gameweek = new Gameweek(competition, 1,
                 LocalDateTime.now().plusHours(2), // not yet locked
@@ -96,6 +97,107 @@ class PickServiceTest {
         assertThat(result.getSource()).isEqualTo(PickSource.USER);
         verify(pickRepository).save(any(Pick.class));
         verify(pickResultRepository).save(any(PickResult.class));
+    }
+
+    @Test
+    @DisplayName("Mark participant lifeline as used when lifeline is selected")
+    void makePick_withLifeline_marksParticipantAsUsed() {
+        Fixture fixture = new Fixture(gameweek, "EXT-F1", arsenal, chelsea,
+                LocalDateTime.of(2026, 4, 4, 15, 0), FixtureStatus.SCHEDULED);
+        fixture.setId(50L);
+
+        when(gameweekRepository.findById(gameweek.getId())).thenReturn(Optional.of(gameweek));
+        when(participantRepository.findByCompetitionIdAndUserIdOrderByEntryNumberAsc(competition.getId(), user.getId()))
+                .thenReturn(List.of(participant));
+        when(teamRepository.findById(arsenal.getId())).thenReturn(Optional.of(arsenal));
+        when(fixtureRepository.findByGameweekId(gameweek.getId())).thenReturn(List.of(fixture));
+        when(pickRepository.findByCompetitionIdAndParticipantIdAndGameweekId(
+                competition.getId(), participant.getId(), gameweek.getId()))
+                .thenReturn(Optional.empty());
+        when(pickRepository.findConsumedTeamIdsForParticipant(competition.getId(), participant.getId()))
+                .thenReturn(new ArrayList<>());
+        when(pickRepository.save(any(Pick.class))).thenAnswer(i -> {
+            Pick p = i.getArgument(0);
+            p.setId(1L);
+            return p;
+        });
+        when(pickResultRepository.findByPickId(1L)).thenReturn(Optional.empty());
+        when(pickResultRepository.save(any(PickResult.class))).thenAnswer(i -> i.getArgument(0));
+
+        Pick result = pickService.makePick(competition.getId(), gameweek.getId(), arsenal.getId(), user.getId(), null, true);
+
+        assertThat(result.isUseLifeline()).isTrue();
+        assertThat(participant.isLifelineUsed()).isTrue();
+        assertThat(participant.getLifelineUsedWeek()).isEqualTo(gameweek.getWeekNumber());
+    }
+
+    @Test
+    @DisplayName("Clear participant lifeline when removing lifeline from the same gameweek pick")
+    void makePick_removeLifeline_clearsParticipantState() {
+        Fixture fixture = new Fixture(gameweek, "EXT-F1", arsenal, chelsea,
+                LocalDateTime.of(2026, 4, 4, 15, 0), FixtureStatus.SCHEDULED);
+        fixture.setId(50L);
+
+        participant.setLifelineUsed(true);
+        participant.setLifelineUsedWeek(gameweek.getWeekNumber());
+        Pick existing = new Pick(competition, user, participant, gameweek, arsenal, PickSource.USER, false);
+        existing.setUseLifeline(true);
+        existing.setId(2L);
+
+        when(gameweekRepository.findById(gameweek.getId())).thenReturn(Optional.of(gameweek));
+        when(participantRepository.findByCompetitionIdAndUserIdOrderByEntryNumberAsc(competition.getId(), user.getId()))
+                .thenReturn(List.of(participant));
+        when(teamRepository.findById(arsenal.getId())).thenReturn(Optional.of(arsenal));
+        when(fixtureRepository.findByGameweekId(gameweek.getId())).thenReturn(List.of(fixture));
+        when(pickRepository.findByCompetitionIdAndParticipantIdAndGameweekId(
+                competition.getId(), participant.getId(), gameweek.getId()))
+                .thenReturn(Optional.of(existing));
+        when(pickRepository.findConsumedTeamIdsForParticipant(competition.getId(), participant.getId()))
+                .thenReturn(new ArrayList<>(List.of(arsenal.getId())));
+        when(pickRepository.existsOtherLifelinePick(competition.getId(), participant.getId(), gameweek.getId()))
+                .thenReturn(false);
+        when(pickRepository.save(any(Pick.class))).thenAnswer(i -> i.getArgument(0));
+        when(pickResultRepository.findByPickId(existing.getId())).thenReturn(Optional.of(new PickResult(existing, PickOutcome.PENDING)));
+
+        Pick result = pickService.makePick(competition.getId(), gameweek.getId(), arsenal.getId(), user.getId(), null, false);
+
+        assertThat(result.isUseLifeline()).isFalse();
+        assertThat(participant.isLifelineUsed()).isFalse();
+        assertThat(participant.getLifelineUsedWeek()).isNull();
+    }
+
+    @Test
+    @DisplayName("Allow changing team when lifeline is already selected on current gameweek pick")
+    void makePick_changeTeamWithCurrentLifeline_allowsUpdate() {
+        Fixture fixture = new Fixture(gameweek, "EXT-F1", arsenal, chelsea,
+                LocalDateTime.of(2026, 4, 4, 15, 0), FixtureStatus.SCHEDULED);
+        fixture.setId(50L);
+
+        participant.setLifelineUsed(true);
+        participant.setLifelineUsedWeek(gameweek.getWeekNumber());
+        Pick existing = new Pick(competition, user, participant, gameweek, arsenal, PickSource.USER, false);
+        existing.setUseLifeline(true);
+        existing.setId(3L);
+
+        when(gameweekRepository.findById(gameweek.getId())).thenReturn(Optional.of(gameweek));
+        when(participantRepository.findByCompetitionIdAndUserIdOrderByEntryNumberAsc(competition.getId(), user.getId()))
+                .thenReturn(List.of(participant));
+        when(teamRepository.findById(chelsea.getId())).thenReturn(Optional.of(chelsea));
+        when(fixtureRepository.findByGameweekId(gameweek.getId())).thenReturn(List.of(fixture));
+        when(pickRepository.findByCompetitionIdAndParticipantIdAndGameweekId(
+                competition.getId(), participant.getId(), gameweek.getId()))
+                .thenReturn(Optional.of(existing));
+        when(pickRepository.findConsumedTeamIdsForParticipant(competition.getId(), participant.getId()))
+                .thenReturn(new ArrayList<>(List.of(arsenal.getId())));
+        when(pickRepository.existsOtherLifelinePick(competition.getId(), participant.getId(), gameweek.getId()))
+                .thenReturn(false);
+        when(pickRepository.save(any(Pick.class))).thenAnswer(i -> i.getArgument(0));
+        when(pickResultRepository.findByPickId(existing.getId())).thenReturn(Optional.of(new PickResult(existing, PickOutcome.PENDING)));
+
+        Pick result = pickService.makePick(competition.getId(), gameweek.getId(), chelsea.getId(), user.getId(), null, true);
+
+        assertThat(result.getTeam()).isEqualTo(chelsea);
+        assertThat(result.isUseLifeline()).isTrue();
     }
 
     @Test

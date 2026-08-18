@@ -23,6 +23,7 @@ interface GameweekMeta {
   status: string;
   voided?: boolean;
   voidReason?: string | null;
+  byeGranted?: boolean;
 }
 
 const PAGE_SIZE = 25;
@@ -62,6 +63,7 @@ export default function SurvivorTablePage() {
 
   const gameweeks = tableData?.gameweeks ?? [];
   const rows = tableData?.rows ?? [];
+  const byeWeeks = useMemo(() => gameweeks.filter((gw) => gw.byeGranted).map((gw) => gw.weekNumber), [gameweeks]);
   const userEntryCounts = useMemo(() => {
     const counts = new Map<number, number>();
     rows.forEach((r) => counts.set(r.userId, (counts.get(r.userId) ?? 0) + 1));
@@ -249,6 +251,11 @@ export default function SurvivorTablePage() {
               </button>
             )}
           </div>
+          {byeWeeks.length > 0 && (
+            <div className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+              🎁 Bye granted: {byeWeeks.map((week) => `GW${week}`).join(', ')}
+            </div>
+          )}
 
           {mobileMode === 'compact' && (
             <div className="sm:hidden space-y-2">
@@ -325,6 +332,7 @@ export default function SurvivorTablePage() {
                         gw.status === 'IN_PROGRESS' ? 'text-yellow-400' :
                         gw.status === 'LOCKED' ? 'text-blue-400' : 'text-gray-500'
                       }`}>{gw.status}</div>
+                      {gw.byeGranted ? <div className="mt-1 text-[9px] text-amber-300">BYE</div> : null}
                     </th>
                   ))}
                 </tr>

@@ -204,6 +204,7 @@ export default function CompetitionHomePage() {
   const [mobileReminderOpen, setMobileReminderOpen] = useState(false);
   const [selectedEntryId, setSelectedEntryId] = useState<number | null>(null);
   const [lifelineForGwId, setLifelineForGwId] = useState<number | null>(null);
+  const [lifelineClearedForGwId, setLifelineClearedForGwId] = useState<number | null>(null);
   const [gameweekDisplayMode, setGameweekDisplayMode] = useState<GameweekDisplayMode>('cards');
   const [resetOpenConfirmOpen, setResetOpenConfirmOpen] = useState(false);
   const [joinedOptimistically, setJoinedOptimistically] = useState(false);
@@ -378,6 +379,37 @@ export default function CompetitionHomePage() {
   }, [fixtures]);
 
   const { map: pickStatsByGwId, isLoading: pickStatsLoading } = usePickStatsMap(compId, lockedGwIds);
+  const resolvedGwIdsForBye = useMemo(() => {
+    if (!fixtures) return [] as number[];
+    const seen = new Set<number>();
+    const ids: number[] = [];
+    for (const f of fixtures) {
+      if ((f.gameweekStatus === 'IN_PROGRESS' || f.gameweekStatus === 'COMPLETED') && !seen.has(f.gameweekId)) {
+        seen.add(f.gameweekId);
+        ids.push(f.gameweekId);
+      }
+    }
+    return ids;
+  }, [fixtures]);
+  const byeStatusResults = useQueries({
+    queries: resolvedGwIdsForBye.map((gwId) => ({
+      queryKey: ['gameweekSelections', compId, gwId],
+      queryFn: () => api.get<GameweekSelectionsData | GameweekSelectionsData['selections']>(`/competitions/${compId}/gameweeks/${gwId}/selections`).then((r) => {
+        if (Array.isArray(r.data)) return { selections: r.data, byeGranted: false, weekNumber: 0 } as GameweekSelectionsData;
+        return r.data;
+      }),
+      staleTime: comp?.status === 'COMPLETED' ? Infinity : 30_000,
+      enabled: Number.isFinite(compId),
+    })),
+  });
+  const byeGrantedByGwId = useMemo(() => {
+    const map = new Map<number, boolean>();
+    resolvedGwIdsForBye.forEach((gwId, index) => {
+      const data = byeStatusResults[index]?.data as GameweekSelectionsData | undefined;
+      if (data) map.set(gwId, Boolean(data.byeGranted));
+    });
+    return map;
+  }, [byeStatusResults, resolvedGwIdsForBye]);
   const resultsProcessing = hasPendingResultProcessing(fixtures);
   const openSelectionIds = useMemo(() => {
     if (!myStatus || !fixtures?.length) return [];
@@ -496,9 +528,14 @@ export default function CompetitionHomePage() {
 
       return { previous };
     },
-    onSuccess: () => {
-      toast.success('Pick saved!');
-      setLifelineForGwId(null);
+    onSuccess: (_data, variables) => {
+      if (variables.useLifeline) {
+        setLifelineClearedForGwId(null);
+        setLifelineForGwId(variables.gwId);
+      } else {
+        setLifelineForGwId((current) => (current === variables.gwId ? null : current));
+        setLifelineClearedForGwId(variables.gwId);
+      }
       // Refresh in background to get the real server state
       queryClient.invalidateQueries({ queryKey: ['myStatus', compId, selectedEntryId] });
       queryClient.invalidateQueries({ queryKey: ['competitions', 'my', 'details'] });
@@ -725,6 +762,8 @@ export default function CompetitionHomePage() {
       outcome: p.outcome,
     });
   });
+  const savedLifelineGameweekId = myStatus?.picks.find((p) => p.useLifeline)?.gameweekId ?? null;
+  const effectiveLifelineGameweekId = lifelineForGwId ?? (lifelineClearedForGwId != null ? null : savedLifelineGameweekId);
 
   // Group fixtures by gameweek — store real lockAt and status from backend
   const fixturesByWeek = new Map<number, { gwId: number; lockAt: string; gwStatus: string; gwVoided: boolean; gwVoidReason?: string | null; fixtures: Fixture[] }>();
@@ -950,6 +989,7 @@ export default function CompetitionHomePage() {
   const narrativeWeekLabel = latestNarrativeWeek ? `Gameweek ${latestNarrativeWeek.weekNumber}` : null;
   const narrativeWeekInProgress = latestNarrativeWeek?.data.gwStatus === 'IN_PROGRESS';
   const narrativeWeekVoided = Boolean(latestNarrativeWeek?.data.gwVoided);
+  const narrativeWeekByeGranted = Boolean((latestNarrativeSelections?.byeGranted ?? latestCompletedSelections?.byeGranted) && !narrativeWeekVoided);
   let weeklySurvivalRate = narrativeWeekInProgress
     ? (gwSurvivalFromSelections ?? computedWeeklySurvivalRate)
     : (gwSurvivalFromBackend ?? gwSurvivalFromSelections ?? computedWeeklySurvivalRate);
@@ -1212,7 +1252,7 @@ export default function CompetitionHomePage() {
       return;
     }
     if (isPast(parseDate(lockAt))) return;
-    const useLifeline = lifelineForGwId === gwId;
+    const useLifeline = effectiveLifelineGameweekId === gwId;
     const currentPick = pickByGwId.get(gwId);
     if (currentPick?.teamId === teamId && Boolean(currentPick.useLifeline) === useLifeline) return;
     pickMutation.mutate({ gwId, teamId, useLifeline });
@@ -2215,9 +2255,21 @@ export default function CompetitionHomePage() {
         ) : (
           <>
         <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-200">What Changed This Gameweek</div>
-        <h2 className="mt-1 text-lg font-semibold text-white">
-          {narrativeWeekLabel ?? 'Latest gameweek'} snapshot
-        </h2>
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          <h2 className="text-lg font-semibold text-white">
+            {narrativeWeekLabel ?? 'Latest gameweek'} snapshot
+          </h2>
+          {narrativeWeekByeGranted && (
+            <span className="inline-flex items-center rounded-full border border-amber-400/35 bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-200">
+              🎁 Bye granted
+            </span>
+          )}
+        </div>
+        {narrativeWeekByeGranted && (
+          <p className="mt-1 text-xs text-amber-200/90">
+            Everyone who was still active advanced this round by bye.
+          </p>
+        )}
         <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-xl border border-white/10 bg-black/15 px-3 py-2">
             <div className="text-[11px] uppercase tracking-[0.14em] text-gray-400">New eliminations</div>
@@ -2499,6 +2551,7 @@ export default function CompetitionHomePage() {
                 const isLocked = gwStatus === 'LOCKED' || gwStatus === 'IN_PROGRESS' || gwStatus === 'COMPLETED' || isPast(parseDate(lockAt));
                 const isCompleted = gwStatus === 'COMPLETED' || gwFixtures.every(f => f.status === 'FINISHED' || f.status === 'POSTPONED' || f.status === 'CANCELLED');
                 const isCollapsed = collapsedWeeks.has(wn);
+                const byeGrantedForGw = Boolean(byeGrantedByGwId.get(gwId));
                 const savedPickForGw = pickByGwId.get(gwId);
                 const myPickForGw = savedPickForGw
                   ? { ...savedPickForGw, outcome: effectivePickOutcome({ ...savedPickForGw, gameweekId: gwId }) }
@@ -2539,6 +2592,11 @@ export default function CompetitionHomePage() {
                           ) : (
                             <span className="badge-yellow shrink-0 text-xs">
                               {formatLockBadgeLabel(lockAt)}
+                            </span>
+                          )}
+                          {byeGrantedForGw && !gwVoided && (
+                            <span className="inline-flex items-center rounded-full border border-amber-400/35 bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-200 shrink-0">
+                              🎁 BYE
                             </span>
                           )}
                           {isCollapsed && !myPickForGw && isParticipant && !isEliminated && !isWinner && !isLocked && (
@@ -2610,7 +2668,7 @@ export default function CompetitionHomePage() {
                         ) : (
                           <span className="rounded-full border border-yellow-400/30 bg-yellow-500/15 px-2.5 py-1 text-yellow-200">No pick</span>
                         )}
-                        {lifelineForGwId === gwId ? <span className="rounded-full border border-cyan-400/30 bg-cyan-500/15 px-2.5 py-1 text-cyan-100">Lifeline</span> : null}
+                        {effectiveLifelineGameweekId === gwId ? <span className="rounded-full border border-cyan-400/30 bg-cyan-500/15 px-2.5 py-1 text-cyan-100">Lifeline</span> : null}
                       </div>
                     )}
 
@@ -2642,12 +2700,14 @@ export default function CompetitionHomePage() {
                     {!isCollapsed && (() => {
                       const eliminatedBeforeThisGw = isEliminated && participant?.eliminatedWeek != null && wn > participant.eliminatedWeek;
                       const lifelineUnavailable = isEliminated || eliminatedBeforeThisGw;
-                      const lifelineDisabled = comp.paused || gwVoided || isCompleted || lifelineUnavailable || isLocked || gwStatus !== 'UPCOMING' || Boolean(participant?.lifelineUsed);
+                      const lifelineUsedThisGameweek = Boolean(participant?.lifelineUsed && participant?.lifelineUsedWeek === wn);
+                      const lifelineUsedInAnotherGameweek = Boolean(participant?.lifelineUsed && !lifelineUsedThisGameweek);
+                      const lifelineDisabled = comp.paused || gwVoided || isCompleted || lifelineUnavailable || isLocked || gwStatus !== 'UPCOMING' || lifelineUsedInAnotherGameweek;
                       return (
                       <div id={`gw-${wn}-fixtures`} className="space-y-2 mt-4">
                         {comp.lifelineEnabled && isParticipant && !isWinner && (
                           <div className="rounded-lg border border-cyan-500/25 bg-cyan-500/10 px-3 py-2 text-xs sm:text-sm">
-                            {participant?.lifelineUsed ? (
+                            {lifelineUsedInAnotherGameweek ? (
                               <p className="text-cyan-200">
                                 Lifeline already used{participant.lifelineUsedWeek ? ` in Gameweek ${participant.lifelineUsedWeek}` : ''}.
                               </p>
@@ -2660,9 +2720,23 @@ export default function CompetitionHomePage() {
                                 <input
                                   type="checkbox"
                                   className="h-4 w-4 rounded border-cyan-400/40 bg-transparent disabled:cursor-not-allowed"
-                                  checked={lifelineForGwId === gwId}
+                                  checked={effectiveLifelineGameweekId === gwId}
                                   disabled={lifelineDisabled}
-                                  onChange={(e) => setLifelineForGwId(e.target.checked ? gwId : null)}
+                                  onChange={(e) => {
+                                    const nextChecked = e.target.checked;
+                                    if (nextChecked) {
+                                      setLifelineClearedForGwId(null);
+                                      setLifelineForGwId(gwId);
+                                    } else {
+                                      setLifelineForGwId(null);
+                                      setLifelineClearedForGwId(gwId);
+                                    }
+
+                                    const currentPick = pickByGwId.get(gwId);
+                                    if (currentPick) {
+                                      pickMutation.mutate({ gwId, teamId: currentPick.teamId, useLifeline: nextChecked });
+                                    }
+                                  }}
                                 />
                                 Use lifeline for this gameweek
                                 <span
@@ -2695,7 +2769,7 @@ export default function CompetitionHomePage() {
                             showReserved={gwStatus === 'UPCOMING'}
                             canPick={!comp.paused && !gwVoided && !isCompleted && isParticipant && !isEliminated && !isWinner && !(awaitingPayment && strictManualPayment) && !isLocked && !(isEliminated && participant?.eliminatedWeek != null && wn > participant.eliminatedWeek)}
                             saving={pickMutation.isPending}
-                            lifelineChecked={lifelineForGwId === gwId}
+                            lifelineChecked={effectiveLifelineGameweekId === gwId}
                             onPick={(team) => handlePick(gwId, team.teamId, lockAt)}
                           />
                         ) : gwFixtures

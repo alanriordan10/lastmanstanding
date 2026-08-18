@@ -385,7 +385,7 @@ public final class CompetitionDtos {
             LocalDateTime joinedAt
     ) {}
 
-    public record SurvivorGameweekMeta(Long id, int weekNumber, String status, boolean voided, String voidReason) {}
+    public record SurvivorGameweekMeta(Long id, int weekNumber, String status, boolean voided, String voidReason, boolean byeGranted) {}
 
     public record SurvivorPickCell(String teamShortName, String outcome, String source, boolean useLifeline) {}
 
