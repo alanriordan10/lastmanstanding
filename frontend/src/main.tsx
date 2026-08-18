@@ -7,6 +7,19 @@ import App from './App';
 import { AuthProvider } from './context/AuthContext';
 import './index.css';
 
+const PUBLIC_AUTH_PATH_PREFIXES = [
+  '/login',
+  '/signup',
+  '/forgot-password',
+  '/reset-password',
+  '/register-club',
+  '/create-club',
+];
+
+function isPublicAuthPage(pathname: string): boolean {
+  return PUBLIC_AUTH_PATH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -24,7 +37,7 @@ const queryClient = new QueryClient({
       onError: (error: any) => {
         // Global mutation error handler - redirect on auth errors
         const status = error?.response?.status;
-        if (status === 401 || status === 403) {
+        if ((status === 401 || status === 403) && !isPublicAuthPage(window.location.pathname)) {
           console.warn('Authentication error in mutation, redirecting to login');
           toast.error('Your session has expired. Please login again.');
           setTimeout(() => {

@@ -41,7 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const userData = JSON.parse(stored) as StoredUser;
         setUser(userData as AuthResponse);
 
-        api.get<AuthResponse>('/auth/me')
+        api.get<AuthResponse>('/auth/me', { _skipAuthRedirect: true } as any)
           .then(({ data }) => {
             persistUser(data);
           })

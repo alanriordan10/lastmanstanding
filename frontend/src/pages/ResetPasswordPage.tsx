@@ -60,7 +60,7 @@ export default function ResetPasswordPage() {
     }
     setLoading(true);
     try {
-      await api.post('/auth/reset-password', { token, newPassword: password });
+      await api.post('/auth/reset-password', { token, newPassword: password }, { _skipAuthRedirect: true } as any);
       toast.success('Password updated! Please log in with your new password.');
       navigate('/login');
     } catch (err: any) {

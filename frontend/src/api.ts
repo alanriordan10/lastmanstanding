@@ -42,8 +42,10 @@ const logoutChannel = typeof BroadcastChannel !== 'undefined'
 
 logoutChannel?.addEventListener('message', (e) => {
   if (e.data === 'logout') {
-    localStorage.clear();
-    window.location.href = '/login';
+    clearStoredSession();
+    if (!isCurrentPublicAuthPage()) {
+      window.location.href = '/login';
+    }
   }
 });
 
@@ -90,8 +92,18 @@ const PUBLIC_AUTH_PATH_PREFIXES = [
   '/create-club',
 ];
 
-function isPublicAuthPage(pathname: string): boolean {
+export function isPublicAuthPage(pathname: string): boolean {
   return PUBLIC_AUTH_PATH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
+export function isCurrentPublicAuthPage(): boolean {
+  return typeof window !== 'undefined' && isPublicAuthPage(window.location.pathname);
+}
+
+function clearStoredSession() {
+  clearAuthTokens();
+  localStorage.removeItem('user');
+  localStorage.removeItem('clubAdminRevoked');
 }
 
 // ── Request interceptor: attach CSRF token on state-changing requests ──────────
@@ -131,7 +143,7 @@ api.interceptors.response.use(
     const status = error.response?.status;
     const originalRequest = error.config as any;
     const skipAuthRedirect = Boolean(originalRequest?._skipAuthRedirect);
-    const isOnAuthPage = isPublicAuthPage(window.location.pathname);
+    const isOnAuthPage = isCurrentPublicAuthPage();
 
     if (status === 401 && !skipAuthRedirect && shouldAttemptRefresh(originalRequest)) {
       try {
@@ -162,7 +174,7 @@ api.interceptors.response.use(
 function triggerAuthFailure() {
   if (isHandlingAuthFailure) return;
   isHandlingAuthFailure = true;
-  clearAuthTokens();
+  clearStoredSession();
   // Prefer the React-context handler so state is cleared before navigation.
   if (onAuthFailure) {
     try {
@@ -205,9 +217,9 @@ async function refreshAccessToken(): Promise<string | null> {
 }
 
 function forceLogout(message = 'Your session has expired. Please log in again.') {
-  localStorage.clear();
+  clearStoredSession();
   broadcastLogout();
-  if (!isPublicAuthPage(window.location.pathname)) {
+  if (!isCurrentPublicAuthPage()) {
     toast.error(message, { duration: 4000 });
     window.location.href = '/login?error=session_expired';
   }

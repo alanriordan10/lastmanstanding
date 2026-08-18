@@ -21,7 +21,7 @@ export default function ForgotPasswordPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.post('/auth/forgot-password', { email });
+      await api.post('/auth/forgot-password', { email }, { _skipAuthRedirect: true } as any);
       setSubmitted(true);
     } catch (err) {
       toast.error(getErrorMessage(err, 'Could not send reset email. Please try again.'));
