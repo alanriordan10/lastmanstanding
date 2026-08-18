@@ -2,8 +2,9 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect, useMemo } from 'react';
 import api from '../api';
-import type { Competition, Fixture, GameweekSelection, GameweekSelectionsData, GameweekResponse } from '../types';
+import type { Competition, Fixture, GameweekSelection, GameweekSelectionsData } from '../types';
 import clsx from 'clsx';
+import SeoMeta from '../components/SeoMeta';
 
 export default function GameweekSelectionsPage() {
   const { id, gwId } = useParams<{ id: string; gwId: string }>();
@@ -164,6 +165,12 @@ export default function GameweekSelectionsPage() {
 
   return (
     <div className="space-y-6">
+      <SeoMeta
+        title={`Gameweek Selections${comp?.name ? ` | ${comp.name}` : ''} | Last Man Standing`}
+        description="View revealed gameweek selections for this competition."
+        canonicalPath={`/competitions/${compId}/gameweeks/${gameweekId}/selections`}
+        noindex
+      />
       <div className="relative overflow-hidden rounded-[1.75rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_24rem),linear-gradient(135deg,rgba(15,23,42,0.96),rgba(8,15,30,0.94))] px-4 py-5 shadow-[0_28px_70px_rgba(2,6,23,0.42)] sm:px-6 sm:py-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>

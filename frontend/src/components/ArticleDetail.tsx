@@ -25,8 +25,7 @@ export default function ArticleDetail({ variant, articles }: { variant: Variant;
   }
 
   const canonicalPath = `${basePaths[variant]}/${article.slug}`;
-  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://www.runlastmanstanding.com';
-  const canonicalUrl = `${origin}${canonicalPath}`;
+  const canonicalUrl = `https://runlastmanstanding.com${canonicalPath}`;
 
   const articleSchema = {
     '@context': 'https://schema.org',
@@ -38,7 +37,7 @@ export default function ArticleDetail({ variant, articles }: { variant: Variant;
     publisher: {
       '@type': 'Organization',
       name: 'Last Man Standing',
-      logo: { '@type': 'ImageObject', url: `${origin}/app-logo.png` },
+        logo: { '@type': 'ImageObject', url: 'https://runlastmanstanding.com/app-logo.png' },
     },
     mainEntityOfPage: { '@type': 'WebPage', '@id': canonicalUrl },
   };

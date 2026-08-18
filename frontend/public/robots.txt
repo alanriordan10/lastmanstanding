@@ -5,7 +5,9 @@ Disallow: /oauth2/
 Disallow: /admin
 Disallow: /club-admin
 Disallow: /profile
-Disallow: /forgot-password
+Disallow: /account-deletion
+Disallow: /auth-diagnostics
+Disallow: /competitions
 Disallow: /reset-password
 Disallow: /invite/
 

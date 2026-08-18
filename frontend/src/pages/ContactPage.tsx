@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import { useState } from 'react';
 import api from '../api';
 import SeoMeta from '../components/SeoMeta';
+import { SITE_ORIGIN } from '../config/site';
 
 const SUPPORT_EMAIL = 'support@runlastmanstanding.com';
 
@@ -15,7 +16,6 @@ function buildGmailCompose(subject: string, body: string) {
 }
 
 export default function ContactPage() {
-  const origin = window.location.origin;
   const { user } = useAuth();
   const username = user?.username ?? 'Guest';
   const email = user?.email ?? 'unknown';
@@ -31,7 +31,7 @@ export default function ContactPage() {
     '@context': 'https://schema.org',
     '@type': 'Organization',
     name: 'Last Man Standing',
-    url: origin,
+    url: SITE_ORIGIN,
     contactPoint: {
       '@type': 'ContactPoint',
       contactType: 'customer support',
@@ -44,7 +44,7 @@ export default function ContactPage() {
     '@context': 'https://schema.org',
     '@type': 'ContactPage',
     name: 'Last Man Standing Support',
-    url: `${origin}/contact`,
+    url: `${SITE_ORIGIN}/contact`,
     description: 'Support page for account, competition setup, payment, and bug report help.',
     mainEntity: {
       '@type': 'Organization',

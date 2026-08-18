@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { SITE_ORIGIN } from '../config/site';
 
 type SeoMetaProps = {
   title: string;
@@ -40,9 +41,8 @@ export default function SeoMeta({
   noindex = false,
 }: SeoMetaProps) {
   useEffect(() => {
-    const origin = window.location.origin;
-    const canonicalUrl = `${origin}${canonicalPath ?? window.location.pathname}`;
-    const imageUrl = imagePath.startsWith('http') ? imagePath : `${origin}${imagePath}`;
+    const canonicalUrl = `${SITE_ORIGIN}${canonicalPath ?? window.location.pathname}`;
+    const imageUrl = imagePath.startsWith('http') ? imagePath : `${SITE_ORIGIN}${imagePath}`;
 
     document.title = title;
     upsertMeta('name', 'description', description);

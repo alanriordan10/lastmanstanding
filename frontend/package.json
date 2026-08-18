@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && node scripts/prerender.mjs",
+    "build": "tsc && vite build && node scripts/prerender.mjs && node scripts/generate-sitemap.mjs",
     "preview": "vite preview",
     "check:guide-screenshots": "node ../scripts/validate-guide-screenshots.mjs"
   },

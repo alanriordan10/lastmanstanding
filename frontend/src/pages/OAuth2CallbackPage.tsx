@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import SeoMeta from '../components/SeoMeta';
 
 /**
  * Landing page after OAuth2 redirect from backend.
@@ -49,6 +50,12 @@ export default function OAuth2CallbackPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface-900">
+      <SeoMeta
+        title="Signing In | Last Man Standing"
+        description="Completing your Last Man Standing sign-in redirect."
+        canonicalPath="/oauth2/callback"
+        noindex
+      />
       <div className="text-center space-y-4">
         <div className="h-10 w-10 mx-auto animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
         <p className="text-gray-400">Completing sign in…</p>

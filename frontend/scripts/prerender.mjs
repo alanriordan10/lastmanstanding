@@ -3,31 +3,11 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { getPrerenderRoutes } from './publicRoutes.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.resolve(__dirname, '../dist');
 const indexHtmlPath = path.join(distDir, 'index.html');
-
-/**
- * Routes to prerender as static HTML files.
- * Each route will get its own HTML file with SPA-compatible routing.
- */
-const PRERENDER_ROUTES = [
-  '/',
-  '/faq',
-  '/guide',
-  '/services',
-  '/pricing',
-  '/contact',
-  '/refund-policy',
-  '/privacy',
-  '/terms',
-  '/login',
-  '/signup',
-  '/register-club',
-  '/create-club',
-  '/forgot-password',
-];
 
 async function prerender() {
   try {
@@ -35,18 +15,22 @@ async function prerender() {
 
     // Read the base index.html
     const indexHtml = await fs.readFile(indexHtmlPath, 'utf-8');
+    const prerenderRoutes = await getPrerenderRoutes();
 
     // For each route, create a dedicated HTML file
-    for (const route of PRERENDER_ROUTES) {
+    for (const route of prerenderRoutes) {
       // Skip root — it's already index.html
       if (route === '/') continue;
 
       // Convert route to file path
       // /faq → faq.html
+      // /blog/how-to-run-a-last-man-standing-competition → blog/how-to-run-a-last-man-standing-competition.html
       // /guide → guide.html
       // /register-club → register-club.html
       const fileName = route.slice(1) + '.html';
       const filePath = path.join(distDir, fileName);
+
+      await fs.mkdir(path.dirname(filePath), { recursive: true });
 
       // Create HTML with base href adjustment for subdirectory routes
       // This ensures relative imports still work correctly

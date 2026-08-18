@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import api from '../api';
 import type { Competition, GameweekSelectionsData, Fixture } from '../types';
 import { format } from 'date-fns';
+import SeoMeta from '../components/SeoMeta';
 
 interface GameweekSelection {
   participantId?: number | null;
@@ -141,15 +142,11 @@ export default function GameweekResultsPage() {
     return <div className="card py-16 text-center"><p className="text-red-400">Results not available</p></div>;
   }
 
-  // Extract selections and metadata from wrapper
-  const selections = selectionsData.selections || [];
   const byeGranted = selectionsData.byeGranted || false;
 
   // All data processing and derived state goes here (after early returns are done)
-  const safeFixtures = Array.isArray(fixtures) ? fixtures : [];
-  const gameweekFixtures = safeFixtures;
+  const gameweekFixtures = Array.isArray(fixtures) ? fixtures : [];
   const weekNumber = gameweekFixtures[0]?.weekNumber || selectionsData.weekNumber || 'N/A';
-  const gameweekStatus = gameweekFixtures[0]?.gameweekStatus || 'UNKNOWN';
 
   const advanced = safeSelections.filter(s => s.outcome === 'ADVANCE' || s.outcome === 'POSTPONED_ADVANCE');
   const eliminated = safeSelections.filter(s => s.outcome === 'ELIMINATED');
@@ -200,6 +197,12 @@ export default function GameweekResultsPage() {
 
   return (
     <div className="space-y-6">
+      <SeoMeta
+        title={`Gameweek Results${comp?.name ? ` | ${comp.name}` : ''} | Last Man Standing`}
+        description="View the results, outcomes, and survivor status for this competition gameweek."
+        canonicalPath={`/competitions/${compId}/gameweeks/${gameweekId}/results`}
+        noindex
+      />
       {/* Header */}
       <div className="relative overflow-hidden rounded-[1.75rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_24rem),linear-gradient(135deg,rgba(15,23,42,0.96),rgba(8,15,30,0.94))] px-4 py-5 shadow-[0_28px_70px_rgba(2,6,23,0.42)] sm:px-6 sm:py-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">

@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
 import SeoMeta from '../components/SeoMeta';
+import { SITE_ORIGIN } from '../config/site';
 
 export default function PricingPage() {
-  const origin = window.location.origin;
   const serviceSchema = {
     '@context': 'https://schema.org',
     '@type': 'Service',
@@ -11,10 +11,10 @@ export default function PricingPage() {
     provider: {
       '@type': 'Organization',
       name: 'Last Man Standing',
-      url: origin,
+      url: SITE_ORIGIN,
     },
     areaServed: 'Worldwide',
-    url: `${origin}/pricing`,
+    url: `${SITE_ORIGIN}/pricing`,
     offers: [
       {
         '@type': 'Offer',

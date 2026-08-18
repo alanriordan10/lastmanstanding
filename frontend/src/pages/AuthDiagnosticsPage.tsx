@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api, { getErrorMessage } from '../api';
+import SeoMeta from '../components/SeoMeta';
 
 type ProbePayload = {
   hadProbeCookie: boolean;
@@ -94,6 +95,12 @@ export default function AuthDiagnosticsPage() {
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-5">
+      <SeoMeta
+        title="Auth Diagnostics | Last Man Standing"
+        description="Internal authentication diagnostics for verifying cookie storage and sign-in flow behaviour."
+        canonicalPath="/auth-diagnostics"
+        noindex
+      />
       <section className="card space-y-3">
         <h1 className="text-2xl font-bold text-white">Auth Diagnostics</h1>
         <p className="text-sm text-gray-300">

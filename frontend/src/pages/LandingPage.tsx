@@ -1,13 +1,14 @@
 import { Link } from 'react-router-dom';
 import SeoMeta from '../components/SeoMeta';
+import { SITE_ORIGIN } from '../config/site';
 
 export default function LandingPage() {
   const organizationSchema = {
     '@context': 'https://schema.org',
     '@type': 'Organization',
     name: 'Last Man Standing',
-    url: window.location.origin,
-    logo: `${window.location.origin}/app-logo.png`,
+    url: SITE_ORIGIN,
+    logo: `${SITE_ORIGIN}/app-logo.png`,
   };
 
   const softwareSchema = {
@@ -18,7 +19,7 @@ export default function LandingPage() {
     applicationCategory: 'SportsApplication',
     applicationSubCategory: 'Competition Management Software',
     operatingSystem: 'Web, iOS, Android',
-    url: window.location.origin,
+    url: SITE_ORIGIN,
     description:
       'Last man standing software for running football survivor pool competitions. Manage picks, lifelines, results, payments and standings for clubs, GAA groups, workplaces and friend groups.',
     offers: {
