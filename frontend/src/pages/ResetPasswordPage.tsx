@@ -51,13 +51,13 @@ export default function ResetPasswordPage() {
       return;
     }
     if (password.length < 8) {
-      toast.error('Password must be at least 8 characters');
-      return;
-    }
-    if (!await validatePasswordStrength(password)) {
-      toast.error('Please choose a stronger password.');
-      return;
-    }
+       toast.error('Password must be at least 8 characters');
+       return;
+     }
+     if (!await validatePasswordStrength(password, undefined, undefined, 2)) {
+       toast.error('Please choose a stronger password.');
+       return;
+     }
     setLoading(true);
     try {
       await postPublicAuth('/auth/reset-password', { token, newPassword: password });
@@ -110,33 +110,40 @@ export default function ResetPasswordPage() {
                 {showPassword ? 'Hide' : 'Show'}
               </button>
             </div>
-            <PasswordStrengthMeter password={password} />
+            <PasswordStrengthMeter password={password} minScore={2} />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">
-              Confirm new password
-            </label>
-            <input
-              type={showPassword ? 'text' : 'password'}
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              required
-              placeholder="••••••••"
-              className="input-field"
-            />
-            {confirm && password !== confirm && (
-              <p className="mt-1.5 text-xs text-red-400">Passwords do not match</p>
-            )}
-          </div>
+           <div>
+             <label className="block text-sm font-medium text-gray-300 mb-1.5">
+               Confirm new password
+             </label>
+             <input
+               type={showPassword ? 'text' : 'password'}
+               value={confirm}
+               onChange={(e) => setConfirm(e.target.value)}
+               required
+               placeholder="••••••••"
+               className="input-field"
+             />
+             {!confirm && password && (
+               <p className="mt-1.5 text-xs text-amber-300">Please confirm your password</p>
+             )}
+             {confirm && password !== confirm && (
+               <p className="mt-1.5 text-xs text-red-400">Passwords do not match</p>
+             )}
+           </div>
 
-          <button
-            type="submit"
-            disabled={loading || password !== confirm || password.length < 8 || (!!password && !isPasswordStrongEnough(password))}
-            className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Updating…' : 'Update password'}
-          </button>
+           <button
+             type="submit"
+             disabled={loading || password !== confirm || password.length < 8 || (!!password && !isPasswordStrongEnough(password, undefined, undefined, 2))}
+             className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
+           >
+             {loading ? 'Updating…' : 'Update password'}
+           </button>
+
+           {password && password.length >= 8 && confirm && password === confirm && (!!password && !isPasswordStrongEnough(password, undefined, undefined, 2)) && (
+             <p className="mt-2 text-xs text-amber-300">Password needs to be stronger. Try adding more variety (mix of uppercase, lowercase, numbers, and symbols).</p>
+           )}
         </form>
 
         <p className="text-center text-sm text-gray-400">
