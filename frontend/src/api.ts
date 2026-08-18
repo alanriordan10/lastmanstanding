@@ -81,6 +81,18 @@ function readCookie(name: string): string | null {
 }
 
 const STATE_CHANGING = new Set(['post', 'put', 'patch', 'delete']);
+const PUBLIC_AUTH_PATH_PREFIXES = [
+  '/login',
+  '/signup',
+  '/forgot-password',
+  '/reset-password',
+  '/register-club',
+  '/create-club',
+];
+
+function isPublicAuthPage(pathname: string): boolean {
+  return PUBLIC_AUTH_PATH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
 
 // ── Request interceptor: attach CSRF token on state-changing requests ──────────
 api.interceptors.request.use((config) => {
@@ -119,15 +131,14 @@ api.interceptors.response.use(
     const status = error.response?.status;
     const originalRequest = error.config as any;
     const skipAuthRedirect = Boolean(originalRequest?._skipAuthRedirect);
-    const isOnAuthPage =
-      window.location.pathname === '/login' || window.location.pathname === '/signup';
+    const isOnAuthPage = isPublicAuthPage(window.location.pathname);
 
     if (status === 401 && !skipAuthRedirect && shouldAttemptRefresh(originalRequest)) {
       try {
         originalRequest._retry = true;
         const refreshed = await refreshAccessToken();
         if (!refreshed) {
-          triggerAuthFailure(isOnAuthPage);
+          triggerAuthFailure();
           return Promise.reject(error);
         }
 
@@ -135,20 +146,20 @@ api.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${refreshed}`;
         return api(originalRequest);
       } catch {
-        triggerAuthFailure(isOnAuthPage);
+        triggerAuthFailure();
         return Promise.reject(error);
       }
     }
 
     if (status === 401 && !skipAuthRedirect && !isOnAuthPage) {
-      triggerAuthFailure(isOnAuthPage);
+      triggerAuthFailure();
     }
 
     return Promise.reject(error);
   },
 );
 
-function triggerAuthFailure(isOnAuthPage: boolean) {
+function triggerAuthFailure() {
   if (isHandlingAuthFailure) return;
   isHandlingAuthFailure = true;
   clearAuthTokens();
@@ -196,7 +207,7 @@ async function refreshAccessToken(): Promise<string | null> {
 function forceLogout(message = 'Your session has expired. Please log in again.') {
   localStorage.clear();
   broadcastLogout();
-  if (window.location.pathname !== '/login' && window.location.pathname !== '/signup') {
+  if (!isPublicAuthPage(window.location.pathname)) {
     toast.error(message, { duration: 4000 });
     window.location.href = '/login?error=session_expired';
   }
