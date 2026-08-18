@@ -1648,10 +1648,10 @@ function MyCompetitionCard({ myComp, actionHint }: { myComp: MyCompetition; acti
   return (
     <Link
       to={`/competitions/${comp.id}`}
-      className="card flex flex-col p-3.5 sm:p-4.5 group transition-all hover:border-gray-600 block"
+      className="card group block flex flex-col !border-white/24 p-3 sm:p-3.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06),0_10px_24px_rgba(2,6,23,0.24)] transition-all hover:!border-white/38 hover:bg-white/[0.04] hover:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.10),0_14px_30px_rgba(2,6,23,0.30)]"
       style={competitionCardStyle(comp)}
     >
-      <div className="flex flex-wrap gap-2 items-center mb-2.5">
+      <div className="mb-2 flex flex-wrap items-center gap-1.5">
         <span className={comp.status === 'UPCOMING' ? 'badge-blue' : comp.status === 'ACTIVE' ? 'badge-green' : 'badge-gray'}>
           {comp.status === 'COMPLETED' ? 'FINISHED' : comp.status}
         </span>
@@ -1667,11 +1667,11 @@ function MyCompetitionCard({ myComp, actionHint }: { myComp: MyCompetition; acti
 
       <h3 className="text-base sm:text-lg font-bold leading-snug line-clamp-2">{comp.name}</h3>
       {myComp.entryNumber && (
-        <div className="mt-1 inline-flex items-center rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-300">
+        <div className="mt-0.5 inline-flex items-center rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-300">
           Entry #{myComp.entryNumber}
         </div>
       )}
-      <div className="mt-1 min-h-[18px] flex items-center gap-1.5">
+      <div className="mt-1 flex min-h-[18px] items-center gap-1.5">
         {comp.clubLogoUrl && <img src={comp.clubLogoUrl} alt="" className="h-5 w-5 rounded-md object-cover border border-white/10 shrink-0" />}
         {comp.clubName && (
           <span
@@ -1683,41 +1683,41 @@ function MyCompetitionCard({ myComp, actionHint }: { myComp: MyCompetition; acti
         )}
       </div>
       {actionHint && (
-        <div className="mt-2 rounded-lg border border-amber-400/40 bg-amber-500/12 px-3 py-2">
+        <div className="mt-2 rounded-lg border border-amber-400/40 bg-amber-500/12 px-2.5 py-1.5">
           <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-300">Action required</div>
           <div className="mt-0.5 text-xs text-amber-100">{actionHint}</div>
         </div>
       )}
-      <div className="mt-1.5 min-h-[32px]">
+      <div className="mt-1 min-h-[24px]">
         {comp.description ? (
           <p className="text-xs text-gray-400 line-clamp-2">{comp.description}</p>
         ) : (
-          <div aria-hidden="true" className="h-8" />
+          <div aria-hidden="true" className="h-5" />
         )}
       </div>
 
-      <div className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-2 text-xs text-gray-400">
-        <div className="min-h-[36px]">
+      <div className="mt-2 grid grid-cols-2 gap-x-2.5 gap-y-1.5 text-xs text-gray-400">
+        <div className="min-h-[30px]">
           <span className="block text-gray-500">Players</span>
           <span className="text-gray-200 font-medium">{comp.participantCount}</span>
         </div>
-        <div className="min-h-[36px]">
+        <div className="min-h-[30px]">
           <span className="block text-gray-500">Surviving</span>
           {comp.status === 'ACTIVE' ? (
             <span className="text-green-400 font-medium">{effectiveActiveCount}</span>
           ) : (
-            <div aria-hidden="true" className="h-5" />
+            <span className="text-gray-600">—</span>
           )}
         </div>
-        <div className="min-h-[36px]">
+        <div className="min-h-[30px]">
           <span className="block text-gray-500">Eliminated GW</span>
           {eliminatedWeek ? (
             <span className="text-red-400 font-medium">{eliminatedWeek}</span>
           ) : (
-            <div aria-hidden="true" className="h-5" />
+            <span className="text-gray-600">—</span>
           )}
         </div>
-        <div className="min-h-[36px]">
+        <div className="min-h-[30px]">
           <span className="block text-gray-500">Your Status</span>
           <span className={`font-medium ${
             myStatus === 'WINNER' ? 'text-yellow-400' :
@@ -1738,21 +1738,21 @@ function MyCompetitionCard({ myComp, actionHint }: { myComp: MyCompetition; acti
           </span>
         </div>
         {comp.winnerUsername && (
-          <div className="col-span-2">
+          <div className="col-span-2 min-h-[30px]">
             <span className="block text-gray-500">Winner</span>
             <span className="text-yellow-400 font-medium">🏆 {comp.winnerUsername}</span>
           </div>
         )}
       </div>
 
-      <div className="min-h-[30px]">
+      <div className="mt-2 min-h-[22px]">
         {comp.status === 'ACTIVE' && comp.participantCount > 0 && (
           <SurvivorBar active={effectiveActiveCount} total={comp.participantCount} />
         )}
       </div>
 
-      <div className="mt-auto pt-3">
-        <div className="btn-secondary w-full text-center text-sm py-2 group-hover:bg-surface-600">
+      <div className="mt-auto pt-2">
+        <div className="btn-secondary w-full py-1.5 text-center text-sm group-hover:border-white/20 group-hover:bg-surface-600/90">
           View Competition →
         </div>
       </div>

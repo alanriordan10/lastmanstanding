@@ -1,5 +1,4 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useInactivityLogout } from '../hooks/useInactivityLogout';
 
@@ -7,7 +6,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout, isAdmin, isClubAdmin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const canAccessClubAdmin = isClubAdmin;
 
   const handleLogout = async () => {
@@ -28,19 +26,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     return (
       <div className="min-h-screen bg-surface-900">
         <nav className="sticky top-0 z-50 border-b border-white/8 bg-[linear-gradient(180deg,rgba(8,15,30,0.92),rgba(8,15,30,0.78))] backdrop-blur-xl">
-          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-3 sm:px-6 lg:px-8">
+          <div className="mx-auto flex max-w-7xl flex-col items-stretch gap-3 px-3 py-3 md:flex-row md:items-center md:justify-between sm:px-6 lg:px-8">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2 shrink-0">
               <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl border border-brand-300/25 bg-white shadow-[0_10px_28px_rgba(56,189,248,0.18)]">
                 <img src="/app-logo.png?v=20260511" alt="Last Man Standing logo" className="h-full w-full object-cover" />
               </div>
-              <div className="hidden sm:block">
+              <div className="hidden lg:block">
                 <span className="block text-lg font-black tracking-tight text-white">Last Man Standing</span>
                 <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-200/75">Survivor pool</span>
               </div>
             </Link>
             {/* Public links */}
-            <div className="flex items-center gap-1 sm:gap-2">
+            <div className="flex flex-wrap items-center gap-1 sm:gap-2 md:justify-end">
               <Link to="/faq" className={navClass(location.pathname.startsWith('/faq'))}>FAQ</Link>
               <Link to="/contact" className={navClass(location.pathname.startsWith('/contact'))}>Contact</Link>
               <Link to="/login" className={navClass(location.pathname.startsWith('/login'))}>Log in</Link>
@@ -65,21 +63,25 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-surface-900">
       {/* ── Navbar ──────────────────────────────────────────────�� */}
       <nav className="sticky top-0 z-50 border-b border-white/8 bg-[linear-gradient(180deg,rgba(8,15,30,0.92),rgba(8,15,30,0.78))] backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl flex-col items-stretch gap-2 px-3 py-3 sm:flex-row sm:items-center sm:gap-3 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col items-stretch gap-2 px-3 py-3 sm:px-6 lg:px-8">
           {/* Logo */}
-          <div className="flex items-center justify-between">
-          <Link to="/competitions" className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center justify-between gap-3">
+          <Link to="/competitions" className="flex min-w-0 items-center gap-2 shrink-0">
             <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl border border-brand-300/25 bg-white shadow-[0_10px_28px_rgba(56,189,248,0.18)]">
               <img src="/app-logo.png?v=20260511" alt="Last Man Standing logo" className="h-full w-full object-cover" />
             </div>
-            <div className="hidden sm:block">
+            <div className="hidden min-w-0 md:block lg:hidden">
+              <span className="block text-base font-black tracking-tight text-white">Last Man Standing</span>
+              <span className="block text-[9px] font-semibold uppercase tracking-[0.16em] text-brand-200/70">Survivor pool</span>
+            </div>
+            <div className="hidden min-w-0 lg:block">
               <span className="block text-lg font-black tracking-tight text-white">Last Man Standing</span>
               <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-200/75">Survivor pool</span>
             </div>
           </Link>
           <button
             onClick={handleLogout}
-            className="inline-flex h-8 items-center justify-center gap-1 rounded-xl border border-red-400/20 bg-red-500/[0.08] px-2 text-[10px] font-medium text-red-300 transition-all hover:border-red-400/35 hover:bg-red-500/12 sm:hidden"
+            className="inline-flex h-8 items-center justify-center gap-1 rounded-xl border border-red-400/20 bg-red-500/[0.08] px-2 text-[10px] font-medium text-red-300 transition-all hover:border-red-400/35 hover:bg-red-500/12 lg:hidden"
             aria-label="Log out"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 shrink-0">
@@ -90,65 +92,65 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </div>
 
           {/* Mobile nav */}
-          <div className="w-full sm:hidden">
-            <div className="grid grid-cols-4 gap-1">
+          <div className="w-full space-y-2 lg:hidden">
+            <div className="flex flex-wrap items-center gap-1.5 md:justify-end">
               {canAccessClubAdmin ? (
-                <Link to="/club-admin" className={`${navClass(location.pathname.startsWith('/club-admin'))} w-full`} aria-label="Club Admin">
+                <Link to="/club-admin" className={`${navClass(location.pathname.startsWith('/club-admin'))} min-w-[6rem] justify-center`} aria-label="Club Admin">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 shrink-0">
                     <path d="M4 20h16v-2H4v2Zm2-3h3v-6H6v6Zm4 0h4V7h-4v10Zm5 0h3v-9h-3v9ZM4 10l8-6 8 6v2H4v-2Z" />
                   </svg>
                   <span>Club</span>
                 </Link>
-              ) : (
-                <div />
-              )}
-              <Link to="/competitions" className={`${navClass(location.pathname.startsWith('/competitions'))} w-full`} aria-label="Competitions">
+              ) : null}
+              <Link to="/competitions" className={`${navClass(location.pathname.startsWith('/competitions'))} min-w-[6rem] justify-center`} aria-label="Competitions">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 shrink-0">
                   <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm5.7 7H15a15.4 15.4 0 0 0-1.1-3.1A8 8 0 0 1 17.7 9ZM12 4.3A13.2 13.2 0 0 1 13.1 9h-2.2A13.2 13.2 0 0 1 12 4.3ZM4.3 15A8.1 8.1 0 0 1 4 13h3a17 17 0 0 0 .3 2H4.3Zm0-6A8.1 8.1 0 0 1 8.1 5.9 15.4 15.4 0 0 0 7 9H4.3ZM12 19.7A13.2 13.2 0 0 1 10.9 15h2.2a13.2 13.2 0 0 1-1.1 4.7ZM10.5 13A15.1 15.1 0 0 1 10 10h4a15.1 15.1 0 0 1-.5 3h-3Zm-1.6 6.1A8 8 0 0 1 4.3 15H7a15.4 15.4 0 0 0 1.9 4.1Zm5.1 0A15.4 15.4 0 0 0 17 15h2.7a8 8 0 0 1-5.7 4.1ZM16.7 13a17 17 0 0 0 .3-2h3a8.1 8.1 0 0 1-.3 2h-3Z" />
                 </svg>
                 <span>Comps</span>
               </Link>
-              <Link to="/profile" className={`${navClass(location.pathname.startsWith('/profile'))} w-full`} aria-label="Profile">
+              <Link to="/profile" className={`${navClass(location.pathname.startsWith('/profile'))} min-w-[6rem] justify-center`} aria-label="Profile">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 shrink-0 text-gray-300">
                   <path d="M12 12c2.761 0 5-2.239 5-5s-2.239-5-5-5-5 2.239-5 5 2.239 5 5 5zm0 2c-4.418 0-8 3.582-8 8h2c0-3.309 2.691-6 6-6s6 2.691 6 6h2c0-4.418-3.582-8-8-8z" />
                 </svg>
                 <span>Me</span>
               </Link>
-              <button
-                onClick={() => setMobileMenuOpen((v) => !v)}
-                className={`${navItemClass} w-full`}
-                aria-label="Open menu"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 shrink-0">
-                  <path d="M3 6h18v2H3V6Zm0 5h18v2H3v-2Zm0 5h18v2H3v-2Z" />
-                </svg>
-                <span>More</span>
-              </button>
             </div>
-            {mobileMenuOpen && (
-              <div className="mt-2 rounded-xl border border-white/10 bg-surface-800/95 p-2">
-                <div className="grid grid-cols-2 gap-1.5">
-                  {isAdmin && (
-                    <Link to="/admin" onClick={() => setMobileMenuOpen(false)} className={`${navClass(location.pathname.startsWith('/admin'))} w-full`} aria-label="Admin Panel">
-                      <span>Admin</span>
-                    </Link>
-                  )}
-                  <Link to="/contact" onClick={() => setMobileMenuOpen(false)} className={`${navClass(location.pathname.startsWith('/contact'))} w-full`} aria-label="Contact support">
-                    <span>Help</span>
-                  </Link>
-                  <Link to="/blog" onClick={() => setMobileMenuOpen(false)} className={`${navClass(location.pathname.startsWith('/blog'))} w-full`} aria-label="Blog">
-                    <span>Blog</span>
-                  </Link>
-                  <Link to="/faq" onClick={() => setMobileMenuOpen(false)} className={`${navClass(location.pathname.startsWith('/faq'))} w-full`} aria-label="Frequently asked questions">
-                    <span>FAQ</span>
-                  </Link>
-                </div>
-              </div>
-            )}
+            <div className="flex flex-wrap items-center gap-1 border-t border-white/8 pt-1.5 text-[11px] text-gray-400 md:justify-end">
+              {isAdmin && (
+                <Link
+                  to="/admin"
+                  className="rounded-md px-2 py-1 transition hover:bg-white/[0.05] hover:text-white"
+                  aria-label="Admin Panel"
+                >
+                  Admin
+                </Link>
+              )}
+              <Link
+                to="/contact"
+                className="rounded-md px-2 py-1 transition hover:bg-white/[0.05] hover:text-white"
+                aria-label="Contact support"
+              >
+                Help
+              </Link>
+              <Link
+                to="/blog"
+                className="rounded-md px-2 py-1 transition hover:bg-white/[0.05] hover:text-white"
+                aria-label="Blog"
+              >
+                Blog
+              </Link>
+              <Link
+                to="/faq"
+                className="rounded-md px-2 py-1 transition hover:bg-white/[0.05] hover:text-white"
+                aria-label="Frequently asked questions"
+              >
+                FAQ
+              </Link>
+            </div>
           </div>
 
           {/* Desktop nav links + user */}
-          <div className="hidden w-full items-center justify-start gap-1 pb-1 sm:ml-auto sm:flex sm:w-auto sm:flex-nowrap sm:justify-end sm:gap-x-4 sm:overflow-visible sm:pb-0">
+          <div className="hidden w-full items-center justify-end gap-1 overflow-visible pb-1 lg:flex lg:flex-nowrap lg:gap-x-4 lg:pb-0">
             {isAdmin && (
               <Link to="/admin" className={`${navClass(location.pathname.startsWith('/admin'))} hidden sm:inline-flex`} aria-label="Admin Panel">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 shrink-0">
