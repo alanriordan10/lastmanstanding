@@ -117,14 +117,23 @@ export default function ResetPasswordPage() {
              <label className="block text-sm font-medium text-gray-300 mb-1.5">
                Confirm new password
              </label>
-             <input
-               type={showPassword ? 'text' : 'password'}
-               value={confirm}
-               onChange={(e) => setConfirm(e.target.value)}
-               required
-               placeholder="••••••••"
-               className="input-field"
-             />
+             <div className="relative">
+               <input
+                 type={showPassword ? 'text' : 'password'}
+                 value={confirm}
+                 onChange={(e) => setConfirm(e.target.value)}
+                 required
+                 placeholder="••••••••"
+                 className="input-field pr-10"
+               />
+               <button
+                 type="button"
+                 onClick={() => setShowPassword(!showPassword)}
+                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 text-sm"
+               >
+                 {showPassword ? 'Hide' : 'Show'}
+               </button>
+             </div>
              {!confirm && password && (
                <p className="mt-1.5 text-xs text-amber-300">Please confirm your password</p>
              )}
