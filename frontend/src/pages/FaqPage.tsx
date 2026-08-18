@@ -216,8 +216,8 @@ export default function FaqPage() {
   return (
     <div className="min-h-screen bg-[linear-gradient(165deg,#070f22_0%,#0a1731_58%,#0a1730_100%)] px-4 py-10 text-white">
       <SeoMeta
-        title="Last Man Standing App FAQ | Rules, Lifeline, Payments, Results"
-        description="Answers to common questions about survivor pool rules, lifeline usage, payment modes, and gameweek results."
+        title="Last Man Standing FAQ | Rules, Lifeline, Payments & Results"
+        description="Get answers on Last Man Standing rules, lifeline usage, payments, competition slots, private invite codes, and gameweek result processing."
         canonicalPath="/faq"
         jsonLd={[faqSchema]}
       />

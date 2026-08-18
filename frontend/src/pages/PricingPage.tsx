@@ -2,12 +2,75 @@ import { Link } from 'react-router-dom';
 import SeoMeta from '../components/SeoMeta';
 
 export default function PricingPage() {
+  const origin = window.location.origin;
+  const serviceSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Service',
+    name: 'Last Man Standing Competition Platform',
+    serviceType: 'Competition management software',
+    provider: {
+      '@type': 'Organization',
+      name: 'Last Man Standing',
+      url: origin,
+    },
+    areaServed: 'Worldwide',
+    url: `${origin}/pricing`,
+    offers: [
+      {
+        '@type': 'Offer',
+        name: 'First competition',
+        price: '0',
+        priceCurrency: 'EUR',
+        description: 'Every club gets the first competition free.',
+      },
+      {
+        '@type': 'Offer',
+        name: 'Additional competition slot',
+        price: '29',
+        priceCurrency: 'EUR',
+        description: 'Each additional competition requires one slot credit.',
+      },
+    ],
+  };
+
+  const pricingFaqSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: [
+      {
+        '@type': 'Question',
+        name: 'How much does Last Man Standing cost?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'Every club gets the first competition free. After that, each additional competition requires one paid competition slot.',
+        },
+      },
+      {
+        '@type': 'Question',
+        name: 'Do competition slots expire?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'No. Competition slots are one-off credits that can be purchased in advance and used later.',
+        },
+      },
+      {
+        '@type': 'Question',
+        name: 'Can I run free competitions?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'Yes. Organisers can create free competitions or use manual payment tracking depending on their setup.',
+        },
+      },
+    ],
+  };
+
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-4 py-8 text-gray-200">
       <SeoMeta
-        title="Pricing | Last Man Standing"
-        description="Pricing and payment information for Last Man Standing competition management software."
+        title="Pricing & Competition Slots | Last Man Standing"
+        description="See Last Man Standing pricing: first competition free for every club, then one paid slot per additional competition. Compare free and manual payment modes."
         canonicalPath="/pricing"
+        jsonLd={[serviceSchema, pricingFaqSchema]}
       />
 
       <section className="relative overflow-hidden rounded-[1.85rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_24rem),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))] px-5 py-6 shadow-[0_30px_75px_rgba(2,6,23,0.48)] sm:px-6">

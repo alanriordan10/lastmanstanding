@@ -465,8 +465,8 @@ export default function UserGuidePage() {
   return (
     <div className="min-h-screen bg-[linear-gradient(165deg,#070f22_0%,#0a1731_58%,#0a1730_100%)] px-4 py-10 text-white">
       <SeoMeta
-        title="How to Use Last Man Standing | Detailed Player and Club Admin Guide"
-        description="Detailed walkthrough for players and club admins covering competition setup, payment modes, lifelines, participants, results, pause rules, and troubleshooting."
+        title="Last Man Standing User Guide | Player & Club Admin Setup"
+        description="Step-by-step Last Man Standing guide for players and club admins: joining competitions, making picks, lifelines, competition setup, payments, results, and troubleshooting."
         canonicalPath="/guide"
       />
 

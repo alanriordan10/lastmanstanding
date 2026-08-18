@@ -6,8 +6,8 @@ export default function GuidesIndexPage() {
   return (
     <>
       <SeoMeta
-        title="Guides | Last Man Standing"
-        description="Step-by-step guides for setting up your club, running your first competition, and configuring rules on Last Man Standing."
+        title="Last Man Standing Guides | Setup, Rules & Club Admin Tutorials"
+        description="Browse Last Man Standing guides for club setup, competition creation, picks, lifelines, payment modes, and results management."
         canonicalPath="/guides"
       />
       <ArticleIndex variant="guides" articles={guides} />

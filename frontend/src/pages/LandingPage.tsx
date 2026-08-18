@@ -84,8 +84,8 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen text-white flex flex-col">
       <SeoMeta
-        title="Last Man Standing Software | Football Survivor Pool App for Clubs"
-        description="Last man standing software for clubs, GAA, workplaces and friend groups. Run football survivor pool competitions online with picks, lifelines, automated scoring and payment tracking."
+        title="Last Man Standing Software for Clubs | Football Survivor Pool App"
+        description="Run Last Man Standing competitions for clubs, workplaces, and private groups. Manage picks, lifelines, results, survivor tables, and entry payment tracking in one app."
         canonicalPath="/"
         jsonLd={[organizationSchema, softwareSchema, faqSchema]}
       />

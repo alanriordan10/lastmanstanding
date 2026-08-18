@@ -15,6 +15,7 @@ function buildGmailCompose(subject: string, body: string) {
 }
 
 export default function ContactPage() {
+  const origin = window.location.origin;
   const { user } = useAuth();
   const username = user?.username ?? 'Guest';
   const email = user?.email ?? 'unknown';
@@ -25,6 +26,32 @@ export default function ContactPage() {
   const [competitionName, setCompetitionName] = useState('');
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const organizationSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'Last Man Standing',
+    url: origin,
+    contactPoint: {
+      '@type': 'ContactPoint',
+      contactType: 'customer support',
+      email: SUPPORT_EMAIL,
+      availableLanguage: ['en'],
+    },
+  };
+
+  const contactPageSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'ContactPage',
+    name: 'Last Man Standing Support',
+    url: `${origin}/contact`,
+    description: 'Support page for account, competition setup, payment, and bug report help.',
+    mainEntity: {
+      '@type': 'Organization',
+      name: 'Last Man Standing',
+      email: SUPPORT_EMAIL,
+    },
+  };
 
   const bugSubject = '[Support] Bug report';
   const bugBody = `Hi support team,
@@ -103,9 +130,10 @@ Any reference IDs or organiser receipt details:
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <SeoMeta
-        title="Contact Support | Last Man Standing"
-        description="Get help with competition setup, payments, account issues, and bug reports for Last Man Standing."
+        title="Contact Last Man Standing Support | Player & Club Admin Help"
+        description="Contact Last Man Standing support for account access, competition setup, payment questions, and bug reports on web and Android."
         canonicalPath="/contact"
+        jsonLd={[organizationSchema, contactPageSchema]}
       />
       <section className="relative overflow-hidden rounded-[1.85rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_24rem),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))] px-5 py-6 shadow-[0_30px_75px_rgba(2,6,23,0.48)] sm:px-6">
         <div className="inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-200">
