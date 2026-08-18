@@ -23,9 +23,47 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const navClass = (active: boolean) =>
     `${navItemClass} ${active ? 'border-brand-400/40 bg-brand-500/12 text-brand-100' : ''}`;
 
+  // ── Public nav (logged-out) ───────────────────────────────────────────
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-surface-900">
+        <nav className="sticky top-0 z-50 border-b border-white/8 bg-[linear-gradient(180deg,rgba(8,15,30,0.92),rgba(8,15,30,0.78))] backdrop-blur-xl">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-3 sm:px-6 lg:px-8">
+            {/* Logo */}
+            <Link to="/" className="flex items-center gap-2 shrink-0">
+              <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl border border-brand-300/25 bg-white shadow-[0_10px_28px_rgba(56,189,248,0.18)]">
+                <img src="/app-logo.png?v=20260511" alt="Last Man Standing logo" className="h-full w-full object-cover" />
+              </div>
+              <div className="hidden sm:block">
+                <span className="block text-lg font-black tracking-tight text-white">Last Man Standing</span>
+                <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-200/75">Survivor pool</span>
+              </div>
+            </Link>
+            {/* Public links */}
+            <div className="flex items-center gap-1 sm:gap-2">
+              <Link to="/faq" className={navClass(location.pathname.startsWith('/faq'))}>FAQ</Link>
+              <Link to="/contact" className={navClass(location.pathname.startsWith('/contact'))}>Contact</Link>
+              <Link to="/login" className={navClass(location.pathname.startsWith('/login'))}>Log in</Link>
+              <Link
+                to="/signup"
+                className="inline-flex h-8 items-center justify-center gap-1 rounded-xl border border-brand-400/40 bg-brand-500/15 px-3 text-[10px] font-semibold text-brand-100 transition-all hover:bg-brand-500/25 sm:px-4 sm:text-sm"
+              >
+                Sign up
+              </Link>
+            </div>
+          </div>
+        </nav>
+        <main className="mx-auto max-w-7xl px-3 py-6 sm:px-6 sm:py-8 lg:px-8">
+          {children}
+        </main>
+      </div>
+    );
+  }
+
+  // ── Authenticated nav ─────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-surface-900">
-      {/* ── Navbar ─────────────────────────────────────────────── */}
+      {/* ── Navbar ──────────────────────────────────────────────�� */}
       <nav className="sticky top-0 z-50 border-b border-white/8 bg-[linear-gradient(180deg,rgba(8,15,30,0.92),rgba(8,15,30,0.78))] backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl flex-col items-stretch gap-2 px-3 py-3 sm:flex-row sm:items-center sm:gap-3 sm:px-6 lg:px-8">
           {/* Logo */}
@@ -162,7 +200,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
             <div className="flex items-center gap-1 sm:gap-3 sm:border-l sm:border-white/8 sm:pl-4">
               <Link to="/profile" className={navClass(location.pathname.startsWith('/profile'))} aria-label="Profile">
-                {/* simple user icon */}
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 shrink-0 text-gray-300 sm:h-5 sm:w-5">
                   <path d="M12 12c2.761 0 5-2.239 5-5s-2.239-5-5-5-5 2.239-5 5 2.239 5 5 5zm0 2c-4.418 0-8 3.582-8 8h2c0-3.309 2.691-6 6-6s6 2.691 6 6h2c0-4.418-3.582-8-8-8z" />
                 </svg>
