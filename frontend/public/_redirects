@@ -5,38 +5,10 @@
 /robots.txt /robots.txt 200
 /sitemap.xml /sitemap.xml 200
 
-# Serve prerendered public pages as static HTML
-/faq /faq.html 200
-/faq/ /faq.html 200
-/guide /guide.html 200
-/guide/ /guide.html 200
-/blog /blog.html 200
-/blog/ /blog.html 200
-/blog/* /blog/:splat.html 200
-/guides /guides.html 200
-/guides/ /guides.html 200
-/guides/* /guides/:splat.html 200
-/services /services.html 200
-/services/ /services.html 200
-/pricing /pricing.html 200
-/pricing/ /pricing.html 200
-/contact /contact.html 200
-/contact/ /contact.html 200
-/refund-policy /refund-policy.html 200
-/refund-policy/ /refund-policy.html 200
-/privacy /privacy.html 200
-/privacy/ /privacy.html 200
-/terms /terms.html 200
-/terms/ /terms.html 200
-/login /login.html 200
-/login/ /login.html 200
-/signup /signup.html 200
-/signup/ /signup.html 200
-/register-club /register-club.html 200
-/register-club/ /register-club.html 200
-/create-club /create-club.html 200
-/create-club/ /create-club.html 200
-/forgot-password /forgot-password.html 200
-/forgot-password/ /forgot-password.html 200
+# NOTE: Do NOT add explicit /faq → /faq.html rewrites here.
+# Cloudflare Pages automatically serves faq.html at /faq (pretty URLs).
+# Adding a rewrite rule creates a redirect loop because Cloudflare Pages
+# also redirects /faq.html → /faq as a canonical redirect.
 
-/* / 200
+# SPA fallback — serves index.html for any route not matched by a static file.
+/* /index.html 200
