@@ -48,84 +48,8 @@
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-    <!-- ── Structured data (JSON-LD) ────────────────────────────────────
-         Static defaults — LandingPage.tsx injects more specific schemas
-         at runtime, but crawlers see this before React mounts. -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "Last Man Standing",
-      "alternateName": "Last Man Standing Software",
-      "url": "https://runlastmanstanding.com/",
-      "applicationCategory": "SportsApplication",
-      "applicationSubCategory": "Competition Management Software",
-      "operatingSystem": "Web, iOS, Android",
-      "description": "Software for running last man standing competitions and football survivor pools. Manage picks, lifelines, payments, and standings for clubs, GAA groups, workplaces, and friend groups.",
-      "image": "https://runlastmanstanding.com/app-logo.png",
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "EUR",
-        "availability": "https://schema.org/InStock",
-        "description": "First competition for every club is free."
-      },
-      "aggregateRating": {
-        "@type": "AggregateRating",
-        "ratingValue": "5",
-        "ratingCount": "1"
-      }
-    }
-    </script>
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "Organization",
-      "name": "Last Man Standing",
-      "url": "https://runlastmanstanding.com/",
-      "logo": "https://runlastmanstanding.com/app-logo.png"
-    }
-    </script>
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "FAQPage",
-      "mainEntity": [
-        {
-          "@type": "Question",
-          "name": "How does a last man standing competition work?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Players pick one team each gameweek. If the team wins or draws they advance. If it loses they are eliminated. The last player still in wins."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Can I use this software to run last man standing competitions for my club?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Yes. The first competition for every club is free and additional competitions can be added with one-off slot purchases. The software handles picks, lifelines, results, and standings automatically."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Do you support GAA survivor pools and football survivor pools?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Yes. The software supports Premier League and World Cup fixtures. You can run a survivor pool for any football competition the fixtures cover."
-          }
-        }
-      ]
-    }
-    </script>
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "WebSite",
-      "name": "Last Man Standing",
-      "url": "https://runlastmanstanding.com/"
-    }
-    </script>
+    <!-- Structured data is injected per-route via SeoMeta to avoid
+         cross-page schema bleed (e.g. guides inheriting home FAQ schema). -->
   </head>
   <body class="bg-surface-900 text-white">
     <div id="root"></div>

@@ -45,8 +45,8 @@ export default function CreateClubPage() {
 
   if (user.role === 'CLUB_ADMIN') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-6">
-        <div className="w-full max-w-md rounded-[1.75rem] border border-amber-400/30 bg-[linear-gradient(145deg,rgba(120,53,15,0.22),rgba(8,15,30,0.9))] p-8 text-center shadow-[0_24px_60px_rgba(2,6,23,0.44)]">
+      <div className="create-club-shell min-h-screen flex flex-col items-center justify-center p-6 gap-6">
+        <div className="create-club-blocked-shell w-full max-w-md rounded-[1.75rem] border border-amber-400/30 bg-[linear-gradient(145deg,rgba(120,53,15,0.22),rgba(8,15,30,0.9))] p-8 text-center shadow-[0_24px_60px_rgba(2,6,23,0.44)]">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/15 border border-amber-400/30 text-3xl">🏠</div>
           <h1 className="text-2xl font-black tracking-tight text-white mb-2">You already manage a club</h1>
           <p className="text-sm text-gray-300 leading-6 mb-6">
@@ -79,14 +79,14 @@ export default function CreateClubPage() {
   };
 
   return (
-    <div className="relative min-h-screen flex flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.10),transparent_36rem),linear-gradient(180deg,#0a1224_0%,#0b1322_100%)]">
+    <div className="create-club-shell relative min-h-screen flex flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.12),transparent_36rem),radial-gradient(circle_at_92%_4%,rgba(14,165,233,0.08),transparent_26rem),linear-gradient(180deg,var(--app-bg)_0%,var(--app-bg-mid)_55%,var(--app-bg-deep)_100%)]">
       <SeoMeta
         title="Create Club | Last Man Standing"
         description="Finish setting up your club and launch football survivor competitions with Last Man Standing organiser tools."
         canonicalPath="/create-club"
         noindex
       />
-      <nav className="border-b border-white/8 bg-[linear-gradient(180deg,rgba(8,15,30,0.92),rgba(8,15,30,0.78))] backdrop-blur-xl px-6 py-4 flex items-center justify-between">
+      <nav className="create-club-nav border-b border-white/8 bg-[linear-gradient(180deg,rgba(8,15,30,0.92),rgba(8,15,30,0.78))] backdrop-blur-xl px-6 py-4 flex items-center justify-between">
         <Link to="/competitions" className="flex items-center gap-2">
           <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl border border-brand-300/25 bg-white shadow-[0_10px_28px_rgba(56,189,248,0.18)]">
             <img src="/app-logo.png?v=20260511" alt="Last Man Standing logo" className="h-full w-full object-cover" />
@@ -103,7 +103,7 @@ export default function CreateClubPage() {
 
       <div className="flex flex-1 items-center justify-center p-4">
         <div className="w-full max-w-5xl grid gap-6 lg:grid-cols-[1fr_1.05fr]">
-          <section className="relative overflow-hidden rounded-[1.9rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_24rem),linear-gradient(135deg,rgba(15,23,42,0.96),rgba(8,15,30,0.94))] px-6 py-8 shadow-[0_30px_75px_rgba(2,6,23,0.48)]">
+          <section className="create-club-hero-shell relative overflow-hidden rounded-[1.9rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_24rem),linear-gradient(135deg,rgba(15,23,42,0.96),rgba(8,15,30,0.94))] px-6 py-8 shadow-[0_30px_75px_rgba(2,6,23,0.48)]">
             <div className="inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-200">
               Existing account
             </div>
@@ -121,7 +121,7 @@ export default function CreateClubPage() {
             </div>
           </section>
 
-           <form onSubmit={handleSubmit} className="card w-full max-w-lg lg:max-w-none mx-auto space-y-5">
+           <form onSubmit={handleSubmit} className="create-club-panel-shell card w-full max-w-lg lg:max-w-none mx-auto space-y-5">
              <div className="flex items-center gap-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2.5">
                <span className="text-emerald-400 text-base leading-none">✓</span>
                <p className="text-sm text-emerald-200">
@@ -163,7 +163,7 @@ export default function CreateClubPage() {
               />
             </div>
 
-            <div className="rounded-xl bg-brand-600/10 border border-brand-500/20 p-4 space-y-2">
+            <div className="create-club-benefits-shell rounded-xl bg-brand-600/10 border border-brand-500/20 p-4 space-y-2">
               <p className="text-sm font-semibold text-brand-400">What you get as a Club Admin:</p>
               <ul className="space-y-1.5">
                 {[

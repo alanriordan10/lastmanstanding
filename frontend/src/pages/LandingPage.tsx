@@ -82,13 +82,20 @@ export default function LandingPage() {
     ],
   };
 
+  const websiteSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'Last Man Standing',
+    url: SITE_ORIGIN,
+  };
+
   return (
     <div className="min-h-screen text-white flex flex-col">
       <SeoMeta
         title="Last Man Standing Software for Clubs | Football Survivor Pool App"
         description="Run Last Man Standing competitions for clubs, workplaces, and private groups. Manage picks, lifelines, results, survivor tables, and entry payment tracking in one app."
         canonicalPath="/"
-        jsonLd={[organizationSchema, softwareSchema, faqSchema]}
+        jsonLd={[organizationSchema, softwareSchema, faqSchema, websiteSchema]}
       />
       {/* Navbar */}
       <nav className="sticky top-0 z-50 flex items-center justify-between border-b border-white/8 bg-[linear-gradient(180deg,rgba(8,15,30,0.92),rgba(8,15,30,0.78))] px-6 py-4 backdrop-blur-xl">

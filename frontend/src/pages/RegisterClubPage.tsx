@@ -180,14 +180,14 @@ export default function RegisterClubPage() {
   };
 
   return (
-    <div className="relative min-h-screen flex flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.10),transparent_36rem),linear-gradient(180deg,#0a1224_0%,#0b1322_100%)]">
+    <div className="register-club-shell relative min-h-screen flex flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.12),transparent_36rem),radial-gradient(circle_at_92%_4%,rgba(14,165,233,0.08),transparent_26rem),linear-gradient(180deg,var(--app-bg)_0%,var(--app-bg-mid)_55%,var(--app-bg-deep)_100%)]">
       <SeoMeta
         title="Register Your Club | Last Man Standing"
         description="Set up a club organiser account and start running football survivor competitions online with Last Man Standing."
         canonicalPath="/register-club"
         noindex
       />
-      <nav className="border-b border-white/8 bg-[linear-gradient(180deg,rgba(8,15,30,0.92),rgba(8,15,30,0.78))] backdrop-blur-xl px-6 py-4 flex items-center justify-between">
+      <nav className="register-club-nav border-b border-white/8 bg-[linear-gradient(180deg,rgba(8,15,30,0.92),rgba(8,15,30,0.78))] backdrop-blur-xl px-6 py-4 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
           <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl border border-brand-300/25 bg-white shadow-[0_10px_28px_rgba(56,189,248,0.18)]">
             <img src="/app-logo.png?v=20260511" alt="Last Man Standing logo" className="h-full w-full object-cover" />
@@ -210,7 +210,7 @@ export default function RegisterClubPage() {
 
       <div className="flex flex-1 items-center justify-center p-4">
         <div className="w-full max-w-5xl grid gap-6 lg:grid-cols-[1fr_1.05fr]">
-          <section className="relative overflow-hidden rounded-[1.9rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_24rem),linear-gradient(135deg,rgba(15,23,42,0.96),rgba(8,15,30,0.94))] px-6 py-8 shadow-[0_30px_75px_rgba(2,6,23,0.48)]">
+          <section className="register-club-hero-shell relative overflow-hidden rounded-[1.9rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_24rem),linear-gradient(135deg,rgba(15,23,42,0.96),rgba(8,15,30,0.94))] px-6 py-8 shadow-[0_30px_75px_rgba(2,6,23,0.48)]">
             <div className="inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-200">Club launch</div>
             <div className="mt-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-brand-300/25 bg-gradient-to-br from-brand-500 to-cyan-400 text-3xl font-black text-slate-950 shadow-[0_10px_28px_rgba(56,189,248,0.18)]">🏠</div>
             <h1 className="mt-6 text-4xl font-black tracking-tight text-white">Register Your Club</h1>
@@ -244,7 +244,7 @@ export default function RegisterClubPage() {
             </div>
 
             {step === 1 && (
-              <form onSubmit={handleNext} className="card space-y-5">
+              <form onSubmit={handleNext} className="register-club-panel-shell card space-y-5">
                 <div>
                   <h2 className="text-lg font-semibold text-gray-100">Tell us about your club</h2>
                   <p className="text-sm text-gray-400 mt-1">This is how your club will appear to participants.</p>
@@ -264,7 +264,7 @@ export default function RegisterClubPage() {
             )}
 
             {step === 2 && (
-              <form onSubmit={handleSubmit} className="card space-y-5">
+              <form onSubmit={handleSubmit} className="register-club-panel-shell card space-y-5">
                 <div className="flex items-center gap-3">
                   <button type="button" onClick={() => setStep(1)} className="text-gray-400 hover:text-white transition-colors text-sm">Back</button>
                   <div>
@@ -319,7 +319,7 @@ function PasswordField({ label, value, onChange, show, onToggle, placeholder, er
 
 function BenefitsPanel() {
   return (
-    <div className="rounded-xl bg-brand-600/10 border border-brand-500/20 p-4 space-y-2">
+    <div className="register-club-benefits-shell rounded-xl bg-brand-600/10 border border-brand-500/20 p-4 space-y-2">
       <p className="text-sm font-semibold text-brand-400">What you get as a Club Admin:</p>
       <ul className="space-y-1.5">
         {[

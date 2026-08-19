@@ -742,4 +742,55 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55) !important;
 }
 
+/* Public auth pages (login/signup) use dark-tailored gradients in markup. In
+   light mode, tune those shells to match the app's softer tinted surfaces. */
+:root.light .login-shell,
+:root.light .signup-shell,
+:root.light .register-club-shell,
+:root.light .create-club-shell {
+  background-image:
+    radial-gradient(circle at 8% -6%, rgba(56, 189, 248, 0.2), transparent 30rem),
+    radial-gradient(circle at 92% 4%, rgba(14, 165, 233, 0.1), transparent 26rem),
+    radial-gradient(circle at 50% 100%, rgba(99, 102, 241, 0.08), transparent 34rem),
+    linear-gradient(180deg, #dee7f4 0%, #d4deee 55%, #ccd8ea 100%) !important;
+}
+
+:root.light .login-hero-shell,
+:root.light .login-panel-shell,
+:root.light .signup-hero-shell,
+:root.light .signup-panel-shell,
+:root.light .register-club-hero-shell,
+:root.light .register-club-panel-shell,
+:root.light .create-club-hero-shell,
+:root.light .create-club-panel-shell {
+  border-color: rgba(20, 32, 51, 0.18) !important;
+  background-image: linear-gradient(160deg, rgba(249, 252, 255, 0.94), rgba(224, 236, 250, 0.78)) !important;
+  background-color: rgba(232, 241, 251, 0.9) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.52), 0 16px 36px rgba(41, 66, 99, 0.16) !important;
+}
+
+:root.light .login-club-shell,
+:root.light .signup-club-shell,
+:root.light .register-club-benefits-shell,
+:root.light .create-club-benefits-shell {
+  border-color: rgba(14, 116, 144, 0.24) !important;
+  background-image: linear-gradient(160deg, rgba(241, 249, 255, 0.95), rgba(210, 231, 248, 0.82)) !important;
+  background-color: rgba(226, 239, 251, 0.9) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5), 0 16px 36px rgba(41, 66, 99, 0.16) !important;
+}
+
+:root.light .register-club-nav,
+:root.light .create-club-nav {
+  border-color: rgba(20, 32, 51, 0.16) !important;
+  background-image: linear-gradient(180deg, rgba(238, 245, 253, 0.94), rgba(228, 238, 250, 0.86)) !important;
+  background-color: rgba(232, 241, 251, 0.9) !important;
+}
+
+:root.light .create-club-blocked-shell {
+  border-color: rgba(180, 83, 9, 0.35) !important;
+  background-image: linear-gradient(160deg, rgba(255, 251, 235, 0.96), rgba(253, 242, 219, 0.88)) !important;
+  background-color: rgba(254, 247, 232, 0.92) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55), 0 16px 34px rgba(120, 53, 15, 0.16) !important;
+}
+
 

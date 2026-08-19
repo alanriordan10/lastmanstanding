@@ -156,7 +156,7 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.11),transparent_36rem),radial-gradient(circle_at_92%_0%,rgba(59,130,246,0.06),transparent_24rem),linear-gradient(180deg,#0a1224_0%,#0b1322_100%)] px-4 py-10">
+    <div className="signup-shell relative flex min-h-screen items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.11),transparent_36rem),radial-gradient(circle_at_92%_0%,rgba(59,130,246,0.06),transparent_24rem),linear-gradient(180deg,#0a1224_0%,#0b1322_100%)] px-4 py-10">
       <SeoMeta
         title="Create Your Account | Last Man Standing"
         description="Create a Last Man Standing account to join football survivor pools, track picks, and receive competition updates."
@@ -165,7 +165,7 @@ export default function SignupPage() {
       />
       
       <div className="grid w-full max-w-5xl gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-        <section className="relative overflow-hidden rounded-[1.9rem] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.2),transparent_24rem),radial-gradient(circle_at_85%_16%,rgba(250,204,21,0.06),transparent_18rem),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))] px-6 py-8 shadow-[0_30px_75px_rgba(2,6,23,0.48)]">
+        <section className="signup-hero-shell relative overflow-hidden rounded-[1.9rem] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.2),transparent_24rem),radial-gradient(circle_at_85%_16%,rgba(250,204,21,0.06),transparent_18rem),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))] px-6 py-8 shadow-[0_30px_75px_rgba(2,6,23,0.48)]">
           <div className="inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-200">
             Player signup
           </div>
@@ -184,7 +184,7 @@ export default function SignupPage() {
         </section>
 
         <div className="w-full space-y-5 lg:space-y-6">
-        <form onSubmit={handleSubmit} className="card space-y-5">
+        <form onSubmit={handleSubmit} className="signup-panel-shell card space-y-5">
           <div>
             <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-gray-300">
               Email
@@ -335,10 +335,10 @@ export default function SignupPage() {
             {loading ? 'Creating account…' : 'Create Account'}
           </button>
         </form>
-        <div className="card !border-white/12">
+        <div className="signup-panel-shell card !border-white/12">
           <SocialAuthButtons mode="signup" />
         </div>
-        <div className="rounded-2xl border border-cyan-400/20 bg-cyan-500/[0.07] px-4 py-3.5">
+        <div className="signup-club-shell rounded-2xl border border-cyan-400/20 bg-cyan-500/[0.07] px-4 py-3.5">
           <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm leading-5 text-cyan-100">
             <span>Planning to run competitions for a club?</span>
             <Link to="/register-club" className="font-semibold text-cyan-200 underline decoration-cyan-300/60 underline-offset-2 hover:text-white">
