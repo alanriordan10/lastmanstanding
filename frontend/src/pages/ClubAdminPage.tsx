@@ -547,7 +547,7 @@ export default function ClubAdminPage() {
                           {!billing.freeCompetitionUsed ? 'Free competition' : 'Slot credits'}
                         </div>
                         {!billing.freeCompetitionUsed && (
-                          <span className="rounded-full border border-emerald-400/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-100">
+                          <span className="badge badge-green text-[10px]">
                             Included
                           </span>
                         )}

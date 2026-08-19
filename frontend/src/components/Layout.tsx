@@ -19,6 +19,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const navItemClass =
     'inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-white/12 bg-white/[0.035] px-2.5 text-[11px] font-medium text-gray-300 transition-all hover:-translate-y-[1px] hover:border-white/22 hover:bg-white/[0.08] hover:text-white sm:shrink-0 sm:w-auto sm:gap-1.5 sm:px-3.5 sm:text-sm';
+  const iconNavButtonClass =
+    'inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/12 bg-white/[0.035] text-gray-300 transition-all hover:-translate-y-[1px] hover:border-white/22 hover:bg-white/[0.08] hover:text-white';
   const navTextClass = 'inline';
   const navClass = (active: boolean) =>
     `${navItemClass} ${active ? 'border-sky-300/50 bg-sky-400/12 text-sky-100 shadow-[inset_0_0_0_1px_rgba(56,189,248,0.24),0_8px_18px_rgba(56,189,248,0.10)]' : ''}`;
@@ -35,7 +37,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const themeIcon = theme === 'light'
     ? (
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 shrink-0">
-        <path d="M21 14.1A8.5 8.5 0 0 1 9.9 3a1 1 0 0 0-1.2 1.2A10.5 10.5 0 1 0 19.8 15.3a1 1 0 0 0 1.2-1.2Z"/>
+        <path d="M21.752 15.002A9.718 9.718 0 0 1 18 15.75C12.615 15.75 8.25 11.385 8.25 6c0-1.33.266-2.597.748-3.752A9.753 9.753 0 1 0 21.752 15.002Z" />
       </svg>
     )
     : (
@@ -64,7 +66,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <div className="flex flex-wrap items-center gap-1 sm:gap-2 md:justify-end">
               <Link to="/faq" className={navClass(location.pathname.startsWith('/faq'))}>FAQ</Link>
               <Link to="/contact" className={navClass(location.pathname.startsWith('/contact'))}>Contact</Link>
-              <button type="button" onClick={toggleTheme} className={`${navItemClass} px-2.5 sm:px-2.5`} aria-label={themeButtonLabel} title={themeButtonLabel}>
+              <button type="button" onClick={toggleTheme} className={iconNavButtonClass} aria-label={themeButtonLabel} title={themeButtonLabel}>
                 {themeIcon}
               </button>
               <Link to="/login" className={navClass(location.pathname.startsWith('/login'))}>Sign in</Link>
@@ -109,7 +111,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <button
               type="button"
               onClick={toggleTheme}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/20 bg-white/[0.08] text-[11px] font-medium text-gray-200 transition-all hover:border-white/30 hover:bg-white/[0.12]"
+              className={iconNavButtonClass}
               aria-label={themeButtonLabel}
               title={themeButtonLabel}
             >
@@ -212,7 +214,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <button
                   type="button"
                   onClick={toggleTheme}
-                  className={`${navItemClass} px-2.5 sm:px-2.5`}
+                  className={iconNavButtonClass}
                   aria-label={themeButtonLabel}
                   title={themeButtonLabel}
                 >

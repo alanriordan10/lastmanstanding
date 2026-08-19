@@ -586,6 +586,22 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   border-color: rgba(22, 163, 74, 0.4) !important;
 }
 
+/* Emerald — used by free-competition badges/chips in Club Admin */
+:root.light [class*="text-emerald-100"],
+:root.light [class*="text-emerald-200"],
+:root.light [class*="text-emerald-300"] {
+  color: #065f46 !important;
+}
+:root.light [class*="bg-emerald-600/"],
+:root.light [class*="bg-emerald-500/"],
+:root.light [class*="bg-emerald-400/"] {
+  background-color: rgba(16, 185, 129, 0.16) !important;
+}
+:root.light [class*="border-emerald-400/"],
+:root.light [class*="border-emerald-500/"] {
+  border-color: rgba(16, 185, 129, 0.4) !important;
+}
+
 /* Purple */
 :root.light [class*="text-purple-200"],
 :root.light [class*="text-purple-300"] {
