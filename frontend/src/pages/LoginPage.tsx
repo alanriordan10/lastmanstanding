@@ -68,7 +68,7 @@ export default function LoginPage() {
   const inputInvalid = status.kind === 'error' || status.kind === 'locked';
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_8%_-8%,rgba(56,189,248,0.16),transparent_34rem),linear-gradient(180deg,#0a1220_0%,#09101d_100%)] px-4 py-10">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_8%_-8%,rgba(56,189,248,0.14),transparent_34rem),radial-gradient(circle_at_92%_0%,rgba(59,130,246,0.07),transparent_26rem),linear-gradient(180deg,#0a1220_0%,#09101d_100%)] px-4 py-10">
 
       <SeoMeta
         title="Sign In | Last Man Standing"
@@ -77,18 +77,18 @@ export default function LoginPage() {
         noindex
       />
       <div className="relative grid w-full max-w-6xl gap-6 lg:grid-cols-[1.08fr_0.92fr]">
-        <section className="relative overflow-hidden rounded-[2rem] border border-white/15 bg-[linear-gradient(145deg,rgba(17,27,46,0.9),rgba(10,17,32,0.86))] px-6 py-8 shadow-[0_18px_42px_rgba(2,6,23,0.34)] backdrop-blur-sm sm:px-8 sm:py-10">
+        <section className="relative overflow-hidden rounded-[2rem] border border-white/12 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.16),transparent_24rem),linear-gradient(145deg,rgba(17,27,46,0.9),rgba(10,17,32,0.86))] px-6 py-8 shadow-[0_18px_42px_rgba(2,6,23,0.34)] backdrop-blur-sm sm:px-8 sm:py-10">
           <div className="inline-flex rounded-full border border-sky-300/35 bg-sky-400/12 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-sky-100">
             Member access
           </div>
           <div className="mt-6 flex h-20 w-20 items-center justify-center overflow-hidden rounded-3xl bg-transparent p-0 shadow-[0_10px_24px_rgba(2,6,23,0.35)]">
             <img src="/app-logo.png?v=20260511" alt="Last Man Standing logo" className="h-full w-full rounded-2xl object-cover" />
           </div>
-          <h1 className="mt-6 text-4xl font-black tracking-tight text-slate-100 sm:text-[44px]">Welcome Back</h1>
+          <h1 className="mt-6 text-4xl font-black tracking-tight text-slate-100 sm:text-[44px]">Welcome back</h1>
           <p className="mt-3 max-w-lg text-sm leading-6 text-slate-300 sm:text-[16px]">
             {isCreateClubReturn
               ? 'Sign in to continue your club setup. We will take you straight back to Create Club.'
-              : 'Sign in to manage your picks, review results, and stay ahead of the next lock.'}
+              : 'Sign in to manage your picks, review results, and stay ahead of the next deadline.'}
           </p>
           <div className="mt-8 grid grid-cols-3 gap-3 sm:gap-4">
             <AuthMetric label="Picks" value="Live" />
@@ -100,7 +100,7 @@ export default function LoginPage() {
         <div className="w-full space-y-5 lg:space-y-6">
         <form
           onSubmit={handleSubmit}
-          className="rounded-[1.4rem] border border-white/15 bg-[linear-gradient(150deg,rgba(17,27,46,0.9),rgba(10,17,32,0.88))] p-5 shadow-[0_14px_34px_rgba(2,6,23,0.3)] backdrop-blur-md sm:p-6"
+          className="rounded-[1.4rem] border border-white/12 bg-[linear-gradient(150deg,rgba(17,27,46,0.88),rgba(10,17,32,0.86))] p-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02),0_14px_34px_rgba(2,6,23,0.3)] backdrop-blur-md sm:p-6"
         >
           {isCreateClubReturn ? (
             <div className="mb-4 rounded-xl border border-cyan-400/35 bg-cyan-500/10 px-3.5 py-2.5 text-sm text-cyan-100">
@@ -160,7 +160,7 @@ export default function LoginPage() {
             {loading ? 'Signing in…' : status.kind === 'locked' ? 'Locked out' : isCreateClubReturn ? 'Sign In & Continue to Create Club' : 'Sign In'}
           </button>
         </form>
-        <div className="rounded-[1.4rem] border border-white/15 bg-[linear-gradient(150deg,rgba(17,27,46,0.9),rgba(10,17,32,0.88))] p-5 shadow-[0_14px_34px_rgba(2,6,23,0.3)] backdrop-blur-md sm:p-6">
+        <div className="rounded-[1.4rem] border border-white/12 bg-[linear-gradient(150deg,rgba(17,27,46,0.88),rgba(10,17,32,0.86))] p-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02),0_14px_34px_rgba(2,6,23,0.3)] backdrop-blur-md sm:p-6">
           <SocialAuthButtons mode="login" continuationHint={isCreateClubReturn ? 'to continue to Create Club' : undefined} />
         </div>
 
@@ -170,7 +170,7 @@ export default function LoginPage() {
             Sign up
           </Link>
         </p>
-        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs font-semibold text-gray-500">
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs font-medium text-gray-400">
           <Link to="/guide" className="hover:text-brand-300">User guide</Link>
           <Link to="/faq" className="hover:text-brand-300">FAQ</Link>
           <Link to="/privacy" className="hover:text-brand-300">Privacy</Link>
@@ -182,15 +182,15 @@ export default function LoginPage() {
             href="https://play.google.com/store/apps/details?id=com.lastmanstanding.app"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.05] px-3.5 py-1.5 text-xs font-semibold text-gray-200 transition hover:border-white/25 hover:bg-white/[0.1] hover:text-white"
+            className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.045] px-3.5 py-1.5 text-xs font-semibold text-gray-200 transition hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
           >
             <span>📱</span>
-            <span>Using Android? Get the app on Google Play</span>
+            <span>On Android? Get the app on Google Play</span>
           </a>
         </div>
 
         {!hideClubCta ? (
-          <div className="rounded-[1.4rem] border border-sky-300/30 bg-[linear-gradient(145deg,rgba(14,165,233,0.16),rgba(14,24,42,0.9))] p-5 shadow-[0_14px_34px_rgba(2,6,23,0.3)]">
+          <div className="rounded-[1.4rem] border border-sky-300/24 bg-[linear-gradient(145deg,rgba(14,165,233,0.14),rgba(14,24,42,0.88))] p-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02),0_14px_34px_rgba(2,6,23,0.3)]">
             <div className="inline-flex rounded-full border border-sky-300/35 bg-sky-400/12 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-sky-100">
               Running a club?
             </div>

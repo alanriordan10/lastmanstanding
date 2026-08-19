@@ -4,6 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import api from '../api';
 import type { Competition, Club, MyCompetition } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import type { AxiosError } from 'axios';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -54,14 +55,19 @@ function normalizeCompetition(raw: any): Competition | null {
   } satisfies Competition;
 }
 
-function competitionCardStyle(comp: Competition): CSSProperties | undefined {
+function competitionCardStyle(comp: Competition, isLight = false): CSSProperties | undefined {
   const primary = comp.clubPrimaryColor;
   const secondary = comp.clubSecondaryColor ?? comp.clubPrimaryColor;
   if (!primary) return undefined;
+  const softenedTopBorder = /^#[0-9a-fA-F]{6}$/.test(primary) ? `${primary}cc` : primary;
+  // Light mode needs a touch more alpha for the wash to read against the pale
+  // card surface; dark mode keeps the original subtler values.
+  const primaryAlpha = isLight ? '26' : '16';
+  const secondaryAlpha = isLight ? '1f' : '10';
   return {
-    borderTopColor: primary,
-    borderTopWidth: '3px',
-    backgroundImage: `radial-gradient(circle at top right, ${primary}16, transparent 12rem), radial-gradient(circle at 18% 100%, ${secondary}10, transparent 10rem)`,
+    borderTopColor: softenedTopBorder,
+    borderTopWidth: '2px',
+    backgroundImage: `radial-gradient(circle at top right, ${primary}${primaryAlpha}, transparent 12rem), radial-gradient(circle at 18% 100%, ${secondary}${secondaryAlpha}, transparent 10rem)`,
   };
 }
 
@@ -549,7 +555,7 @@ export default function CompetitionsPage() {
         noindex
       />
       {/* ── Page header ── */}
-      <div className="relative overflow-visible rounded-[1.75rem] border border-white/8 bg-[radial-gradient(circle_at_10%_0%,rgba(251,191,36,0.18),transparent_28rem),radial-gradient(circle_at_85%_15%,rgba(56,189,248,0.18),transparent_24rem),linear-gradient(135deg,rgba(15,23,42,0.92),rgba(8,15,30,0.9))] px-4 py-5 shadow-[0_28px_70px_rgba(2,6,23,0.42)] sm:px-6 sm:py-6">
+      <div className="comp-hero-shell relative overflow-visible rounded-[1.75rem] border border-white/8 bg-[radial-gradient(circle_at_10%_0%,rgba(251,191,36,0.18),transparent_28rem),radial-gradient(circle_at_85%_15%,rgba(56,189,248,0.18),transparent_24rem),linear-gradient(135deg,rgba(15,23,42,0.92),rgba(8,15,30,0.9))] px-4 py-5 shadow-[0_28px_70px_rgba(2,6,23,0.42)] sm:px-6 sm:py-6">
         <div className="absolute right-0 top-0 h-24 w-24 translate-x-8 -translate-y-8 rounded-full bg-amber-300/15 blur-2xl" />
         <div className="absolute inset-0 opacity-[0.08] pointer-events-none" style={{
           backgroundImage: 'radial-gradient(rgba(255,255,255,0.5) 0.5px, transparent 0.5px)',
@@ -557,7 +563,7 @@ export default function CompetitionsPage() {
         }} />
         <div className="relative flex flex-col gap-5">
           <div>
-            <div className="inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-200">
+            <div className="comp-hero-pill inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-200">
               Matchday hub
             </div>
             <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">Competitions</h1>
@@ -601,9 +607,9 @@ export default function CompetitionsPage() {
       )}
 
       {/* ── Navigation + controls ── */}
-      <div className="rounded-2xl border border-white/10 bg-[linear-gradient(135deg,rgba(30,41,59,0.72),rgba(15,23,42,0.8))] p-3 shadow-[0_24px_55px_rgba(2,6,23,0.38)] sm:p-4">
+      <div className="comp-controls-shell rounded-2xl border border-white/10 bg-[linear-gradient(135deg,rgba(30,41,59,0.72),rgba(15,23,42,0.8))] p-3 shadow-[0_24px_55px_rgba(2,6,23,0.38)] sm:p-4">
         <div className="flex flex-col gap-3">
-          <div className="grid grid-cols-2 rounded-2xl border border-white/10 bg-[linear-gradient(135deg,rgba(30,41,59,0.72),rgba(15,23,42,0.78))] p-1.5 overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] lg:flex lg:flex-wrap">
+          <div className="comp-tabs-shell grid grid-cols-2 rounded-2xl border border-white/10 bg-[linear-gradient(135deg,rgba(30,41,59,0.72),rgba(15,23,42,0.78))] p-1.5 overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] lg:flex lg:flex-wrap">
             <ModeTab
               active={viewMode === 'available'}
               onClick={() => setViewMode('available')}
@@ -652,7 +658,7 @@ export default function CompetitionsPage() {
 
             {viewMode === 'available' && (
               <div className="flex w-full flex-col gap-3 sm:ml-auto sm:w-[26rem]">
-                <div className="rounded-2xl border border-brand-500/25 bg-brand-500/[0.07] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                <div className="comp-join-box rounded-2xl border border-brand-500/25 bg-brand-500/[0.07] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                   <div className="mb-2 flex items-start gap-3">
                     <div className="grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-brand-400/40 bg-brand-400/15 text-sm font-black text-brand-200">#</div>
                     <div>
@@ -705,7 +711,7 @@ export default function CompetitionsPage() {
           </div>
 
           {viewMode === 'available' && (showFilters || activeFilterCount > 0) && (
-            <div className="grid gap-3 rounded-xl border border-white/10 bg-[linear-gradient(135deg,rgba(15,23,42,0.72),rgba(2,6,23,0.62))] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:grid-cols-[1.4fr_1fr_1fr_1fr_auto] sm:items-end">
+            <div className="comp-advanced-shell grid gap-3 rounded-xl border border-white/10 bg-[linear-gradient(135deg,rgba(15,23,42,0.72),rgba(2,6,23,0.62))] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:grid-cols-[1.4fr_1fr_1fr_1fr_auto] sm:items-end">
               <div>
                 <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Status</p>
                 <div className="-mx-1 overflow-x-auto pb-1 sm:mx-0 sm:overflow-visible">
@@ -1435,7 +1441,7 @@ function SurvivorBar({ active, total }: { active: number; total: number }) {
   const pct = Math.round((active / total) * 100);
   return (
     <div className="mt-3">
-      <div className="flex justify-between text-xs text-gray-500 mb-1">
+      <div className="mb-1 flex justify-between text-xs text-gray-400">
         <span>{active} surviving</span>
         <span>{total} started</span>
       </div>
@@ -1459,11 +1465,13 @@ function CompetitionCard({ comp, joined, onJoin, isPending, actionHint, isHighli
   const clubSupport = comp.clubSecondaryColor ?? comp.clubPrimaryColor ?? null;
   const effectiveActiveCount = comp.activeCount ?? comp.participantCount;
   const maxEntries = comp.maxEntriesPerUser ?? 1;
+  const { resolvedTheme } = useTheme();
 
   return (
     <div
       className={`card flex flex-col p-4 sm:p-5 transition-colors ${isHighlighted ? 'border-brand-400 shadow-[0_0_0_1px_rgba(56,189,248,0.45),0_18px_40px_rgba(8,15,30,0.28)]' : joined ? 'border-brand-500/60 hover:border-brand-400/80' : 'hover:border-gray-600'}`}
-      style={competitionCardStyle(comp)}
+      data-club-branded={comp.clubPrimaryColor ? '' : undefined}
+      style={competitionCardStyle(comp, resolvedTheme === 'light')}
     >
       <div className="min-h-[24px]">
         {isHighlighted && (
@@ -1512,6 +1520,7 @@ function CompetitionCard({ comp, joined, onJoin, isPending, actionHint, isHighli
         {comp.clubName && (
           <span
             className="inline-flex max-w-full truncate badge-yellow badge-soft align-top"
+            data-club-branded={clubSupport ? '' : undefined}
             style={competitionAccentBadgeStyle(clubSupport)}
           >
             {comp.clubName}
@@ -1648,12 +1657,14 @@ function MyCompetitionCard({ myComp, actionHint, showEntryBadge = false }: { myC
     const ms = parsed.getTime() - Date.now();
     return ms > 0 && ms <= 24 * 60 * 60 * 1000;
   }, [myStatus, comp.status, comp.firstGameweekDate, comp.startDate]);
+  const { resolvedTheme } = useTheme();
 
   return (
     <Link
       to={`/competitions/${comp.id}`}
-      className="card group block flex flex-col !border-white/30 p-3 sm:p-3.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08),0_12px_28px_rgba(2,6,23,0.24)] transition-all hover:!border-white/45 hover:bg-white/[0.055] hover:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12),0_16px_34px_rgba(2,6,23,0.3)]"
-      style={competitionCardStyle(comp)}
+      className={`card group block flex flex-col p-3 sm:p-3.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05),0_12px_28px_rgba(2,6,23,0.24)] transition-all hover:bg-white/[0.05] hover:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.09),0_16px_34px_rgba(2,6,23,0.3)] ${comp.clubPrimaryColor ? '' : '!border-white/28 hover:!border-white/40'}`}
+      data-club-branded={comp.clubPrimaryColor ? '' : undefined}
+      style={competitionCardStyle(comp, resolvedTheme === 'light')}
     >
       <div className={`${entryBadgeVisible ? 'mb-2' : 'mb-1.5'} flex flex-wrap items-center gap-1.5`}>
         <span className={comp.status === 'UPCOMING' ? 'badge-blue' : comp.status === 'ACTIVE' ? 'badge-green' : 'badge-gray'}>
@@ -1664,7 +1675,7 @@ function MyCompetitionCard({ myComp, actionHint, showEntryBadge = false }: { myC
         {paymentState === 'AWAITING_PAYMENT' && <span className="badge-yellow">Awaiting payment</span>}
         {paymentState === 'PAID' && comp.paymentMode && comp.paymentMode !== 'FREE' && <span className="badge-green">Paid</span>}
         {urgencyDueSoon && <span className="badge-yellow">Due soon</span>}
-        <span className="rounded-full border border-cyan-400/35 bg-cyan-500/12 px-2 py-0.5 text-[10px] font-semibold text-cyan-200">
+        <span className="rounded-full border border-cyan-400/32 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-semibold text-cyan-200/95">
           {fixtureSourceLabel(comp)}
         </span>
       </div>
@@ -1680,6 +1691,7 @@ function MyCompetitionCard({ myComp, actionHint, showEntryBadge = false }: { myC
         {comp.clubName && (
           <span
             className="inline-flex max-w-full truncate badge-yellow badge-soft align-top"
+            data-club-branded={clubSupport ? '' : undefined}
             style={competitionAccentBadgeStyle(clubSupport)}
           >
             {comp.clubName}
@@ -1687,7 +1699,7 @@ function MyCompetitionCard({ myComp, actionHint, showEntryBadge = false }: { myC
         )}
       </div>
       {actionHint && (
-        <div className="mt-2 rounded-lg border border-amber-400/40 bg-amber-500/12 px-2.5 py-1.5">
+        <div className="mt-2 rounded-lg border border-amber-400/32 bg-amber-500/10 px-2.5 py-1.5">
           <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-300">Action required</div>
           <div className="mt-0.5 text-xs text-amber-100">{actionHint}</div>
         </div>
@@ -1702,27 +1714,27 @@ function MyCompetitionCard({ myComp, actionHint, showEntryBadge = false }: { myC
 
       <div className="mt-2 grid grid-cols-2 gap-x-2.5 gap-y-1.5 text-xs text-gray-300">
         <div className="min-h-[30px]">
-          <span className="block text-gray-500">Players</span>
+          <span className="block text-gray-400">Players</span>
           <span className="text-gray-200 font-medium">{comp.participantCount}</span>
         </div>
         <div className="min-h-[30px]">
-          <span className="block text-gray-500">Surviving</span>
+          <span className="block text-gray-400">Surviving</span>
           {comp.status === 'ACTIVE' ? (
             <span className="text-green-400 font-medium">{effectiveActiveCount}</span>
           ) : (
-            <span className="text-gray-600">—</span>
+            <span className="text-gray-500">—</span>
           )}
         </div>
         <div className="min-h-[30px]">
-          <span className="block text-gray-500">Eliminated GW</span>
+          <span className="block text-gray-400">Eliminated GW</span>
           {eliminatedWeek ? (
             <span className="text-red-400 font-medium">{eliminatedWeek}</span>
           ) : (
-            <span className="text-gray-600">—</span>
+            <span className="text-gray-500">—</span>
           )}
         </div>
         <div className="min-h-[30px]">
-          <span className="block text-gray-500">Your Status</span>
+          <span className="block text-gray-400">Your Status</span>
           <span className={`font-medium ${
             myStatus === 'WINNER' ? 'text-yellow-400' :
             myStatus === 'ELIMINATED' ? 'text-red-400' :
@@ -1732,7 +1744,7 @@ function MyCompetitionCard({ myComp, actionHint, showEntryBadge = false }: { myC
           </span>
         </div>
         <div className="min-h-[36px]">
-          <span className="block text-gray-500">Payment</span>
+          <span className="block text-gray-400">Payment</span>
           <span className={`font-medium ${
             paymentState === 'PAID' ? 'text-green-400' :
             paymentState === 'AWAITING_PAYMENT' ? 'text-yellow-400' :
@@ -1743,7 +1755,7 @@ function MyCompetitionCard({ myComp, actionHint, showEntryBadge = false }: { myC
         </div>
         {comp.winnerUsername && (
           <div className="col-span-2 min-h-[30px]">
-            <span className="block text-gray-500">Winner</span>
+            <span className="block text-gray-400">Winner</span>
             <span className="text-yellow-400 font-medium">🏆 {comp.winnerUsername}</span>
           </div>
         )}
@@ -1756,7 +1768,7 @@ function MyCompetitionCard({ myComp, actionHint, showEntryBadge = false }: { myC
       </div>
 
       <div className={`mt-auto ${entryBadgeVisible ? 'pt-2' : 'pt-1.5'}`}>
-        <div className="btn-secondary w-full py-1.5 text-center text-sm group-hover:border-white/20 group-hover:bg-surface-600/90">
+        <div className="btn-secondary w-full border-white/20 py-1.5 text-center text-sm group-hover:border-white/30 group-hover:bg-surface-600/90">
           View Competition →
         </div>
       </div>
@@ -1802,12 +1814,14 @@ function MyCompetitionRow({
     : myComp.myStatus === 'WINNER'
     ? { icon: '🏆', label: 'Won', tone: 'text-yellow-300 border-yellow-400/35 bg-yellow-500/10' }
     : { icon: '✓', label: 'OK', tone: 'text-green-300 border-green-500/30 bg-green-500/10' };
+  const { resolvedTheme } = useTheme();
 
   return (
     <Link
       to={`/competitions/${comp.id}`}
-      className={`card group block px-4 py-3.5 transition-colors hover:border-white/40 hover:bg-white/[0.1] active:bg-white/[0.12] ${isDueSoon ? 'border-amber-400/45 bg-[linear-gradient(135deg,rgba(245,158,11,0.12),rgba(245,158,11,0.02))]' : ''}`}
-      style={competitionCardStyle(comp)}
+      className={`card group block px-4 py-3.5 transition-colors hover:border-white/34 hover:bg-white/[0.08] active:bg-white/[0.10] ${isDueSoon ? 'border-amber-400/40 bg-[linear-gradient(135deg,rgba(245,158,11,0.11),rgba(245,158,11,0.02))]' : ''}`}
+      data-club-branded={comp.clubPrimaryColor ? '' : undefined}
+      style={competitionCardStyle(comp, resolvedTheme === 'light')}
     >
       {/* ── Row 1: status dot + name + entry badge + status pill ── */}
       <div className="flex items-start gap-3">
@@ -1832,10 +1846,10 @@ function MyCompetitionRow({
           </div>
           {/* Meta row: players / surviving / fee / date — each on its own readable chip */}
           <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] text-gray-200">
-            <span className="rounded-md border border-white/15 bg-white/10 px-2 py-0.5">👥 {comp.participantCount ?? 0} players</span>
-            {comp.status === 'ACTIVE' && <span className="rounded-md border border-white/15 bg-white/10 px-2 py-0.5">🛡 {survivingLabel} surviving</span>}
-            <span className="rounded-md border border-white/15 bg-white/10 px-2 py-0.5">{comp.entryFee > 0 ? `€${comp.entryFee}` : 'Free entry'}</span>
-            <span className="rounded-md border border-white/15 bg-white/10 px-2 py-0.5">📅 {startFieldLabel}: {startLabel}</span>
+            <span className="rounded-md border border-white/15 bg-white/[0.09] px-2 py-0.5">👥 {comp.participantCount ?? 0} players</span>
+            {comp.status === 'ACTIVE' && <span className="rounded-md border border-white/15 bg-white/[0.09] px-2 py-0.5">🛡 {survivingLabel} surviving</span>}
+            <span className="rounded-md border border-white/15 bg-white/[0.09] px-2 py-0.5">{comp.entryFee > 0 ? `€${comp.entryFee}` : 'Free entry'}</span>
+            <span className="rounded-md border border-white/15 bg-white/[0.09] px-2 py-0.5">📅 {startFieldLabel}: {startLabel}</span>
           </div>
           {actionHint && (
             <p className="mt-2 text-xs font-medium text-amber-300">⚠ {actionHint}</p>
@@ -1852,11 +1866,13 @@ function MyCompetitionRow({
 
 function PastCompetitionCard({ comp }: { comp: Competition }) {
   const clubSupport = comp.clubSecondaryColor ?? comp.clubPrimaryColor ?? null;
+  const { resolvedTheme } = useTheme();
   return (
     <Link
       to={`/competitions/${comp.id}`}
       className="card flex flex-col p-3.5 sm:p-4.5 group transition-all hover:border-gray-600 block"
-      style={competitionCardStyle(comp)}
+      data-club-branded={comp.clubPrimaryColor ? '' : undefined}
+      style={competitionCardStyle(comp, resolvedTheme === 'light')}
     >
       <div className="mb-2.5"><span className="badge-gray">FINISHED</span></div>
       <h3 className="text-base sm:text-lg font-bold leading-snug line-clamp-2">{comp.name}</h3>
@@ -1865,6 +1881,7 @@ function PastCompetitionCard({ comp }: { comp: Competition }) {
         {comp.clubName && (
           <span
             className="inline-flex max-w-full truncate badge-yellow badge-soft align-top"
+            data-club-branded={clubSupport ? '' : undefined}
             style={competitionAccentBadgeStyle(clubSupport)}
           >
             {comp.clubName}

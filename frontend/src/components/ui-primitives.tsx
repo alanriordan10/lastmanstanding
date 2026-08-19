@@ -39,9 +39,9 @@ export function StatusPill({
 
 export function MetricCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.09),rgba(255,255,255,0.03))] px-3 py-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+    <div className="stat-tile-shell rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.09),rgba(255,255,255,0.03))] px-3 py-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
       <div className="text-xl font-black text-white sm:text-2xl">{value}</div>
-      <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-200/85">{label}</div>
+      <div className="metric-card-label mt-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-200/85">{label}</div>
     </div>
   );
 }

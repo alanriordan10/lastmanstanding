@@ -13,8 +13,8 @@ const providers = [
     id: 'google',
     name: 'Google',
     textColor: 'text-gray-100',
-    bg: 'bg-[linear-gradient(135deg,rgba(30,41,59,0.88),rgba(15,23,42,0.92))] hover:bg-[linear-gradient(135deg,rgba(51,65,85,0.92),rgba(30,41,59,0.92))]',
-    border: 'border border-white/10 hover:border-brand-400/45',
+    bg: 'bg-[linear-gradient(135deg,rgba(30,41,59,0.84),rgba(15,23,42,0.9))] hover:bg-[linear-gradient(135deg,rgba(51,65,85,0.9),rgba(30,41,59,0.92))]',
+    border: 'border border-white/12 hover:border-brand-400/35',
     icon: (
       <svg className="h-5 w-5" viewBox="0 0 24 24">
         <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -43,9 +43,9 @@ export default function SocialAuthButtons({ mode, continuationHint }: SocialAuth
     <div className="space-y-3">
       {/* Divider */}
       <div className="relative flex items-center">
-        <div className="flex-grow border-t border-gray-700" />
+        <div className="flex-grow border-t border-white/10" />
         <span className="mx-3 shrink-0 text-xs text-gray-500">or {verb} with</span>
-        <div className="flex-grow border-t border-gray-700" />
+        <div className="flex-grow border-t border-white/10" />
       </div>
 
       {/* Provider buttons */}
@@ -58,7 +58,7 @@ export default function SocialAuthButtons({ mode, continuationHint }: SocialAuth
             type="button"
             onClick={() => handleClick(provider.name)}
             disabled={Boolean(oauthBusyProvider)}
-            className={`group flex items-center justify-center gap-2.5 rounded-xl px-4 py-3 text-sm font-semibold tracking-tight transition-all shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${provider.bg} ${provider.border} ${provider.textColor} ${oauthBusyProvider ? 'cursor-not-allowed opacity-80' : ''}`}
+            className={`group flex items-center justify-center gap-2.5 rounded-xl px-4 py-3 text-sm font-semibold tracking-tight transition-all shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${provider.bg} ${provider.border} ${provider.textColor} ${oauthBusyProvider ? 'cursor-not-allowed opacity-80' : 'hover:-translate-y-[1px] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_10px_24px_rgba(2,6,23,0.26)]'}`}
             aria-label={`${verb} with ${provider.name}`}
             aria-busy={isBusy}
           >

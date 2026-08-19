@@ -8,12 +8,24 @@
     --app-bg: #0a111f;
     --app-bg-mid: #0a1323;
     --app-bg-deep: #070d18;
-    --surface-1: rgba(255, 255, 255, 0.05);
-    --surface-2: rgba(255, 255, 255, 0.08);
+    --surface-1: rgba(255, 255, 255, 0.046);
+    --surface-2: rgba(255, 255, 255, 0.07);
     --text-primary: #f2f6ff;
-    --text-secondary: #b7c2d9;
-    --text-muted: #7e8aa6;
+    --text-secondary: #c1cbe0;
+    --text-muted: #8996b0;
 
+  }
+
+  :root.light {
+    color-scheme: light;
+    --app-bg: #e7ecf6;
+    --app-bg-mid: #dde6f3;
+    --app-bg-deep: #d3dcec;
+    --surface-1: rgba(255, 255, 255, 0.72);
+    --surface-2: rgba(255, 255, 255, 0.84);
+    --text-primary: #142033;
+    --text-secondary: #324760;
+    --text-muted: #4e6581;
   }
 
   html {
@@ -24,13 +36,13 @@
     @apply min-h-screen bg-surface-900 text-gray-100 antialiased;
     color: var(--text-primary);
     background-image:
-      radial-gradient(circle at 8% -6%, rgba(56, 189, 248, 0.14), transparent 26rem),
-      radial-gradient(circle at 92% 0%, rgba(59, 130, 246, 0.08), transparent 20rem),
+      radial-gradient(circle at 8% -6%, rgba(56, 189, 248, 0.1), transparent 26rem),
+      radial-gradient(circle at 92% 0%, rgba(59, 130, 246, 0.05), transparent 20rem),
       linear-gradient(180deg, var(--app-bg) 0%, var(--app-bg-mid) 52%, var(--app-bg-deep) 100%);
   }
 
   select {
-    @apply rounded-xl border border-white/10 bg-white/[0.04] text-gray-100;
+    @apply rounded-xl border border-white/15 bg-white/[0.05] text-gray-100;
     appearance: none;
     color-scheme: dark;
     padding: 0.55rem 2.5rem 0.55rem 1rem;
@@ -58,34 +70,89 @@
 
 @layer components {
   .btn-primary {
-    @apply inline-flex min-h-[42px] items-center justify-center rounded-xl border border-sky-300/35 bg-sky-400 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-[0_8px_24px_rgba(56,189,248,0.22)]
-           hover:border-sky-200/50 hover:bg-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-300 focus:ring-offset-2 focus:ring-offset-surface-900
+    @apply inline-flex min-h-[42px] items-center justify-center rounded-xl border border-sky-300/35 bg-sky-400 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-[0_10px_26px_rgba(56,189,248,0.22)]
+           hover:-translate-y-[1px] hover:border-sky-200/50 hover:bg-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-300 focus:ring-offset-2 focus:ring-offset-surface-900
            disabled:opacity-50 disabled:cursor-not-allowed transition-all;
   }
   .btn-secondary {
-    @apply inline-flex min-h-[42px] items-center justify-center rounded-xl border border-white/15 bg-white/[0.05] px-4 py-2.5 text-sm font-semibold text-gray-200 backdrop-blur-sm
-           hover:border-white/25 hover:bg-white/[0.10] focus:outline-none focus:ring-2 focus:ring-sky-300 focus:ring-offset-2 focus:ring-offset-surface-900
+    @apply inline-flex min-h-[42px] items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2.5 text-sm font-semibold text-gray-200 backdrop-blur-sm
+           hover:-translate-y-[1px] hover:border-white/25 hover:bg-white/[0.09] focus:outline-none focus:ring-2 focus:ring-sky-300 focus:ring-offset-2 focus:ring-offset-surface-900
            disabled:opacity-50 disabled:cursor-not-allowed transition-all;
   }
   .btn-danger {
-    @apply inline-flex min-h-[42px] items-center justify-center rounded-xl border border-red-300/35 bg-red-500/85 px-4 py-2.5 text-sm font-semibold text-white
-           hover:border-red-200/45 hover:bg-red-400 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all;
+    @apply inline-flex min-h-[42px] items-center justify-center rounded-xl border border-red-300/30 bg-red-500/80 px-4 py-2.5 text-sm font-semibold text-white
+           hover:border-red-200/40 hover:bg-red-400 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all;
   }
   .card {
-    @apply rounded-2xl border border-white/15 p-4 sm:p-6 shadow-[0_16px_36px_rgba(2,6,23,0.34)] backdrop-blur-md;
+    @apply rounded-2xl border border-white/20 p-4 sm:p-6 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02),0_16px_36px_rgba(2,6,23,0.34)] backdrop-blur-md;
     background-color: var(--surface-1);
   }
   .panel-shell {
-    @apply rounded-2xl border border-white/15 shadow-[0_14px_30px_rgba(2,6,23,0.28)] backdrop-blur-md;
+    @apply rounded-2xl border border-white/15 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02),0_14px_30px_rgba(2,6,23,0.28)] backdrop-blur-md;
     background-color: var(--surface-2);
   }
   .chip-muted {
-    @apply inline-flex items-center rounded-full border border-white/15 px-3 py-1.5 text-xs font-medium;
+    @apply inline-flex items-center rounded-full border border-white/20 px-3 py-1.5 text-xs font-medium;
     background-color: var(--surface-2);
     color: var(--text-secondary);
   }
+  /* ── Gameweek display preference bar (Cards / My Route switcher) ── */
+  .gw-pref-shell {
+    @apply rounded-2xl border border-white/15 p-3;
+    background-color: var(--surface-2);
+    background-image: linear-gradient(135deg, rgba(56, 189, 248, 0.16), rgba(99, 102, 241, 0.12));
+  }
+  .gw-pref-track {
+    @apply rounded-2xl border border-white/15 p-1;
+    background-color: rgba(2, 6, 23, 0.55);
+  }
+  .reset-picks-btn {
+    @apply inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition disabled:opacity-50;
+    border-color: rgba(255, 255, 255, 0.08);
+    background-color: rgba(255, 255, 255, 0.03);
+    color: var(--text-secondary);
+  }
+  .reset-picks-btn:hover:not(:disabled) {
+    border-color: rgba(248, 113, 113, 0.3);
+    background-color: rgba(239, 68, 68, 0.08);
+    color: #fecaca;
+  }
+  /* ── "My Route" gameweek view ── */
+  .route-shell {
+    @apply rounded-2xl border p-3 sm:p-4;
+    border-color: rgba(255, 255, 255, 0.12);
+    background-color: rgba(2, 6, 23, 0.55);
+  }
+  .route-team-tile {
+    border-color: rgba(255, 255, 255, 0.12);
+    background-color: rgba(255, 255, 255, 0.04);
+    color: var(--text-primary);
+  }
+  .route-team-tile:hover:not(:disabled) {
+    border-color: rgba(148, 163, 184, 0.5);
+  }
+  /* ── Club Admin participant/payment panels ── */
+  .club-admin-subtabs-shell {
+    @apply inline-flex rounded-lg border border-white/10 p-0.5;
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+  .club-admin-surface-panel {
+    @apply rounded-lg border border-white/10 p-3;
+    background-color: rgba(255, 255, 255, 0.03);
+  }
+  .club-admin-filter-shell {
+    @apply rounded-xl border border-white/10 p-2;
+    background-color: rgba(255, 255, 255, 0.04);
+  }
+  .club-admin-participant-row {
+    @apply rounded-xl border border-white/10 px-3 py-3;
+    background-color: rgba(255, 255, 255, 0.025);
+  }
+  .club-admin-participant-row:hover {
+    background-color: rgba(255, 255, 255, 0.045);
+  }
   .input-field {
-    @apply block min-h-[44px] w-full rounded-xl border border-white/15 bg-white/[0.05] px-4 py-2.5 text-sm text-gray-100
+    @apply block min-h-[44px] w-full rounded-xl border border-white/15 bg-white/[0.045] px-4 py-2.5 text-sm text-gray-100
            placeholder-gray-500 focus:border-sky-300/70 focus:ring-1 focus:ring-sky-300/70 focus:outline-none transition-colors;
   }
   select.input-field {
@@ -109,13 +176,13 @@
   .badge {
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] ring-1 ring-inset shadow-none;
   }
-  .badge-green { @apply badge bg-green-400/15 text-green-200 ring-green-400/35; }
-  .badge-red { @apply badge bg-red-400/15 text-red-200 ring-red-400/35; }
-  .badge-yellow { @apply badge bg-yellow-300/15 text-yellow-100 ring-yellow-300/35; }
-  .badge-blue { @apply badge bg-sky-400/15 text-sky-200 ring-sky-400/35; }
-  .badge-gray { @apply badge bg-slate-400/15 text-slate-200 ring-slate-400/25; }
-  .badge-purple { @apply badge bg-purple-400/15 text-purple-200 ring-purple-400/35; }
-  .badge-brand { @apply badge bg-brand-500/15 text-brand-200 ring-brand-400/35; }
+  .badge-green { @apply badge bg-green-400/10 text-green-200 ring-green-400/25; }
+  .badge-red { @apply badge bg-red-400/10 text-red-200 ring-red-400/25; }
+  .badge-yellow { @apply badge bg-yellow-300/10 text-yellow-100 ring-yellow-300/25; }
+  .badge-blue { @apply badge bg-sky-400/10 text-sky-200 ring-sky-400/25; }
+  .badge-gray { @apply badge bg-slate-400/10 text-slate-200 ring-slate-400/20; }
+  .badge-purple { @apply badge bg-purple-400/10 text-purple-200 ring-purple-400/25; }
+  .badge-brand { @apply badge bg-brand-500/10 text-brand-200 ring-brand-400/25; }
   .badge-soft { @apply normal-case tracking-normal text-[10px] font-semibold; }
   .badge-muted { @apply ring-1 ring-inset shadow-none; }
 }
@@ -181,3 +248,498 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
     transform: translateY(0) scale(1);
   }
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   Light theme overrides — intentionally UNLAYERED (not inside @layer).
+   Cascade layers give ALL @layer rules (base/components/utilities) lower
+   priority than unlayered CSS, regardless of source order or !important.
+   Keeping these overrides unlayered guarantees they beat every Tailwind
+   utility class (including arbitrary bg-[...] gradients) without having
+   to fight specificity or @layer ordering.
+   ══════════════════════════════════════════════════════════════════════ */
+
+:root.light body {
+  background-image:
+    radial-gradient(circle at 8% -6%, rgba(56, 189, 248, 0.16), transparent 30rem),
+    radial-gradient(circle at 92% 4%, rgba(250, 204, 21, 0.09), transparent 24rem),
+    radial-gradient(circle at 50% 100%, rgba(99, 102, 241, 0.06), transparent 32rem),
+    linear-gradient(180deg, var(--app-bg) 0%, var(--app-bg-mid) 52%, var(--app-bg-deep) 100%) !important;
+}
+
+:root.light .bg-surface-900 { background-color: #e7ecf6 !important; }
+:root.light .bg-surface-800 { background-color: #dde6f3 !important; }
+:root.light .bg-surface-700 { background-color: #d3dcec !important; }
+:root.light .bg-surface-600 { background-color: #c7d3e4 !important; }
+
+/* Opacity-suffixed surface backgrounds (e.g. bg-surface-700/50, hover:bg-surface-800/40)
+   used throughout results/selections tables — the exact-class rules above only match
+   the bare class, not these Tailwind slash-opacity variants, so they stayed dark navy
+   on the light theme. Catch every opacity variant generically. */
+:root.light [class*="bg-surface-600/"],
+:root.light [class*="bg-surface-700/"],
+:root.light [class*="bg-surface-800/"],
+:root.light [class*="bg-surface-900/"] {
+  background-color: rgba(234, 242, 251, 0.75) !important;
+}
+
+:root.light .bg-slate-700 {
+  background-color: rgba(148, 163, 184, 0.35) !important;
+}
+
+:root.light .text-white:not([data-club-branded]),
+:root.light .text-gray-100,
+:root.light .text-gray-200 { color: #142033 !important; }
+:root.light .text-gray-300 { color: #1f3249 !important; }
+:root.light .text-gray-400 { color: #314a66 !important; }
+:root.light .text-gray-500 { color: #47607a !important; }
+:root.light .text-gray-600 { color: #5f7893 !important; }
+
+:root.light .text-slate-300 { color: #1f3249 !important; }
+:root.light .text-slate-400 { color: #47607a !important; }
+:root.light .text-slate-500 { color: #5f7893 !important; }
+:root.light .text-slate-100,
+:root.light .text-slate-200 { color: #142033 !important; }
+:root.light .hover\:text-slate-200:hover { color: #142033 !important; }
+:root.light .hover\:text-slate-300:hover { color: #1f3249 !important; }
+
+:root.light [class*='bg-white/5']:not([data-club-branded]),
+:root.light [class*='bg-white/10']:not([data-club-branded]) { background-color: rgba(255, 255, 255, 0.55) !important; }
+
+:root.light [class*='border-white/']:not([data-club-branded]):not([data-club-accent]) { border-color: rgba(20, 32, 51, 0.2) !important; }
+:root.light [class*='bg-white/[']:not([data-club-branded]) { background-color: rgba(255, 255, 255, 0.58) !important; }
+:root.light [class*='bg-black/'] { background-color: rgba(20, 32, 51, 0.06) !important; }
+
+:root.light .card:not([data-club-branded]) {
+  border-color: rgba(20, 32, 51, 0.18) !important;
+  background-color: rgba(234, 241, 251, 0.92) !important;
+  background-image: linear-gradient(160deg, rgba(255, 255, 255, 0.9), rgba(224, 236, 250, 0.7)) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5), 0 14px 32px rgba(41, 66, 99, 0.14) !important;
+}
+
+/* Club-branded cards: keep the light base surface, but let the inline club
+   colour washes (background-image) and accent top border show through. */
+:root.light .card[data-club-branded] {
+  background-color: rgba(240, 245, 252, 0.94) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5), 0 14px 32px rgba(41, 66, 99, 0.14) !important;
+  border-right-color: rgba(20, 32, 51, 0.18);
+  border-bottom-color: rgba(20, 32, 51, 0.18);
+  border-left-color: rgba(20, 32, 51, 0.18);
+}
+
+/* Cards carrying a club accent border keep their inline club colour/shadow. */
+:root.light .card[data-club-accent] {
+  border-color: revert !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5), 0 14px 32px rgba(41, 66, 99, 0.14);
+}
+
+/* Panels that only tint one edge with the club colour: keep the inline accent
+   side, but give the remaining sides a readable light-theme border. */
+:root.light [data-club-accent] {
+  border-top-color: rgba(20, 32, 51, 0.2);
+  border-right-color: rgba(20, 32, 51, 0.2);
+  border-bottom-color: rgba(20, 32, 51, 0.2);
+}
+
+:root.light .panel-shell {
+  border-color: rgba(20, 32, 51, 0.16) !important;
+  background-color: rgba(238, 244, 252, 0.95) !important;
+  background-image: linear-gradient(160deg, rgba(255, 255, 255, 0.92), rgba(228, 238, 250, 0.75)) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6), 0 12px 28px rgba(41, 66, 99, 0.12) !important;
+}
+
+:root.light .btn-secondary {
+  border-color: rgba(20, 32, 51, 0.18) !important;
+  background-color: rgba(255, 255, 255, 0.8) !important;
+  color: #18263a !important;
+}
+
+:root.light .btn-danger {
+  border-color: rgba(220, 38, 38, 0.35) !important;
+  color: #ffffff !important;
+}
+
+:root.light .gw-pref-shell {
+  border-color: rgba(20, 32, 51, 0.18) !important;
+  background-color: rgba(234, 242, 251, 0.92) !important;
+  background-image: linear-gradient(135deg, rgba(56, 189, 248, 0.16), rgba(99, 102, 241, 0.1)) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55) !important;
+}
+
+:root.light .gw-pref-track {
+  background-color: rgba(255, 255, 255, 0.55) !important;
+  border-color: rgba(20, 32, 51, 0.16) !important;
+}
+
+:root.light .reset-picks-btn {
+  border-color: rgba(20, 32, 51, 0.16) !important;
+  background-color: rgba(255, 255, 255, 0.5) !important;
+  color: #47607a !important;
+}
+
+:root.light .reset-picks-btn:hover:not(:disabled) {
+  border-color: rgba(220, 38, 38, 0.35) !important;
+  background-color: rgba(220, 38, 38, 0.1) !important;
+  color: #991b1b !important;
+}
+
+:root.light .route-shell {
+  border-color: rgba(20, 32, 51, 0.16) !important;
+  background-color: rgba(234, 242, 251, 0.85) !important;
+  background-image: linear-gradient(160deg, rgba(255, 255, 255, 0.92), rgba(222, 236, 250, 0.68)) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5) !important;
+}
+
+:root.light .route-team-tile {
+  border-color: rgba(20, 32, 51, 0.16) !important;
+  background-color: rgba(255, 255, 255, 0.68) !important;
+  color: #142033 !important;
+}
+
+:root.light .route-team-tile:hover:not(:disabled) {
+  border-color: rgba(2, 132, 199, 0.4) !important;
+  background-color: rgba(255, 255, 255, 0.9) !important;
+}
+
+:root.light .club-admin-subtabs-shell {
+  border-color: rgba(20, 32, 51, 0.16) !important;
+  background-color: rgba(255, 255, 255, 0.62) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55) !important;
+}
+
+:root.light .club-admin-surface-panel {
+  border-color: rgba(20, 32, 51, 0.16) !important;
+  background-image: linear-gradient(160deg, rgba(255, 255, 255, 0.9), rgba(228, 239, 251, 0.72)) !important;
+  background-color: rgba(238, 244, 252, 0.88) !important;
+}
+
+:root.light .club-admin-filter-shell {
+  border-color: rgba(20, 32, 51, 0.18) !important;
+  background-image: linear-gradient(160deg, rgba(255, 255, 255, 0.9), rgba(227, 238, 251, 0.74)) !important;
+  background-color: rgba(236, 243, 252, 0.9) !important;
+}
+
+:root.light .club-admin-participant-row {
+  border-color: rgba(20, 32, 51, 0.14) !important;
+  background-image: linear-gradient(160deg, rgba(255, 255, 255, 0.84), rgba(231, 240, 252, 0.64)) !important;
+  background-color: rgba(239, 245, 252, 0.84) !important;
+}
+
+:root.light .club-admin-participant-row:hover {
+  background-image: linear-gradient(160deg, rgba(255, 255, 255, 0.96), rgba(226, 238, 252, 0.8)) !important;
+  background-color: rgba(244, 248, 253, 0.95) !important;
+}
+
+:root.light .badge-green { color: #0f5132 !important; border-color: rgba(34, 197, 94, 0.4) !important; background-color: rgba(34, 197, 94, 0.16) !important; }
+:root.light .badge-red { color: #7f1d1d !important; border-color: rgba(239, 68, 68, 0.4) !important; background-color: rgba(239, 68, 68, 0.15) !important; }
+:root.light .badge-yellow:not([data-club-branded]) { color: #7c5a0b !important; border-color: rgba(234, 179, 8, 0.4) !important; background-color: rgba(234, 179, 8, 0.16) !important; }
+:root.light .badge-blue { color: #0f4f77 !important; border-color: rgba(56, 189, 248, 0.4) !important; background-color: rgba(56, 189, 248, 0.16) !important; }
+:root.light .badge-gray { color: #324760 !important; border-color: rgba(100, 116, 139, 0.35) !important; background-color: rgba(100, 116, 139, 0.13) !important; }
+:root.light .badge-purple { color: #5b3a8d !important; border-color: rgba(168, 85, 247, 0.4) !important; background-color: rgba(168, 85, 247, 0.16) !important; }
+:root.light .badge-brand { color: #0f4f77 !important; border-color: rgba(14, 165, 233, 0.4) !important; background-color: rgba(14, 165, 233, 0.16) !important; }
+
+:root.light .input-field,
+:root.light select,
+:root.light select.input-field {
+  border-color: rgba(20, 32, 51, 0.2) !important;
+  background-color: rgba(255, 255, 255, 0.85) !important;
+  color: #142033 !important;
+}
+
+:root.light .input-field::placeholder {
+  color: #5f7893 !important;
+}
+
+/* ── Amber/yellow "action required" / warning text ──────────────────────
+   Classes like text-amber-100/200/300 and text-yellow-100/200/300 are
+   bright/light and read fine on dark amber-tinted panels, but are nearly
+   invisible on the light theme's pale backgrounds. Darken them generally,
+   and also darken the light amber/yellow backgrounds they usually sit on
+   so contrast holds up in both directions. */
+:root.light [class*="text-amber-100"],
+:root.light [class*="text-amber-200"],
+:root.light [class*="text-amber-300"],
+:root.light [class*="text-yellow-100"],
+:root.light [class*="text-yellow-200"],
+:root.light [class*="text-yellow-300"] {
+  color: #7a4a04 !important;
+}
+
+:root.light [class*="text-amber-400"],
+:root.light [class*="text-yellow-400"] {
+  color: #8a5a05 !important;
+}
+
+:root.light [class*="bg-amber-500/"],
+:root.light [class*="bg-amber-400/"],
+:root.light [class*="bg-amber-600/"],
+:root.light [class*="bg-yellow-500/"],
+:root.light [class*="bg-yellow-400/"],
+:root.light [class*="bg-yellow-300/"] {
+  background-color: rgba(217, 119, 6, 0.14) !important;
+}
+
+:root.light [class*="border-amber-400/"],
+:root.light [class*="border-amber-300/"],
+:root.light [class*="border-yellow-400/"],
+:root.light [class*="border-yellow-300/"] {
+  border-color: rgba(180, 83, 9, 0.4) !important;
+}
+
+/* ── Generic fix for ALL tinted action buttons/pills app-wide ───────────
+   Many buttons across ClubAdmin/Competitions/Profile etc. use a pattern
+   like `bg-{color}-{shade}/{opacity} text-{color}-{shade}` (e.g. "Copy
+   Invite" = bg-brand-600/15 text-brand-200, "Edit" = bg-cyan-600/20
+   text-cyan-200, "Delete" = bg-red-600/20 text-red-400). These light,
+   saturated text colors are calibrated for dark backgrounds and become
+   unreadable (or invisible) on the light theme's pale surfaces. Darken
+   each color family's text and lighten/normalize its background so every
+   tinted button stays legible without needing per-button edits. */
+
+/* Brand (sky/blue) — e.g. "Copy Invite", brand pills */
+:root.light [class*="text-brand-100"],
+:root.light [class*="text-brand-200"],
+:root.light [class*="text-brand-300"],
+:root.light [class*="text-brand-400"] {
+  color: #075985 !important;
+}
+:root.light [class*="bg-brand-600/"],
+:root.light [class*="bg-brand-500/"],
+:root.light [class*="bg-brand-400/"] {
+  background-color: rgba(2, 132, 199, 0.14) !important;
+}
+:root.light [class*="border-brand-400/"],
+:root.light [class*="border-brand-300/"],
+:root.light [class*="border-brand-500/"] {
+  border-color: rgba(2, 132, 199, 0.4) !important;
+}
+
+/* Cyan — e.g. "Edit" button */
+:root.light [class*="text-cyan-100"],
+:root.light [class*="text-cyan-200"],
+:root.light [class*="text-cyan-300"] {
+  color: #155e75 !important;
+}
+:root.light [class*="bg-cyan-600/"],
+:root.light [class*="bg-cyan-500/"],
+:root.light [class*="bg-cyan-400/"] {
+  background-color: rgba(8, 145, 178, 0.14) !important;
+}
+:root.light [class*="border-cyan-400/"],
+:root.light [class*="border-cyan-300/"] {
+  border-color: rgba(8, 145, 178, 0.4) !important;
+}
+
+/* Sky — used interchangeably with brand in places */
+:root.light [class*="text-sky-100"],
+:root.light [class*="text-sky-200"],
+:root.light [class*="text-sky-300"] {
+  color: #075985 !important;
+}
+:root.light [class*="bg-sky-500/"],
+:root.light [class*="bg-sky-400/"] {
+  background-color: rgba(2, 132, 199, 0.14) !important;
+}
+
+/* Red — e.g. "Delete" button, "Eliminated" status pill */
+:root.light [class*="text-red-200"],
+:root.light [class*="text-red-300"],
+:root.light [class*="text-red-400"] {
+  color: #991b1b !important;
+}
+:root.light [class*="bg-red-600/"],
+:root.light [class*="bg-red-500/"],
+:root.light [class*="bg-red-400/"] {
+  background-color: rgba(220, 38, 38, 0.13) !important;
+}
+:root.light [class*="border-red-400/"],
+:root.light [class*="border-red-300/"] {
+  border-color: rgba(220, 38, 38, 0.4) !important;
+}
+
+/* Rose — used by Club Admin participant remove / revert actions */
+:root.light [class*="text-rose-300"],
+:root.light [class*="text-rose-400"] {
+  color: #9f1239 !important;
+}
+:root.light [class*="bg-rose-600/"],
+:root.light [class*="bg-rose-500/"] {
+  background-color: rgba(225, 29, 72, 0.12) !important;
+}
+:root.light [class*="border-rose-400/"],
+:root.light [class*="border-rose-300/"] {
+  border-color: rgba(225, 29, 72, 0.36) !important;
+}
+
+/* Green — e.g. success/resume/active states */
+:root.light [class*="text-green-200"],
+:root.light [class*="text-green-300"],
+:root.light [class*="text-green-400"] {
+  color: #166534 !important;
+}
+:root.light [class*="bg-green-600/"],
+:root.light [class*="bg-green-500/"],
+:root.light [class*="bg-green-400/"] {
+  background-color: rgba(22, 163, 74, 0.13) !important;
+}
+:root.light [class*="border-green-400/"],
+:root.light [class*="border-green-500/"] {
+  border-color: rgba(22, 163, 74, 0.4) !important;
+}
+
+/* Purple */
+:root.light [class*="text-purple-200"],
+:root.light [class*="text-purple-300"] {
+  color: #6b21a8 !important;
+}
+:root.light [class*="bg-purple-600/"],
+:root.light [class*="bg-purple-500/"],
+:root.light [class*="bg-purple-400/"] {
+  background-color: rgba(147, 51, 234, 0.13) !important;
+}
+:root.light [class*="border-purple-400/"] {
+  border-color: rgba(147, 51, 234, 0.4) !important;
+}
+
+:root.light select option {
+  background-color: #ffffff !important;
+  color: #142033 !important;
+}
+
+/* ── Primary CTA disabled state (e.g. "+ New Competition" when no slot
+     credits) — keep it legible instead of washing out to near-invisible
+     pale text on a pale button. ── */
+:root.light .btn-primary:disabled {
+  background-color: rgba(2, 132, 199, 0.18) !important;
+  border-color: rgba(2, 132, 199, 0.35) !important;
+  color: #0c4a6e !important;
+  opacity: 1 !important;
+}
+
+/* ── Competitions page hero/control shells ── */
+:root.light .comp-hero-shell {
+  border-color: rgba(20, 32, 51, 0.2) !important;
+  background-image:
+    radial-gradient(circle at 10% 0%, rgba(251, 191, 36, 0.14), transparent 28rem),
+    radial-gradient(circle at 85% 15%, rgba(56, 189, 248, 0.16), transparent 24rem),
+    linear-gradient(135deg, #ffffff, #f1f7fd) !important;
+  box-shadow: 0 20px 52px rgba(41, 66, 99, 0.14) !important;
+}
+
+:root.light .comp-controls-shell,
+:root.light .comp-tabs-shell,
+:root.light .comp-advanced-shell {
+  border-color: rgba(20, 32, 51, 0.18) !important;
+  background-image: linear-gradient(135deg, #ffffff, #f2f7fd) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 14px 34px rgba(41, 66, 99, 0.12) !important;
+}
+
+:root.light .comp-join-box {
+  border-color: rgba(14, 165, 233, 0.3) !important;
+  background-color: rgba(14, 165, 233, 0.09) !important;
+  background-image: none !important;
+}
+
+:root.light .comp-join-box .bg-surface-950\/60 {
+  background-color: rgba(255, 255, 255, 0.85) !important;
+}
+
+:root.light .comp-hero-pill {
+  color: #0c4a6e !important;
+  border-color: rgba(14, 165, 233, 0.4) !important;
+  background-color: rgba(14, 165, 233, 0.15) !important;
+}
+
+:root.light .metric-card-label {
+  color: #43607d !important;
+}
+
+/* ── ModeTab buttons (Browse / My Competitions / Past) — override inline
+     gradient classes applied when a tab is active ── */
+:root.light .comp-tabs-shell button {
+  color: #18263a !important;
+}
+:root.light .comp-tabs-shell button[class*="border-brand-400/35"] {
+  background-image: linear-gradient(135deg, rgba(56, 189, 248, 0.22), rgba(14, 165, 233, 0.14)) !important;
+  border-color: rgba(14, 165, 233, 0.4) !important;
+  color: #0c4a6e !important;
+}
+:root.light .comp-tabs-shell button[class*="border-brand-400/35"] span {
+  color: inherit !important;
+}
+:root.light .comp-tabs-shell button span.text-brand-100\/80 {
+  color: #0f5f88 !important;
+}
+:root.light .comp-tabs-shell button span.text-gray-500 {
+  color: #5c7691 !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   App-wide fix: many page hero sections/panels/modals hardcode a dark
+   navy gradient background directly in their Tailwind arbitrary class
+   (e.g. bg-[linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))])
+   or via inline style. These never adapted to light mode. Rather than
+   patch every page individually, catch them generically by matching the
+   literal dark-navy rgba substrings that appear in the class attribute,
+   and force a light, premium (non-white) surface instead. `!important`
+   ensures this also beats inline `style` backgrounds set via JS.
+   ══════════════════════════════════════════════════════════════════════ */
+/* NOTE: the `:not([data-club-branded])` guard is the club-branding escape
+   hatch. When a competition has club branding, the hero renders its own inline
+   `background` (club colour washes over a theme-appropriate base) plus an
+   inline top border colour. Without this guard the `!important` rules below
+   would beat those inline styles and wipe the branding out in light mode.
+   Unbranded heroes carry no marker, so they still get the light treatment. */
+:root.light [class*="rgba(15,23,42"]:not([data-club-branded]),
+:root.light [class*="rgba(8,15,30"]:not([data-club-branded]),
+:root.light [class*="rgba(2,6,23"]:not([data-club-branded]),
+:root.light [class*="rgba(7,13,24"]:not([data-club-branded]),
+:root.light [class*="rgba(17,27,46"]:not([data-club-branded]),
+:root.light [class*="rgba(10,17,32"]:not([data-club-branded]),
+:root.light .competition-hero-shell:not([data-club-branded]) {
+  background-image:
+    radial-gradient(circle at 10% -10%, rgba(56, 189, 248, 0.16), transparent 26rem),
+    radial-gradient(circle at 90% 110%, rgba(250, 204, 21, 0.1), transparent 22rem),
+    linear-gradient(135deg, #ffffff, #eaf3fc) !important;
+  background: linear-gradient(135deg, #ffffff, #eaf3fc) !important;
+  border-color: rgba(20, 32, 51, 0.2) !important;
+}
+
+/* Branded hero in light mode: keep the club-coloured inline background, but
+   ensure the non-top borders stay readable against the light surface. */
+:root.light .competition-hero-shell[data-club-branded] {
+  border-right-color: rgba(20, 32, 51, 0.2);
+  border-bottom-color: rgba(20, 32, 51, 0.2);
+  border-left-color: rgba(20, 32, 51, 0.2);
+}
+
+/* Text inside these hero shells: ensure readable dark text regardless of
+   the utility classes applied (covers text-white/gray-* already handled
+   above, plus brand-tinted eyebrow/label text). */
+:root.light [class*="rgba(15,23,42"] .text-brand-200,
+:root.light [class*="rgba(15,23,42"] [class*="text-brand-200"],
+:root.light .competition-hero-shell .text-brand-200,
+:root.light .competition-hero-shell [class*="text-brand-200"] {
+  color: #0c4a6e !important;
+}
+
+/* ── "Glassy" translucent-white panels (e.g. billing/slot-credit cards
+     built from rgba(255,255,255,0.08) style gradients) — these read fine
+     as a subtle highlight on a dark hero, but disappear into nothing on
+     a light background. Give them a soft tinted panel look instead. ── */
+:root.light [class*="rgba(255,255,255,0.0"]:not([data-club-branded]),
+:root.light [class*="rgba(255,255,255,0.1"]:not([data-club-branded]) {
+  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(226, 238, 251, 0.85)) !important;
+  background-color: rgba(238, 244, 252, 0.9) !important;
+  border-color: rgba(20, 32, 51, 0.16) !important;
+}
+
+/* ── Stat tiles (AdminHeroStat / MetricCard mini boxes) — add a soft
+     color wash instead of a flat near-white box. ── */
+:root.light .stat-tile-shell {
+  border-color: rgba(20, 32, 51, 0.14) !important;
+  background-image: linear-gradient(160deg, rgba(255, 255, 255, 0.92), rgba(222, 236, 250, 0.72)) !important;
+  background-color: rgba(234, 242, 251, 0.9) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55) !important;
+}
+
+

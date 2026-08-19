@@ -813,7 +813,7 @@ export default function ClubAdminPage() {
               </div>
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-gray-300">Club Logo <span className="text-gray-500">(PNG, JPG, SVG — max 500 KB)</span></label>
+              <label className="text-xs font-medium text-gray-300">Club Logo <span className="text-gray-500">(PNG, JPG, SVG — max 750 KB)</span></label>
               <div className="flex items-center gap-3">
                 {brandingLogoUrl && (
                   <img src={brandingLogoUrl} alt="Logo preview" className="h-12 w-12 rounded-full object-cover border border-white/20 shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
@@ -830,7 +830,7 @@ export default function ClubAdminPage() {
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (!file) return;
-                      if (file.size > 500 * 1024) { toast.error('Logo must be under 500 KB'); return; }
+                      if (file.size > 750 * 1024) { toast.error('Logo must be under 750 KB'); return; }
                       const reader = new FileReader();
                       reader.onload = () => setBrandingLogoUrl(reader.result as string);
                       reader.readAsDataURL(file);
@@ -1540,7 +1540,7 @@ export default function ClubAdminPage() {
 
 function AdminHeroStat({ label, value, accent }: { label: ReactNode; value: string; accent: string }) {
   return (
-    <div className="rounded-2xl border border-white/8 bg-white/[0.045] px-3 py-2 text-center backdrop-blur-sm">
+    <div className="stat-tile-shell rounded-2xl border border-white/8 bg-white/[0.045] px-3 py-2 text-center backdrop-blur-sm">
       <div className={`text-lg font-black ${accent}`}>{value}</div>
       <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400">{label}</div>
     </div>
@@ -1844,7 +1844,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
 
   return (
     <div ref={panelRef} className="mt-3 pt-3 border-t border-gray-700/40 space-y-4">
-      <div className="inline-flex rounded-lg bg-surface-800 p-0.5 border border-white/10">
+      <div className="club-admin-subtabs-shell">
         <button
           type="button"
           onClick={() => setActiveTab('PARTICIPANTS')}
@@ -1898,7 +1898,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
       )}
 
       {(participants?.length ?? 0) > 0 && activeTab === 'PARTICIPANTS' && (
-        <div ref={mobileToolbarRef} className="sm:hidden sticky top-2 z-20 rounded-lg border border-white/10 bg-surface-800/95 backdrop-blur px-2 py-2 space-y-2">
+        <div ref={mobileToolbarRef} className="club-admin-surface-panel sm:hidden sticky top-2 z-20 backdrop-blur px-2 py-2 space-y-2">
           <div className="relative">
             <input
               type="text"
@@ -1967,7 +1967,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
         </div>
       )}
 
-      <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
+      <div className="club-admin-surface-panel">
         <div className="hidden sm:flex sm:flex-row sm:items-center sm:justify-between sm:gap-2">
           <div className="text-xs text-gray-300">
             <span className="font-semibold">Payments ops:</span>{' '}
@@ -2142,7 +2142,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
       )}
 
       {(participants?.length ?? 0) > 0 && (
-        <div className="hidden sm:flex sm:flex-row gap-2">
+        <div className="club-admin-filter-shell hidden sm:flex sm:flex-row gap-2">
           {/* Search */}
           <div className="relative flex-1">
             <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -2193,9 +2193,9 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
         <p className="text-xs text-gray-500 italic">No participants match your filters</p>
       ) : (
         <>
-          <div className="divide-y divide-gray-700/30">
+          <div className="space-y-2">
             {paginated.map((p) => (
-              <div key={p.id} className="py-3 text-sm">
+              <div key={p.id} className="club-admin-participant-row text-sm">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0 space-y-1.5">
                     <div className="flex items-center gap-2 flex-wrap min-w-0">

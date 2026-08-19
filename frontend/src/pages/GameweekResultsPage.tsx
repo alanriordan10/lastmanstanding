@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import api from '../api';
 import type { Competition, GameweekSelectionsData, Fixture } from '../types';
 import { format } from 'date-fns';
+import { useTheme } from '../context/ThemeContext';
 import SeoMeta from '../components/SeoMeta';
 
 interface GameweekSelection {
@@ -34,6 +35,12 @@ export default function GameweekResultsPage() {
   const { id, gwId } = useParams<{ id: string; gwId: string }>();
   const compId = Number(id);
   const gameweekId = Number(gwId);
+  const { resolvedTheme } = useTheme();
+  // Base layer under the club-colour washes — follows the active theme so club
+  // branding survives in light mode instead of being overridden.
+  const heroBaseGradient = resolvedTheme === 'light'
+    ? 'linear-gradient(135deg,#ffffff,#eaf3fc)'
+    : 'linear-gradient(135deg,rgba(15,23,42,0.96),rgba(8,15,30,0.94))';
   
   // ALL HOOKS MUST BE DECLARED BEFORE ANY EARLY RETURNS
   const [searchQuery, setSearchQuery] = useState('');
@@ -204,7 +211,16 @@ export default function GameweekResultsPage() {
         noindex
       />
       {/* Header */}
-      <div className="relative overflow-hidden rounded-[1.75rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_24rem),linear-gradient(135deg,rgba(15,23,42,0.96),rgba(8,15,30,0.94))] px-4 py-5 shadow-[0_28px_70px_rgba(2,6,23,0.42)] sm:px-6 sm:py-6">
+      <div
+        className="competition-hero-shell relative overflow-hidden rounded-[1.75rem] border border-white/8 px-4 py-5 shadow-[0_28px_70px_rgba(2,6,23,0.42)] sm:px-6 sm:py-6"
+        data-club-branded={comp.clubPrimaryColor ? '' : undefined}
+        style={{
+          background: comp.clubPrimaryColor
+            ? `radial-gradient(circle at top left, ${comp.clubPrimaryColor}2e, transparent 24rem), radial-gradient(circle at 88% 18%, ${comp.clubSecondaryColor ?? comp.clubPrimaryColor}20, transparent 16rem), ${heroBaseGradient}`
+            : `radial-gradient(circle at top left, rgba(56,189,248,0.18), transparent 24rem), ${heroBaseGradient}`,
+          ...(comp.clubPrimaryColor ? { borderTopColor: comp.clubPrimaryColor, borderTopWidth: '3px' } : {}),
+        }}
+      >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <Link to={`/competitions/${compId}`} className="mb-2 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-brand-200/85 hover:text-white">

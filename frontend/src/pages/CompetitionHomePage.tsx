@@ -10,6 +10,7 @@ import { formatDistanceToNow, isPast } from 'date-fns';
 import clsx from 'clsx';
 import { useCountdown } from '../hooks/useCountdown';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { MetricCard, StatusPill } from '../components/ui-primitives';
@@ -185,6 +186,13 @@ export default function CompetitionHomePage() {
   const queryClient = useQueryClient();
   const compId = Number(id);
   const { user, loginWithData } = useAuth();
+  const { resolvedTheme } = useTheme();
+  // Base layer under the club-colour washes in the hero. The light theme needs a
+  // light base, otherwise the club branding gradient sits on dark navy and the
+  // light-theme CSS override has to clobber it entirely (losing the branding).
+  const heroBaseGradient = resolvedTheme === 'light'
+    ? 'linear-gradient(135deg,#ffffff,#eaf3fc)'
+    : 'linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))';
   const { isSupported: browserAlertsSupported, isSubscribed: browserAlertsEnabled, subscribe, notify, permission } = usePushNotifications();
 
   // ── ALL hooks must be declared before any early returns ──────────
@@ -1402,7 +1410,7 @@ export default function CompetitionHomePage() {
         </div>
 
         <div className="grid w-full gap-3 sm:w-[22rem]">
-          <div className="rounded-xl border border-gray-700/50 bg-surface-800/70 px-3 py-3">
+          <div className="panel-shell px-3 py-3">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">Email reminders</p>
             <p className="mt-1 text-sm text-gray-100">{emailReminderEnabled ? 'Enabled' : 'Disabled'}</p>
             <p className="mt-1 text-xs text-gray-400">
@@ -1415,7 +1423,7 @@ export default function CompetitionHomePage() {
             )}
           </div>
 
-          <div className="rounded-xl border border-gray-700/50 bg-surface-800/70 px-3 py-3">
+          <div className="panel-shell px-3 py-3">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">Browser alerts</p>
             <p className="mt-1 text-sm text-gray-100">
               {!browserAlertsSupported ? 'Not supported here' : browserAlertsEnabled ? 'Enabled on this device' : 'Disabled on this device'}
@@ -1896,10 +1904,11 @@ export default function CompetitionHomePage() {
       />
       {/* ── Header ── */}
       <section
-        className="relative overflow-hidden rounded-[1.9rem] border border-white/15 px-5 py-5 shadow-[0_22px_52px_rgba(2,6,23,0.34)] sm:px-6 sm:py-6 lg:px-8 lg:py-7"
+        className="competition-hero-shell relative overflow-hidden rounded-[1.9rem] border border-white/15 px-5 py-5 shadow-[0_22px_52px_rgba(2,6,23,0.34)] sm:px-6 sm:py-6 lg:px-8 lg:py-7"
+        data-club-branded={comp.clubPrimaryColor ? '' : undefined}
         style={{
           background: comp.clubPrimaryColor
-            ? `radial-gradient(circle at top left, ${comp.clubPrimaryColor}38, transparent 24rem), radial-gradient(circle at 85% 18%, ${comp.clubSecondaryColor ?? comp.clubPrimaryColor}22, transparent 18rem), linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))`
+            ? `radial-gradient(circle at top left, ${comp.clubPrimaryColor}38, transparent 24rem), radial-gradient(circle at 85% 18%, ${comp.clubSecondaryColor ?? comp.clubPrimaryColor}22, transparent 18rem), ${heroBaseGradient}`
             : undefined,
           ...(comp.clubPrimaryColor ? { borderTopColor: comp.clubPrimaryColor, borderTopWidth: '3px' } : {}),
         }}
@@ -1972,6 +1981,7 @@ export default function CompetitionHomePage() {
           <div className="relative w-full sm:w-auto" data-share-menu>
             <button
               onClick={() => setShareOpen((v) => !v)}
+              data-club-branded={comp.clubPrimaryColor ? '' : undefined}
               className="inline-flex w-full items-center justify-center gap-1.5 text-sm px-3 py-2 rounded-lg bg-white/[0.11] hover:bg-white/[0.16] text-white transition border border-white/25 sm:w-auto sm:py-1.5"
               style={comp.clubPrimaryColor ? {
                 borderColor: `${comp.clubPrimaryColor}44`,
@@ -2063,6 +2073,7 @@ export default function CompetitionHomePage() {
         <div className="relative mt-6 grid gap-3 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)]">
           <div
             className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4 backdrop-blur-sm"
+            data-club-accent={comp.clubPrimaryColor ? '' : undefined}
             style={comp.clubPrimaryColor ? { borderLeftColor: comp.clubPrimaryColor, borderLeftWidth: '3px' } : undefined}
           >
             {narrativeFirstLoad ? (
@@ -2414,13 +2425,13 @@ export default function CompetitionHomePage() {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="flex flex-col gap-3 rounded-2xl border border-white/15 bg-surface-800/75 p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-3 gw-pref-shell sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <div className="text-[11px] font-black uppercase tracking-[0.18em] text-brand-200">Preference</div>
                   <div className="mt-1 text-base font-black text-white">Gameweek display</div>
                 </div>
                 <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:min-w-[18rem]">
-                    <div className="grid w-full grid-cols-2 rounded-2xl border border-white/15 bg-slate-950/80 p-1">
+                    <div className="grid w-full grid-cols-2 gw-pref-track">
                     {(['cards', 'route'] as const).map((mode) => (
                       <button
                         key={mode}
@@ -2443,7 +2454,7 @@ export default function CompetitionHomePage() {
                         type="button"
                         onClick={() => setResetOpenConfirmOpen(true)}
                         disabled={resetOpenSelectionsMutation.isPending}
-                        className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-white/8 bg-white/[0.03] px-3 py-2 text-sm font-semibold text-slate-300 transition hover:border-red-400/20 hover:bg-red-500/[0.06] hover:text-red-100 disabled:opacity-50"
+                        className="reset-picks-btn"
                       >
                         <span className="text-sm leading-none">↺</span>
                         {resetOpenSelectionsMutation.isPending ? 'Resetting…' : 'Reset open picks'}
@@ -2482,7 +2493,9 @@ export default function CompetitionHomePage() {
                     className={clsx('card overflow-hidden transition-[border-color,box-shadow] duration-200', {
                       'border-sky-300/45': myPickForGw && !isCompleted,
                       'border-white/15 opacity-75': isCompleted,
+                      'border-amber-400/35': !myPickForGw && !isCompleted && !isLocked && isParticipant && !isEliminated && !isWinner,
                     })}
+                    data-club-accent={myPickForGw && !isCompleted && comp.clubPrimaryColor ? '' : undefined}
                     style={myPickForGw && !isCompleted && comp.clubPrimaryColor ? {
                       borderColor: `${comp.clubPrimaryColor}66`,
                       boxShadow: `0 0 0 1px ${comp.clubPrimaryColor}1f`,
@@ -2491,7 +2504,7 @@ export default function CompetitionHomePage() {
                     {/* ── Gameweek header — clickable toggle ── */}
                     <button
                       onClick={() => toggleWeek(wn)}
-                      className="w-full flex items-start justify-between gap-2 text-left group"
+                      className="w-full flex items-start justify-between gap-2 text-left group rounded-lg -m-1.5 p-1.5 transition-colors hover:bg-white/[0.03]"
                       aria-expanded={!isCollapsed}
                       aria-controls={`gw-${wn}-fixtures`}
                     >
@@ -3303,7 +3316,7 @@ function MyRoutePanel({
   });
 
   return (
-    <div className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 sm:p-4">
+    <div className="route-shell">
       <div className="rounded-2xl border border-sky-300/25 bg-sky-500/10 p-4">
         <div className="text-[10px] font-black uppercase tracking-[0.14em] text-sky-200">Your route</div>
         {currentPick ? (
@@ -3388,7 +3401,7 @@ function MyRoutePanel({
                 onClick={() => onPick(team)}
                 className={clsx(
                   'min-w-0 overflow-hidden rounded-xl border px-3 py-2.5 text-left transition',
-                  picked ? 'border-sky-200 bg-sky-600 text-white shadow-md shadow-sky-950/30' : 'border-slate-700 bg-slate-800/80 text-slate-100 hover:border-slate-500',
+                  picked ? 'border-sky-200 bg-sky-600 text-white shadow-md shadow-sky-950/30' : 'route-team-tile',
                   disabled && 'cursor-not-allowed opacity-55'
                 )}
               >

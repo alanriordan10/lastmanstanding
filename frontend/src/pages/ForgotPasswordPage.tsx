@@ -32,9 +32,9 @@ export default function ForgotPasswordPage() {
 
   if (submitted) {
     return (
-      <div className="flex min-h-screen items-center justify-center px-4 py-10">
+      <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.1),transparent_34rem),linear-gradient(180deg,#0a1220_0%,#09101d_100%)] px-4 py-10">
         {seoMeta}
-        <div className="w-full max-w-lg rounded-[1.9rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_24rem),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))] px-6 py-8 text-center shadow-[0_30px_75px_rgba(2,6,23,0.48)]">
+        <div className="w-full max-w-lg rounded-[1.9rem] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.16),transparent_24rem),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))] px-6 py-8 text-center shadow-[0_30px_75px_rgba(2,6,23,0.48)]">
           <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-2xl border border-green-400/20 bg-green-500/15 text-3xl">
             📧
           </div>
@@ -54,7 +54,7 @@ export default function ForgotPasswordPage() {
             .
           </p>
           <Link to="/login" className="block text-sm text-brand-400 hover:text-brand-300 transition-colors">
-            ← Back to login
+            ← Back to sign in
           </Link>
         </div>
       </div>
@@ -62,23 +62,23 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4 py-10">
+    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.1),transparent_34rem),linear-gradient(180deg,#0a1220_0%,#09101d_100%)] px-4 py-10">
       {seoMeta}
       <div className="grid w-full max-w-5xl gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-        <section className="relative overflow-hidden rounded-[1.9rem] border border-white/15 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.2),transparent_24rem),linear-gradient(135deg,rgba(17,27,46,0.94),rgba(10,17,32,0.9))] px-6 py-8 shadow-[0_18px_42px_rgba(2,6,23,0.34)]">
+        <section className="relative overflow-hidden rounded-[1.9rem] border border-white/12 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.16),transparent_24rem),linear-gradient(135deg,rgba(17,27,46,0.94),rgba(10,17,32,0.9))] px-6 py-8 shadow-[0_18px_42px_rgba(2,6,23,0.34)]">
           <div className="inline-flex rounded-full border border-sky-300/35 bg-sky-400/12 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-sky-100">
             Recovery
           </div>
           <div className="mt-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-sky-300/35 bg-gradient-to-br from-sky-400 to-cyan-300 text-xl font-black text-slate-950 shadow-[0_8px_20px_rgba(56,189,248,0.2)]">
             LMS
           </div>
-          <h1 className="mt-6 text-4xl font-black tracking-tight text-white">Forgot your password?</h1>
+          <h1 className="mt-6 text-4xl font-black tracking-tight text-white">Forgot password?</h1>
           <p className="mt-3 max-w-md text-sm leading-6 text-gray-300 sm:text-[15px]">
-            Enter your email and we’ll send a reset link so you can get back into your competitions quickly.
+            Enter your email and we will send a reset link so you can get back into your competitions quickly.
           </p>
         </section>
-        <div className="w-full space-y-8">
-        <form onSubmit={handleSubmit} className="card space-y-5">
+        <div className="w-full space-y-6">
+        <form onSubmit={handleSubmit} className="card !border-white/12 space-y-5">
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1.5">
               Email address
@@ -106,7 +106,7 @@ export default function ForgotPasswordPage() {
         <p className="text-center text-sm text-gray-400">
           Remembered it?{' '}
           <Link to="/login" className="text-brand-400 hover:text-brand-300 font-medium transition-colors">
-            Back to login
+            Back to sign in
           </Link>
         </p>
         </div>

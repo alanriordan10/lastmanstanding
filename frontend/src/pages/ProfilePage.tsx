@@ -315,9 +315,6 @@ export default function ProfilePage() {
           <Link to="/guide" className="rounded-lg border border-brand-300/30 bg-brand-500/15 px-4 py-2 text-sm font-medium text-brand-100 hover:bg-brand-500/25">
             User Guide
           </Link>
-          <Link to="/faq" className="rounded-lg border border-white/10 bg-surface-700 px-4 py-2 text-sm font-medium text-gray-200 hover:bg-surface-600">
-            FAQ
-          </Link>
           <Link to="/contact" className="rounded-lg border border-white/10 bg-surface-700 px-4 py-2 text-sm font-medium text-gray-200 hover:bg-surface-600">
             Contact Us
           </Link>

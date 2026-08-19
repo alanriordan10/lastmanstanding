@@ -156,7 +156,7 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.12),transparent_36rem),linear-gradient(180deg,#0a1224_0%,#0b1322_100%)] px-4 py-10">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.11),transparent_36rem),radial-gradient(circle_at_92%_0%,rgba(59,130,246,0.06),transparent_24rem),linear-gradient(180deg,#0a1224_0%,#0b1322_100%)] px-4 py-10">
       <SeoMeta
         title="Create Your Account | Last Man Standing"
         description="Create a Last Man Standing account to join football survivor pools, track picks, and receive competition updates."
@@ -165,16 +165,16 @@ export default function SignupPage() {
       />
       
       <div className="grid w-full max-w-5xl gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-        <section className="relative overflow-hidden rounded-[1.9rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.22),transparent_24rem),radial-gradient(circle_at_85%_16%,rgba(250,204,21,0.08),transparent_18rem),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))] px-6 py-8 shadow-[0_30px_75px_rgba(2,6,23,0.48)]">
+        <section className="relative overflow-hidden rounded-[1.9rem] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.2),transparent_24rem),radial-gradient(circle_at_85%_16%,rgba(250,204,21,0.06),transparent_18rem),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))] px-6 py-8 shadow-[0_30px_75px_rgba(2,6,23,0.48)]">
           <div className="inline-flex rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-200">
             Player signup
           </div>
           <div className="mt-6 flex h-20 w-20 items-center justify-center overflow-hidden rounded-3xl bg-transparent p-0 shadow-[0_10px_24px_rgba(2,6,23,0.35)]">
             <img src="/app-logo.png?v=20260511" alt="Last Man Standing logo" className="h-full w-full rounded-2xl object-cover" />
           </div>
-          <h1 className="mt-6 text-4xl font-black tracking-tight text-white">Create Account</h1>
+          <h1 className="mt-6 text-4xl font-black tracking-tight text-white">Create your account</h1>
           <p className="mt-3 max-w-md text-sm leading-6 text-gray-300 sm:text-[15px]">
-            Join competitions, track your survival run, and get ready for the next gameweek lock.
+            Join competitions, track your survival run, and stay ready for each gameweek lock.
           </p>
           <div className="mt-8 grid grid-cols-3 gap-3">
             <SignupMetric label="Join" value="Fast" />
@@ -183,7 +183,7 @@ export default function SignupPage() {
           </div>
         </section>
 
-        <div className="w-full space-y-6">
+        <div className="w-full space-y-5 lg:space-y-6">
         <form onSubmit={handleSubmit} className="card space-y-5">
           <div>
             <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-gray-300">
@@ -335,10 +335,10 @@ export default function SignupPage() {
             {loading ? 'Creating account…' : 'Create Account'}
           </button>
         </form>
-        <div className="card">
+        <div className="card !border-white/12">
           <SocialAuthButtons mode="signup" />
         </div>
-        <div className="rounded-2xl border border-cyan-400/25 bg-cyan-500/[0.08] px-4 py-3.5">
+        <div className="rounded-2xl border border-cyan-400/20 bg-cyan-500/[0.07] px-4 py-3.5">
           <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm leading-5 text-cyan-100">
             <span>Planning to run competitions for a club?</span>
             <Link to="/register-club" className="font-semibold text-cyan-200 underline decoration-cyan-300/60 underline-offset-2 hover:text-white">
@@ -359,7 +359,7 @@ export default function SignupPage() {
             href="https://play.google.com/store/apps/details?id=com.lastmanstanding.app"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-1.5 text-xs font-semibold text-gray-300 transition hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
+            className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.04] px-3.5 py-1.5 text-xs font-semibold text-gray-300 transition hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
           >
             <span>📱</span>
             <span>Using Android? Get the app on Google Play</span>

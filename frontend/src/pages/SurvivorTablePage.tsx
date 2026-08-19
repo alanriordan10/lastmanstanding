@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState, useMemo } from 'react';
 import api from '../api';
 import type { Competition } from '../types';
+import { useTheme } from '../context/ThemeContext';
 import SeoMeta from '../components/SeoMeta';
 
 interface SurvivorRow {
@@ -36,6 +37,7 @@ const isResolvedOutcome = (outcome?: string | null) => {
 export default function SurvivorTablePage() {
   const { id } = useParams<{ id: string }>();
   const compId = Number(id);
+  const { resolvedTheme } = useTheme();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'ELIMINATED' | 'WINNER'>('ALL');
   const [eliminatedWeekFilter, setEliminatedWeekFilter] = useState<'ALL' | number>('ALL');
@@ -110,6 +112,11 @@ export default function SurvivorTablePage() {
   const paginated = sorted.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
   const clubAccent = comp?.clubPrimaryColor ?? null;
   const clubSupport = comp?.clubSecondaryColor ?? comp?.clubPrimaryColor ?? null;
+  // Base layer under the club-colour washes — must follow the active theme so
+  // club branding survives in light mode instead of being overridden.
+  const heroBaseGradient = resolvedTheme === 'light'
+    ? 'linear-gradient(135deg,#ffffff,#eaf3fc)'
+    : 'linear-gradient(135deg,rgba(15,23,42,0.96),rgba(8,15,30,0.94))';
 
   const handleSearch = (v: string) => { setSearch(v); setPage(1); };
   const handleStatusFilter = (s: typeof statusFilter) => { setStatusFilter(s); setPage(1); };
@@ -133,10 +140,11 @@ export default function SurvivorTablePage() {
       />
       {/* Header */}
       <div
-        className="relative overflow-hidden rounded-[1.75rem] border border-white/8 px-4 py-5 shadow-[0_28px_70px_rgba(2,6,23,0.42)] sm:px-6 sm:py-6"
+        className="competition-hero-shell relative overflow-hidden rounded-[1.75rem] border border-white/8 px-4 py-5 shadow-[0_28px_70px_rgba(2,6,23,0.42)] sm:px-6 sm:py-6"
+        data-club-branded={clubAccent ? '' : undefined}
         style={{
           background: clubAccent
-            ? `radial-gradient(circle at top left, ${clubAccent}2e, transparent 24rem), radial-gradient(circle at 88% 18%, ${clubSupport ?? clubAccent}20, transparent 16rem), linear-gradient(135deg,rgba(15,23,42,0.96),rgba(8,15,30,0.94))`
+            ? `radial-gradient(circle at top left, ${clubAccent}2e, transparent 24rem), radial-gradient(circle at 88% 18%, ${clubSupport ?? clubAccent}20, transparent 16rem), ${heroBaseGradient}`
             : 'radial-gradient(circle at top left, rgba(56,189,248,0.18), transparent 24rem), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(8,15,30,0.94))',
           ...(clubAccent ? { borderTopColor: clubAccent, borderTopWidth: '3px' } : {}),
         }}
