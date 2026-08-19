@@ -57,7 +57,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .finally(() => setIsLoading(false));
         return;
       } catch {
-        localStorage.clear();
+        clearAuthTokens();
+        localStorage.removeItem('user');
+        localStorage.removeItem('clubAdminRevoked');
       }
     }
     setIsLoading(false);
@@ -113,7 +115,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Clear local state synchronously so the UI updates immediately — the
     // server-side logout is best-effort and may take longer (or fail).
     clearAuthTokens();
-    localStorage.clear();
+    localStorage.removeItem('user');
+    localStorage.removeItem('clubAdminRevoked');
     setClubAdminRevoked(false);
     setUser(null);
     try {

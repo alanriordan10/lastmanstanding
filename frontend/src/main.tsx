@@ -42,7 +42,10 @@ const queryClient = new QueryClient({
           console.warn('Authentication error in mutation, redirecting to login');
           toast.error('Your session has expired. Please login again.');
           setTimeout(() => {
-            localStorage.clear();
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
+            localStorage.removeItem('user');
+            localStorage.removeItem('clubAdminRevoked');
             window.location.href = '/login?error=session_expired';
           }, 1500);
         }

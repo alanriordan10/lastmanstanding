@@ -476,7 +476,13 @@ export default function ClubAdminPage() {
         </p>
         {showRevokedMessage && (
           <button
-            onClick={() => { localStorage.clear(); window.location.href = '/login'; }}
+            onClick={() => {
+              localStorage.removeItem('accessToken');
+              localStorage.removeItem('refreshToken');
+              localStorage.removeItem('user');
+              localStorage.removeItem('clubAdminRevoked');
+              window.location.href = '/login';
+            }}
             className="btn-primary mx-auto mt-2"
           >
             Log out & sign in again
