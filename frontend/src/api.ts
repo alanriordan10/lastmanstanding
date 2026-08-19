@@ -112,7 +112,7 @@ export function isCurrentPublicAuthPage(): boolean {
   return typeof window !== 'undefined' && isPublicAuthPage(window.location.pathname);
 }
 
-function clearStoredSession() {
+export function clearStoredSession() {
   clearAuthTokens();
   localStorage.removeItem('user');
   localStorage.removeItem('clubAdminRevoked');

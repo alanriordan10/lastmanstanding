@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useRef, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import api from '../api';
+import api, { clearStoredSession } from '../api';
 import type { Competition, Club, Participant } from '../types';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -477,10 +477,7 @@ export default function ClubAdminPage() {
         {showRevokedMessage && (
           <button
             onClick={() => {
-              localStorage.removeItem('accessToken');
-              localStorage.removeItem('refreshToken');
-              localStorage.removeItem('user');
-              localStorage.removeItem('clubAdminRevoked');
+              clearStoredSession();
               window.location.href = '/login';
             }}
             className="btn-primary mx-auto mt-2"

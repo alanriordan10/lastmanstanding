@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import api, { storeAuthTokens, clearAuthTokens, setAuthFailureHandler } from '../api';
+import api, { storeAuthTokens, clearStoredSession, setAuthFailureHandler } from '../api';
 import type { AuthResponse } from '../types';
 
 interface AuthContextType {
@@ -57,9 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .finally(() => setIsLoading(false));
         return;
       } catch {
-        clearAuthTokens();
-        localStorage.removeItem('user');
-        localStorage.removeItem('clubAdminRevoked');
+        clearStoredSession();
       }
     }
     setIsLoading(false);
@@ -114,9 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     // Clear local state synchronously so the UI updates immediately — the
     // server-side logout is best-effort and may take longer (or fail).
-    clearAuthTokens();
-    localStorage.removeItem('user');
-    localStorage.removeItem('clubAdminRevoked');
+    clearStoredSession();
     setClubAdminRevoked(false);
     setUser(null);
     try {

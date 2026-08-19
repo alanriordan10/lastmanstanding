@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster, toast } from 'react-hot-toast';
 import App from './App';
+import { clearStoredSession } from './api';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import './index.css';
@@ -42,10 +43,7 @@ const queryClient = new QueryClient({
           console.warn('Authentication error in mutation, redirecting to login');
           toast.error('Your session has expired. Please login again.');
           setTimeout(() => {
-            localStorage.removeItem('accessToken');
-            localStorage.removeItem('refreshToken');
-            localStorage.removeItem('user');
-            localStorage.removeItem('clubAdminRevoked');
+            clearStoredSession();
             window.location.href = '/login?error=session_expired';
           }, 1500);
         }
