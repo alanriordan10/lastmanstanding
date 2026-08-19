@@ -113,20 +113,25 @@ public class GameweekProcessingService {
         }
         List<CompetitionParticipant> activeParticipants =
                 participantRepository.findByCompetitionIdAndStatus(comp.getId(), ParticipantStatus.ACTIVE);
+        List<CompetitionParticipant> unpaidStrictParticipants = List.of();
         if (comp.getPaymentMode() == PaymentMode.MANUAL
                 && comp.getManualPaymentPolicy() == ManualPaymentPolicy.STRICT
                 && !activeParticipants.isEmpty()) {
             Set<Long> paidUserIds = new HashSet<>(paymentRepository.findPaidUserIdsByCompetitionId(comp.getId()));
-            List<CompetitionParticipant> unpaid = activeParticipants.stream()
+            unpaidStrictParticipants = activeParticipants.stream()
                     .filter(cp -> !paidUserIds.contains(cp.getUser().getId()))
                     .toList();
-            if (!unpaid.isEmpty()) {
+            if (!unpaidStrictParticipants.isEmpty()) {
                 log.info("Excluded {} unpaid manual-payment participants from GW{} lock processing in competition {}",
-                        unpaid.size(), gw.getWeekNumber(), comp.getId());
+                        unpaidStrictParticipants.size(), gw.getWeekNumber(), comp.getId());
             }
             activeParticipants = activeParticipants.stream()
                     .filter(cp -> paidUserIds.contains(cp.getUser().getId()))
                     .toList();
+        }
+
+        if (!unpaidStrictParticipants.isEmpty()) {
+            eliminateUnpaidStrictParticipants(unpaidStrictParticipants, gw);
         }
 
         List<Fixture> fixtures = fixtureRepository.findByGameweekId(gw.getId());
@@ -223,6 +228,19 @@ public class GameweekProcessingService {
                 eliminateParticipant(cp, gw);
                 log.info("Missed pick — eliminated user {}", cp.getUser().getUsername());
             }
+        }
+    }
+
+    private void eliminateUnpaidStrictParticipants(List<CompetitionParticipant> participants, Gameweek gw) {
+        participants.forEach(cp -> {
+            cp.setStatus(ParticipantStatus.ELIMINATED);
+            cp.setEliminatedWeek(gw.getWeekNumber());
+        });
+        participantRepository.saveAll(participants);
+
+        for (CompetitionParticipant cp : participants) {
+            eliminateParticipant(cp, gw);
+            log.info("Strict manual payment — eliminated unpaid user {} at GW{}", cp.getUser().getUsername(), gw.getWeekNumber());
         }
     }
 

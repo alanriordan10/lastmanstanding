@@ -445,6 +445,66 @@ class GameweekProcessingServiceTest {
         }
 
         @Test
+        @DisplayName("STRICT manual + AUTO_ASSIGN: unpaid participant is eliminated at lock, paid participant gets auto-pick")
+        void strictManual_unpaidEliminated_paidAutoAssigned() {
+            competition = new Competition("Test Cup", null, BigDecimal.ZERO,
+                    CompetitionStatus.ACTIVE, MissedPickMode.AUTO_ASSIGN, true,
+                    LocalDate.of(2026, 4, 4), user1);
+            competition.setId(1L);
+            competition.setPaymentMode(PaymentMode.MANUAL);
+            competition.setManualPaymentPolicy(ManualPaymentPolicy.STRICT);
+
+            gameweek = new Gameweek(competition, 1,
+                    LocalDateTime.now().minusMinutes(5),
+                    LocalDateTime.of(2026, 4, 4, 15, 0),
+                    LocalDateTime.of(2026, 4, 6, 22, 0),
+                    GameweekStatus.UPCOMING);
+            gameweek.setId(10L);
+
+            cp1 = new CompetitionParticipant(competition, user1, ParticipantStatus.ACTIVE);
+            cp1.setId(100L);
+            cp2 = new CompetitionParticipant(competition, user2, ParticipantStatus.ACTIVE);
+            cp2.setId(101L);
+
+            when(gameweekRepository.findById(gameweek.getId())).thenReturn(Optional.of(gameweek));
+            when(competitionRepository.findById(competition.getId())).thenReturn(Optional.of(competition));
+
+            Fixture fixture = createScheduledFixture(gameweek, arsenal, chelsea);
+
+            when(participantRepository.findByCompetitionIdAndStatus(competition.getId(), ParticipantStatus.ACTIVE))
+                    .thenReturn(List.of(cp1, cp2));
+            when(paymentRepository.findPaidUserIdsByCompetitionId(competition.getId()))
+                    .thenReturn(List.of(user2.getId()));
+            when(fixtureRepository.findByGameweekId(gameweek.getId())).thenReturn(List.of(fixture));
+            when(pickRepository.findByCompetitionIdAndGameweekId(competition.getId(), gameweek.getId()))
+                    .thenReturn(List.of());
+            when(pickRepository.findUsedTeamIdsByParticipantIds(eq(competition.getId()), any()))
+                    .thenReturn(List.of());
+            when(teamRepository.findAllByOrderByNameAsc())
+                    .thenReturn(List.of(arsenal, chelsea, everton, liverpool));
+            when(pickRepository.saveAll(any())).thenAnswer(i -> i.getArgument(0));
+            when(pickResultRepository.saveAll(any())).thenAnswer(i -> i.getArgument(0));
+
+            service.lockGameweek(gameweek.getId());
+
+            assertThat(cp1.getStatus()).isEqualTo(ParticipantStatus.ELIMINATED);
+            assertThat(cp1.getEliminatedWeek()).isEqualTo(1);
+            assertThat(cp2.getStatus()).isEqualTo(ParticipantStatus.ACTIVE);
+
+            ArgumentCaptor<List<Pick>> pickCaptor = ArgumentCaptor.forClass(List.class);
+            verify(pickRepository, atLeast(1)).saveAll(pickCaptor.capture());
+            boolean autoPickSavedForPaidParticipant = pickCaptor.getAllValues().stream()
+                    .flatMap(Collection::stream)
+                    .anyMatch(p -> p.getParticipant() != null
+                            && Objects.equals(p.getParticipant().getId(), cp2.getId())
+                            && p.getSource() == PickSource.AUTO);
+            assertThat(autoPickSavedForPaidParticipant).isTrue();
+
+            verify(pickRepository).deleteFuturePicksForParticipant(competition.getId(), cp1.getId(), gameweek.getWeekNumber());
+            verify(pickResultRepository).deleteFuturePickResultsForParticipant(competition.getId(), cp1.getId(), gameweek.getWeekNumber());
+        }
+
+        @Test
         @DisplayName("Locks existing pick at lock time")
         void locksExistingPick() {
             gameweek.setStatus(GameweekStatus.UPCOMING);

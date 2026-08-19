@@ -914,7 +914,7 @@ export default function ClubAdminPage() {
                 createMutation.mutate();
               }}
               ref={formRef}
-              className="card space-y-5 border border-white/15 shadow-[0_24px_60px_rgba(2,6,23,0.4)]"
+              className="club-admin-comp-modal card space-y-5 border border-white/15 shadow-[0_24px_60px_rgba(2,6,23,0.4)]"
             >
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -928,7 +928,7 @@ export default function ClubAdminPage() {
                   <button
                     type="button"
                     onClick={resetCompetitionForm}
-                    className="inline-flex items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-xs text-gray-300 transition hover:bg-white/[0.08] hover:text-white"
+                    className="club-admin-comp-modal-close inline-flex items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-xs text-gray-300 transition hover:bg-white/[0.08] hover:text-white"
                     aria-label="Close competition editor"
                   >
                     ✕
@@ -979,7 +979,7 @@ export default function ClubAdminPage() {
                     key={opt.value}
                     type="button"
                     onClick={() => setVisibility(opt.value)}
-                    className={`flex min-h-[88px] items-center gap-3 rounded-lg border p-3 text-left text-sm transition-colors ${
+                    className={`comp-setup-choice flex min-h-[88px] items-center gap-3 rounded-lg border p-3 text-left text-sm transition-colors ${
                       visibility === opt.value
                         ? 'border-brand-500 bg-brand-600/20 text-white'
                         : 'border-gray-600 bg-surface-700 text-gray-400 hover:border-gray-500'
@@ -1006,7 +1006,7 @@ export default function ClubAdminPage() {
                       setPaymentMode(opt.value);
                       if (opt.value === 'FREE') { setEntryFee('0'); setPassFeeToParticipant(false); }
                     }}
-                    className={`flex min-h-[108px] flex-col items-center justify-center gap-1 rounded-lg border p-3 text-sm transition-colors ${
+                    className={`comp-setup-choice flex min-h-[108px] flex-col items-center justify-center gap-1 rounded-lg border p-3 text-sm transition-colors ${
                       paymentMode === opt.value
                         ? 'border-brand-500 bg-brand-600/20 text-white'
                         : 'border-gray-600 bg-surface-700 text-gray-400 hover:border-gray-500'
@@ -1019,7 +1019,7 @@ export default function ClubAdminPage() {
               </div>
               {paymentMode === 'MANUAL' && (
                 <div className="mt-2 space-y-2">
-                  <p className="text-[13px] leading-5 text-yellow-300/90">
+                  <p className="comp-setup-manual-hint text-[13px] leading-5 text-yellow-300/90">
                     💡 Players join for free — you confirm their payment manually in the Participants panel and then mark them as paid to activate their entry.
                   </p>
                   <div>
@@ -1028,7 +1028,7 @@ export default function ClubAdminPage() {
                       <button
                         type="button"
                         onClick={() => setManualPaymentPolicy('STRICT')}
-                        className={`min-h-[76px] rounded-lg border px-3 py-2 text-left text-sm transition ${
+                        className={`comp-setup-choice min-h-[76px] rounded-lg border px-3 py-2 text-left text-sm transition ${
                           manualPaymentPolicy === 'STRICT'
                             ? 'border-brand-500 bg-brand-600/20 text-white'
                             : 'border-gray-600 bg-surface-700 text-gray-300 hover:border-gray-500'
@@ -1040,7 +1040,7 @@ export default function ClubAdminPage() {
                       <button
                         type="button"
                         onClick={() => setManualPaymentPolicy('LENIENT')}
-                        className={`min-h-[76px] rounded-lg border px-3 py-2 text-left text-sm transition ${
+                        className={`comp-setup-choice min-h-[76px] rounded-lg border px-3 py-2 text-left text-sm transition ${
                           manualPaymentPolicy === 'LENIENT'
                             ? 'border-brand-500 bg-brand-600/20 text-white'
                             : 'border-gray-600 bg-surface-700 text-gray-300 hover:border-gray-500'
@@ -1063,7 +1063,7 @@ export default function ClubAdminPage() {
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {[5, 10, 20, 50].map((preset) => (
                     <button key={preset} type="button" onClick={() => setEntryFee(String(preset))}
-                      className={`min-h-[34px] px-2.5 py-1 rounded text-sm font-medium transition-colors ${
+                      className={`comp-setup-chip min-h-[34px] px-2.5 py-1 rounded text-sm font-medium transition-colors ${
                         entryFee === String(preset) ? 'bg-brand-600 text-white' : 'bg-surface-700 hover:bg-surface-600 text-gray-300'
                       }`}>€{preset}</button>
                   ))}
@@ -1087,7 +1087,7 @@ export default function ClubAdminPage() {
                     key={preset}
                     type="button"
                     onClick={() => setPrizePool(String(preset))}
-                    className={`min-h-[34px] px-2.5 py-1 rounded text-sm font-medium transition-colors ${
+                    className={`comp-setup-chip min-h-[34px] px-2.5 py-1 rounded text-sm font-medium transition-colors ${
                       prizePool === String(preset) ? 'bg-brand-600 text-white' : 'bg-surface-700 hover:bg-surface-600 text-gray-300'
                     }`}
                   >
@@ -1384,7 +1384,13 @@ export default function ClubAdminPage() {
                         </div>
                       </div>
                       </div>
-                      {managingComp?.id === comp.id && <ParticipantsPanel competitionId={comp.id} paymentMode={comp.paymentMode} />}
+                      {managingComp?.id === comp.id && (
+                        <ParticipantsPanel
+                          competitionId={comp.id}
+                          paymentMode={comp.paymentMode}
+                          manualPaymentPolicy={comp.manualPaymentPolicy}
+                        />
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1553,7 +1559,7 @@ function AdminHeroStat({ label, value, accent }: { label: ReactNode; value: stri
   );
 }
 
-function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: number; paymentMode?: string }) {
+function ParticipantsPanel({ competitionId, paymentMode, manualPaymentPolicy }: { competitionId: number; paymentMode?: string; manualPaymentPolicy?: 'STRICT' | 'LENIENT' }) {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'PARTICIPANTS' | 'PAYMENTS'>('PARTICIPANTS');
   const [showAddPanel, setShowAddPanel] = useState(false);
@@ -1576,6 +1582,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
   const panelRef = useRef<HTMLDivElement | null>(null);
   const PAGE_SIZE = 20;
   const isManual = paymentMode === 'MANUAL';
+  const strictManual = isManual && (manualPaymentPolicy ?? 'STRICT') === 'STRICT';
   const manualHintKey = `club-admin-manual-hint-dismissed-${competitionId}`;
 
   useEffect(() => {
@@ -1974,6 +1981,11 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
       )}
 
       <div className="club-admin-surface-panel">
+        {strictManual && (
+          <div className="mb-3 rounded-lg border border-amber-400/25 bg-amber-500/8 px-3 py-2 text-xs text-amber-200">
+            In <span className="font-semibold">Strict</span> manual mode, unpaid entries are excluded from lock processing and removed at lock.
+          </div>
+        )}
         <div className="hidden sm:flex sm:flex-row sm:items-center sm:justify-between sm:gap-2">
           <div className="text-xs text-gray-300">
             <span className="font-semibold">Payments ops:</span>{' '}
@@ -2114,7 +2126,7 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
             ) : (
               <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                 {paidParticipants.slice(0, 50).map((p) => (
-                  <div key={`paid-${p.id}`} className="flex items-center justify-between rounded-md border border-green-300/20 bg-black/20 px-2 py-1.5">
+                  <div key={`paid-${p.id}`} className="club-admin-payment-row flex items-center justify-between rounded-md border border-green-300/20 bg-black/20 px-2 py-1.5">
                     <div className="min-w-0">
                       <p className="text-xs font-medium text-green-100 truncate">{participantLabel(p)}</p>
                       <p className="text-[11px] text-green-200/80">{p.status}</p>
@@ -2213,6 +2225,12 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                             ? 'badge-red sm:opacity-100 opacity-80'
                             : 'badge-yellow sm:opacity-100 opacity-80'
                       }>{p.status}</span>
+                      {strictManual && p.status === 'ACTIVE' && !paidSet.has(p.id) && (
+                        <span className="badge-yellow sm:opacity-100 opacity-80">Excluded at lock</span>
+                      )}
+                      {p.eliminationReason === 'UNPAID_STRICT_LOCK' && (
+                        <span className="badge-yellow sm:opacity-100 opacity-80">Unpaid at lock</span>
+                      )}
                       {p.eliminatedWeek && (
                         <span className="hidden sm:inline text-xs text-gray-500">GW{p.eliminatedWeek}</span>
                       )}
@@ -2221,7 +2239,10 @@ function ParticipantsPanel({ competitionId, paymentMode }: { competitionId: numb
                       {isManual && (
                         paidSet.has(p.id)
                           ? <span className="text-green-400 sm:text-green-400 text-gray-400">Payment confirmed</span>
-                          : <span className="text-yellow-400 sm:text-yellow-400 text-gray-400">Awaiting payment</span>
+                          : <span className="text-yellow-400 sm:text-yellow-400 text-gray-400">Awaiting payment{strictManual && p.status === 'ACTIVE' ? ' · excluded at lock' : ''}</span>
+                      )}
+                      {p.eliminationReason === 'UNPAID_STRICT_LOCK' && (
+                        <span className="text-yellow-500/90">Removed at lock (strict unpaid)</span>
                       )}
                       {p.status === 'ACTIVE' && activeCount > 1 && (
                         <span className="hidden sm:inline text-yellow-500/80">Still eligible to win</span>

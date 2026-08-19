@@ -74,6 +74,7 @@ export interface Participant {
   entryNumber?: number;
   status: 'ACTIVE' | 'ELIMINATED' | 'WINNER';
   paymentState?: 'NOT_REQUIRED' | 'AWAITING_PAYMENT' | 'PAID';
+  eliminationReason?: 'UNPAID_STRICT_LOCK' | string | null;
   lifelineUsed?: boolean;
   lifelineUsedWeek?: number | null;
   eliminatedWeek: number | null;

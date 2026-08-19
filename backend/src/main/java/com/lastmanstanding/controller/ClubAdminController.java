@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.Collections;
 /**
  * Endpoints for CLUB_ADMIN users — scoped to their own club only.
  * Super ADMINs can also call these endpoints.
@@ -416,9 +417,29 @@ public class ClubAdminController {
                                                      @AuthenticationPrincipal UserDetailsImpl userDetails) {
         Club club = resolveClub(userDetails);
         assertOwnsCompetition(id, club);
+        Competition comp = competitionRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Competition not found"));
+        Set<Long> paidParticipantIds = isStrictManualCompetition(comp)
+                ? new HashSet<>(paymentRepository.findPaidParticipantIdsByCompetitionId(id))
+                : Collections.emptySet();
         return participantRepository.findByCompetitionId(id).stream()
-                .map(ParticipantResponse::from)
+                .map(cp -> ParticipantResponse.from(cp, null, eliminationReasonForParticipant(comp, cp, paidParticipantIds)))
                 .toList();
+    }
+
+    private boolean isStrictManualCompetition(Competition comp) {
+        return comp.getPaymentMode() == PaymentMode.MANUAL
+                && comp.getManualPaymentPolicy() == ManualPaymentPolicy.STRICT;
+    }
+
+    private String eliminationReasonForParticipant(Competition comp,
+                                                   CompetitionParticipant cp,
+                                                   Set<Long> paidParticipantIds) {
+        if (cp.getStatus() != ParticipantStatus.ELIMINATED) return null;
+        if (isStrictManualCompetition(comp) && !paidParticipantIds.contains(cp.getId())) {
+            return "UNPAID_STRICT_LOCK";
+        }
+        return null;
     }
 
     @DeleteMapping("/competitions/{compId}/participants/{participantId}")

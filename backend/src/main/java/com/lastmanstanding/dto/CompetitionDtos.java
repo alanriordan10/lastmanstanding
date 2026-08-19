@@ -190,6 +190,7 @@ public final class CompetitionDtos {
             boolean lifelineUsed,
             Integer lifelineUsedWeek,
             Integer eliminatedWeek,
+            String eliminationReason,
             LocalDateTime joinedAt
     ) {
         public static ParticipantResponse from(CompetitionParticipant cp) {
@@ -197,11 +198,15 @@ public final class CompetitionDtos {
         }
 
         public static ParticipantResponse from(CompetitionParticipant cp, String paymentState) {
+            return from(cp, paymentState, null);
+        }
+
+        public static ParticipantResponse from(CompetitionParticipant cp, String paymentState, String eliminationReason) {
             return new ParticipantResponse(
                     cp.getId(), cp.getUser().getId(), cp.getUser().getUsername(),
                     cp.getEntryNumber(),
                     cp.getStatus().name(), paymentState, cp.isLifelineUsed(), cp.getLifelineUsedWeek(),
-                    cp.getEliminatedWeek(), cp.getJoinedAt()
+                    cp.getEliminatedWeek(), eliminationReason, cp.getJoinedAt()
             );
         }
     }

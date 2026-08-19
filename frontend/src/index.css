@@ -151,6 +151,9 @@
   .club-admin-participant-row:hover {
     background-color: rgba(255, 255, 255, 0.045);
   }
+  .club-admin-payment-row {
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+  }
   .input-field {
     @apply block min-h-[44px] w-full rounded-xl border border-white/15 bg-white/[0.045] px-4 py-2.5 text-sm text-gray-100
            placeholder-gray-500 focus:border-sky-300/70 focus:ring-1 focus:ring-sky-300/70 focus:outline-none transition-colors;
@@ -808,5 +811,151 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   background-color: rgba(254, 247, 232, 0.92) !important;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55), 0 16px 34px rgba(120, 53, 15, 0.16) !important;
 }
+
+/* Club Admin - New Competition modal light-mode polish */
+:root.light .club-admin-comp-modal-backdrop {
+  background: rgba(108, 129, 156, 0.32) !important;
+}
+
+:root.light .club-admin-comp-modal {
+  border-color: rgba(20, 32, 51, 0.2) !important;
+  background-image: linear-gradient(160deg, rgba(250, 253, 255, 0.96), rgba(230, 240, 252, 0.84)) !important;
+  background-color: rgba(235, 243, 252, 0.92) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55), 0 22px 48px rgba(41, 66, 99, 0.2) !important;
+}
+
+:root.light .club-admin-comp-modal-close {
+  border-color: rgba(20, 32, 51, 0.22) !important;
+  background-color: rgba(255, 255, 255, 0.72) !important;
+  color: #2a415d !important;
+}
+
+:root.light .club-admin-comp-modal-close:hover {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+  color: #13263d !important;
+}
+
+:root.light .club-admin-comp-modal .comp-setup-choice {
+  border-color: rgba(20, 32, 51, 0.2) !important;
+  background-image: linear-gradient(150deg, rgba(255, 255, 255, 0.86), rgba(224, 236, 250, 0.66)) !important;
+  background-color: rgba(235, 243, 252, 0.82) !important;
+  color: #213850 !important;
+}
+
+:root.light .club-admin-comp-modal .comp-setup-choice[class*="border-brand-500"] {
+  border-color: rgba(2, 132, 199, 0.48) !important;
+  background-image: linear-gradient(145deg, rgba(210, 238, 255, 0.9), rgba(183, 224, 249, 0.78)) !important;
+  background-color: rgba(195, 228, 248, 0.84) !important;
+  color: #0b4b70 !important;
+}
+
+:root.light .club-admin-comp-modal .comp-setup-chip {
+  border: 1px solid rgba(20, 32, 51, 0.18);
+}
+
+:root.light .club-admin-comp-modal .comp-setup-chip[class*="bg-brand-600"] {
+  background-color: rgba(2, 132, 199, 0.86) !important;
+  color: #ffffff !important;
+}
+
+:root.light .club-admin-comp-modal .comp-setup-manual-hint {
+  color: #8a5a05 !important;
+}
+
+/* ── Club Admin payments tab: Awaiting/Paid columns ─────────────────────
+   Placed last on purpose: the generic amber/green utility-matching rules
+   above (bg-amber-500/, bg-green-500/, text-amber-*, text-green-*, etc.)
+   share the same specificity as class selectors, so whichever rule is
+   declared later in the cascade wins ties. Keeping this block at the very
+   end guarantees it always overrides those generic rules, regardless of
+   file reordering elsewhere.
+
+   Design: a neutral slate surface (matching the rest of Club Admin) with
+   a slim colored top accent + a colored left-border accent per row, is
+   plenty to signal status without the panels turning into a saturated
+   orange/mint wash. */
+:root.light .club-admin-payment-col.club-admin-payment-col--awaiting,
+:root.light .club-admin-payment-col.club-admin-payment-col--paid {
+  border-color: rgba(20, 32, 51, 0.14) !important;
+  background-image: linear-gradient(160deg, rgba(255, 255, 255, 0.95), rgba(238, 244, 252, 0.85)) !important;
+  background-color: rgba(244, 248, 253, 0.95) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+  position: relative;
+}
+:root.light .club-admin-payment-col--awaiting::before,
+:root.light .club-admin-payment-col--paid::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 0.5rem 0.5rem 0 0;
+}
+:root.light .club-admin-payment-col--awaiting::before { background: #b45309; }
+:root.light .club-admin-payment-col--paid::before { background: #15803d; }
+:root.light .club-admin-payment-col--awaiting h5 { color: #92400e !important; }
+:root.light .club-admin-payment-col--paid h5 { color: #15803d !important; }
+
+:root.light .club-admin-payment-row.club-admin-payment-row {
+  box-shadow: 0 1px 3px rgba(41, 66, 99, 0.06) !important;
+}
+:root.light .club-admin-payment-col--awaiting .club-admin-payment-row {
+  background-color: rgba(254, 243, 199, 0.55) !important;
+  border-color: rgba(180, 83, 9, 0.4) !important;
+}
+:root.light .club-admin-payment-col--paid .club-admin-payment-row {
+  background-color: rgba(220, 252, 231, 0.55) !important;
+  border-color: rgba(21, 128, 61, 0.4) !important;
+}
+:root.light .club-admin-payment-col--awaiting .club-admin-payment-row:hover {
+  background-color: rgba(254, 243, 199, 0.8) !important;
+  box-shadow: 0 2px 6px rgba(180, 83, 9, 0.14) !important;
+}
+:root.light .club-admin-payment-col--paid .club-admin-payment-row:hover {
+  background-color: rgba(220, 252, 231, 0.8) !important;
+  box-shadow: 0 2px 6px rgba(21, 128, 61, 0.14) !important;
+}
+:root.light .club-admin-payment-row p[class*="text-amber-100"],
+:root.light .club-admin-payment-row p[class*="text-green-100"] {
+  color: #1e2a3d !important;
+  font-weight: 600 !important;
+}
+:root.light .club-admin-payment-row p[class*="text-amber-200"],
+:root.light .club-admin-payment-row p[class*="text-green-200"] {
+  color: #5c7691 !important;
+}
+:root.light .club-admin-payment-col > p[class*="text-amber-100"],
+:root.light .club-admin-payment-col > p[class*="text-green-100"] {
+  color: #5c7691 !important;
+}
+
+/* Count badges + action buttons — muted outline styling, no solid fills */
+:root.light .club-admin-payment-col--awaiting span[class*="text-amber-300"] { color: #92400e !important; font-weight: 700 !important; }
+:root.light .club-admin-payment-col--paid span[class*="text-green-300"] { color: #15803d !important; font-weight: 700 !important; }
+:root.light .club-admin-payment-col button[class*="border-amber-300/"] {
+  border-color: rgba(180, 83, 9, 0.35) !important;
+  color: #92400e !important;
+  background-color: #ffffff !important;
+}
+:root.light .club-admin-payment-col button[class*="border-green-300/"] {
+  border-color: rgba(21, 128, 61, 0.35) !important;
+  color: #15803d !important;
+  background-color: #ffffff !important;
+}
+:root.light .club-admin-payment-row button[class*="bg-green-600/"] {
+  border: 1px solid rgba(21, 128, 61, 0.35) !important;
+  color: #15803d !important;
+  background-color: #ffffff !important;
+  font-weight: 600 !important;
+}
+:root.light .club-admin-payment-row button[class*="bg-green-600/"]:hover { background-color: rgba(220, 252, 231, 0.9) !important; }
+:root.light .club-admin-payment-row button[class*="bg-red-600/"] {
+  border: 1px solid rgba(185, 28, 28, 0.35) !important;
+  color: #991b1b !important;
+  background-color: #ffffff !important;
+  font-weight: 600 !important;
+}
+:root.light .club-admin-payment-row button[class*="bg-red-600/"]:hover { background-color: rgba(254, 226, 226, 0.9) !important; }
 
 
