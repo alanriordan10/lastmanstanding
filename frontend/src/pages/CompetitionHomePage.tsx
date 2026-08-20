@@ -1262,6 +1262,8 @@ export default function CompetitionHomePage() {
     pickMutation.mutate({ gwId, teamId, useLifeline });
   };
 
+  const sidebarAccentColor = comp.clubPrimaryColor ?? comp.clubSecondaryColor ?? null;
+
   let actionTone: 'brand' | 'warning' | 'danger' | 'success' = 'brand';
   let actionMeta: string | null = null;
 
@@ -1964,23 +1966,23 @@ export default function CompetitionHomePage() {
         'When a low-owned team gets players through, it shows up here as the smartest unpopular move.',
         'This card lights up when a minority pick survives and creates separation.',
         'If a low-owned choice breaks right, this is where that edge appears.',
-        'The first successful anti-crowd call will be shown here.',
-        'No low-owned pick has produced a clear edge yet.',
-        'This waits for a small group to beat the main trend.',
-        'When a brave selection survives, the detail will appear here.',
-        'The next unpopular pick that works will become this card\'s story.',
-        'This panel tracks the value of avoiding the crowd.',
-        'A low-owned survivor route has not appeared yet.',
-        'Once a minority pick advances, this insight will call it out.',
-        'No bold pick has created separation so far.',
-        'This is where the smartest unpopular move gets highlighted.',
-        'The field has not produced a contrarian winner yet.',
-        'A brave low-owned choice will show here if it lands.',
-        'This panel waits for an outsider pick to survive.',
-        'No minority call has moved the leaderboard yet.',
-        'When the quiet route works, this card will surface it.',
-        'No anti-crowd advantage is visible at the moment.',
-        'The first brave pick that pays off will be tracked here.',
+        'The first clear knockout blow will be shown here.',
+        'This card waits for a result strong enough to move the field.',
+        'No knockout detail is available until selections resolve.',
+        'The biggest elimination source will appear here after the week settles.',
+        'This panel tracks where the damage comes from.',
+        'When a team causes exits, the details will show here.',
+        'The main trapdoor is still waiting to be identified.',
+        'This card turns active once eliminations can be attributed.',
+        'The next major casualty will be summarized here.',
+        'No exit source has separated from the pack yet.',
+        'The round has not produced a clear knockout story yet.',
+        'This insight will name the team behind the biggest hit.',
+        'Once picks fail, the main source of damage will appear.',
+        'The elimination pattern is not readable yet.',
+        'This is where the biggest failed pick gets called out.',
+        'No knockout wave has formed yet.',
+        'The field has not produced a clear danger team yet.',
       ], 214);
 
   const insightPanels = [
@@ -2004,9 +2006,21 @@ export default function CompetitionHomePage() {
         data-club-branded={comp.clubPrimaryColor ? '' : undefined}
         style={{
           background: comp.clubPrimaryColor
-            ? `radial-gradient(circle at top left, ${comp.clubPrimaryColor}38, transparent 24rem), radial-gradient(circle at 85% 18%, ${comp.clubSecondaryColor ?? comp.clubPrimaryColor}22, transparent 18rem), ${heroBaseGradient}`
+            ? resolvedTheme === 'light'
+              ? `radial-gradient(135deg,#ffffff,#eaf3fc)`
+              : `radial-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))`
             : undefined,
-          ...(comp.clubPrimaryColor ? { borderTopColor: comp.clubPrimaryColor, borderTopWidth: '3px' } : {}),
+          ...(comp.clubPrimaryColor ? {
+            borderTopColor: comp.clubPrimaryColor,
+            borderTopWidth: '3px',
+            ...(comp.clubSecondaryColor ? {
+              borderRightColor: comp.clubSecondaryColor,
+              borderRightWidth: resolvedTheme === 'light' ? '4px' : '2px',
+              boxShadow: resolvedTheme === 'light'
+                ? `0 0 0 1px ${comp.clubSecondaryColor}18 inset`
+                : undefined,
+            } : {}),
+          } : {}),
         }}
       >
         {/* Club logo — top right corner (mobile/tablet only; desktop is in the right column) */}
@@ -2079,7 +2093,12 @@ export default function CompetitionHomePage() {
               onClick={() => setShareOpen((v) => !v)}
               data-club-branded={comp.clubPrimaryColor ? '' : undefined}
               className="inline-flex w-full items-center justify-center gap-1.5 text-sm px-3 py-2 rounded-lg bg-white/[0.11] hover:bg-white/[0.16] text-white transition border border-white/25 sm:w-auto sm:py-1.5"
-              style={comp.clubPrimaryColor ? {
+                style={comp.clubSecondaryColor ? {
+                borderColor: `${comp.clubSecondaryColor}${resolvedTheme === 'light' ? 'aa' : '66'}`,
+                backgroundColor: `${comp.clubSecondaryColor}${resolvedTheme === 'light' ? '35' : '18'}`,
+                color: resolvedTheme === 'light' ? comp.clubSecondaryColor : comp.clubSecondaryColor,
+                boxShadow: resolvedTheme === 'light' ? `0 0 0 1px ${comp.clubSecondaryColor}22 inset` : undefined,
+              } : comp.clubPrimaryColor ? {
                 borderColor: `${comp.clubPrimaryColor}44`,
                 backgroundColor: `${comp.clubPrimaryColor}14`,
                 color: comp.clubPrimaryColor,
@@ -2153,7 +2172,7 @@ export default function CompetitionHomePage() {
           </div>
           )}
         </div>
-        </div>
+          </div>
         {comp.paused && (
           <div className="relative mt-5 rounded-2xl border border-yellow-400/30 bg-yellow-500/10 px-4 py-3 text-yellow-50">
             <div className="flex items-start gap-3">
@@ -2161,7 +2180,7 @@ export default function CompetitionHomePage() {
               <div>
                 <p className="font-bold">Competition paused</p>
                 <p className="mt-1 text-sm leading-5 text-yellow-100/80">{comp.pauseReason || 'The organiser has temporarily paused this competition.'}</p>
-                <p className="mt-1 text-xs text-yellow-200/60">Joining, payments, picks, reminders and gameweek processing are temporarily stopped. Fixture kickoff and gameweek lock times remain unchanged.</p>
+                <p className="mt-1 text-xs text-yellow-200/60">Joining, payments, picks, reminders and automatic gameweek processing are temporarily stopped. Fixture kickoff and gameweek lock times remain unchanged.</p>
               </div>
             </div>
           </div>
@@ -2392,7 +2411,7 @@ export default function CompetitionHomePage() {
             </div>
             {stateBanner.ctaKind === 'join' ? (
               <button type="button" onClick={handleDirectJoin} disabled={joinMutation.isPending} className="btn-primary w-full sm:w-auto disabled:cursor-not-allowed disabled:opacity-60">
-                {joinMutation.isPending ? 'Joining...' : stateBanner.ctaLabel}
+                {joinMutation.isPending ? 'Joining...' : comp.entryFee > 0 && comp.paymentMode !== 'FREE' ? `Register · €${comp.entryFee} to organiser` : 'Join competition'}
               </button>
             ) : stateBanner.ctaKind === 'pick' ? (
               <button type="button" onClick={handleScrollToOpenWeek} className="btn-primary w-full sm:w-auto">{stateBanner.ctaLabel}</button>
@@ -2446,7 +2465,8 @@ export default function CompetitionHomePage() {
               statusLabel={sidebarStatusLabel}
               body={sidebarSummary}
               meta={sidebarMeta}
-              accentColor={comp.clubPrimaryColor}
+              resolvedTheme={resolvedTheme}
+              accentColor={sidebarAccentColor}
               cta={!hasConfirmedParticipation && comp.status === 'UPCOMING' ? (
                 <button
                   type="button"
@@ -2506,9 +2526,16 @@ export default function CompetitionHomePage() {
                 <span className="text-gray-400">{mobileReminderOpen ? 'Hide' : 'Show'}</span>
               </button>
               {mobileReminderOpen && (
-                <div id="mobile-reminder" className="mt-4">
+                <section
+                  id="mobile-reminder"
+                  className="mt-4"
+                  data-club-branded={sidebarAccentColor ? '' : undefined}
+                  style={sidebarAccentColor ? {
+                    borderColor: resolvedTheme === 'light' ? `${sidebarAccentColor}44` : `${sidebarAccentColor}2f`,
+                  } : undefined}
+                >
                   {reminderPanel}
-                </div>
+                </section>
               )}
             </div>
           )}
@@ -2645,17 +2672,28 @@ export default function CompetitionHomePage() {
                   <div
                     id={`gw-card-${wn}`}
                     key={wn}
-                    className={clsx('card overflow-hidden transition-[border-color,box-shadow] duration-200', {
+                    className={clsx('card relative overflow-hidden transition-[border-color,box-shadow] duration-200', {
                       'border-sky-300/45': myPickForGw && !isCompleted,
                       'border-white/15 opacity-75': isCompleted,
                       'border-amber-400/35': !myPickForGw && !isCompleted && !isLocked && isParticipant && !isEliminated && !isWinner,
                     })}
-                    data-club-accent={myPickForGw && !isCompleted && comp.clubPrimaryColor ? '' : undefined}
-                    style={myPickForGw && !isCompleted && comp.clubPrimaryColor ? {
-                      borderColor: `${comp.clubPrimaryColor}66`,
-                      boxShadow: `0 0 0 1px ${comp.clubPrimaryColor}1f`,
+                    data-club-branded={comp.clubPrimaryColor ? '' : undefined}
+                    style={comp.clubPrimaryColor ? {
+                      borderColor: resolvedTheme === 'light' ? `${comp.clubPrimaryColor}55` : `${comp.clubPrimaryColor}40`,
+                      boxShadow: resolvedTheme === 'light'
+                        ? `0 0 0 1px ${comp.clubPrimaryColor}14, 0 6px 16px ${(comp.clubSecondaryColor ?? comp.clubPrimaryColor)}0d`
+                        : `0 0 0 1px ${comp.clubPrimaryColor}10`,
                     } : undefined}
                   >
+                    {comp.clubPrimaryColor && (
+                      <div
+                        className="pointer-events-none absolute inset-x-0 top-0 h-[2px]"
+                        style={{
+                          backgroundImage: `linear-gradient(90deg, ${comp.clubPrimaryColor}, ${comp.clubSecondaryColor ?? comp.clubPrimaryColor})`,
+                          boxShadow: `0 0 0 1px ${comp.clubSecondaryColor ?? comp.clubPrimaryColor}28`,
+                        }}
+                      />
+                    )}
                     {/* ── Gameweek header — clickable toggle ── */}
                     <button
                       onClick={() => toggleWeek(wn)}
@@ -2895,7 +2933,8 @@ export default function CompetitionHomePage() {
                                   align="right"
                                   pickStat={homeStat}
                                   risk={homeRisk}
-                                  accentColor={comp.clubSecondaryColor}
+                                  accentColor={comp.clubPrimaryColor}
+                                  accentSecondaryColor={comp.clubSecondaryColor}
                                   onClick={() => handlePick(gwId, f.homeTeamId, lockAt)}
                                 />
                                   <div className="flex flex-col items-center justify-center min-w-[58px] px-1 sm:min-w-[80px] lg:min-w-[96px]">
@@ -2930,7 +2969,8 @@ export default function CompetitionHomePage() {
                                   align="left"
                                   pickStat={awayStat}
                                   risk={awayRisk}
-                                  accentColor={comp.clubSecondaryColor}
+                                  accentColor={comp.clubPrimaryColor}
+                                  accentSecondaryColor={comp.clubSecondaryColor}
                                   onClick={() => handlePick(gwId, f.awayTeamId, lockAt)}
                                   />
                                 </div>
@@ -3001,7 +3041,7 @@ export default function CompetitionHomePage() {
                             </span>
                             <div className="flex items-center gap-2">
                               {pick.useLifeline ? <span className="text-[10px] px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-200">Lifeline</span> : null}
-                              {pick.source === 'AUTO' ? <span className="badge-yellow text-[10px]">Auto</span> : <span className="badge-gray text-[10px]">Self</span>}
+                              {pick.source === 'AUTO' ? <span className="badge-yellow">Auto</span> : <span className="badge-gray">Self</span>}
                             </div>
                           </div>
                         </div>
@@ -3073,7 +3113,8 @@ export default function CompetitionHomePage() {
               statusLabel={sidebarStatusLabel}
               body={sidebarSummary}
               meta={sidebarMeta}
-              accentColor={comp.clubPrimaryColor}
+              resolvedTheme={resolvedTheme}
+              accentColor={sidebarAccentColor}
               cta={!hasConfirmedParticipation && comp.status === 'UPCOMING' ? (
                 <button
                   type="button"
@@ -3095,7 +3136,21 @@ export default function CompetitionHomePage() {
 
             {reminderPanel && <div className="hidden lg:block">{reminderPanel}</div>}
 
-            <section className="card p-4 sm:p-5 hidden lg:block">
+            <section
+              className="card relative overflow-hidden p-4 sm:p-5 hidden lg:block"
+              data-club-branded={sidebarAccentColor ? '' : undefined}
+              style={sidebarAccentColor ? {
+                borderColor: resolvedTheme === 'light' ? `${sidebarAccentColor}44` : `${sidebarAccentColor}2f`,
+              } : undefined}
+            >
+              {sidebarAccentColor && (
+                <div
+                  className="pointer-events-none absolute inset-x-0 top-0 z-10 h-px"
+                  style={{
+                    backgroundImage: `linear-gradient(90deg, ${sidebarAccentColor}, ${sidebarAccentColor}c0)`,
+                  }}
+                />
+              )}
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <h2 className="text-lg font-semibold text-gray-100">Rules & Status</h2>
@@ -3186,7 +3241,22 @@ export default function CompetitionHomePage() {
                 <span className="text-gray-400">{mobileRulesOpen ? 'Hide' : 'Show'}</span>
               </button>
               {mobileRulesOpen && (
-                <section id="mobile-rules" className="mt-4 card p-4 sm:p-5">
+                <section
+                  id="mobile-rules"
+                  className="mt-4 card relative overflow-hidden p-4 sm:p-5"
+                  data-club-branded={sidebarAccentColor ? '' : undefined}
+                  style={sidebarAccentColor ? {
+                    borderColor: resolvedTheme === 'light' ? `${sidebarAccentColor}44` : `${sidebarAccentColor}2f`,
+                  } : undefined}
+                >
+                  {sidebarAccentColor && (
+                    <div
+                      className="pointer-events-none absolute inset-x-0 top-0 z-10 h-px"
+                      style={{
+                        backgroundImage: `linear-gradient(90deg, ${sidebarAccentColor}, ${sidebarAccentColor}c0)`,
+                      }}
+                    />
+                  )}
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <h2 className="text-lg font-semibold text-gray-100">Rules & Status</h2>
@@ -3490,13 +3560,29 @@ function MyRoutePanel({
             ) : null}
             {currentPickFixture?.risk ? (
               <div className="mt-3 flex flex-wrap items-center gap-2">
-                <span className={clsx(
-                  'rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em]',
-                  currentPickFixture.risk.label === 'Safe' && 'bg-green-500/20 text-green-100',
-                  currentPickFixture.risk.label === 'Balanced' && 'bg-yellow-500/20 text-yellow-100',
-                  currentPickFixture.risk.label === 'Differential' && 'bg-cyan-500/20 text-cyan-100',
-                )}>{riskLabelText(currentPickFixture.risk)}</span>
-                {currentPickFixture.risk.marketChance != null ? <span className="rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-bold text-slate-200">{currentPickFixture.risk.marketChance}% market</span> : null}
+                <span
+                  className={clsx(
+                    'inline-flex max-w-full items-center gap-1 rounded-full px-2 py-1 text-[10px] font-black whitespace-nowrap overflow-hidden sm:px-1.5 sm:py-0.5 sm:text-[9px] sm:font-semibold',
+                    currentPickFixture.risk.label === 'Safe' && 'bg-green-500/20 text-green-200',
+                    currentPickFixture.risk.label === 'Balanced' && 'bg-yellow-500/20 text-yellow-200',
+                    currentPickFixture.risk.label === 'Differential' && 'bg-cyan-500/20 text-cyan-200',
+                  )}
+                  title={
+                    currentPickFixture.risk.source === 'fallback'
+                      ? 'Risk estimate based on limited data (no live odds yet)'
+                      : currentPickFixture.risk.lowConfidence
+                      ? 'Risk estimate based on partial odds data'
+                      : 'Risk based on current market odds and crowd data'
+                  }
+                >
+                  <span className="truncate">{riskLabelText(currentPickFixture.risk)}</span>
+                  {currentPickFixture.risk.source === 'fallback' && (
+                    <span className="font-normal opacity-70 truncate">· no odds yet</span>
+                  )}
+                  {currentPickFixture.risk.source !== 'fallback' && currentPickFixture.risk.lowConfidence && (
+                    <span className="font-normal opacity-70 truncate">· estimate</span>
+                  )}
+                </span>
               </div>
             ) : null}
           </>
@@ -3628,7 +3714,7 @@ function RouteTeamLogo({
 }
 
 function TeamButton({
-  name, logoUrl, shortName, isMyPick, isUsed, isReserved, isClickable, align, pickStat, risk, accentColor, onClick,
+  name, logoUrl, shortName, isMyPick, isUsed, isReserved, isClickable, align, pickStat, risk, accentColor, accentSecondaryColor, onClick,
 }: {
   name: string;
   logoUrl?: string | null;
@@ -3636,7 +3722,7 @@ function TeamButton({
   isMyPick: boolean;
   isUsed: boolean;
   isReserved?: boolean;
-  isClickable: boolean; align: 'left' | 'right'; pickStat?: PickStat; risk?: TeamRisk | null; accentColor?: string | null; onClick: () => void;
+  isClickable: boolean; align: 'left' | 'right'; pickStat?: PickStat; risk?: TeamRisk | null; accentColor?: string | null; accentSecondaryColor?: string | null; onClick: () => void;
 }) {
   const showStatusPill = isMyPick || (isUsed && !isMyPick) || (!!isReserved && !isMyPick && !isUsed);
   const statusPillLabel = isMyPick ? 'Picked' : isUsed ? 'Used' : isReserved ? 'Resvd' : '';
@@ -3645,6 +3731,8 @@ function TeamButton({
   const showLogo = !!trimmedLogoUrl && !logoFailed;
   const logoAlt = `${name} crest`;
   const logoFallback = shortName.slice(0, 1).toUpperCase();
+  const teamAccentColor = accentColor ?? null;
+  const teamAccentColor2 = accentSecondaryColor ?? accentColor ?? null;
 
   return (
     <button
@@ -3658,17 +3746,25 @@ function TeamButton({
       }
 
       className={clsx(
-        'flex h-full flex-col justify-center gap-0.5 rounded-xl px-2 py-2.5 sm:rounded-lg sm:px-3 lg:px-4 sm:py-0.5 w-full min-w-0 overflow-hidden transition-all min-h-[74px] sm:min-h-[30px] lg:min-h-[32px]',
+        'relative flex h-full flex-col justify-center gap-0.5 rounded-xl px-2 py-2.5 sm:rounded-lg sm:px-3 lg:px-4 sm:py-0.5 w-full min-w-0 overflow-hidden transition-all min-h-[74px] sm:min-h-[30px] lg:min-h-[32px]',
         align === 'right' ? 'items-center sm:items-end sm:text-right' : 'items-center sm:items-start sm:text-left',
-        isMyPick && 'bg-brand-600/85 border-2 border-brand-300 text-white font-bold shadow-md shadow-brand-900/25',
+        isMyPick && 'bg-brand-600/85 border border-brand-300 text-white font-bold shadow-md shadow-brand-900/25',
         isUsed && !isMyPick && 'bg-transparent text-amber-300 cursor-not-allowed',
         isReserved && !isUsed && !isMyPick && 'bg-transparent text-cyan-300',
-        isClickable && !isMyPick && 'bg-transparent sm:bg-surface-600/50 sm:border sm:border-gray-600 hover:border-gray-500 hover:bg-white/[0.04] text-gray-200 cursor-pointer font-medium',
+        isClickable && !isMyPick && 'bg-transparent sm:bg-surface-600/50 sm:border sm:border-white/10 hover:bg-white/[0.04] text-gray-200 cursor-pointer font-medium',
         !isClickable && !isUsed && !isMyPick && 'bg-transparent text-gray-400 cursor-default font-medium',
       )}
       aria-pressed={isMyPick}
       aria-label={`Pick ${name}`}
     >
+      {teamAccentColor && (
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 h-px"
+          style={{
+            backgroundImage: `linear-gradient(90deg, ${teamAccentColor}, ${teamAccentColor2})`,
+          }}
+        />
+      )}
       {/* Mobile: app-style centered team column */}
       <div className="flex sm:hidden w-full min-w-0 flex-col items-center justify-center text-center">
         <div className={clsx('flex max-w-full min-w-0 items-center justify-center gap-1.5', align === 'right' ? 'flex-row-reverse' : 'flex-row')}>
@@ -3752,7 +3848,7 @@ function TeamButton({
                   {logoFallback}
                 </span>
               )}
-              <span className={clsx('w-[3ch] shrink-0 font-bold sm:text-sm', isMyPick ? 'text-white' : '')}>{shortName}</span>
+              <span className={clsx('text-left font-bold sm:text-sm', isMyPick ? 'text-white' : '')}>{shortName}</span>
             </span>
             <span className="shrink-0 text-[10px] text-gray-500">·</span>
             <span className="min-w-0 flex-1 truncate text-xs lg:text-sm font-normal opacity-90">
@@ -3772,7 +3868,7 @@ function TeamButton({
             <span className="truncate text-center text-xs lg:text-sm font-normal opacity-90">
               {name}
             </span>
-            <span className="shrink-0 flex items-center justify-end gap-1.5">
+            <span className="shrink-0 flex items-center gap-1.5">
               <span className={clsx('text-right font-bold sm:text-sm', isMyPick ? 'text-white' : '')}>{shortName}</span>
               {showLogo ? (
                 <img
@@ -3850,7 +3946,7 @@ function TeamButton({
             {pickStat && (
               <div
                 className={clsx(
-                  'inline-flex w-full max-w-[8rem] items-center justify-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-black whitespace-nowrap sm:w-auto sm:max-w-full sm:justify-start sm:text-[9px] sm:font-semibold sm:px-1.5 sm:py-0.5',
+                  'inline-flex w-full max-w-[8rem] items-center justify-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-black whitespace-nowrap sm:w-auto sm:max-w-full sm:justify-start sm:px-1.5 sm:py-0.5',
                   isMyPick ? 'bg-white/18 text-white' : 'bg-white/10 text-gray-200',
                 )}
                 style={accentColor && !isMyPick ? { border: `1px solid ${accentColor}44`, color: '#cbd5e1' } : undefined}
@@ -3919,6 +4015,7 @@ function CompetitionSnapshotSkeleton() {
   );
 }
 
+// ...existing code...
 function ActionPanel({
   tone,
   title,
@@ -3927,6 +4024,7 @@ function ActionPanel({
   meta,
   cta,
   accentColor,
+  resolvedTheme,
 }: {
   tone: 'brand' | 'warning' | 'danger' | 'success';
   title: string;
@@ -3935,6 +4033,7 @@ function ActionPanel({
   meta?: string | null;
   cta?: ReactNode;
   accentColor?: string | null;
+  resolvedTheme: 'light' | 'dark';
 }) {
   const toneClasses = {
     brand: 'border-brand-500/30 bg-brand-500/10 text-brand-300',
@@ -3943,15 +4042,28 @@ function ActionPanel({
     success: 'border-green-500/30 bg-green-500/10 text-green-300',
   } as const;
 
+  const panelStyle = accentColor ? {
+    ...(tone === 'brand' ? {
+      borderColor: resolvedTheme === 'light' ? `${accentColor}55` : `${accentColor}40`,
+      backgroundImage: resolvedTheme === 'light'
+        ? `radial-gradient(circle at top right, ${accentColor}2e, transparent 13rem), radial-gradient(circle at bottom left, ${accentColor}12, transparent 10rem)`
+        : `radial-gradient(circle at top right, ${accentColor}18, transparent 13rem)`,
+      boxShadow: resolvedTheme === 'light'
+        ? `0 0 0 1px ${accentColor}24, 0 8px 18px ${accentColor}0d`
+        : undefined,
+    } : {}),
+  } : undefined;
+
   return (
-    <section
-      className="card p-4 sm:p-5"
-      style={tone === 'brand' && accentColor ? {
-        borderTopColor: accentColor,
-        borderTopWidth: '3px',
-        backgroundImage: `radial-gradient(circle at top right, ${accentColor}18, transparent 13rem)`,
-      } : undefined}
-    >
+    <section className="card relative overflow-hidden p-4 sm:p-5" data-club-branded={accentColor ? '' : undefined} style={panelStyle}>
+      {accentColor && (
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 z-10 h-px"
+          style={{
+            backgroundImage: `linear-gradient(90deg, ${accentColor}, ${accentColor}c0)`,
+          }}
+        />
+      )}
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">Next Action</div>
@@ -3961,8 +4073,8 @@ function ActionPanel({
         <div
           className={`inline-flex shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${toneClasses[tone]}`}
           style={tone === 'brand' && accentColor ? {
-            borderColor: `${accentColor}55`,
-            backgroundColor: `${accentColor}22`,
+            borderColor: resolvedTheme === 'light' ? `${accentColor}bb` : `${accentColor}55`,
+            backgroundColor: resolvedTheme === 'light' ? `${accentColor}42` : `${accentColor}22`,
             color: accentColor,
           } : undefined}
         >
@@ -3973,7 +4085,10 @@ function ActionPanel({
       {meta && (
         <p
           className="mt-3 rounded-xl border border-white/8 bg-black/10 px-3 py-2 text-xs text-gray-400"
-          style={tone === 'brand' && accentColor ? { borderColor: `${accentColor}2f` } : undefined}
+          style={tone === 'brand' && accentColor ? {
+            borderColor: resolvedTheme === 'light' ? `${accentColor}88` : `${accentColor}2f`,
+            backgroundColor: resolvedTheme === 'light' ? `${accentColor}14` : undefined,
+          } : undefined}
         >
           {meta}
         </p>
@@ -3982,6 +4097,7 @@ function ActionPanel({
     </section>
   );
 }
+// ...existing code...
 
 function SummaryTile({
   label,

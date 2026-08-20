@@ -323,7 +323,7 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
    colour washes (background-image) and accent top border show through. */
 :root.light .card[data-club-branded] {
   background-color: rgba(240, 245, 252, 0.94) !important;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5), 0 14px 32px rgba(41, 66, 99, 0.14) !important;
+  box-shadow: 0 14px 32px rgba(41, 66, 99, 0.14) !important;
   border-right-color: rgba(20, 32, 51, 0.18);
   border-bottom-color: rgba(20, 32, 51, 0.18);
   border-left-color: rgba(20, 32, 51, 0.18);

@@ -74,8 +74,8 @@ function competitionCardStyle(comp: Competition, isLight = false): CSSProperties
 function competitionAccentBadgeStyle(color?: string | null): CSSProperties | undefined {
   if (!color) return undefined;
   return {
-    borderColor: `${color}3d`,
-    backgroundColor: `${color}16`,
+    borderColor: `${color}66`,
+    backgroundColor: `${color}24`,
     color,
   };
 }
@@ -1512,6 +1512,15 @@ function CompetitionCard({ comp, joined, onJoin, isPending, actionHint, isHighli
       data-club-branded={comp.clubPrimaryColor ? '' : undefined}
       style={competitionCardStyle(comp, resolvedTheme === 'light')}
     >
+      {clubSupport ? (
+        <div
+          className="-mx-4 -mt-4 mb-3 h-1.5 rounded-t-[inherit]"
+          style={{
+            background: `linear-gradient(90deg, ${clubAccent ?? clubSupport} 0%, ${clubSupport} 100%)`,
+            boxShadow: `0 0 0 1px ${clubSupport}55`,
+          }}
+        />
+      ) : null}
       <div className="min-h-[24px]">
         {isHighlighted && (
           <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-brand-400/30 bg-brand-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-200">
