@@ -937,7 +937,7 @@ export default function CompetitionsPage() {
             <FilterStatTile label="Finished" value={mineFinishedCount.length} color="text-gray-400" isActive={mineFilter === 'FINISHED'} onClick={() => setMineFilter((current) => current === 'FINISHED' ? 'ALL' : 'FINISHED')} />
           </div>
 
-          {mineFilter === 'NEEDS_ACTION' && (
+          {(mineFilter === 'NEEDS_ACTION' || mineFilter === 'PICK_DUE' || mineFilter === 'AWAITING_PAYMENT') && (
             <div className="flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-white/[0.02] p-3">
               <span className="text-xs text-gray-500">Refine:</span>
               {(['PICK_DUE', 'AWAITING_PAYMENT'] as const).map((f) => (
