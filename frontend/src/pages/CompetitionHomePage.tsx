@@ -1,6 +1,6 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
 import api from '../api';
 import type { Competition, GameweekSelectionsData, MyStatus, Fixture, Participant, PickHistoryItem } from '../types';
@@ -8,6 +8,7 @@ import type { AuthResponse } from '../types';
 import toast from 'react-hot-toast';
 import { formatDistanceToNow, isPast } from 'date-fns';
 import clsx from 'clsx';
+import html2canvas from 'html2canvas';
 import { useCountdown } from '../hooks/useCountdown';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -204,12 +205,14 @@ export default function CompetitionHomePage() {
   const [mobileInsightsOpen, setMobileInsightsOpen] = useState(false);
   const [mobileRulesOpen, setMobileRulesOpen] = useState(false);
   const [mobileReminderOpen, setMobileReminderOpen] = useState(false);
+  const [snapshotSharing, setSnapshotSharing] = useState(false);
   const [selectedEntryId, setSelectedEntryId] = useState<number | null>(null);
   const [lifelineForGwId, setLifelineForGwId] = useState<number | null>(null);
   const [lifelineClearedForGwId, setLifelineClearedForGwId] = useState<number | null>(null);
   const [gameweekDisplayMode, setGameweekDisplayMode] = useState<GameweekDisplayMode>('cards');
   const [resetOpenConfirmOpen, setResetOpenConfirmOpen] = useState(false);
   const [joinedOptimistically, setJoinedOptimistically] = useState(false);
+  const gameweekSnapshotRef = useRef<HTMLDivElement | null>(null);
 
   // Close share dropdown on outside click
   useEffect(() => {
@@ -1394,6 +1397,91 @@ export default function CompetitionHomePage() {
   // Keep the skeleton short-lived: fixtures define the narrative structure.
   // Pick stats and selections can fill in without blocking the whole pulse area.
   const narrativeFirstLoad = fixturesLoading;
+  const snapshotShareMode: 'live' | 'recap' | null = latestNarrativeWeek
+    ? (latestNarrativeWeek.data.gwStatus === 'COMPLETED' ? 'recap' : 'live')
+    : null;
+  const snapshotShareTitle = snapshotShareMode === 'live' ? 'Live Update' : 'Recap';
+  const snapshotShareButtonLabel = snapshotShareMode === 'live' ? 'Share Live Snapshot' : 'Share Gameweek Snapshot';
+  const competitionShareUrl = `${window.location.origin}/competitions/${compId}`;
+
+  const buildGameweekSnapshotMessage = () => {
+    const weekLabel = narrativeWeekLabel ?? 'Latest gameweek';
+    const mostPicked = mostBackedTeam ? `${mostBackedTeam.teamShortName} (${mostBackedTeam.pickCount})` : 'No picks yet';
+    const weeklySurvival = weeklySurvivalRate != null ? `${weeklySurvivalRate}%` : `${survivalRate}%`;
+    return [
+      `${comp.name} - ${weekLabel} ${snapshotShareTitle}`,
+      '',
+      storylineTitle,
+      storylineBody,
+      '',
+      `This week: ${weeklyEliminatedCount} out, ${weeklyAdvancedCount} advanced`,
+      narrativeWeekByeGranted ? 'Bye granted: all active entries advanced this gameweek' : null,
+      `Still alive: ${effectiveActiveCount}/${comp.participantCount}`,
+      `Survival rate: ${weeklySurvival}`,
+      `Most picked: ${mostPicked}`,
+      comp.winnerUsername ? `Winner: ${comp.winnerUsername}` : null,
+      '',
+      competitionShareUrl,
+      'Shared from Last Man Standing',
+    ].filter(Boolean).join('\n');
+  };
+
+  const onShareGameweekSnapshot = async () => {
+    if (!snapshotShareMode || narrativeFirstLoad || snapshotSharing) return;
+    const message = buildGameweekSnapshotMessage();
+    const shareTitle = `${comp.name} ${snapshotShareTitle.toLowerCase()}`;
+    setSnapshotSharing(true);
+    try {
+      const snapshotNode = gameweekSnapshotRef.current;
+      let shareFile: File | null = null;
+
+      if (snapshotNode) {
+        const canvas = await html2canvas(snapshotNode, {
+          backgroundColor: resolvedTheme === 'light' ? '#eef4fc' : '#0f172a',
+          scale: Math.min(window.devicePixelRatio || 1, 2),
+          useCORS: true,
+        });
+        const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png', 0.92));
+        if (blob) {
+          shareFile = new File([blob], `lms-${(narrativeWeekLabel ?? 'gameweek').replace(/\s+/g, '-').toLowerCase()}-snapshot.png`, {
+            type: 'image/png',
+          });
+        }
+      }
+
+      if (navigator.share) {
+        if (shareFile && typeof navigator.canShare === 'function' && navigator.canShare({ files: [shareFile] })) {
+          await navigator.share({
+            title: shareTitle,
+            text: message,
+            files: [shareFile],
+          });
+          return;
+        }
+        await navigator.share({
+          title: shareTitle,
+          text: message,
+          url: competitionShareUrl,
+        });
+        return;
+      }
+
+      await navigator.clipboard.writeText(message);
+      toast.success('Snapshot summary copied to clipboard');
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') {
+        try {
+          await navigator.clipboard.writeText(message);
+          toast.success('Snapshot summary copied to clipboard');
+        } catch {
+          toast.error('Could not share snapshot right now');
+        }
+      }
+    } finally {
+      setSnapshotSharing(false);
+    }
+  };
+
   const emailReminderEnabled = user?.notificationPickReminders ?? user?.emailResultsOptIn ?? false;
 
   const reminderPanel = showReminderSetup ? (
@@ -2180,44 +2268,82 @@ export default function CompetitionHomePage() {
           <CompetitionSnapshotSkeleton />
         ) : (
           <>
-        <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-200">What Changed This Gameweek</div>
-        <div className="mt-1 flex flex-wrap items-center gap-2">
-          <h2 className="text-lg font-semibold text-white">
-            {narrativeWeekLabel ?? 'Latest gameweek'} snapshot
-          </h2>
-          {narrativeWeekByeGranted && (
-            <span className="inline-flex items-center rounded-full border border-amber-400/35 bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-200">
-              🎁 Bye granted
-            </span>
-          )}
-        </div>
-        {narrativeWeekByeGranted && (
-          <p className="mt-1 text-xs text-amber-200/90">
-            Everyone who was still active advanced this round by bye.
-          </p>
-        )}
-        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-xl border border-white/10 bg-black/15 px-3 py-2">
-            <div className="text-[11px] uppercase tracking-[0.14em] text-gray-400">New eliminations</div>
-            <div className="mt-1 text-base font-bold text-red-300">{weeklyEliminatedCount}</div>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-black/15 px-3 py-2">
-            <div className="text-[11px] uppercase tracking-[0.14em] text-gray-400">Most picked</div>
-            <div className="mt-1 text-base font-bold text-white">
-              {mostBackedTeam ? `${mostBackedTeam.teamShortName} (${mostBackedTeam.pickCount})` : 'No picks yet'}
+            <div
+              ref={gameweekSnapshotRef}
+              className="rounded-[1.5rem] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_28%),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(8,15,30,0.94))] p-4 sm:p-5 shadow-[0_20px_44px_rgba(2,8,23,0.35)]"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-200">What Changed This Gameweek</div>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <h2 className="text-lg font-semibold text-white">
+                      {narrativeWeekLabel ?? 'Latest gameweek'} snapshot
+                    </h2>
+                    {snapshotShareMode && (
+                      <span className={clsx(
+                        'inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold',
+                        snapshotShareMode === 'live'
+                          ? 'border-sky-400/35 bg-sky-500/15 text-sky-200'
+                          : 'border-emerald-400/35 bg-emerald-500/15 text-emerald-200'
+                      )}>
+                        {snapshotShareMode === 'live' ? 'Live update' : 'Recap'}
+                      </span>
+                    )}
+                    {narrativeWeekByeGranted && (
+                      <span className="inline-flex items-center rounded-full border border-amber-400/35 bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-200">
+                        🎁 Bye granted
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-[11px] font-medium text-gray-300">
+                  Shared snapshot
+                </div>
+              </div>
+              {narrativeWeekByeGranted && (
+                <p className="mt-2 text-xs text-amber-200/90">
+                  Everyone who was still active advanced this round by bye.
+                </p>
+              )}
+              <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 shadow-sm shadow-black/10">
+                  <div className="text-[11px] uppercase tracking-[0.14em] text-gray-400">New eliminations</div>
+                  <div className="mt-1 text-base font-bold text-red-300">{weeklyEliminatedCount}</div>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 shadow-sm shadow-black/10">
+                  <div className="text-[11px] uppercase tracking-[0.14em] text-gray-400">Most picked</div>
+                  <div className="mt-1 text-base font-bold text-white">
+                    {mostBackedTeam ? `${mostBackedTeam.teamShortName} (${mostBackedTeam.pickCount})` : 'No picks yet'}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 shadow-sm shadow-black/10">
+                  <div className="text-[11px] uppercase tracking-[0.14em] text-gray-400">Lifelines played</div>
+                  <div className="mt-1 text-base font-bold text-amber-300">
+                    {comp.lifelineEnabled ? lifelinesPlayedThisWeek : 'Lifeline off'}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 shadow-sm shadow-black/10">
+                  <div className="text-[11px] uppercase tracking-[0.14em] text-gray-400">Entries remaining</div>
+                  <div className="mt-1 text-base font-bold text-emerald-300">{effectiveActiveCount}</div>
+                </div>
+              </div>
+              <div className="mt-4 flex flex-col gap-2 border-t border-white/10 pt-3 text-[11px] text-gray-400 sm:flex-row sm:items-center sm:justify-between">
+                <span>{comp.name}</span>
+                <span>Last Man Standing · runlastmanstanding.com</span>
+              </div>
             </div>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-black/15 px-3 py-2">
-            <div className="text-[11px] uppercase tracking-[0.14em] text-gray-400">Lifelines played</div>
-            <div className="mt-1 text-base font-bold text-amber-300">
-              {comp.lifelineEnabled ? lifelinesPlayedThisWeek : 'Lifeline off'}
-            </div>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-black/15 px-3 py-2">
-            <div className="text-[11px] uppercase tracking-[0.14em] text-gray-400">Entries remaining</div>
-            <div className="mt-1 text-base font-bold text-emerald-300">{effectiveActiveCount}</div>
-          </div>
-        </div>
+            {snapshotShareMode && (
+              <div className="mt-3 flex justify-end">
+                <button
+                  type="button"
+                  onClick={onShareGameweekSnapshot}
+                  disabled={snapshotSharing}
+                  className="inline-flex items-center gap-2 rounded-lg border border-brand-400/35 bg-brand-500/12 px-3 py-2 text-xs font-semibold text-brand-200 transition hover:bg-brand-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {snapshotSharing ? 'Preparing snapshot...' : snapshotShareButtonLabel}
+                </button>
+              </div>
+            )}
           </>
         )}
       </section>
