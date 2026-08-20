@@ -2274,7 +2274,7 @@ export default function CompetitionHomePage() {
       <section className="rounded-[1.35rem] border border-white/10 bg-white/[0.03] px-4 py-4 sm:px-5">
         {narrativeFirstLoad ? (
           <CompetitionSnapshotSkeleton />
-        ) : (
+        ) : snapshotShareMode ? (
           <>
             <div
               ref={gameweekSnapshotRef}
@@ -2288,16 +2288,14 @@ export default function CompetitionHomePage() {
                     <h2 className={resolvedTheme === 'light' ? 'text-lg font-semibold text-slate-900' : 'text-lg font-semibold text-white'}>
                       {narrativeWeekLabel ?? 'Latest gameweek'} snapshot
                     </h2>
-                    {snapshotShareMode && (
-                      <span className={clsx(
-                        'inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold',
-                        snapshotShareMode === 'live'
-                          ? 'border-sky-400/35 bg-sky-500/15 text-sky-200'
-                          : 'border-emerald-400/35 bg-emerald-500/15 text-emerald-200'
-                      )}>
-                        {snapshotShareMode === 'live' ? 'Live update' : 'Recap'}
-                      </span>
-                    )}
+                    <span className={clsx(
+                      'inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold',
+                      snapshotShareMode === 'live'
+                        ? 'border-sky-400/35 bg-sky-500/15 text-sky-200'
+                        : 'border-emerald-400/35 bg-emerald-500/15 text-emerald-200'
+                    )}>
+                      {snapshotShareMode === 'live' ? 'Live update' : 'Recap'}
+                    </span>
                     {narrativeWeekByeGranted && (
                       <span className="inline-flex items-center rounded-full border border-amber-400/35 bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-200">
                         🎁 Bye granted
@@ -2349,19 +2347,32 @@ export default function CompetitionHomePage() {
                 <span className={snapshotFooterTextClassName}>Last Man Standing · runlastmanstanding.com · Share snapshot</span>
               </div>
             </div>
-            {snapshotShareMode && (
-              <div className="mt-3 flex justify-end">
-                <button
-                  type="button"
-                  onClick={onShareGameweekSnapshot}
-                  disabled={snapshotSharing}
-                  className="inline-flex items-center gap-2 rounded-lg border border-brand-400/35 bg-brand-500/12 px-3 py-2 text-xs font-semibold text-brand-200 transition hover:bg-brand-500/20 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {snapshotSharing ? 'Preparing snapshot...' : snapshotShareButtonLabel}
-                </button>
-              </div>
-            )}
+            <div className="mt-3 flex justify-end">
+              <button
+                type="button"
+                onClick={onShareGameweekSnapshot}
+                disabled={snapshotSharing}
+                className="inline-flex items-center gap-2 rounded-lg border border-brand-400/35 bg-brand-500/12 px-3 py-2 text-xs font-semibold text-brand-200 transition hover:bg-brand-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {snapshotSharing ? 'Preparing snapshot...' : snapshotShareButtonLabel}
+              </button>
+            </div>
           </>
+        ) : (
+          <div className={clsx(snapshotCardClassName, 'flex flex-col items-start gap-3')}>
+            <div className={resolvedTheme === 'light' ? 'text-[11px] font-semibold uppercase tracking-[0.14em] text-sky-700' : 'text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-200'}>
+              What Changed This Gameweek
+            </div>
+            <h2 className={resolvedTheme === 'light' ? 'text-lg font-semibold text-slate-900' : 'text-lg font-semibold text-white'}>
+              Snapshot appears after kickoff
+            </h2>
+            <p className={clsx('max-w-2xl text-sm leading-6', snapshotSubcopyClassName)}>
+              A shareable snapshot will appear once the competition has started and the first gameweek begins to resolve.
+            </p>
+            <div className={clsx('inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-medium', resolvedTheme === 'light' ? 'border-slate-200 bg-white/90 text-slate-600' : 'border-white/10 bg-white/[0.06] text-gray-300')}>
+              Not available yet
+            </div>
+          </div>
         )}
       </section>
 
@@ -2469,6 +2480,7 @@ export default function CompetitionHomePage() {
                 />
                 <SummaryTile
                   label="Step 2"
+
                   value="Choose one team"
                   detail="Tap either side of a fixture to save your selection instantly."
                 />
