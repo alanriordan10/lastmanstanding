@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useState, useMemo, useEffect } from 'react';
 import api from '../api';
 import type { GameweekSelection } from '../types';
@@ -17,6 +17,7 @@ export default function GameweekSelectionsPage() {
     queryKey: ['selections', compId, gameweekId],
     queryFn: () =>
       api.get(`/competitions/${compId}/gameweeks/${gameweekId}/selections`).then((r) => r.data),
+    placeholderData: keepPreviousData,
     retry: false,
   });
 
@@ -59,8 +60,28 @@ export default function GameweekSelectionsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
+      <div className="space-y-6 animate-pulse">
+        <div>
+          <div className="h-4 w-36 rounded bg-white/8" />
+          <div className="mt-3 h-7 w-64 rounded bg-white/8" />
+          <div className="mt-2 h-4 w-24 rounded bg-white/8" />
+        </div>
+        <div className="card overflow-hidden">
+          <div className="border-b border-gray-700 px-4 py-3 grid grid-cols-4 gap-4">
+            <div className="h-4 w-16 rounded bg-white/8" />
+            <div className="h-4 w-20 rounded bg-white/8" />
+            <div className="h-4 w-12 rounded bg-white/8" />
+            <div className="h-4 w-16 rounded bg-white/8" />
+          </div>
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="border-b border-gray-700/50 px-4 py-3 grid grid-cols-4 gap-4 items-center">
+              <div className="h-4 w-28 rounded bg-white/8" />
+              <div className="h-4 w-16 rounded bg-white/8" />
+              <div className="h-5 w-12 rounded-full bg-white/8" />
+              <div className="h-5 w-8 rounded-full bg-white/8" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

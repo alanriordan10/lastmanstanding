@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useState, useEffect, useMemo } from 'react';
 import api from '../api';
 import type { Competition, Fixture, GameweekSelection, GameweekSelectionsData } from '../types';
@@ -28,6 +28,7 @@ export default function GameweekSelectionsPage() {
   const { data: comp } = useQuery<Competition>({
     queryKey: ['competition', compId],
     queryFn: () => api.get(`/competitions/${compId}`).then((r) => r.data),
+    placeholderData: keepPreviousData,
     staleTime: (query) => (query.state.data as Competition | undefined)?.status === 'COMPLETED' ? Infinity : 30_000,
   });
 
@@ -40,6 +41,7 @@ export default function GameweekSelectionsPage() {
         }
         return r.data;
       }),
+    placeholderData: keepPreviousData,
     retry: false,
     staleTime: comp?.status === 'COMPLETED' ? Infinity : 30_000,
     // Poll every 5 minutes only if at least one pick is still pending (game in play).
@@ -57,6 +59,7 @@ export default function GameweekSelectionsPage() {
     queryFn: () => api.get(`/competitions/${compId}/gameweeks/${gameweekId}/fixtures`).then((r) =>
       Array.isArray(r.data) ? r.data : []
     ),
+    placeholderData: keepPreviousData,
     staleTime: comp?.status === 'COMPLETED' ? Infinity : 30_000,
   });
 

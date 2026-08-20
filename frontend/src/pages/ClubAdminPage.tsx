@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useState, useRef, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -85,6 +85,7 @@ export default function ClubAdminPage() {
     queryKey: ['club-admin', 'my-club'],
     queryFn: () => api.get('/club-admin/my-club').then((r) => r.data),
     enabled: isClubAdmin || isAdmin,
+    placeholderData: keepPreviousData,
     retry: false,
   });
 
@@ -115,6 +116,7 @@ export default function ClubAdminPage() {
     queryKey: ['club-admin', 'competitions'],
     queryFn: () => api.get('/club-admin/competitions').then((r) => Array.isArray(r.data) ? r.data : []),
     enabled: !!myClub,
+    placeholderData: keepPreviousData,
     staleTime: 0,
   });
 
@@ -129,6 +131,7 @@ export default function ClubAdminPage() {
     queryKey: ['club-admin', 'billing'],
     queryFn: () => api.get('/club-admin/my-club/billing').then((r) => r.data),
     enabled: !!myClub,
+    placeholderData: keepPreviousData,
     staleTime: 0,
   });
 
@@ -352,15 +355,25 @@ export default function ClubAdminPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => api.delete(`/club-admin/competitions/${id}`),
-    onSuccess: (_, deletedId) => {
-      toast.success('Competition deleted');
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['club-admin', 'competitions'] });
+      const previous = queryClient.getQueryData<Competition[]>(['club-admin', 'competitions']);
       queryClient.setQueryData<Competition[]>(['club-admin', 'competitions'], (old) =>
-        old ? old.filter((c) => c.id !== deletedId) : []
+        old ? old.filter((c) => c.id !== id) : []
       );
+      return { previous };
+    },
+    onError: (err: any, _id, context) => {
+      if (context?.previous !== undefined) {
+        queryClient.setQueryData(['club-admin', 'competitions'], context.previous);
+      }
+      toast.error(err.response?.data?.message || 'Delete failed');
+    },
+    onSuccess: () => {
+      toast.success('Competition deleted');
       queryClient.invalidateQueries({ queryKey: ['club-admin', 'competitions'] });
       queryClient.invalidateQueries({ queryKey: ['competitions'] });
     },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Delete failed'),
   });
 
   const assignAdminMutation = useMutation({
@@ -454,11 +467,7 @@ export default function ClubAdminPage() {
   }
 
   if (clubLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
-      </div>
-    );
+    return <ClubAdminPageSkeleton />;
   }
 
   if (clubError || !myClub) {
@@ -1186,9 +1195,7 @@ export default function ClubAdminPage() {
 
       {/* Competitions list */}
       {isLoading ? (
-        <div className="flex justify-center py-10">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
-        </div>
+        <ClubAdminCompetitionsSkeleton />
       ) : !competitions?.length ? (
         <div className="card py-12 text-center">
           <div className="text-4xl mb-3">🏆</div>
@@ -1550,6 +1557,93 @@ export default function ClubAdminPage() {
   );
 }
 
+/* ── Skeletons ─────────────────────────────────────────────────────────── */
+
+function ClubAdminPageSkeleton() {
+  return (
+    <div className="space-y-5 animate-pulse">
+      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-6">
+        <div className="h-3 w-24 rounded bg-white/10" />
+        <div className="mt-3 h-7 w-56 rounded bg-white/10" />
+        <div className="mt-3 h-4 w-72 rounded bg-white/10" />
+        <div className="mt-5 flex gap-2">
+          <div className="h-9 w-32 rounded-lg bg-white/10" />
+          <div className="h-9 w-32 rounded-lg bg-white/10" />
+        </div>
+      </div>
+      <div className="card p-4">
+        <div className="flex items-center justify-between">
+          <div className="h-5 w-32 rounded bg-white/10" />
+          <div className="h-8 w-32 rounded-lg bg-white/10" />
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="rounded-xl border border-white/10 bg-white/[0.04] p-4 space-y-2">
+              <div className="flex gap-2">
+                <div className="h-5 w-14 rounded-full bg-white/10" />
+                <div className="h-5 w-14 rounded-full bg-white/10" />
+              </div>
+              <div className="h-5 w-3/4 rounded bg-white/10" />
+              <div className="h-3 w-1/2 rounded bg-white/10" />
+              <div className="mt-2 h-8 w-24 rounded bg-white/10" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ClubAdminCompetitionsSkeleton() {
+  return (
+    <div className="space-y-3 animate-pulse">
+      <div className="flex flex-col sm:flex-row gap-2">
+        <div className="h-9 flex-1 rounded-lg bg-white/10" />
+        <div className="h-9 w-32 rounded-lg bg-white/10" />
+      </div>
+      <div className="space-y-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="rounded-xl border border-white/10 bg-white/[0.04] p-4 space-y-2">
+            <div className="flex flex-wrap gap-2">
+              <div className="h-5 w-16 rounded-full bg-white/10" />
+              <div className="h-5 w-16 rounded-full bg-white/10" />
+              <div className="h-5 w-16 rounded-full bg-white/10" />
+            </div>
+            <div className="h-5 w-2/3 rounded bg-white/10" />
+            <div className="h-3 w-1/3 rounded bg-white/10" />
+            <div className="flex justify-end gap-2 pt-2">
+              <div className="h-7 w-24 rounded-lg bg-white/10" />
+              <div className="h-7 w-24 rounded-lg bg-white/10" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ClubAdminParticipantsSkeleton() {
+  return (
+    <div className="mt-3 pt-3 border-t border-gray-700/50 space-y-2 animate-pulse">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg bg-white/[0.02] p-3">
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="flex gap-2">
+              <div className="h-4 w-32 rounded bg-white/10" />
+              <div className="h-4 w-12 rounded-full bg-white/10" />
+            </div>
+            <div className="h-3 w-24 rounded bg-white/10" />
+          </div>
+          <div className="hidden sm:flex gap-2">
+            <div className="h-7 w-20 rounded-lg bg-white/10" />
+            <div className="h-7 w-20 rounded-lg bg-white/10" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function AdminHeroStat({ label, value, accent }: { label: ReactNode; value: string; accent: string }) {
   return (
     <div className="stat-tile-shell rounded-2xl border border-white/8 bg-white/[0.045] px-3 py-2 text-center backdrop-blur-sm">
@@ -1632,6 +1726,7 @@ function ParticipantsPanel({ competitionId, paymentMode, manualPaymentPolicy }: 
   const { data: participants, isLoading } = useQuery<Participant[]>({
     queryKey: ['club-admin', 'participants', competitionId],
     queryFn: () => api.get(`/club-admin/competitions/${competitionId}/participants`).then((r) => r.data),
+    placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
 
@@ -1639,6 +1734,7 @@ function ParticipantsPanel({ competitionId, paymentMode, manualPaymentPolicy }: 
     queryKey: ['club-admin', 'paid-participants', String(competitionId)],
     queryFn: () => api.get(`/club-admin/competitions/${competitionId}/paid-participants`).then((r) => r.data),
     enabled: isManual,
+    placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
 
@@ -1647,12 +1743,24 @@ function ParticipantsPanel({ competitionId, paymentMode, manualPaymentPolicy }: 
   const removeMutation = useMutation({
     mutationFn: (participantId: number) =>
       api.delete(`/club-admin/competitions/${competitionId}/participants/${participantId}`),
+    onMutate: async (participantId) => {
+      await queryClient.cancelQueries({ queryKey: ['club-admin', 'participants', competitionId] });
+      const previous = queryClient.getQueryData<Participant[]>(['club-admin', 'participants', competitionId]);
+      queryClient.setQueryData<Participant[]>(['club-admin', 'participants', competitionId],
+        (old) => old ? old.filter((p) => p.id !== participantId) : old);
+      return { previous };
+    },
+    onError: (err: any, _participantId, context) => {
+      if (context?.previous !== undefined) {
+        queryClient.setQueryData(['club-admin', 'participants', competitionId], context.previous);
+      }
+      toast.error(err.response?.data?.message || 'Remove failed');
+    },
     onSuccess: () => {
       toast.success('Participant removed');
       queryClient.invalidateQueries({ queryKey: ['club-admin', 'participants', competitionId] });
       queryClient.invalidateQueries({ queryKey: ['club-admin', 'competitions'] });
     },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Remove failed'),
   });
 
   const markPaidMutation = useMutation<void, any, number>({
@@ -1720,11 +1828,7 @@ function ParticipantsPanel({ competitionId, paymentMode, manualPaymentPolicy }: 
   });
 
   if (isLoading) {
-    return (
-      <div className="mt-3 pt-3 border-t border-gray-700/50 flex justify-center py-4">
-        <div className="h-5 w-5 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
-      </div>
-    );
+    return <ClubAdminParticipantsSkeleton />;
   }
 
   const activeCount = participants?.filter(p => p.status === 'ACTIVE').length ?? 0;

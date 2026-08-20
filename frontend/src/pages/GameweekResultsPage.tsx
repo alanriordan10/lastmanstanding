@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useState, useEffect, useMemo } from 'react';
 import api from '../api';
 import type { Competition, GameweekSelectionsData, Fixture } from '../types';
@@ -53,6 +53,7 @@ export default function GameweekResultsPage() {
   const { data: comp } = useQuery<Competition>({
     queryKey: ['competition', compId],
     queryFn: () => api.get(`/competitions/${compId}`).then((r) => r.data),
+    placeholderData: keepPreviousData,
     staleTime: (query) => (query.state.data as Competition | undefined)?.status === 'COMPLETED' ? Infinity : 30_000,
   });
 
@@ -65,6 +66,7 @@ export default function GameweekResultsPage() {
       }
       return r.data;
     }),
+    placeholderData: keepPreviousData,
     staleTime: comp?.status === 'COMPLETED' ? Infinity : 30_000,
   });
 
@@ -73,6 +75,7 @@ export default function GameweekResultsPage() {
     queryFn: () => api.get(`/competitions/${compId}/gameweeks/${gameweekId}/fixtures`).then((r) =>
       Array.isArray(r.data) ? r.data : []
     ),
+    placeholderData: keepPreviousData,
     staleTime: comp?.status === 'COMPLETED' ? Infinity : 30_000,
   });
 
