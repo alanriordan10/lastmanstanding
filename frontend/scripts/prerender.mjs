@@ -8,6 +8,18 @@ import { getPrerenderRoutes } from './publicRoutes.mjs';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.resolve(__dirname, '../dist');
 const indexHtmlPath = path.join(distDir, 'index.html');
+const DEFAULT_SITE_ORIGIN = 'https://runlastmanstanding.com';
+
+function normalizeOrigin(origin) {
+  const trimmed = String(origin || '').trim().replace(/\/$/, '');
+  try {
+    return new URL(trimmed).origin;
+  } catch {
+    return DEFAULT_SITE_ORIGIN;
+  }
+}
+
+const SITE_ORIGIN = normalizeOrigin(process.env.SITE_ORIGIN || process.env.VITE_SITE_ORIGIN || DEFAULT_SITE_ORIGIN);
 
 async function prerender() {
   try {
@@ -35,6 +47,12 @@ async function prerender() {
       // Create HTML with base href adjustment for subdirectory routes
       // This ensures relative imports still work correctly
       let html = indexHtml;
+
+      // Ensure prerendered pages ship the correct canonical URL even before JS runs.
+      const routeCanonical = `${SITE_ORIGIN}${route}`;
+      html = html
+        .replace(/<link rel="canonical" href="[^"]*"\s*\/>/, `<link rel="canonical" href="${routeCanonical}" />`)
+        .replace(/<meta property="og:url" content="[^"]*"\s*\/>/, `<meta property="og:url" content="${routeCanonical}" />`);
 
       // If the route is a subdirectory (contains /), inject a <base> tag
       // to help the SPA router find assets correctly

@@ -8,7 +8,18 @@ import { getSitemapEntries } from './publicRoutes.mjs';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.resolve(__dirname, '../dist');
 const sitemapPath = path.join(distDir, 'sitemap.xml');
-const SITE_ORIGIN = 'https://runlastmanstanding.com';
+const DEFAULT_SITE_ORIGIN = 'https://runlastmanstanding.com';
+
+function normalizeOrigin(origin) {
+  const trimmed = String(origin || '').trim().replace(/\/$/, '');
+  try {
+    return new URL(trimmed).origin;
+  } catch {
+    return DEFAULT_SITE_ORIGIN;
+  }
+}
+
+const SITE_ORIGIN = normalizeOrigin(process.env.SITE_ORIGIN || process.env.VITE_SITE_ORIGIN || DEFAULT_SITE_ORIGIN);
 
 function escapeXml(value) {
   return String(value)
