@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import api, { storeAuthTokens, clearAuthTokens, setAuthFailureHandler } from '../api';
 import type { AuthResponse } from '../types';
 
@@ -33,6 +33,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [clubAdminRevoked, setClubAdminRevoked] = useState(() => localStorage.getItem('clubAdminRevoked') === '1');
 
+  const clearLocalSession = useCallback(() => {
+    clearAuthTokens();
+    localStorage.removeItem('user');
+    localStorage.removeItem('clubAdminRevoked');
+    setClubAdminRevoked(false);
+    setUser(null);
+  }, []);
+
+  const redirectToLogin = useCallback((reason: string = 'session_expired') => {
+    if (typeof window === 'undefined') return;
+    const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    const returnTo = currentPath && currentPath !== '/login' ? `&returnTo=${encodeURIComponent(currentPath)}` : '';
+    window.location.replace(`/login?error=${encodeURIComponent(reason)}${returnTo}`);
+  }, []);
+
   useEffect(() => {
     const stored = localStorage.getItem('user');
 
@@ -48,10 +63,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .catch((err) => {
             const status = err?.response?.status;
             if (status === 401 || status === 403) {
-              // Cookie is stale or invalid — clear the cached user so the
-              // next render treats them as logged out.
-              localStorage.removeItem('user');
-              setUser(null);
+              // Cookie is stale or invalid — clear the cached user and send
+              // the user back to sign in rather than leaving them on a
+              // logged-out public page that still looks authenticated.
+              handleAuthFailure();
             }
           })
           .finally(() => setIsLoading(false));
@@ -64,13 +79,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setIsLoading(false);
   }, []);
-
-  // Bridge for the api.ts response interceptor: when a 401 comes back, the
-  // interceptor can't reach React state, so we register a handler that
-  // routes the failure through logout(). This clears React state
-  // synchronously before navigation, preventing the brief window where
-  // ProtectedRoute still thinks the user is authenticated and redirects back.
-  const logoutRef = useRef<(() => void) | null>(null);
 
   const persistUser = (data: AuthResponse) => {
     const cleaned = stripTokens(data);
@@ -126,17 +134,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Keep the ref pointing at the latest logout so the api.ts interceptor can
-  // call it when it sees a 401. (Keeps logout the single source of truth.)
+  const handleAuthFailure = useCallback(() => {
+    clearLocalSession();
+    redirectToLogin();
+  }, [clearLocalSession, redirectToLogin]);
+
   useEffect(() => {
-    logoutRef.current = logout;
-  }, [logout]);
-  useEffect(() => {
-    setAuthFailureHandler(() => {
-      logoutRef.current?.();
-    });
+    setAuthFailureHandler(handleAuthFailure);
     return () => setAuthFailureHandler(null);
-  }, []);
+  }, [handleAuthFailure]);
 
   const isAdmin = user?.role === 'ADMIN';
   const isClubAdmin = user?.role === 'CLUB_ADMIN' && !clubAdminRevoked;

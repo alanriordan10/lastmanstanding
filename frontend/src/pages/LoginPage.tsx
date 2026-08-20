@@ -16,6 +16,13 @@ export default function LoginPage() {
   const [searchParams] = useSearchParams();
   const returnTo = searchParams.get('returnTo');
   const decodedReturnTo = returnTo ? decodeURIComponent(returnTo) : null;
+  const returnToLabel = (() => {
+    if (!decodedReturnTo) return null;
+    if (decodedReturnTo === '/competitions') return 'the Competitions page';
+    if (decodedReturnTo === '/create-club') return 'Create Club';
+    if (decodedReturnTo.startsWith('/competitions/')) return 'your competition page';
+    return 'your previous page';
+  })();
   const isCreateClubReturn = decodedReturnTo === '/create-club';
   const hideClubCta = isCreateClubReturn;
   const [email, setEmail] = useState('');
@@ -23,6 +30,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<LoginStatus>({ kind: 'idle' });
+  const sessionExpired = searchParams.get('error') === 'session_expired';
 
   useEffect(() => {
     const error = searchParams.get('error');
@@ -78,6 +86,14 @@ export default function LoginPage() {
       />
       <div className="relative grid w-full max-w-6xl gap-6 lg:grid-cols-[1.08fr_0.92fr]">
         <section className="login-hero-shell relative overflow-hidden rounded-[2rem] border border-white/12 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.16),transparent_24rem),linear-gradient(145deg,rgba(17,27,46,0.9),rgba(10,17,32,0.86))] px-6 py-8 shadow-[0_18px_42px_rgba(2,6,23,0.34)] backdrop-blur-sm sm:px-8 sm:py-10">
+          {sessionExpired && (
+            <div className="mb-5 rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]">
+              <div className="font-semibold text-amber-50">Your session expired</div>
+              <div className="mt-1 text-amber-100/90">
+                Please sign in again{returnToLabel ? ` to return to ${returnToLabel}.` : ' to continue.'}
+              </div>
+            </div>
+          )}
           <div className="inline-flex rounded-full border border-sky-300/35 bg-sky-400/12 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-sky-100">
             Member access
           </div>

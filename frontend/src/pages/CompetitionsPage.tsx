@@ -160,6 +160,7 @@ export default function CompetitionsPage() {
     return saved == null ? false : saved === 'true';
   });
   const [showMineAdvancedFilters, setShowMineAdvancedFilters] = useState(false);
+  const [expandMineFilters, setExpandMineFilters] = useState(false);
   const [availableSections, setAvailableSections] = useState({
     open: true,
     live: true,
@@ -883,7 +884,52 @@ export default function CompetitionsPage() {
       {/* ── My Competitions — summary strip ── */}
       {viewMode === 'mine' && myComps.length > 0 && (
           <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+          {/* Mobile: Compact filter pills */}
+          <div className="flex flex-wrap items-center gap-2 sm:hidden">
+            <button
+              type="button"
+              onClick={() => setMineFilter((current) => current === 'NEEDS_ACTION' ? 'ALL' : 'NEEDS_ACTION')}
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${
+                mineFilter === 'NEEDS_ACTION'
+                  ? 'border-amber-400/50 bg-amber-500/20 text-amber-200'
+                  : 'border border-white/10 bg-white/[0.03] text-gray-400'
+              }`}
+            >
+              Needs action {mineNeedsActionCount.length > 0 ? `(${mineNeedsActionCount.length})` : ''}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMineFilter((current) => current === 'ACTIVE' ? 'ALL' : 'ACTIVE')}
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${
+                mineFilter === 'ACTIVE'
+                  ? 'border-green-400/50 bg-green-500/20 text-green-200'
+                  : 'border border-white/10 bg-white/[0.03] text-gray-400'
+              }`}
+            >
+              In play {mineActiveCount.length > 0 ? `(${mineActiveCount.length})` : ''}
+            </button>
+            <button
+              type="button"
+              onClick={() => setExpandMineFilters((v) => !v)}
+              className="ml-auto rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-gray-400 hover:bg-white/[0.05]"
+            >
+              {expandMineFilters ? 'Less' : 'More filters'}
+            </button>
+          </div>
+
+          {/* Desktop: Full filter grid + Mobile expanded view */}
+          {expandMineFilters && (
+            <div className="grid grid-cols-2 gap-3 sm:hidden">
+              <FilterStatTile label="Needs action" value={mineNeedsActionCount.length} color="text-amber-300" isActive={mineFilter === 'NEEDS_ACTION'} onClick={() => setMineFilter((current) => current === 'NEEDS_ACTION' ? 'ALL' : 'NEEDS_ACTION')} />
+              <FilterStatTile label="Upcoming" value={mineUpcomingCount.length} color="text-blue-300" isActive={mineFilter === 'UPCOMING'} onClick={() => setMineFilter((current) => current === 'UPCOMING' ? 'ALL' : 'UPCOMING')} />
+              <FilterStatTile label="In play" value={mineActiveCount.length} color="text-green-400" isActive={mineFilter === 'ACTIVE'} onClick={() => setMineFilter((current) => current === 'ACTIVE' ? 'ALL' : 'ACTIVE')} />
+              <FilterStatTile label="Eliminated" value={mineEliminatedCount.length} color="text-red-400" isActive={mineFilter === 'ELIMINATED'} onClick={() => setMineFilter((current) => current === 'ELIMINATED' ? 'ALL' : 'ELIMINATED')} />
+              <FilterStatTile label="Finished" value={mineFinishedCount.length} color="text-gray-400" isActive={mineFilter === 'FINISHED'} onClick={() => setMineFilter((current) => current === 'FINISHED' ? 'ALL' : 'FINISHED')} />
+            </div>
+          )}
+
+          {/* Desktop only: Always visible full grid */}
+          <div className="hidden grid-cols-2 gap-3 sm:grid sm:grid-cols-5">
             <FilterStatTile label="Needs action" value={mineNeedsActionCount.length} color="text-amber-300" isActive={mineFilter === 'NEEDS_ACTION'} onClick={() => setMineFilter((current) => current === 'NEEDS_ACTION' ? 'ALL' : 'NEEDS_ACTION')} />
             <FilterStatTile label="Upcoming" value={mineUpcomingCount.length} color="text-blue-300" isActive={mineFilter === 'UPCOMING'} onClick={() => setMineFilter((current) => current === 'UPCOMING' ? 'ALL' : 'UPCOMING')} />
             <FilterStatTile label="In play" value={mineActiveCount.length} color="text-green-400" isActive={mineFilter === 'ACTIVE'} onClick={() => setMineFilter((current) => current === 'ACTIVE' ? 'ALL' : 'ACTIVE')} />
@@ -891,56 +937,49 @@ export default function CompetitionsPage() {
             <FilterStatTile label="Finished" value={mineFinishedCount.length} color="text-gray-400" isActive={mineFilter === 'FINISHED'} onClick={() => setMineFilter((current) => current === 'FINISHED' ? 'ALL' : 'FINISHED')} />
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            {(['ALL', 'PICK_DUE', 'AWAITING_PAYMENT'] as const).map((f) => (
-              <FilterPill
-                key={f}
-                active={mineFilter === f}
-                onClick={() => setMineFilter((current) => current === f ? 'ALL' : f)}
+          {mineFilter === 'NEEDS_ACTION' && (
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-white/[0.02] p-3">
+              <span className="text-xs text-gray-500">Refine:</span>
+              {(['PICK_DUE', 'AWAITING_PAYMENT'] as const).map((f) => (
+                <FilterPill
+                  key={f}
+                  active={mineFilter === f}
+                  onClick={() => setMineFilter(f)}
+                >
+                  {f === 'PICK_DUE' ? 'Pick due' : 'Awaiting payment'}
+                </FilterPill>
+              ))}
+              <button
+                type="button"
+                onClick={() => setMineFilter('ALL')}
+                className="ml-auto rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-gray-400 hover:text-gray-300"
               >
-                {f === 'ALL' ? 'All' : f === 'PICK_DUE' ? 'Pick due' : 'Awaiting payment'}
-              </FilterPill>
-            ))}
-            <button
-              type="button"
-              onClick={() => setShowMineAdvancedFilters((v) => !v)}
-              className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-gray-300 sm:hidden"
-            >
-              {showMineAdvancedFilters ? 'Less filters' : 'More filters'}
-            </button>
-          </div>
+                Clear
+              </button>
+            </div>
+          )}
 
-          <div className={`${showMineAdvancedFilters ? 'flex' : 'hidden'} flex-wrap items-center gap-2 sm:flex`}>
+          <div className={`flex flex-wrap items-center gap-2`}>
             <button
               type="button"
               onClick={() => setCompactMineView((v) => !v)}
-              className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-gray-300 sm:ml-auto"
+              className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-gray-300 hover:bg-white/[0.05]"
             >
               {compactMineView ? 'Card view' : 'Compact view'}
             </button>
             <button
               type="button"
-              onClick={() => setMineSections({ needsAction: false, active: false, upcoming: false, eliminated: false, finished: false })}
-              className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-gray-300"
+              onClick={() => setMineSections({ needsAction: true, active: true, upcoming: true, eliminated: true, finished: true })}
+              className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-gray-300 hover:bg-white/[0.05]"
             >
               Expand all
             </button>
             <button
               type="button"
-              onClick={() => setMineSections({ needsAction: true, active: true, upcoming: true, eliminated: true, finished: true })}
-              className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-gray-300"
+              onClick={() => setMineSections({ needsAction: false, active: false, upcoming: false, eliminated: false, finished: false })}
+              className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-gray-300 hover:bg-white/[0.05]"
             >
               Collapse all
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMineFilter('ALL');
-                setSearch('');
-              }}
-              className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-gray-300"
-            >
-              Reset
             </button>
           </div>
 
