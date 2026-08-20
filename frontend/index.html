@@ -7,6 +7,13 @@
     <meta name="theme-color" content="#0f172a" />
     <script>
       (function () {
+        if (window.location.hostname === 'www.runlastmanstanding.com') {
+          window.location.replace('https://runlastmanstanding.com' + window.location.pathname + window.location.search + window.location.hash);
+        }
+      })();
+    </script>
+    <script>
+      (function () {
         try {
           var pref = localStorage.getItem('lms.theme.preference') || 'dark';
           var resolved = pref === 'system'
