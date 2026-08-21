@@ -131,10 +131,29 @@
   .route-team-tile:hover:not(:disabled) {
     border-color: rgba(148, 163, 184, 0.5);
   }
+  /* ── Competition pick insight panel ── */
+  .pick-insight-panel {
+    border-color: rgba(125, 211, 252, 0.3);
+    background-image: linear-gradient(165deg, rgba(14, 116, 144, 0.3), rgba(12, 74, 110, 0.28));
+    background-color: rgba(8, 47, 73, 0.32);
+  }
+  .pick-insight-metric {
+    border: 1px solid rgba(148, 163, 184, 0.25);
+  }
   /* ── Club Admin participant/payment panels ── */
   .club-admin-subtabs-shell {
     @apply inline-flex rounded-lg border border-white/10 p-0.5;
     background-color: rgba(255, 255, 255, 0.05);
+  }
+  .club-admin-main-panel--participants {
+    border-color: rgba(125, 185, 255, 0.34);
+    background: linear-gradient(180deg, rgba(77, 167, 255, 0.14), rgba(255, 255, 255, 0.03));
+    box-shadow: inset 0 0 0 1px rgba(125, 185, 255, 0.2);
+  }
+  .club-admin-main-panel--payments {
+    border-color: rgba(148, 163, 184, 0.24);
+    background: linear-gradient(180deg, rgba(148, 163, 184, 0.08), rgba(255, 255, 255, 0.02));
+    box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.14);
   }
   .club-admin-surface-panel {
     @apply rounded-lg border border-white/10 p-3;
@@ -151,8 +170,64 @@
   .club-admin-participant-row:hover {
     background-color: rgba(255, 255, 255, 0.045);
   }
+  .club-admin-participant-row--active {
+    border-color: rgba(125, 185, 255, 0.36);
+    background-color: rgba(76, 149, 255, 0.12);
+    background-image: linear-gradient(160deg, rgba(255, 255, 255, 0.07), rgba(88, 138, 214, 0.18));
+  }
   .club-admin-payment-row {
     transition: background-color 0.15s ease, border-color 0.15s ease;
+  }
+  .club-admin-actions-menu {
+    animation: clubAdminMenuIn 140ms ease-out;
+  }
+  .club-admin-row-action {
+    @apply h-9 w-9 rounded-lg inline-flex items-center justify-center transition-colors duration-150;
+    background-color: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: rgba(226, 232, 240, 0.72);
+  }
+  .club-admin-row-action:hover:not(:disabled) {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.95);
+  }
+  .club-admin-row-action:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.45);
+  }
+  .club-admin-row-action:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .club-admin-row-action--green {
+    background-color: rgba(34, 197, 94, 0.12);
+    border-color: rgba(74, 222, 128, 0.35);
+    color: #86efac;
+  }
+  .club-admin-row-action--green:hover:not(:disabled) {
+    background-color: rgba(34, 197, 94, 0.2);
+    color: #bbf7d0;
+  }
+  .club-admin-row-action--rose {
+    background-color: rgba(244, 63, 94, 0.12);
+    border-color: rgba(251, 113, 133, 0.35);
+    color: #fda4af;
+  }
+  .club-admin-row-action--rose:hover:not(:disabled) {
+    background-color: rgba(244, 63, 94, 0.2);
+    color: #fecdd3;
+  }
+  .club-admin-row-action--amber {
+    background-color: rgba(245, 158, 11, 0.12);
+    border-color: rgba(252, 211, 77, 0.35);
+    color: #fcd34d;
+  }
+  .club-admin-row-action--amber:hover:not(:disabled) {
+    background-color: rgba(245, 158, 11, 0.2);
+    color: #fde68a;
+  }
+  .club-admin-row-action--labeled {
+    @apply h-8 w-auto px-2 gap-1 text-[11px] font-semibold tracking-wide whitespace-nowrap;
   }
   .input-field {
     @apply block min-h-[44px] w-full rounded-xl border border-white/15 bg-white/[0.045] px-4 py-2.5 text-sm text-gray-100
@@ -188,6 +263,17 @@
   .badge-brand { @apply badge bg-brand-500/10 text-brand-200 ring-brand-400/25; }
   .badge-soft { @apply normal-case tracking-normal text-[10px] font-semibold; }
   .badge-muted { @apply ring-1 ring-inset shadow-none; }
+}
+
+@keyframes clubAdminMenuIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 /* ── Dark-themed native date picker ──────────────────────────────────────── */
@@ -403,10 +489,54 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   background-color: rgba(255, 255, 255, 0.9) !important;
 }
 
+:root.light .pick-insight-panel {
+  border-color: rgba(56, 189, 248, 0.38) !important;
+  background-image: linear-gradient(165deg, rgba(222, 240, 255, 0.98), rgba(190, 220, 246, 0.92)) !important;
+  background-color: rgba(205, 229, 248, 0.92) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.58), 0 10px 24px rgba(41, 66, 99, 0.14) !important;
+}
+
+:root.light .pick-insight-eyebrow {
+  color: #0b5f8a !important;
+}
+
+:root.light .pick-insight-title {
+  color: #10243a !important;
+}
+
+:root.light .pick-insight-detail {
+  color: #27445f !important;
+}
+
+:root.light .pick-insight-metric {
+  background-color: rgba(255, 255, 255, 0.82) !important;
+  border-color: rgba(129, 173, 206, 0.4) !important;
+}
+
+:root.light .pick-insight-metric-value {
+  color: #11253a !important;
+}
+
+:root.light .pick-insight-metric-label {
+  color: #496784 !important;
+}
+
 :root.light .club-admin-subtabs-shell {
   border-color: rgba(20, 32, 51, 0.16) !important;
   background-color: rgba(255, 255, 255, 0.62) !important;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55) !important;
+}
+
+:root.light .club-admin-main-panel--participants {
+  border-color: rgba(20, 104, 153, 0.3) !important;
+  background: linear-gradient(180deg, rgba(210, 232, 255, 0.88), rgba(232, 245, 255, 0.52)) !important;
+  box-shadow: inset 0 0 0 1px rgba(108, 170, 238, 0.28), 0 10px 24px rgba(41, 66, 99, 0.1) !important;
+}
+
+:root.light .club-admin-main-panel--payments {
+  border-color: rgba(86, 107, 139, 0.22) !important;
+  background: linear-gradient(180deg, rgba(234, 240, 249, 0.72), rgba(243, 247, 253, 0.36)) !important;
+  box-shadow: inset 0 0 0 1px rgba(163, 184, 209, 0.24) !important;
 }
 
 :root.light .club-admin-surface-panel {
@@ -422,7 +552,7 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
 }
 
 :root.light .club-admin-participant-row {
-  border-color: rgba(20, 32, 51, 0.14) !important;
+  border-color: rgba(20, 32, 51, 0.1) !important;
   background-image: linear-gradient(160deg, rgba(255, 255, 255, 0.84), rgba(231, 240, 252, 0.64)) !important;
   background-color: rgba(239, 245, 252, 0.84) !important;
 }
@@ -430,6 +560,56 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
 :root.light .club-admin-participant-row:hover {
   background-image: linear-gradient(160deg, rgba(255, 255, 255, 0.96), rgba(226, 238, 252, 0.8)) !important;
   background-color: rgba(244, 248, 253, 0.95) !important;
+}
+
+:root.light .club-admin-participant-row--active {
+  border-color: rgba(14, 116, 144, 0.36) !important;
+  background-image: linear-gradient(160deg, rgba(255, 255, 255, 0.99), rgba(211, 231, 251, 0.94)) !important;
+  background-color: rgba(238, 246, 255, 0.98) !important;
+  box-shadow: 0 14px 32px rgba(41, 66, 99, 0.2), inset 0 0 0 1px rgba(125, 185, 255, 0.28) !important;
+}
+
+:root.light .club-admin-actions-menu {
+  background-color: rgba(17, 24, 39, 0.97) !important;
+  border-color: rgba(125, 185, 255, 0.58) !important;
+  box-shadow: 0 18px 44px rgba(2, 6, 23, 0.5) !important;
+}
+
+:root.light .club-admin-row-action {
+  background-color: rgba(20, 32, 51, 0.045) !important;
+  border-color: rgba(20, 32, 51, 0.14) !important;
+  color: rgba(51, 65, 85, 0.75) !important;
+}
+:root.light .club-admin-row-action:hover:not(:disabled) {
+  background-color: rgba(20, 32, 51, 0.09) !important;
+  color: rgba(15, 23, 42, 0.95) !important;
+}
+:root.light .club-admin-row-action--green {
+  background-color: rgba(34, 197, 94, 0.14) !important;
+  border-color: rgba(34, 197, 94, 0.4) !important;
+  color: #15803d !important;
+}
+:root.light .club-admin-row-action--green:hover:not(:disabled) {
+  background-color: rgba(34, 197, 94, 0.22) !important;
+  color: #166534 !important;
+}
+:root.light .club-admin-row-action--rose {
+  background-color: rgba(244, 63, 94, 0.12) !important;
+  border-color: rgba(244, 63, 94, 0.4) !important;
+  color: #be123c !important;
+}
+:root.light .club-admin-row-action--rose:hover:not(:disabled) {
+  background-color: rgba(244, 63, 94, 0.2) !important;
+  color: #9f1239 !important;
+}
+:root.light .club-admin-row-action--amber {
+  background-color: rgba(245, 158, 11, 0.14) !important;
+  border-color: rgba(245, 158, 11, 0.4) !important;
+  color: #b45309 !important;
+}
+:root.light .club-admin-row-action--amber:hover:not(:disabled) {
+  background-color: rgba(245, 158, 11, 0.22) !important;
+  color: #92400e !important;
 }
 
 :root.light .badge-green { color: #0f5132 !important; border-color: rgba(34, 197, 94, 0.4) !important; background-color: rgba(34, 197, 94, 0.16) !important; }

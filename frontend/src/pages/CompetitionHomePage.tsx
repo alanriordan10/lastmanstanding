@@ -3410,9 +3410,9 @@ function InsightPanel({
 
 function PickInsightPanel({ teamName, risk, pickStat }: { teamName: string; risk: TeamRisk; pickStat?: PickStat }) {
   return (
-    <div className="mx-1 -mt-1 rounded-b-2xl border border-t-0 border-sky-300/20 bg-sky-950/30 px-4 pb-3 pt-3 shadow-inner shadow-sky-950/20 sm:mx-2">
+    <div className="pick-insight-panel mx-1 -mt-1 rounded-b-2xl border border-t-0 border-sky-300/20 bg-sky-950/30 px-4 pb-3 pt-3 shadow-inner shadow-sky-950/20 sm:mx-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sky-200">Why this pick?</p>
+        <p className="pick-insight-eyebrow text-[10px] font-black uppercase tracking-[0.2em] text-sky-200">Why this pick?</p>
         <span className={clsx(
           'rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em]',
           risk.label === 'Safe' && 'bg-green-500/20 text-green-100',
@@ -3420,8 +3420,8 @@ function PickInsightPanel({ teamName, risk, pickStat }: { teamName: string; risk
           risk.label === 'Differential' && 'bg-cyan-500/20 text-cyan-100',
         )}>{riskLabelText(risk)}</span>
       </div>
-      <h4 className="mt-2 truncate text-sm font-black text-white">{teamName}</h4>
-      <p className="mt-1 text-xs leading-5 text-slate-300">{risk.explanation}</p>
+      <h4 className="pick-insight-title mt-2 truncate text-sm font-black text-white">{teamName}</h4>
+      <p className="pick-insight-detail mt-1 text-xs leading-5 text-slate-300">{risk.explanation}</p>
       <div className="mt-3 flex flex-wrap gap-2">
         {risk.marketChance != null ? <InsightMetric value={`${risk.marketChance}%`} label="market win" /> : null}
         {pickStat ? <InsightMetric value={`${pickStat.percentage}%`} label={`${pickStat.pickCount} picked`} /> : null}
@@ -3433,9 +3433,9 @@ function PickInsightPanel({ teamName, risk, pickStat }: { teamName: string; risk
 
 function InsightMetric({ value, label }: { value: string; label: string }) {
   return (
-    <div className="rounded-full bg-white/10 px-3 py-1.5">
-      <span className="text-xs font-black text-white">{value}</span>
-      <span className="ml-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">{label}</span>
+    <div className="pick-insight-metric rounded-full bg-white/10 px-3 py-1.5">
+      <span className="pick-insight-metric-value text-xs font-black text-white">{value}</span>
+      <span className="pick-insight-metric-label ml-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">{label}</span>
     </div>
   );
 }

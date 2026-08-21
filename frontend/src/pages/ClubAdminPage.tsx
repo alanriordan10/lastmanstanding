@@ -1573,11 +1573,10 @@ function ParticipantsPanel({ competitionId, paymentMode, manualPaymentPolicy }: 
   const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'ELIMINATED' | 'WINNER'>('ALL');
   const [viewMode, setViewMode] = useState<'ALL' | 'AWAITING' | 'PAID'>('ALL');
-  const [awaitingCollapsed, setAwaitingCollapsed] = useState(true);
-  const [paidCollapsed, setPaidCollapsed] = useState(true);
   const [mobileOpsOpen, setMobileOpsOpen] = useState(false);
   const [manualHintDismissed, setManualHintDismissed] = useState(false);
   const [bulkConfirming, setBulkConfirming] = useState(false);
+  const [bulkReverting, setBulkReverting] = useState(false);
   const [page, setPage] = useState(1);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const PAGE_SIZE = 20;
@@ -1766,6 +1765,8 @@ function ParticipantsPanel({ competitionId, paymentMode, manualPaymentPolicy }: 
   };
   const awaitingParticipants = (participants ?? []).filter((p) => !paidSet.has(p.id));
   const paidParticipants = (participants ?? []).filter((p) => paidSet.has(p.id));
+  const hasActiveFilters = Boolean(search.trim()) || statusFilter !== 'ALL' || (isManual && viewMode !== 'ALL');
+  const statusFilterOptions: Array<'ALL' | 'ACTIVE' | 'ELIMINATED' | 'WINNER'> = ['ALL', 'ACTIVE', 'ELIMINATED', 'WINNER'];
 
   const exportPaymentsCsv = () => {
     const rows = (participants ?? []).map((p) => ({
@@ -1817,6 +1818,30 @@ function ParticipantsPanel({ competitionId, paymentMode, manualPaymentPolicy }: 
     }
   };
 
+  const revertAllPaid = async () => {
+    if (!paidParticipants.length) return;
+    setBulkReverting(true);
+    try {
+      const targets = paidParticipants.slice(0, 200).map((p) => p.id);
+      const results = await Promise.allSettled(
+        targets.map((id) =>
+          api.post(`/club-admin/competitions/${competitionId}/participants/${id}/unmark-paid`, {}, { timeout: 30_000 })
+        )
+      );
+      const reverted = results.filter((r) => r.status === 'fulfilled').length;
+      const failed = results.length - reverted;
+      toast.success(
+        `Bulk revert complete: ${reverted} reverted` + (failed ? `, ${failed} failed` : '')
+      );
+      queryClient.invalidateQueries({ queryKey: ['club-admin', 'paid-participants', String(competitionId)] });
+      queryClient.invalidateQueries({ queryKey: ['club-admin', 'participants', competitionId] });
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Bulk revert failed');
+    } finally {
+      setBulkReverting(false);
+    }
+  };
+
   const applyMobileViewMode = (mode: 'ALL' | 'AWAITING' | 'PAID') => {
     const currentY = window.scrollY;
     setViewMode(mode);
@@ -1840,7 +1865,6 @@ function ParticipantsPanel({ competitionId, paymentMode, manualPaymentPolicy }: 
       onSuccess: () => {
         setMobileActionUserId(null);
         actionButtonRefs.current[p.id]?.focus();
-        toast.success('✓ Payment confirmed');
       },
     });
   };
@@ -1850,13 +1874,15 @@ function ParticipantsPanel({ competitionId, paymentMode, manualPaymentPolicy }: 
       onSuccess: () => {
         setMobileActionUserId(null);
         actionButtonRefs.current[p.id]?.focus();
-        toast.success('✓ Payment reverted');
       },
     });
   };
 
   return (
-    <div ref={panelRef} className="mt-3 pt-3 border-t border-gray-700/40 space-y-4">
+    <div
+      ref={panelRef}
+      className={`mt-3 pt-3 border-t border-gray-700/40 space-y-4 rounded-xl px-1.5 pb-2 transition-colors ${activeTab === 'PARTICIPANTS' ? 'club-admin-main-panel--participants' : 'club-admin-main-panel--payments'}`}
+    >
       <div className="club-admin-subtabs-shell">
         <button
           type="button"
@@ -1924,62 +1950,56 @@ function ParticipantsPanel({ competitionId, paymentMode, manualPaymentPolicy }: 
               <button onClick={() => { setSearch(''); setPage(1); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400">×</button>
             )}
           </div>
-          <div className="grid grid-cols-12 gap-2">
-            <div className="col-span-7">
+          <div className={`grid gap-2 ${isManual ? 'grid-cols-12' : 'grid-cols-1'}`}>
+            <div className={isManual ? 'col-span-7' : ''}>
               <label className="mb-1 block text-[10px] uppercase tracking-[0.12em] text-gray-500">Status</label>
               <select
                 value={statusFilter}
                 onChange={(e) => { setStatusFilter(e.target.value as typeof statusFilter); setPage(1); }}
                 className="w-full h-8 rounded-md border border-white/10 bg-surface-700 px-2 text-xs text-gray-200"
               >
-                <option value="ALL">All ({statusCounts.ALL})</option>
-                <option value="ACTIVE">Active ({statusCounts.ACTIVE})</option>
-                <option value="ELIMINATED">Eliminated ({statusCounts.ELIMINATED})</option>
-                <option value="WINNER">Winner ({statusCounts.WINNER})</option>
+                {statusFilterOptions.map((s) => (
+                  <option key={s} value={s}>
+                    {s === 'ALL' ? `All (${statusCounts.ALL})` : `${s.charAt(0)}${s.slice(1).toLowerCase()} (${statusCounts[s]})`}
+                  </option>
+                ))}
               </select>
             </div>
+            {isManual && (
             <div className="col-span-5">
               <label className="mb-1 block text-[10px] uppercase tracking-[0.12em] text-gray-500">Payment</label>
               <select
                 value={viewMode}
                 onChange={(e) => applyMobileViewMode(e.target.value as 'ALL' | 'AWAITING' | 'PAID')}
-                disabled={!isManual}
-                className="w-full h-8 rounded-md border border-white/10 bg-surface-700 px-2 text-xs text-gray-200 disabled:opacity-40"
+                className="w-full h-8 rounded-md border border-white/10 bg-surface-700 px-2 text-xs text-gray-200"
               >
                 <option value="ALL">All</option>
                 <option value="AWAITING">Awaiting</option>
                 <option value="PAID">Paid</option>
               </select>
             </div>
+            )}
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setShowAddPanel((v) => !v)}
-              className="w-full h-9 rounded-md border border-white/10 bg-white/[0.04] px-2 text-xs text-gray-200"
-            >
-              {showAddPanel ? 'Close add panel' : 'Add participant'}
-            </button>
-            <button
-              type="button"
-              onClick={exportPaymentsCsv}
-              className="w-full h-9 rounded-md border border-white/10 bg-white/[0.03] px-2 text-xs text-gray-300"
-            >
-              Export CSV
-            </button>
-          </div>
-          {(statusFilter !== 'ALL' || (isManual && viewMode !== 'ALL') || search.trim()) && (
-            <button
-              type="button"
-              onClick={clearAllFilters}
-              className="w-full h-8 rounded-md border border-brand-400/25 bg-brand-500/10 px-2 text-xs text-brand-200"
-            >
-              Clear filters
-            </button>
+          {hasActiveFilters && (
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={clearAllFilters}
+                aria-label="Reset filters"
+                className="h-7 rounded-md border border-brand-400/30 bg-brand-500/10 px-2.5 text-[11px] font-medium text-brand-200 inline-flex items-center gap-1.5"
+              >
+                <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 10a7 7 0 111.8 4.7" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.5V9h4.5" />
+                </svg>
+                Reset filters
+              </button>
+            </div>
           )}
         </div>
       )}
 
+      {activeTab === 'PAYMENTS' && (
       <div className="club-admin-surface-panel">
         {strictManual && (
           <div className="mb-3 rounded-lg border border-amber-400/25 bg-amber-500/8 px-3 py-2 text-xs text-amber-200">
@@ -1993,7 +2013,7 @@ function ParticipantsPanel({ competitionId, paymentMode, manualPaymentPolicy }: 
               ? `${paidSet.size} paid · ${(participants?.length ?? 0) - paidSet.size} awaiting`
               : 'Use payment status badges to track confirmation.'}
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
             {isManual && (
               <div className="inline-flex rounded-lg bg-surface-700 p-0.5">
                 {(['ALL', 'AWAITING', 'PAID'] as const).map((mode) => (
@@ -2008,10 +2028,30 @@ function ParticipantsPanel({ competitionId, paymentMode, manualPaymentPolicy }: 
                 ))}
               </div>
             )}
+            {isManual && awaitingParticipants.length > 0 && (
+              <button
+                type="button"
+                onClick={confirmAllAwaiting}
+                disabled={bulkConfirming}
+                className="text-xs px-3 h-9 rounded-md border border-green-400/30 bg-green-600/10 text-green-300 hover:bg-green-600/20 disabled:opacity-50 whitespace-nowrap"
+              >
+                {bulkConfirming ? 'Confirming…' : `Confirm all (${awaitingParticipants.length})`}
+              </button>
+            )}
+            {isManual && paidParticipants.length > 0 && (
+              <button
+                type="button"
+                onClick={revertAllPaid}
+                disabled={bulkReverting}
+                className="text-xs px-3 h-9 rounded-md border border-rose-400/30 bg-rose-600/10 text-rose-300 hover:bg-rose-600/20 disabled:opacity-50 whitespace-nowrap"
+              >
+                {bulkReverting ? 'Reverting…' : `Revert all (${paidParticipants.length})`}
+              </button>
+            )}
             <button
               type="button"
               onClick={exportPaymentsCsv}
-              className="text-xs px-3 h-9 rounded-md border border-white/10 bg-white/[0.03] text-gray-300 hover:bg-white/[0.06]"
+              className="text-xs px-3 h-9 rounded-md border border-white/10 bg-white/[0.03] text-gray-300 hover:bg-white/[0.06] whitespace-nowrap"
             >
               Export CSV
             </button>
@@ -2042,6 +2082,26 @@ function ParticipantsPanel({ competitionId, paymentMode, manualPaymentPolicy }: 
                   ))}
                 </div>
               )}
+              {isManual && awaitingParticipants.length > 0 && (
+                <button
+                  type="button"
+                  onClick={confirmAllAwaiting}
+                  disabled={bulkConfirming}
+                  className="w-full text-xs px-3 h-9 rounded-md border border-green-400/30 bg-green-600/10 text-green-300 hover:bg-green-600/20 disabled:opacity-50"
+                >
+                  {bulkConfirming ? 'Confirming…' : `Confirm all (${awaitingParticipants.length})`}
+                </button>
+              )}
+              {isManual && paidParticipants.length > 0 && (
+                <button
+                  type="button"
+                  onClick={revertAllPaid}
+                  disabled={bulkReverting}
+                  className="w-full text-xs px-3 h-9 rounded-md border border-rose-400/30 bg-rose-600/10 text-rose-300 hover:bg-rose-600/20 disabled:opacity-50"
+                >
+                  {bulkReverting ? 'Reverting…' : `Revert all (${paidParticipants.length})`}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={exportPaymentsCsv}
@@ -2053,97 +2113,6 @@ function ParticipantsPanel({ competitionId, paymentMode, manualPaymentPolicy }: 
           )}
         </div>
       </div>
-
-      {activeTab === 'PAYMENTS' && isManual && (
-        <div className="grid gap-3 lg:grid-cols-2">
-          <div className="rounded-lg border border-amber-400/20 bg-amber-500/6 p-3 space-y-2">
-            <div className="flex items-center justify-between">
-              <h5 className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-200">Awaiting Payment</h5>
-              <div className="flex items-center gap-2">
-                {awaitingParticipants.length > 0 && !awaitingCollapsed && (
-                  <button
-                    type="button"
-                    onClick={confirmAllAwaiting}
-                    disabled={bulkConfirming}
-                    className="text-[11px] px-2 py-0.5 rounded border border-green-300/40 text-green-200 hover:bg-green-400/10 disabled:opacity-50"
-                  >
-                    {bulkConfirming ? 'Confirming…' : 'Confirm all'}
-                  </button>
-                )}
-                <span className="text-xs text-amber-300">{awaitingParticipants.length}</span>
-                <button
-                  type="button"
-                  onClick={() => setAwaitingCollapsed((v) => !v)}
-                  className="text-[11px] px-2 py-0.5 rounded border border-amber-300/30 text-amber-200 hover:bg-amber-400/10"
-                >
-                  {awaitingCollapsed ? 'Expand' : 'Collapse'}
-                </button>
-              </div>
-            </div>
-            {awaitingCollapsed ? (
-              <p className="text-xs text-amber-100/70">Collapsed</p>
-            ) : awaitingParticipants.length === 0 ? (
-              <p className="text-xs text-amber-100/80">No one waiting for payment.</p>
-            ) : (
-              <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                {awaitingParticipants.slice(0, 50).map((p) => (
-                  <div key={`await-${p.id}`} className="flex items-center justify-between rounded-md border border-amber-300/20 bg-black/20 px-2 py-1.5">
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium text-amber-100 truncate">{participantLabel(p)}</p>
-                      <p className="text-[11px] text-amber-200/80">{p.status}</p>
-                    </div>
-                    <button
-                      onClick={() => confirmPayment(p)}
-                      disabled={markPaidMutation.isPending}
-                      className="text-[11px] px-2 py-1 rounded bg-green-600/20 hover:bg-green-600/40 text-green-300"
-                    >
-                      Confirm
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-lg border border-green-400/20 bg-green-500/6 p-3 space-y-2">
-            <div className="flex items-center justify-between">
-              <h5 className="text-xs font-semibold uppercase tracking-[0.14em] text-green-200">Paid</h5>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-green-300">{paidParticipants.length}</span>
-                <button
-                  type="button"
-                  onClick={() => setPaidCollapsed((v) => !v)}
-                  className="text-[11px] px-2 py-0.5 rounded border border-green-300/30 text-green-200 hover:bg-green-400/10"
-                >
-                  {paidCollapsed ? 'Expand' : 'Collapse'}
-                </button>
-              </div>
-            </div>
-            {paidCollapsed ? (
-              <p className="text-xs text-green-100/70">Collapsed</p>
-            ) : paidParticipants.length === 0 ? (
-              <p className="text-xs text-green-100/80">No confirmed payments yet.</p>
-            ) : (
-              <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                {paidParticipants.slice(0, 50).map((p) => (
-                  <div key={`paid-${p.id}`} className="club-admin-payment-row flex items-center justify-between rounded-md border border-green-300/20 bg-black/20 px-2 py-1.5">
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium text-green-100 truncate">{participantLabel(p)}</p>
-                      <p className="text-[11px] text-green-200/80">{p.status}</p>
-                    </div>
-                    <button
-                      onClick={() => revertPayment(p)}
-                      disabled={unmarkPaidMutation.isPending}
-                      className="text-[11px] px-2 py-1 rounded bg-red-600/20 hover:bg-red-600/40 text-red-300"
-                    >
-                      Revert
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
       )}
 
       {activeTab === 'PARTICIPANTS' && showAddPanel && (
@@ -2160,7 +2129,7 @@ function ParticipantsPanel({ competitionId, paymentMode, manualPaymentPolicy }: 
       )}
 
       {(participants?.length ?? 0) > 0 && (
-        <div className="club-admin-filter-shell hidden sm:flex sm:flex-row gap-2">
+        <div className="club-admin-filter-shell hidden sm:flex sm:flex-row gap-2 items-end">
           {/* Search */}
           <div className="relative flex-1">
             <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -2177,26 +2146,57 @@ function ParticipantsPanel({ competitionId, paymentMode, manualPaymentPolicy }: 
               <button onClick={() => { setSearch(''); setPage(1); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white">×</button>
             )}
           </div>
-          {/* Status filter pills */}
           {activeTab === 'PARTICIPANTS' && (
-            <div className="-mx-1 overflow-x-auto pb-1 sm:mx-0 sm:overflow-visible">
-              <div className="inline-flex min-w-max rounded-lg bg-surface-800 p-0.5 shrink-0 border border-white/10">
-              {(['ALL', 'ACTIVE', 'ELIMINATED', 'WINNER'] as const).map(s => (
-                statusCounts[s] > 0 || s === 'ALL' ? (
-                  <button key={s} onClick={() => { setStatusFilter(s); setPage(1); }}
-                    className={`px-2 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${statusFilter === s ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'}`}>
-                    {s === 'ALL' ? `All (${statusCounts.ALL})` : `${s.charAt(0) + s.slice(1).toLowerCase()} (${statusCounts[s]})`}
-                  </button>
-                ) : null
-              ))}
+            <>
+              <div className="w-40">
+                <label className="mb-1 block text-[10px] uppercase tracking-[0.12em] text-gray-500">Status</label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => { setStatusFilter(e.target.value as typeof statusFilter); setPage(1); }}
+                  className="w-full h-9 rounded-md border border-white/10 bg-surface-700 px-2 text-xs text-gray-200"
+                >
+                  {statusFilterOptions.map((s) => (
+                    <option key={s} value={s}>
+                      {s === 'ALL' ? `All (${statusCounts.ALL})` : `${s.charAt(0)}${s.slice(1).toLowerCase()} (${statusCounts[s]})`}
+                    </option>
+                  ))}
+                </select>
               </div>
-            </div>
+              {isManual && (
+                <div className="w-36">
+                  <label className="mb-1 block text-[10px] uppercase tracking-[0.12em] text-gray-500">Payment</label>
+                  <select
+                    value={viewMode}
+                    onChange={(e) => { setViewMode(e.target.value as 'ALL' | 'AWAITING' | 'PAID'); setPage(1); }}
+                    className="w-full h-9 rounded-md border border-white/10 bg-surface-700 px-2 text-xs text-gray-200"
+                  >
+                    <option value="ALL">All</option>
+                    <option value="AWAITING">Awaiting</option>
+                    <option value="PAID">Paid</option>
+                  </select>
+                </div>
+              )}
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={clearAllFilters}
+                  aria-label="Reset filters"
+                  className="h-9 rounded-md border border-brand-400/30 bg-brand-500/10 px-3 text-xs font-medium text-brand-200 inline-flex items-center gap-1.5 self-end"
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 10a7 7 0 111.8 4.7" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.5V9h4.5" />
+                  </svg>
+                  Reset filters
+                </button>
+              )}
+            </>
           )}
         </div>
       )}
 
       {/* Results info */}
-      {(search || (activeTab === 'PARTICIPANTS' && statusFilter !== 'ALL')) && (
+      {(search || (activeTab === 'PARTICIPANTS' && (statusFilter !== 'ALL' || (isManual && viewMode !== 'ALL')))) && (
         <p className="text-xs text-gray-500">
           {filtered.length} result{filtered.length !== 1 ? 's' : ''}
           {search ? ` for "${search}"` : ''}
@@ -2212,12 +2212,23 @@ function ParticipantsPanel({ competitionId, paymentMode, manualPaymentPolicy }: 
       ) : (
         <>
           <div className="space-y-2">
-            {paginated.map((p) => (
-              <div key={p.id} className="club-admin-participant-row text-sm">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0 space-y-1.5">
+            {paginated.map((p, idx) => {
+              const openUpward = idx >= paginated.length - 2;
+              const isActionsOpen = mobileActionUserId === p.id;
+              const showInlineRowActions = true;
+              const showWinnerAction = activeTab === 'PARTICIPANTS' && p.status === 'ACTIVE' && activeCount > 1;
+              const showRemoveAction = activeTab === 'PARTICIPANTS';
+              const showPaymentAction = isManual && activeTab === 'PAYMENTS';
+              const hasMenuActions = showPaymentAction || showWinnerAction || showRemoveAction;
+              return (
+              <div
+                key={p.id}
+                className={`club-admin-participant-row text-sm transition-all ${isActionsOpen ? 'club-admin-participant-row--active border-brand-300/45 bg-white/[0.06] shadow-[0_10px_26px_rgba(15,23,42,0.32)] ring-1 ring-brand-300/25' : ''} ${mobileActionUserId !== null && !isActionsOpen ? 'opacity-60 saturate-75' : ''}`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap min-w-0">
-                      <span className="text-gray-200 font-medium">{participantLabel(p)}</span>
+                      <span className="text-gray-200 font-medium truncate">{participantLabel(p)}</span>
                       <span className={
                         p.status === 'ACTIVE'
                           ? 'badge-green sm:opacity-100 opacity-80'
@@ -2225,132 +2236,188 @@ function ParticipantsPanel({ competitionId, paymentMode, manualPaymentPolicy }: 
                             ? 'badge-red sm:opacity-100 opacity-80'
                             : 'badge-yellow sm:opacity-100 opacity-80'
                       }>{p.status}</span>
-                      {strictManual && p.status === 'ACTIVE' && !paidSet.has(p.id) && (
-                        <span className="badge-yellow sm:opacity-100 opacity-80">Excluded at lock</span>
-                      )}
-                      {p.eliminationReason === 'UNPAID_STRICT_LOCK' && (
-                        <span className="badge-yellow sm:opacity-100 opacity-80">Unpaid at lock</span>
-                      )}
-                      {p.eliminatedWeek && (
-                        <span className="hidden sm:inline text-xs text-gray-500">GW{p.eliminatedWeek}</span>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
                       {isManual && (
                         paidSet.has(p.id)
-                          ? <span className="text-green-400 sm:text-green-400 text-gray-400">Payment confirmed</span>
-                          : <span className="text-yellow-400 sm:text-yellow-400 text-gray-400">Awaiting payment{strictManual && p.status === 'ACTIVE' ? ' · excluded at lock' : ''}</span>
+                          ? <span className="badge-blue badge-soft opacity-85">Paid</span>
+                          : <span className="badge-gray badge-soft opacity-85">Awaiting</span>
                       )}
-                      {p.eliminationReason === 'UNPAID_STRICT_LOCK' && (
-                        <span className="text-yellow-500/90">Removed at lock (strict unpaid)</span>
+                      {strictManual && p.status === 'ACTIVE' && !paidSet.has(p.id) && (
+                        <span className="text-[11px] text-yellow-400/90">Excluded at lock</span>
                       )}
-                      {p.status === 'ACTIVE' && activeCount > 1 && (
-                        <span className="hidden sm:inline text-yellow-500/80">Still eligible to win</span>
+                      {p.eliminatedWeek && (
+                        <span className="text-[11px] text-gray-500">GW{p.eliminatedWeek}</span>
                       )}
                     </div>
+                    {p.eliminationReason === 'UNPAID_STRICT_LOCK' && (
+                      <p className="mt-1 text-[11px] text-yellow-500/90">Removed at lock (strict unpaid)</p>
+                    )}
                   </div>
-                  <div className="hidden sm:flex sm:flex-wrap sm:items-center sm:gap-2 sm:ml-2 sm:shrink-0">
-                  {isManual && (
-                    paidSet.has(p.id) ? (
-                      <span className="text-xs text-green-400 font-medium flex items-center gap-1">
-                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
-                        Paid
-                      </span>
-                    ) : (
+
+                  {showInlineRowActions ? (
+                  <div className="shrink-0 flex items-center gap-1 self-start">
+                    {showPaymentAction && (
+                      paidSet.has(p.id) ? (
+                        <button
+                          type="button"
+                          onClick={() => revertPayment(p)}
+                          disabled={unmarkPaidMutation.isPending}
+                          aria-label="Revert payment"
+                          title="Revert payment"
+                          className="club-admin-row-action club-admin-row-action--rose club-admin-row-action--labeled"
+                        >
+                          <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+                          </svg>
+                          <span>Unpaid</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => confirmPayment(p)}
+                          disabled={markPaidMutation.isPending}
+                          aria-label="Confirm payment"
+                          title="Confirm payment"
+                          className="club-admin-row-action club-admin-row-action--green club-admin-row-action--labeled"
+                        >
+                          <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span>Paid</span>
+                        </button>
+                      )
+                    )}
+                    {showWinnerAction && (
                       <button
-                        onClick={() => confirmPayment(p)}
-                        disabled={markPaidMutation.isPending}
-                        className="text-xs px-3 h-9 rounded-md bg-green-600/15 hover:bg-green-600/25 text-green-300 transition font-medium"
+                        type="button"
+                        onClick={() => setWinnerDialogUser(p)}
+                        disabled={declareWinnerMutation.isPending}
+                        aria-label="Declare winner"
+                        title="Declare winner"
+                        className="club-admin-row-action club-admin-row-action--amber club-admin-row-action--labeled"
                       >
-                        💸 Confirm
+                        <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M7 4h10v4a5 5 0 01-10 0V4z" />
+                          <path d="M7 5H4v1a4 4 0 004 4" />
+                          <path d="M17 5h3v1a4 4 0 01-4 4" />
+                          <path d="M12 13v4" />
+                          <path d="M9 20h6" />
+                          <path d="M12 17v3" />
+                        </svg>
+                        <span>WIN</span>
                       </button>
-                    )
-                  )}
-                  {isManual && paidSet.has(p.id) && (
-                    <button
-                      onClick={() => revertPayment(p)}
-                      disabled={unmarkPaidMutation.isPending}
-                      className="text-xs px-3 h-9 rounded-md bg-rose-600/15 hover:bg-rose-600/25 text-rose-300 transition"
-                    >
-                      ↩️ Revert
-                    </button>
-                  )}
-                  {activeTab === 'PARTICIPANTS' && p.status === 'ACTIVE' && activeCount > 1 && (
-                    <button
-                      onClick={() => setWinnerDialogUser(p)}
-                      disabled={declareWinnerMutation.isPending}
-                      className="text-xs px-3 h-9 rounded-md bg-amber-600/15 hover:bg-amber-600/25 text-amber-300 transition"
-                    >
-                      🏆 Winner
-                    </button>
-                  )}
-                  {activeTab === 'PARTICIPANTS' && (
-                    <button
-                      onClick={() => setRemoveDialogUser(p)}
-                      disabled={removeMutation.isPending}
-                      className="text-xs px-3 h-9 rounded-md border border-rose-400/30 bg-rose-600/10 hover:bg-rose-600/18 text-rose-300 transition"
-                    >
-                      Remove
-                    </button>
-                  )}
-                </div>
-                  <div className="sm:hidden">
+                    )}
+                    {showRemoveAction && (
+                      <button
+                        type="button"
+                        onClick={() => setRemoveDialogUser(p)}
+                        disabled={removeMutation.isPending}
+                        aria-label="Remove participant"
+                        title="Remove participant"
+                        className="club-admin-row-action club-admin-row-action--rose club-admin-row-action--labeled"
+                      >
+                        <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M4 7h16" />
+                          <path d="M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2" />
+                          <path d="M18 7l-.8 12.2a2 2 0 01-2 1.8H8.8a2 2 0 01-2-1.8L6 7" />
+                          <path d="M10 11v6" />
+                          <path d="M14 11v6" />
+                        </svg>
+                        <span>DEL</span>
+                      </button>
+                    )}
+                  </div>
+                  ) : (
+                  <div className="relative shrink-0">
                     <button
                       type="button"
                       ref={(el) => { actionButtonRefs.current[p.id] = el; }}
                       onClick={() => setMobileActionUserId((id) => (id === p.id ? null : p.id))}
-                      className="w-full h-9 rounded-md border border-white/10 bg-white/[0.03] px-3 text-xs text-gray-300 flex items-center justify-between"
+                      aria-expanded={isActionsOpen}
+                      aria-label={`Manage ${participantLabel(p)}`}
+                      className="h-8 w-8 rounded-md border border-white/10 bg-white/[0.03] text-gray-300 hover:text-white hover:bg-white/[0.07] flex items-center justify-center"
                     >
-                      <span>Manage</span>
-                      <span className="text-gray-500">{mobileActionUserId === p.id ? '▲' : '▼'}</span>
+                      <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <circle cx="10" cy="4.25" r="1.25" />
+                        <circle cx="10" cy="10" r="1.25" />
+                        <circle cx="10" cy="15.75" r="1.25" />
+                      </svg>
                     </button>
-                    {mobileActionUserId === p.id && (
-                      <div className="mt-2 grid grid-cols-1 gap-2">
-                        {isManual && (
+                    {isActionsOpen && (
+                      <div role="menu" className={`club-admin-actions-menu absolute right-0 z-50 w-56 rounded-lg border border-brand-300/35 bg-surface-900/98 p-1.5 shadow-[0_18px_44px_rgba(2,6,23,0.55)] ring-1 ring-black/35 transition-all duration-150 ease-out origin-top-right ${openUpward ? 'bottom-full mb-1.5 origin-bottom-right' : 'top-full mt-1.5'}`}>
+                        <div
+                          aria-hidden="true"
+                          className={`absolute right-2 h-2.5 w-2.5 rotate-45 border-brand-300/35 bg-surface-900/98 ${openUpward ? '-bottom-1.5 border-r border-b' : '-top-1.5 border-l border-t'}`}
+                        />
+                        <div className="px-2 pb-1.5 text-[10px] uppercase tracking-wide text-gray-400">
+                          Actions for {participantLabel(p)}
+                        </div>
+                        <div className="mb-1 border-t border-white/10" />
+                        {showPaymentAction && (
                           paidSet.has(p.id) ? (
                             <button
+                              role="menuitem"
                               type="button"
                               onClick={() => revertPayment(p)}
                               disabled={unmarkPaidMutation.isPending}
-                              className="w-full h-9 rounded-md bg-rose-600/15 px-2 text-xs text-rose-300"
+                              className="w-full h-8 rounded px-2 text-left text-xs text-rose-300 hover:bg-rose-600/15"
                             >
                               Revert payment
                             </button>
                           ) : (
                             <button
+                              role="menuitem"
                               type="button"
                               onClick={() => confirmPayment(p)}
                               disabled={markPaidMutation.isPending}
-                              className="w-full h-9 rounded-md bg-green-600/15 px-2 text-xs text-green-300"
+                              className="w-full h-8 rounded px-2 text-left text-xs text-green-300 hover:bg-green-600/15"
                             >
                               Confirm payment
                             </button>
                           )
                         )}
-                        {p.status === 'ACTIVE' && activeCount > 1 && (
+
+                        {showWinnerAction && (
                           <button
+                            role="menuitem"
                             type="button"
-                            onClick={() => setWinnerDialogUser(p)}
+                            onClick={() => {
+                              setWinnerDialogUser(p);
+                              setMobileActionUserId(null);
+                            }}
                             disabled={declareWinnerMutation.isPending}
-                            className="w-full h-9 rounded-md bg-amber-600/15 px-2 text-xs text-amber-300"
+                            className="w-full h-8 rounded px-2 text-left text-xs text-amber-300 hover:bg-amber-600/15"
                           >
                             Declare winner
                           </button>
                         )}
-                        <button
-                          type="button"
-                          onClick={() => setRemoveDialogUser(p)}
-                          disabled={removeMutation.isPending}
-                          className="w-full h-9 rounded-md border border-rose-400/30 bg-rose-600/10 px-2 text-xs text-rose-300"
-                        >
-                          Remove participant
-                        </button>
+
+                        {showRemoveAction && (
+                          <>
+                            {(showPaymentAction || showWinnerAction) && <div className="my-1 border-t border-white/10" />}
+                            <button
+                              role="menuitem"
+                              type="button"
+                              onClick={() => {
+                                setRemoveDialogUser(p);
+                                setMobileActionUserId(null);
+                              }}
+                              disabled={removeMutation.isPending}
+                              className="w-full h-8 rounded px-2 text-left text-xs text-rose-300 hover:bg-rose-600/15"
+                            >
+                              Remove participant
+                            </button>
+                          </>
+                        )}
+                        {!hasMenuActions && (
+                          <div className="px-2 py-1.5 text-xs text-gray-400">No actions available</div>
+                        )}
                       </div>
                     )}
                   </div>
+                  )}
               </div>
               </div>
-            ))}
+            );})}
           </div>
 
           {/* Pagination */}
