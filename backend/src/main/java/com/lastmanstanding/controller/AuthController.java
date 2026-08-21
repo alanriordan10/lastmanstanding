@@ -331,12 +331,10 @@ public class AuthController {
         rateLimitService.recordSuccessfulLogin(email, ip);
 
         java.time.LocalDateTime previousLoginAt = user.getLastLoginAt();
-        String previousLoginIp = user.getLastLoginIp();
         user.setLastLoginAt(java.time.LocalDateTime.now());
-        user.setLastLoginIp(ip);
         userRepository.save(user);
 
-        return ResponseEntity.ok(buildAuthResponseAndSetCookies(user, httpRequest, new java.util.AbstractMap.SimpleEntry<>(previousLoginAt, previousLoginIp)));
+        return ResponseEntity.ok(buildAuthResponseAndSetCookies(user, httpRequest, previousLoginAt));
     }
 
     private static String resolveClientIp(HttpServletRequest request) {
@@ -677,10 +675,10 @@ public class AuthController {
     // ── Helper ──────────────────────────────────────────────────────────
 
     private AuthResponse buildAuthResponse(User user) {
-        return buildAuthResponseWithLastLogin(user, user.getLastLoginAt(), user.getLastLoginIp());
+        return buildAuthResponseWithLastLogin(user, user.getLastLoginAt());
     }
 
-    private AuthResponse buildAuthResponseWithLastLogin(User user, java.time.LocalDateTime lastLoginAt, String lastLoginIp) {
+    private AuthResponse buildAuthResponseWithLastLogin(User user, java.time.LocalDateTime lastLoginAt) {
         String accessToken = jwtService.generateAccessToken(user);
         String refreshToken = jwtService.generateRefreshToken(user);
 
@@ -696,8 +694,7 @@ public class AuthController {
                 user.isNotificationResultUpdates(),
                 user.isNotificationCompetitionAnnouncements(),
                 user.isNotificationPaymentUpdates(),
-                lastLoginAt,
-                lastLoginIp);
+                lastLoginAt);
     }
 
     /**
@@ -708,7 +705,7 @@ public class AuthController {
     private AuthResponse buildAuthResponseAndSetCookies(
             User user,
             HttpServletRequest httpRequest,
-            java.util.Map.Entry<java.time.LocalDateTime, String> previousLogin) {
+            java.time.LocalDateTime previousLoginAt) {
         String accessToken = jwtService.generateAccessToken(user);
         String refreshToken = jwtService.generateRefreshToken(user);
 
@@ -718,8 +715,7 @@ public class AuthController {
             authCookieService.writeRefreshToken(response, refreshToken);
         }
 
-        java.time.LocalDateTime lastLoginAt = previousLogin != null ? previousLogin.getKey() : user.getLastLoginAt();
-        String lastLoginIp = previousLogin != null ? previousLogin.getValue() : user.getLastLoginIp();
+        java.time.LocalDateTime lastLoginAt = previousLoginAt != null ? previousLoginAt : user.getLastLoginAt();
 
         return new AuthResponse(
                 accessToken,
@@ -733,8 +729,7 @@ public class AuthController {
                 user.isNotificationResultUpdates(),
                 user.isNotificationCompetitionAnnouncements(),
                 user.isNotificationPaymentUpdates(),
-                lastLoginAt,
-                lastLoginIp);
+                lastLoginAt);
     }
 
     /**

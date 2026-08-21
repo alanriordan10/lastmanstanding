@@ -6,26 +6,14 @@ import { usePushNotifications } from '../hooks/usePushNotifications';
 import { Link, useNavigate } from 'react-router-dom';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 
-function formatLastLogin(iso: string, ip?: string | null): string {
+function formatLastLogin(iso: string): string {
   try {
     const date = parseISO(iso);
     if (Number.isNaN(date.getTime())) return iso;
-    const relative = formatDistanceToNow(date, { addSuffix: true });
-    const source = ip ? ` from ${prettyIp(ip)}` : '';
-    return `${relative}${source}`;
+    return formatDistanceToNow(date, { addSuffix: true });
   } catch {
     return iso;
   }
-}
-
-function prettyIp(ip: string): string {
-  if (ip === '127.0.0.1' || ip === '0:0:0:0:0:0:0:1' || ip === '::1' || ip === 'localhost') return 'localhost';
-  if (ip.startsWith('::ffff:')) {
-    const v4 = ip.substring(7);
-    if (v4 === '127.0.0.1') return 'localhost';
-    return v4;
-  }
-  return ip;
 }
 
 export default function ProfilePage() {
@@ -200,7 +188,7 @@ export default function ProfilePage() {
             </span>
             {user?.lastLoginAt ? (
               <p className="mt-2 text-xs text-slate-500">
-                Last sign-in: {formatLastLogin(user.lastLoginAt, user.lastLoginIp)}
+                Last sign-in: {formatLastLogin(user.lastLoginAt)}
               </p>
             ) : null}
           </div>
