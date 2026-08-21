@@ -11,12 +11,12 @@ This covers normal users and club admins, including joining competitions, making
 
 ## Prerequisites
 
-| Tool       | Required | Check                  |
-|------------|----------|------------------------|
-| **Docker** | ✅       | `docker --version`     |
-| **Java 17**| ✅       | `java -version`        |
-| **Maven**  | ✅       | `mvn -version`         |
-| **Node 18+**| ✅      | `node --version`       |
+| Tool       | Required | Check              |
+|------------|----------|--------------------|
+| **Docker** | ✅       | `docker --version` |
+| **Java 17**| ✅       | `java -version`    |
+| **Maven**  | ✅       | `mvn -version`     |
+| **Node 18+**| ✅      | `node --version `  |
 
 ---
 
