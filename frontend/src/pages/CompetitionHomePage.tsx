@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
-import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueries, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
 import api from '../api';
@@ -169,6 +169,7 @@ function usePickStatsMap(compId: number, gwIds: number[]): { map: Map<number, Pi
     queries: gwIds.map(gwId => ({
       queryKey: ['pick-stats', compId, gwId],
       queryFn: () => api.get(`/competitions/${compId}/gameweeks/${gwId}/pick-stats`).then(r => r.data as PickStat[]),
+      placeholderData: keepPreviousData,
       staleTime: 60_000,
     })),
   });
@@ -262,6 +263,7 @@ export default function CompetitionHomePage() {
   const { data: comp, isLoading: compLoading } = useQuery<Competition>({
     queryKey: ['competition', compId],
     queryFn: () => api.get(`/competitions/${compId}`).then((r) => r.data),
+    placeholderData: keepPreviousData,
     staleTime: (query) => (query.state.data as Competition | undefined)?.status === 'COMPLETED' ? Infinity : 30_000,
     refetchInterval: (query) => {
       const competition = query.state.data as Competition | undefined;
@@ -273,6 +275,7 @@ export default function CompetitionHomePage() {
   const { data: myEntries = [] } = useQuery<Participant[]>({
     queryKey: ['myEntries', compId],
     queryFn: () => api.get(`/competitions/${compId}/my-entries`).then((r) => Array.isArray(r.data) ? r.data : []),
+    placeholderData: keepPreviousData,
     retry: false,
     staleTime: comp?.status === 'COMPLETED' ? Infinity : 30_000,
   });
@@ -293,6 +296,7 @@ export default function CompetitionHomePage() {
     queryFn: () => api.get(`/competitions/${compId}/me`, {
       params: selectedEntryId ? { entryId: selectedEntryId } : undefined,
     }).then((r) => r.data),
+    placeholderData: keepPreviousData,
     retry: false,
     staleTime: comp?.status === 'COMPLETED' ? Infinity : 30_000,
     refetchInterval: () => comp?.status === 'COMPLETED'
@@ -303,6 +307,7 @@ export default function CompetitionHomePage() {
   const { data: fixtures, isLoading: fixturesLoading } = useQuery<Fixture[]>({
     queryKey: ['fixtures', compId],
     queryFn: () => api.get(`/competitions/${compId}/fixtures?weeks=99`).then((r) => r.data),
+    placeholderData: keepPreviousData,
     staleTime: comp?.status === 'COMPLETED' ? Infinity : 30_000,
     // Keep polling for newly created upcoming competitions until fixtures appear,
     // then fall back to low-frequency polling only while a gameweek is live.
@@ -352,6 +357,7 @@ export default function CompetitionHomePage() {
     queryKey: ['gameweekSelections', compId, latestCompletedGwId],
     queryFn: () => api.get(`/competitions/${compId}/gameweeks/${latestCompletedGwId}/selections`).then((r) => r.data),
     enabled: !!latestCompletedGwId,
+    placeholderData: keepPreviousData,
     staleTime: comp?.status === 'COMPLETED' ? Infinity : 30_000,
   });
 
@@ -359,6 +365,7 @@ export default function CompetitionHomePage() {
     queryKey: ['gameweekSelections', compId, latestNarrativeGwId],
     queryFn: () => api.get(`/competitions/${compId}/gameweeks/${latestNarrativeGwId}/selections`).then((r) => r.data),
     enabled: !!latestNarrativeGwId,
+    placeholderData: keepPreviousData,
     staleTime: comp?.status === 'COMPLETED' ? Infinity : 30_000,
     refetchInterval: (query) => {
       if (comp?.status === 'COMPLETED') return false;
@@ -3409,19 +3416,35 @@ function InsightPanel({
 }
 
 function PickInsightPanel({ teamName, risk, pickStat }: { teamName: string; risk: TeamRisk; pickStat?: PickStat }) {
+  const { resolvedTheme } = useTheme();
+  const panelClass = resolvedTheme === 'light'
+    ? 'rounded-b-2xl border border-t-0 border-sky-300/60 bg-[linear-gradient(180deg,rgba(186,230,253,0.55),rgba(125,211,252,0.4))] shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_6px_14px_-8px_rgba(56,189,248,0.35)]'
+    : 'rounded-b-2xl border border-t-0 border-sky-300/20 bg-sky-950/30 shadow-inner shadow-sky-950/20';
+  const eyebrowClass = resolvedTheme === 'light' ? 'text-sky-700' : 'text-sky-200';
+  const titleClass = resolvedTheme === 'light' ? 'text-slate-900' : 'text-white';
+  const bodyClass = resolvedTheme === 'light' ? 'text-slate-600' : 'text-slate-300';
+  const riskBadgeClass = resolvedTheme === 'light'
+    ? {
+        Safe: 'bg-green-100 text-green-800',
+        Balanced: 'bg-amber-100 text-amber-800',
+        Differential: 'bg-cyan-100 text-cyan-800',
+      } as const
+    : {
+        Safe: 'bg-green-500/20 text-green-100',
+        Balanced: 'bg-yellow-500/20 text-yellow-100',
+        Differential: 'bg-cyan-500/20 text-cyan-100',
+      } as const;
   return (
-    <div className="pick-insight-panel mx-1 -mt-1 rounded-b-2xl border border-t-0 border-sky-300/20 bg-sky-950/30 px-4 pb-3 pt-3 shadow-inner shadow-sky-950/20 sm:mx-2">
+    <div className={clsx('mx-1 -mt-1 px-4 pb-3 pt-3 sm:mx-2', panelClass)}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="pick-insight-eyebrow text-[10px] font-black uppercase tracking-[0.2em] text-sky-200">Why this pick?</p>
+        <p className={clsx('text-[10px] font-black uppercase tracking-[0.2em]', eyebrowClass)}>Why this pick?</p>
         <span className={clsx(
           'rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em]',
-          risk.label === 'Safe' && 'bg-green-500/20 text-green-100',
-          risk.label === 'Balanced' && 'bg-yellow-500/20 text-yellow-100',
-          risk.label === 'Differential' && 'bg-cyan-500/20 text-cyan-100',
+          riskBadgeClass[risk.label],
         )}>{riskLabelText(risk)}</span>
       </div>
-      <h4 className="pick-insight-title mt-2 truncate text-sm font-black text-white">{teamName}</h4>
-      <p className="pick-insight-detail mt-1 text-xs leading-5 text-slate-300">{risk.explanation}</p>
+      <h4 className={clsx('mt-2 truncate text-sm font-black', titleClass)}>{teamName}</h4>
+      <p className={clsx('mt-1 text-xs leading-5', bodyClass)}>{risk.explanation}</p>
       <div className="mt-3 flex flex-wrap gap-2">
         {risk.marketChance != null ? <InsightMetric value={`${risk.marketChance}%`} label="market win" /> : null}
         {pickStat ? <InsightMetric value={`${pickStat.percentage}%`} label={`${pickStat.pickCount} picked`} /> : null}
@@ -3432,10 +3455,16 @@ function PickInsightPanel({ teamName, risk, pickStat }: { teamName: string; risk
 }
 
 function InsightMetric({ value, label }: { value: string; label: string }) {
+  const { resolvedTheme } = useTheme();
+  const wrapperClass = resolvedTheme === 'light'
+    ? 'rounded-full border border-slate-200 bg-white/85 px-3 py-1.5 shadow-sm shadow-slate-200/50'
+    : 'rounded-full bg-white/10 px-3 py-1.5';
+  const valueClass = resolvedTheme === 'light' ? 'text-slate-900' : 'text-white';
+  const labelClass = resolvedTheme === 'light' ? 'text-slate-500' : 'text-slate-400';
   return (
-    <div className="pick-insight-metric rounded-full bg-white/10 px-3 py-1.5">
-      <span className="pick-insight-metric-value text-xs font-black text-white">{value}</span>
-      <span className="pick-insight-metric-label ml-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">{label}</span>
+    <div className={wrapperClass}>
+      <span className={clsx('text-xs font-black', valueClass)}>{value}</span>
+      <span className={clsx('ml-1.5 text-[10px] font-bold uppercase tracking-[0.08em]', labelClass)}>{label}</span>
     </div>
   );
 }

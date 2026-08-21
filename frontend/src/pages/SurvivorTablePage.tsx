@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useState, useMemo } from 'react';
 import api from '../api';
 import type { Competition } from '../types';
@@ -48,12 +48,14 @@ export default function SurvivorTablePage() {
   const { data: comp } = useQuery<Competition>({
     queryKey: ['competition', compId],
     queryFn: () => api.get(`/competitions/${compId}`).then((r) => r.data),
+    placeholderData: keepPreviousData,
     staleTime: (query) => (query.state.data as Competition | undefined)?.status === 'COMPLETED' ? Infinity : 30_000,
   });
 
   const { data: tableData, isLoading } = useQuery<{ gameweeks: GameweekMeta[]; rows: SurvivorRow[] }>({
     queryKey: ['survivor-table', compId],
     queryFn: () => api.get(`/competitions/${compId}/survivor-table`).then((r) => r.data),
+    placeholderData: keepPreviousData,
     staleTime: comp?.status === 'COMPLETED' ? Infinity : 30_000,
     refetchInterval: (query) => {
       if (comp?.status === 'COMPLETED') return false;
@@ -232,9 +234,7 @@ export default function SurvivorTablePage() {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
-        </div>
+        <SurvivorTableSkeleton />
       ) : !gameweeks.length ? (
         <div className="card text-center py-16">
           <p className="text-gray-400">No data available yet</p>
@@ -549,4 +549,45 @@ function outcomeIcon(outcome: string): string {
     case 'POSTPONED_ADVANCE': return '↷';
     default: return '';
   }
+}
+
+function SurvivorTableSkeleton() {
+  const gameweekCount = 6;
+  const rowCount = 8;
+  return (
+    <div className="overflow-x-auto rounded-2xl border border-white/8 bg-white/[0.03] max-h-[70vh] shadow-[0_20px_50px_rgba(2,6,23,0.34)] animate-pulse">
+      <table className="w-full text-sm min-w-max">
+        <thead className="sticky top-0 z-20">
+          <tr className="border-b border-gray-700/50 bg-surface-800">
+            <th className="text-left py-3 px-4 font-semibold text-gray-300 sticky left-0 bg-surface-800/95 z-10 min-w-[140px]">
+              <div className="h-4 w-24 rounded bg-white/10" />
+            </th>
+            {Array.from({ length: gameweekCount }).map((_, i) => (
+              <th key={i} className="py-3 px-3 font-semibold text-gray-300 text-center min-w-[80px]">
+                <div className="mx-auto h-4 w-10 rounded bg-white/10" />
+                <div className="mx-auto mt-1 h-3 w-14 rounded bg-white/8" />
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-700/30">
+          {Array.from({ length: rowCount }).map((_, rowIdx) => (
+            <tr key={rowIdx}>
+              <td className="py-3 px-4 sticky left-0 bg-surface-800/95">
+                <div className="flex items-center gap-2">
+                  <div className="h-2.5 w-2.5 rounded-full bg-white/10" />
+                  <div className="h-4 w-32 rounded bg-white/10" />
+                </div>
+              </td>
+              {Array.from({ length: gameweekCount }).map((_, colIdx) => (
+                <td key={colIdx} className="py-3 px-3 text-center">
+                  <div className="mx-auto h-5 w-12 rounded bg-white/8" />
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }

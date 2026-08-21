@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useState, useRef, useEffect, useCallback, useMemo, type CSSProperties } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import api from '../api';
@@ -207,6 +207,7 @@ export default function CompetitionsPage() {
       const params = selectedClub ? `?clubId=${selectedClub.id}` : '';
       return api.get(`/competitions/upcoming${params}`).then((r) => Array.isArray(r.data) ? r.data : []);
     },
+    placeholderData: keepPreviousData,
     staleTime: 30_000,
     refetchInterval: (query) => {
       const rows = query.state.data as Competition[] | undefined;
@@ -217,6 +218,7 @@ export default function CompetitionsPage() {
   const { data: myCompetitionsData, isLoading: myLoading, error: myError, isFetching: myFetching } = useQuery<MyCompetition[]>({
     queryKey: ['competitions', 'my', 'details'],
     queryFn: () => api.get('/competitions/my/details').then((r) => Array.isArray(r.data) ? r.data : []),
+    placeholderData: keepPreviousData,
     staleTime: 30_000,
     refetchInterval: (query) => {
       const rows = query.state.data as MyCompetition[] | undefined;
@@ -247,6 +249,7 @@ export default function CompetitionsPage() {
   const { data: joinedIds } = useQuery<number[]>({
     queryKey: ['competitions', 'my'],
     queryFn: () => api.get('/competitions/my').then((r) => Array.isArray(r.data) ? r.data : []),
+    placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
 
@@ -256,6 +259,7 @@ export default function CompetitionsPage() {
       const params = selectedClub ? `?clubId=${selectedClub.id}` : '';
       return api.get(`/competitions/past${params}`).then((r) => Array.isArray(r.data) ? r.data : []);
     },
+    placeholderData: keepPreviousData,
     enabled: viewMode === 'past' && isAdminOrClubAdmin,
   });
 
@@ -1008,7 +1012,7 @@ export default function CompetitionsPage() {
       {/* ── Browse ── */}
       {viewMode === 'available' && (
         isLoading ? (
-          <LoadingState />
+          <CompetitionCardSkeletonGrid count={PAGE_SIZE} />
         ) : error ? (
           <ErrorState message="Failed to load competitions" />
         ) : filteredAvailable.length === 0 && filteredLiveAvailable.length === 0 ? (
@@ -1153,7 +1157,7 @@ export default function CompetitionsPage() {
       {/* ── Mine ── */}
       {viewMode === 'mine' && (
         myLoading ? (
-          <LoadingState />
+          <MyCompetitionRowSkeletonList count={6} />
         ) : myError ? (
           <ErrorState message="Failed to load your competitions" />
         ) : !myComps.length ? (
@@ -1210,7 +1214,7 @@ export default function CompetitionsPage() {
           Showing completed competitions from the last 3 months.
         </div>
         {pastLoading ? (
-          <LoadingState />
+          <CompetitionCardSkeletonGrid count={6} />
         ) : pastError ? (
           <ErrorState message="Failed to load past competitions" />
         ) : filteredPast.length === 0 ? (
@@ -2070,6 +2074,93 @@ function ClubTypeahead({ clubs, selected, onSelect }: { clubs: Club[]; selected:
 }
 
 /* ── Shared states ───────────────────────────────────────────────────────── */
+
+function CompetitionCardSkeleton() {
+  return (
+    <div className="card flex flex-col p-4 sm:p-5 animate-pulse">
+      <div className="h-1.5 w-full rounded-t-[inherit] bg-white/8 -mx-4 -mt-4 mb-3 sm:-mx-5 sm:-mt-5" />
+      <div className="mb-2.5 flex gap-2">
+        <div className="h-5 w-16 rounded-full bg-white/8" />
+        <div className="h-5 w-14 rounded-full bg-white/8" />
+        <div className="h-5 w-20 rounded-full bg-white/8" />
+      </div>
+      <div className="h-5 w-3/4 rounded bg-white/8" />
+      <div className="mt-2 h-5 w-1/2 rounded bg-white/8" />
+      <div className="mt-3 flex items-center gap-1.5">
+        <div className="h-5 w-5 rounded-md bg-white/8" />
+        <div className="h-5 w-24 rounded-full bg-white/8" />
+      </div>
+      <div className="mt-2 h-7 w-44 rounded-lg bg-white/8" />
+      <div className="mt-3 h-8 rounded bg-white/8" />
+      <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2.5">
+        <div className="space-y-1">
+          <div className="h-3 w-20 rounded bg-white/8" />
+          <div className="h-4 w-24 rounded bg-white/8" />
+        </div>
+        <div className="space-y-1">
+          <div className="h-3 w-16 rounded bg-white/8" />
+          <div className="h-4 w-12 rounded bg-white/8" />
+        </div>
+        <div className="space-y-1">
+          <div className="h-3 w-20 rounded bg-white/8" />
+          <div className="h-4 w-20 rounded bg-white/8" />
+        </div>
+        <div className="space-y-1">
+          <div className="h-3 w-16 rounded bg-white/8" />
+          <div className="h-4 w-10 rounded bg-white/8" />
+        </div>
+      </div>
+      <div className="mt-3 h-2 w-full rounded-full bg-white/8" />
+      <div className="mt-auto pt-4 flex gap-2">
+        <div className="h-9 flex-1 rounded-lg bg-white/8" />
+        <div className="h-9 flex-1 rounded-lg bg-white/8" />
+      </div>
+    </div>
+  );
+}
+
+function CompetitionCardSkeletonGrid({ count = 6 }: { count?: number }) {
+  return (
+    <CompGrid>
+      {Array.from({ length: count }).map((_, i) => (
+        <CompetitionCardSkeleton key={i} />
+      ))}
+    </CompGrid>
+  );
+}
+
+function MyCompetitionRowSkeleton() {
+  return (
+    <div className="card block px-4 py-3.5 animate-pulse">
+      <div className="flex items-start gap-3">
+        <div className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-white/8" />
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="flex items-center gap-2">
+            <div className="h-4 w-1/2 rounded bg-white/8" />
+            <div className="h-4 w-8 rounded-full bg-white/8" />
+          </div>
+          <div className="h-3 w-1/3 rounded bg-white/8" />
+          <div className="flex flex-wrap gap-1.5">
+            <div className="h-4 w-24 rounded-md bg-white/8" />
+            <div className="h-4 w-16 rounded-md bg-white/8" />
+            <div className="h-4 w-20 rounded-md bg-white/8" />
+          </div>
+        </div>
+        <div className="mt-1 h-4 w-4 shrink-0 rounded bg-white/8" />
+      </div>
+    </div>
+  );
+}
+
+function MyCompetitionRowSkeletonList({ count = 6 }: { count?: number }) {
+  return (
+    <div className="space-y-2">
+      {Array.from({ length: count }).map((_, i) => (
+        <MyCompetitionRowSkeleton key={i} />
+      ))}
+    </div>
+  );
+}
 
 function LoadingState() {
   return (
