@@ -83,12 +83,25 @@ public class FixtureOddsSyncService {
             List<OddsApiClient.OddsEvent> oddsEvents = oddsApiClient.fetchOdds(sportKey, from, to);
             if (oddsEvents.isEmpty()) {
                 log.debug("Odds sync returned no events for sport {}", sportKey);
+                // Still stamp oddsUpdatedAt so these fixtures are not re-fetched
+                // until the next staleness window.
+                LocalDateTime stampedAt = LocalDateTime.now(ZoneOffset.UTC);
+                entry.getValue().forEach(f -> f.setOddsUpdatedAt(stampedAt));
                 continue;
             }
 
+            LocalDateTime syncedAt = LocalDateTime.now(ZoneOffset.UTC);
             for (Fixture fixture : entry.getValue()) {
+                // Always stamp oddsUpdatedAt so unmatched fixtures don't become
+                // permanent candidates that burn API credits on every sync run.
+                fixture.setOddsUpdatedAt(syncedAt);
+
                 Optional<OddsApiClient.OddsEvent> match = findBestEventForFixture(fixture, oddsEvents);
                 if (match.isEmpty()) {
+                    log.debug("No odds event matched fixture {} ({} vs {})",
+                            fixture.getId(),
+                            fixture.getEffectiveHomeTeam().getName(),
+                            fixture.getEffectiveAwayTeam().getName());
                     continue;
                 }
                 ConsensusOdds consensus = toConsensusOdds(match.get());
@@ -103,7 +116,6 @@ public class FixtureOddsSyncService {
                 fixture.setOddsImpliedDraw(consensus.impliedDraw);
                 fixture.setOddsImpliedAway(consensus.impliedAway);
                 fixture.setOddsSource("the-odds-api:" + sportKey);
-                fixture.setOddsUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
                 updated++;
             }
         }

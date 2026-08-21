@@ -99,6 +99,7 @@ public class OddsApiClient {
                     .header("Accept", "application/json")
                     .build();
             HttpResponse<String> res = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
+            logQuotaHeaders(res);
             if (res.statusCode() < 200 || res.statusCode() >= 300) {
                 if (isUsageQuotaExhausted(res.statusCode(), res.body())) {
                     quotaBlockedUntil = Instant.now().plus(Duration.ofHours(Math.max(1, quotaBackoffHours)));
@@ -131,6 +132,13 @@ public class OddsApiClient {
         if (Instant.now().isBefore(blockedUntil)) return true;
         quotaBlockedUntil = null;
         return false;
+    }
+
+    private static void logQuotaHeaders(HttpResponse<?> res) {
+        String remaining = res.headers().firstValue("x-requests-remaining").orElse("n/a");
+        String used      = res.headers().firstValue("x-requests-used").orElse("n/a");
+        String last      = res.headers().firstValue("x-requests-last").orElse("n/a");
+        log.info("Odds API quota — remaining: {}, used: {}, last call cost: {}", remaining, used, last);
     }
 
     private static boolean isUsageQuotaExhausted(int statusCode, String body) {
