@@ -34,7 +34,7 @@ const isResolvedOutcome = (outcome?: string | null) => {
   return normalized !== '' && normalized !== 'PENDING';
 };
 
-export default function SurvivorTablePage() {
+export default function SurvivorTablePage({ readOnly = false }: { readOnly?: boolean } = {}) {
   const { id } = useParams<{ id: string }>();
   const compId = Number(id);
   const { resolvedTheme } = useTheme();
@@ -42,6 +42,7 @@ export default function SurvivorTablePage() {
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'ELIMINATED' | 'WINNER'>('ALL');
   const [eliminatedWeekFilter, setEliminatedWeekFilter] = useState<'ALL' | number>('ALL');
   const [page, setPage] = useState(1);
+  const backHref = readOnly ? `/admin/competitions/${compId}/debug` : `/competitions/${compId}`;
   const [mobileMode, setMobileMode] = useState<'table' | 'compact'>('table');
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
 
@@ -140,6 +141,17 @@ export default function SurvivorTablePage() {
         canonicalPath={`/competitions/${compId}/survivor-table`}
         noindex
       />
+      {readOnly && (
+        <div className="sticky top-2 z-30 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-amber-400/40 bg-amber-400/10 px-4 py-2.5 text-sm font-medium text-amber-100 shadow-[0_10px_30px_rgba(245,158,11,0.18)]">
+          <span className="flex items-center gap-2">
+            <span aria-hidden="true">🔒</span>
+            <span>
+              <strong>Admin debug mode</strong> — read-only view.
+            </span>
+          </span>
+          <span className="text-xs text-amber-200/80">compId #{compId}</span>
+        </div>
+      )}
       {/* Header */}
       <div
         className="competition-hero-shell relative overflow-hidden rounded-[1.75rem] border border-white/8 px-4 py-5 shadow-[0_28px_70px_rgba(2,6,23,0.42)] sm:px-6 sm:py-6"
@@ -153,8 +165,8 @@ export default function SurvivorTablePage() {
       >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <Link to={`/competitions/${compId}`} className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-brand-200/85 hover:text-white">
-              <span>←</span> Competition
+            <Link to={backHref} className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-brand-200/85 hover:text-white">
+              <span>←</span> {readOnly ? 'Debug view' : 'Competition'}
             </Link>
             <h1 className="mt-3 text-3xl font-black tracking-tight text-white">Survivor Table</h1>
             {comp && <p className="mt-2 text-sm text-gray-300">{comp.name}</p>}

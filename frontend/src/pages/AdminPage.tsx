@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { createPortal } from 'react-dom';
 import { type CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../api';
 import type { Competition, AuditLog, Participant, Club } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -1097,6 +1098,15 @@ function CompetitionRow({ comp, onEdit }: { comp: Competition; onEdit: (competit
                 className="text-xs px-3 py-1.5 rounded bg-surface-700 hover:bg-surface-600 text-gray-300 transition">
                 {showParticipants ? 'Hide' : 'Manage'}
               </button>
+              <Link
+                to={`/admin/competitions/${comp.id}/debug`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs px-3 py-1.5 rounded bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 transition"
+                title="Open read-only debug view in a new tab"
+              >
+                🔍 Debug
+              </Link>
               <button onClick={() => setDeleteOpen(true)} disabled={deleteMutation.isPending}
                 className="text-xs px-3 py-1.5 rounded bg-red-600/20 hover:bg-red-600/40 text-red-400 transition">
                 {deleteMutation.isPending ? '…' : 'Delete'}
@@ -1151,6 +1161,15 @@ function CompetitionRow({ comp, onEdit }: { comp: Competition; onEdit: (competit
             className="text-sm px-3 py-1 rounded bg-surface-700 hover:bg-surface-600 text-gray-300 transition">
             {showParticipants ? 'Hide' : 'Manage'}
           </button>
+          <Link
+            to={`/admin/competitions/${comp.id}/debug`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm px-3 py-1 rounded bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 transition"
+            title="Open read-only debug view in a new tab"
+          >
+            🔍 Debug
+          </Link>
           <button onClick={() => setDeleteOpen(true)} disabled={deleteMutation.isPending}
             className="text-sm px-3 py-1 rounded bg-red-600/20 hover:bg-red-600/40 text-red-400 transition">
             {deleteMutation.isPending ? '…' : 'Delete'}

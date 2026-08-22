@@ -84,9 +84,12 @@
            hover:border-red-200/40 hover:bg-red-400 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all;
   }
   .card {
-    @apply rounded-2xl border border-white/20 p-4 sm:p-6 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02),0_16px_36px_rgba(2,6,23,0.34)] backdrop-blur-md;
+    @apply rounded-2xl border border-white/20 p-4 sm:p-6 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02),0_16px_36px_rgba(2,6,23,0.34)];
     background-color: var(--surface-1);
+    content-visibility: auto;
+    contain-intrinsic-size: 0 320px;
   }
+  .card.is-interactive { backdrop-filter: blur(6px); }
   .panel-shell {
     @apply rounded-2xl border border-white/15 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02),0_14px_30px_rgba(2,6,23,0.28)] backdrop-blur-md;
     background-color: var(--surface-2);

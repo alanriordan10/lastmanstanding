@@ -231,8 +231,6 @@ export default function CompetitionsPage() {
     queryFn: () => api.get('/notifications/announcements').then((response) => Array.isArray(response.data) ? response.data : []),
     enabled: !!user,
     staleTime: 60_000,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
   });
 
   const markAnnouncementRead = useMutation({
@@ -522,6 +520,16 @@ export default function CompetitionsPage() {
     () => filteredAvailable.length,
     [filteredAvailable]
   );
+  const competitionsCounts = useMemo(() => {
+    const base = competitions ?? [];
+    let upcoming = 0;
+    let active = 0;
+    for (const c of base) {
+      if (c.status === 'UPCOMING') upcoming++;
+      else if (c.status === 'ACTIVE') active++;
+    }
+    return { total: base.length, upcoming, active };
+  }, [competitions]);
 
   const sorted      = [...allComps].sort((a, b) => (joinedSet.has(a.id) ? 0 : 1) - (joinedSet.has(b.id) ? 0 : 1));
   const joinedComps = sorted.filter((c) => joinedSet.has(c.id));
@@ -724,7 +732,7 @@ export default function CompetitionsPage() {
                     {(['ALL', 'UPCOMING', 'ACTIVE'] as const).map(s => (
                       <button key={s} onClick={() => setStatusFilter(s)}
                         className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${statusFilter === s ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'}`}>
-                        {s === 'ALL' ? `All (${competitions?.length ?? 0})` : s === 'UPCOMING' ? `Upcoming (${competitions?.filter(c => c.status === 'UPCOMING').length ?? 0})` : `Active (${competitions?.filter(c => c.status === 'ACTIVE').length ?? 0})`}
+                        {s === 'ALL' ? `All (${competitionsCounts.total})` : s === 'UPCOMING' ? `Upcoming (${competitionsCounts.upcoming})` : `Active (${competitionsCounts.active})`}
                       </button>
                     ))}
                   </div>
@@ -1253,7 +1261,7 @@ function CompListView({ comps, joinedSet, onJoin, isPending, entryCounts }: {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-medium text-sm text-white truncate max-w-[12rem] sm:max-w-none">{c.name}</span>
-                  {c.clubLogoUrl && <img src={c.clubLogoUrl} alt="" className="h-5 w-5 rounded-md object-cover border border-white/10 shrink-0" />}
+                  {c.clubLogoUrl && <img src={c.clubLogoUrl} alt="" loading="lazy" decoding="async" className="h-5 w-5 rounded-md object-cover border border-white/10 shrink-0" />}
                   {c.clubName && <span className="badge-yellow badge-soft shrink-0">{c.clubName}</span>}
                   <span className="shrink-0 rounded-full border border-cyan-400/35 bg-cyan-500/12 px-2 py-0.5 text-[10px] font-semibold text-cyan-200">
                     {fixtureSourceLabel(c)}
@@ -1568,7 +1576,7 @@ function CompetitionCard({ comp, joined, onJoin, isPending, actionHint, isHighli
 
       <h3 className="text-lg sm:text-xl font-bold leading-snug line-clamp-2">{comp.name}</h3>
       <div className="mt-1.5 min-h-[20px] flex items-center gap-1.5">
-        {comp.clubLogoUrl && <img src={comp.clubLogoUrl} alt="" className="h-5 w-5 rounded-md object-cover border border-white/10 shrink-0" />}
+        {comp.clubLogoUrl && <img src={comp.clubLogoUrl} alt="" loading="lazy" decoding="async" className="h-5 w-5 rounded-md object-cover border border-white/10 shrink-0" />}
         {comp.clubName && (
           <span
             className="inline-flex max-w-full truncate badge-yellow badge-soft align-top"
@@ -1739,7 +1747,7 @@ function MyCompetitionCard({ myComp, actionHint, showEntryBadge = false }: { myC
         </div>
       )}
       <div className={`${entryBadgeVisible ? 'mt-1' : 'mt-0.5'} flex min-h-[18px] items-center gap-1.5`}>
-        {comp.clubLogoUrl && <img src={comp.clubLogoUrl} alt="" className="h-5 w-5 rounded-md object-cover border border-white/10 shrink-0" />}
+        {comp.clubLogoUrl && <img src={comp.clubLogoUrl} alt="" loading="lazy" decoding="async" className="h-5 w-5 rounded-md object-cover border border-white/10 shrink-0" />}
         {comp.clubName && (
           <span
             className="inline-flex max-w-full truncate badge-yellow badge-soft align-top"
@@ -1929,7 +1937,7 @@ function PastCompetitionCard({ comp }: { comp: Competition }) {
       <div className="mb-2.5"><span className="badge-gray">FINISHED</span></div>
       <h3 className="text-base sm:text-lg font-bold leading-snug line-clamp-2">{comp.name}</h3>
       <div className="mt-1 min-h-[18px] flex items-center gap-1.5">
-        {comp.clubLogoUrl && <img src={comp.clubLogoUrl} alt="" className="h-5 w-5 rounded-md object-cover border border-white/10 shrink-0" />}
+        {comp.clubLogoUrl && <img src={comp.clubLogoUrl} alt="" loading="lazy" decoding="async" className="h-5 w-5 rounded-md object-cover border border-white/10 shrink-0" />}
         {comp.clubName && (
           <span
             className="inline-flex max-w-full truncate badge-yellow badge-soft align-top"
@@ -2077,7 +2085,7 @@ function ClubTypeahead({ clubs, selected, onSelect }: { clubs: Club[]; selected:
 
 function CompetitionCardSkeleton() {
   return (
-    <div className="card flex flex-col p-4 sm:p-5 animate-pulse">
+    <div className="card flex flex-col p-4 sm:p-5">
       <div className="h-1.5 w-full rounded-t-[inherit] bg-white/8 -mx-4 -mt-4 mb-3 sm:-mx-5 sm:-mt-5" />
       <div className="mb-2.5 flex gap-2">
         <div className="h-5 w-16 rounded-full bg-white/8" />
@@ -2131,7 +2139,7 @@ function CompetitionCardSkeletonGrid({ count = 6 }: { count?: number }) {
 
 function MyCompetitionRowSkeleton() {
   return (
-    <div className="card block px-4 py-3.5 animate-pulse">
+    <div className="card block px-4 py-3.5">
       <div className="flex items-start gap-3">
         <div className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-white/8" />
         <div className="min-w-0 flex-1 space-y-2">

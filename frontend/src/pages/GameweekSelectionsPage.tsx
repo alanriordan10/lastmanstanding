@@ -7,11 +7,12 @@ import clsx from 'clsx';
 import { useTheme } from '../context/ThemeContext';
 import SeoMeta from '../components/SeoMeta';
 
-export default function GameweekSelectionsPage() {
+export default function GameweekSelectionsPage({ readOnly = false }: { readOnly?: boolean } = {}) {
   const { id, gwId } = useParams<{ id: string; gwId: string }>();
   const compId = Number(id);
   const gameweekId = Number(gwId);
   const { resolvedTheme } = useTheme();
+  const debugBackHref = readOnly ? `/admin/competitions/${compId}/debug` : `/competitions/${compId}`;
   // Base layer under the club-colour washes — follows the active theme so club
   // branding survives in light mode instead of being overridden.
   const heroBaseGradient = resolvedTheme === 'light'
@@ -124,8 +125,8 @@ export default function GameweekSelectionsPage() {
     const errMsg = (error as any)?.response?.data?.message || 'Cannot view selections yet';
     return (
       <div className="space-y-4">
-        <Link to={`/competitions/${compId}`} className="text-sm text-gray-400 hover:text-white">
-          ← Back to competition
+        <Link to={debugBackHref} className="text-sm text-gray-400 hover:text-white">
+          ← Back to {readOnly ? 'debug view' : 'competition'}
         </Link>
         <div className="card py-16 text-center">
           <div className="text-4xl mb-3">🔒</div>
@@ -181,6 +182,17 @@ export default function GameweekSelectionsPage() {
         canonicalPath={`/competitions/${compId}/gameweeks/${gameweekId}/selections`}
         noindex
       />
+      {readOnly && (
+        <div className="sticky top-2 z-30 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-amber-400/40 bg-amber-400/10 px-4 py-2.5 text-sm font-medium text-amber-100 shadow-[0_10px_30px_rgba(245,158,11,0.18)]">
+          <span className="flex items-center gap-2">
+            <span aria-hidden="true">🔒</span>
+            <span>
+              <strong>Admin debug mode</strong> — read-only view.
+            </span>
+          </span>
+          <span className="text-xs text-amber-200/80">compId #{compId}</span>
+        </div>
+      )}
       <div
         className="competition-hero-shell relative overflow-hidden rounded-[1.75rem] border border-white/8 px-4 py-5 shadow-[0_28px_70px_rgba(2,6,23,0.42)] sm:px-6 sm:py-6"
         data-club-branded={comp?.clubPrimaryColor ? '' : undefined}
@@ -193,8 +205,8 @@ export default function GameweekSelectionsPage() {
       >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <Link to={`/competitions/${compId}`} className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-brand-200/85 hover:text-white">
-              <span>←</span> Competition
+            <Link to={debugBackHref} className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-brand-200/85 hover:text-white">
+              <span>←</span> {readOnly ? 'Debug view' : 'Competition'}
             </Link>
             <h1 className="mt-3 text-3xl font-black tracking-tight text-white">Gameweek Selections</h1>
             <p className="mt-2 text-sm text-gray-300">{selections.length} picks revealed</p>

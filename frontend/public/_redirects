@@ -1,5 +1,8 @@
 /assets/* /assets/:splat 200
 /icons/* /icons/:splat 200
+/app-logo.png /app-logo.png 200
+/favicon.png /favicon.png 200
+/vite.svg /vite.svg 200
 /manifest.json /manifest.json 200
 /sw.js /sw.js 200
 /robots.txt /robots.txt 200
@@ -11,6 +14,8 @@
 # also redirects /faq.html → /faq as a canonical redirect.
 
 # SPA fallback — serves root (index.html) for any route not matched by a static file.
-# Must use /* / 200 (root proxy), NOT /* /index.html 200 — Cloudflare Pages rejects
-# the latter because its pretty-URL engine would strip .html and re-trigger the rule.
+# Root-level static files (app-logo.png, favicon.png, vite.svg) MUST be listed
+# explicitly above this catch-all, because the `/* / 200` form rewrites any
+# unmatched URL to `/` which serves index.html — silently turning root-level
+# assets into HTML responses when no explicit rule claims them first.
 /* / 200

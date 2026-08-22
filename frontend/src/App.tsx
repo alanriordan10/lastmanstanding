@@ -35,6 +35,10 @@ const PricingPage = lazy(() => import('./pages/PricingPage'));
 const RefundPolicyPage = lazy(() => import('./pages/RefundPolicyPage'));
 const AccountDeletionPage = lazy(() => import('./pages/AccountDeletionPage'));
 const AuthDiagnosticsPage = lazy(() => import('@/pages/AuthDiagnosticsPage'));
+const AdminCompetitionDebugPage = lazy(() => import('./pages/AdminCompetitionDebugPage').then(m => ({ default: m.AdminCompetitionDebugPage })));
+const AdminSurvivorTablePage = lazy(() => import('./pages/AdminCompetitionDebugPage').then(m => ({ default: m.AdminSurvivorTablePage })));
+const AdminGameweekSelectionsPage = lazy(() => import('./pages/AdminCompetitionDebugPage').then(m => ({ default: m.AdminGameweekSelectionsPage })));
+const AdminGameweekResultsPage = lazy(() => import('./pages/AdminCompetitionDebugPage').then(m => ({ default: m.AdminGameweekResultsPage })));
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -136,6 +140,9 @@ export default function App() {
         />
         <Route path="/competitions/:id" element={<Layout><CompetitionHomePage /></Layout>} />
         <Route path="/competitions/:id/survivor-table" element={<Layout><SurvivorTablePage /></Layout>} />
+        <Route path="/admin/competitions/:id/survivor-table" element={<Layout><AdminSurvivorTablePage /></Layout>} />
+        <Route path="/admin/competitions/:id/gameweeks/:gwId/selections" element={<Layout><AdminGameweekSelectionsPage /></Layout>} />
+        <Route path="/admin/competitions/:id/gameweeks/:gwId/results" element={<Layout><AdminGameweekResultsPage /></Layout>} />
 
         {/* Protected routes */}
         <Route
@@ -147,6 +154,7 @@ export default function App() {
                   <Route path="/competitions/:id/gameweeks/:gwId/selections" element={<GameweekSelectionsPage />} />
                   <Route path="/competitions/:id/gameweeks/:gwId/results" element={<GameweekResultsPage />} />
                   <Route path="/admin" element={<AdminPage />} />
+                  <Route path="/admin/competitions/:id/debug" element={<AdminCompetitionDebugPage />} />
                   <Route path="/club-admin" element={<ClubAdminPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
                   <Route path="*" element={<Navigate to="/competitions" />} />

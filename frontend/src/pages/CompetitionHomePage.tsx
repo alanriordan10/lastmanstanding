@@ -183,7 +183,7 @@ function usePickStatsMap(compId: number, gwIds: number[]): { map: Map<number, Pi
   }, [results, gwIds]);
 }
 
-export default function CompetitionHomePage() {
+export default function CompetitionHomePage({ readOnly = false }: { readOnly?: boolean } = {}) {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
   const compId = Number(id);
@@ -461,7 +461,7 @@ export default function CompetitionHomePage() {
   });
 
   const handleDirectJoin = () => {
-    if (!comp) return;
+    if (!comp || readOnly) return;
     joinMutation.mutate();
   };
 
@@ -1020,6 +1020,12 @@ export default function CompetitionHomePage() {
     weeklyEliminatedCount = 0;
     weeklySurvivalRate = weeklyPickedCount > 0 ? 100 : null;
   }
+  // Eliminations this week that were NOT caused by a picked team losing.
+  // Covers players dropped because they never picked (missedPickMode=ELIMINATE
+  // or AUTO_ASSIGN with no eligible team) and unpaid strict-lock removals.
+  const missedPickEliminationsThisWeek = narrativeWeekVoided
+    ? 0
+    : Math.max(weeklyEliminatedCount - gwEliminatedFromSelections, 0);
   const biggestCasualty = narrativeWeekVoided ? null : weeklyEliminatedCount > 0 ? losingPickedTeam : null;
   const doomedPickedTeams = narrativeWeekVoided ? [] : weeklyEliminatedCount > 0 ? losingPickedTeams : [];
   const weekSelectionsForChanges = latestNarrativeSelections?.selections ?? latestCompletedSelections?.selections ?? [];
@@ -1037,8 +1043,15 @@ export default function CompetitionHomePage() {
   ).length ?? 0;
   const narrativePendingFixtureCount = Math.max(narrativeFixtureCount - narrativeResolvedFixtureCount, 0);
 
+  const latestWeekFullyResolved = Boolean(
+    latestNarrativeWeek
+    && latestNarrativeWeek.data.gwStatus === 'COMPLETED'
+    && !upcomingWeek
+  );
   const hasWinner = comp?.status === 'COMPLETED'
-    || (comp.activeCount === 1 && (comp.participantCount ?? 0) > 1);
+    || (latestWeekFullyResolved
+        && comp.activeCount === 1
+        && (comp.participantCount ?? 0) > 1);
   const copyVariantSeed = Number(comp.id ?? 0) + (pulseLatestWeek?.weekNumber ?? latestNarrativeWeek?.weekNumber ?? 0);
   const pickCopyVariant = (options: string[], offset: number) => options[(Math.abs(copyVariantSeed + offset) % options.length)];
 
@@ -1070,6 +1083,28 @@ export default function CompetitionHomePage() {
     storylineBody = comp.activeCount === 1
       ? `${winnerName} is the last survivor standing after ${latestNarrativeWeek ? `Gameweek ${latestNarrativeWeek.weekNumber}` : 'the final gameweek'}. Every round survived, every pick paid off.`
       : `${winnerName} made it through every round to claim the title. This competition is over.`;
+  } else if (latestNarrativeWeek && missedPickEliminationsThisWeek > 0 && gwEliminatedFromSelections === 0) {
+    const wn = latestNarrativeWeek.weekNumber;
+    const entrants = missedPickEliminationsThisWeek;
+    const playerWord = entrants === 1 ? 'player was' : 'players were';
+    const surviveWord = effectiveActiveCount === 1 ? 'survivor' : 'survivors';
+    const missedPickModeLabel = comp.missedPickMode === 'AUTO_ASSIGN'
+      ? 'no team was auto-assigned'
+      : 'they never made a pick';
+    storylineTitle = pickCopyVariant([
+      narrativeWeekInProgress ? `Gameweek ${wn} is shedding idle entries` : `Gameweek ${wn} cleared the idle entries`,
+      narrativeWeekInProgress ? `Gameweek ${wn} is punishing no-shows` : `Gameweek ${wn} punished no-shows`,
+      narrativeWeekInProgress ? `Gameweek ${wn} is dropping non-pickers` : `Gameweek ${wn} dropped non-pickers`,
+      narrativeWeekInProgress ? `Gameweek ${wn} is removing the unprepared` : `Gameweek ${wn} removed the unprepared`,
+      narrativeWeekInProgress ? `Gameweek ${wn} is filtering the slackers` : `Gameweek ${wn} filtered the slackers`,
+    ], 220);
+    storylineBody = narrativeWeekInProgress
+      ? `${entrants} ${playerWord} eliminated this round because ${missedPickModeLabel}. ${narrativePendingFixtureCount} fixture${narrativePendingFixtureCount === 1 ? '' : 's'} still to play before the field settles.`
+      : pickCopyVariant([
+          `${entrants} ${playerWord} eliminated in Gameweek ${wn} for missing the pick deadline. No picked team lost this round, so ${effectiveActiveCount} ${surviveWord} remain purely on results.`,
+          `Gameweek ${wn} took out ${entrants} ${playerWord === 'player was' ? 'entry' : 'entries'} that never locked in a pick. Every team that was picked held up, leaving ${effectiveActiveCount} ${surviveWord} through clean.`,
+          `${entrants} ${playerWord === 'player was' ? 'player' : 'players'} sent home this round for not picking. With no result-based exits, the ${effectiveActiveCount} ${surviveWord} left all came through their own pick.`,
+        ], 221);
   } else if (latestNarrativeWeek && biggestCasualty) {
     const wn = latestNarrativeWeek.weekNumber;
     const bigLoss = biggestCasualty.pickCount >= 3;
@@ -1211,14 +1246,14 @@ export default function CompetitionHomePage() {
       eyebrow: 'Knockout pressure',
       title: comp.status === 'UPCOMING'
         ? `${comp.participantCount ?? 0} entered`
-        : effectiveActiveCount === 1
+        : hasWinner && effectiveActiveCount === 1
         ? '1 survivor remains'
         : `${effectiveEliminatedCount} out, ${effectiveActiveCount} alive`,
       detail: comp.status === 'UPCOMING'
         ? (comp.participantCount ?? 0) > 0
           ? 'No eliminations yet. Knockout pressure begins when the first fixtures lock.'
           : 'No entrants yet. Knockout pressure begins once players join.'
-        : effectiveActiveCount === 1
+        : hasWinner && effectiveActiveCount === 1
         ? 'One player has made it through every round.'
         : comp.participantCount > 0
         ? `${survivalRate}% of the field is still standing.`
@@ -1253,6 +1288,7 @@ export default function CompetitionHomePage() {
 
 
   const handlePick = (gwId: number, teamId: number, lockAt: string) => {
+    if (readOnly) return;
     if (comp.paused) {
       toast.error('This competition is paused. Picks will reopen when the organiser resumes it.');
       return;
@@ -2007,6 +2043,17 @@ export default function CompetitionHomePage() {
         canonicalPath={`/competitions/${compId}`}
         noindex
       />
+      {readOnly && (
+        <div className="sticky top-2 z-30 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-amber-400/40 bg-amber-400/10 px-4 py-2.5 text-sm font-medium text-amber-100 shadow-[0_10px_30px_rgba(245,158,11,0.18)]">
+          <span className="flex items-center gap-2">
+            <span aria-hidden="true">🔒</span>
+            <span>
+              <strong>Admin debug mode</strong> — read-only view. All mutations (join, pick, reset, payment) are disabled.
+            </span>
+          </span>
+          <span className="text-xs text-amber-200/80">compId #{compId}</span>
+        </div>
+      )}
       {/* ── Header ── */}
       <section
         className="competition-hero-shell relative overflow-hidden rounded-[1.9rem] border border-white/15 px-5 py-5 shadow-[0_22px_52px_rgba(2,6,23,0.34)] sm:px-6 sm:py-6 lg:px-8 lg:py-7"
@@ -2236,6 +2283,16 @@ export default function CompetitionHomePage() {
                   )}
                 </span>
               )}
+              {missedPickEliminationsThisWeek > 0 && (
+                <span
+                  className="rounded-full border border-amber-400/35 bg-amber-400/10 px-3 py-1.5 text-xs font-medium text-amber-100"
+                  title={comp.missedPickMode === 'AUTO_ASSIGN'
+                    ? `${missedPickEliminationsThisWeek} eliminated — no team was auto-assigned for them`
+                    : `${missedPickEliminationsThisWeek} eliminated for missing the pick deadline`}
+                >
+                  {missedPickEliminationsThisWeek} missed-pick elimination{missedPickEliminationsThisWeek === 1 ? '' : 's'}
+                </span>
+              )}
               {mostBackedTeam && (
                 <span className="rounded-full border border-white/10 bg-black/15 px-3 py-1.5 text-xs font-medium text-gray-200">
                   Crowd pick: {mostBackedTeam.teamShortName} {mostBackedTeam.percentage}%
@@ -2417,7 +2474,7 @@ export default function CompetitionHomePage() {
               <p className="mt-1 text-sm text-gray-200">{stateBanner.detail}</p>
             </div>
             {stateBanner.ctaKind === 'join' ? (
-              <button type="button" onClick={handleDirectJoin} disabled={joinMutation.isPending} className="btn-primary w-full sm:w-auto disabled:cursor-not-allowed disabled:opacity-60">
+              <button type="button" onClick={handleDirectJoin} disabled={joinMutation.isPending || readOnly} className="btn-primary w-full sm:w-auto disabled:cursor-not-allowed disabled:opacity-60">
                 {joinMutation.isPending ? 'Joining...' : comp.entryFee > 0 && comp.paymentMode !== 'FREE' ? `Register · €${comp.entryFee} to organiser` : 'Join competition'}
               </button>
             ) : stateBanner.ctaKind === 'pick' ? (
@@ -2478,14 +2535,14 @@ export default function CompetitionHomePage() {
                 <button
                   type="button"
                   onClick={handleDirectJoin}
-                  disabled={joinMutation.isPending || joinedOptimistically}
+                  disabled={joinMutation.isPending || joinedOptimistically || readOnly}
                   className="btn-primary w-full sm:w-auto text-sm disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {joinMutation.isPending ? 'Joining...' : comp.entryFee > 0 && comp.paymentMode !== 'FREE' ? `Register · €${comp.entryFee} to organiser` : 'Join competition'}
                 </button>
               ) : (
                 <Link
-                  to={`/competitions/${compId}/survivor-table`}
+                  to={readOnly ? `/admin/competitions/${compId}/survivor-table` : `/competitions/${compId}/survivor-table`}
                   className="btn-secondary w-full sm:w-auto text-sm text-center"
                 >
                   Open survivor table
@@ -2641,8 +2698,11 @@ export default function CompetitionHomePage() {
                     <div className="flex w-full flex-col items-stretch gap-1.5">
                       <button
                         type="button"
-                        onClick={() => setResetOpenConfirmOpen(true)}
-                        disabled={resetOpenSelectionsMutation.isPending}
+                        onClick={() => {
+                          if (readOnly) return;
+                          setResetOpenConfirmOpen(true);
+                        }}
+                        disabled={resetOpenSelectionsMutation.isPending || readOnly}
                         className="reset-picks-btn"
                       >
                         <span className="text-sm leading-none">↺</span>
@@ -2754,7 +2814,7 @@ export default function CompetitionHomePage() {
                         {!isCollapsed && isLocked && (
                           <div className="flex flex-wrap items-center gap-2">
                             <Link
-                              to={`/competitions/${compId}/gameweeks/${gwId}/selections`}
+                              to={readOnly ? `/admin/competitions/${compId}/gameweeks/${gwId}/selections` : `/competitions/${compId}/gameweeks/${gwId}/selections`}
                               onClick={(e) => e.stopPropagation()}
                               onMouseEnter={() => prefetchGameweekViews(gwId)}
                               onFocus={() => prefetchGameweekViews(gwId)}
@@ -2764,7 +2824,7 @@ export default function CompetitionHomePage() {
                             </Link>
                             {isCompleted && (
                               <Link
-                                to={`/competitions/${compId}/gameweeks/${gwId}/results`}
+                                to={readOnly ? `/admin/competitions/${compId}/gameweeks/${gwId}/results` : `/competitions/${compId}/gameweeks/${gwId}/results`}
                                 onClick={(e) => e.stopPropagation()}
                                 onMouseEnter={() => prefetchGameweekViews(gwId)}
                                 onFocus={() => prefetchGameweekViews(gwId)}
@@ -2804,7 +2864,7 @@ export default function CompetitionHomePage() {
                     {!isCollapsed && isLocked && (
                       <div className="mt-2 sm:hidden flex gap-3">
                         <Link
-                          to={`/competitions/${compId}/gameweeks/${gwId}/selections`}
+                          to={readOnly ? `/admin/competitions/${compId}/gameweeks/${gwId}/selections` : `/competitions/${compId}/gameweeks/${gwId}/selections`}
                           onMouseEnter={() => prefetchGameweekViews(gwId)}
                           onFocus={() => prefetchGameweekViews(gwId)}
                           className="text-xs text-brand-400 hover:text-brand-300"
@@ -2813,7 +2873,7 @@ export default function CompetitionHomePage() {
                         </Link>
                         {isCompleted && (
                           <Link
-                            to={`/competitions/${compId}/gameweeks/${gwId}/results`}
+                            to={readOnly ? `/admin/competitions/${compId}/gameweeks/${gwId}/results` : `/competitions/${compId}/gameweeks/${gwId}/results`}
                             onMouseEnter={() => prefetchGameweekViews(gwId)}
                             onFocus={() => prefetchGameweekViews(gwId)}
                             className="text-xs text-green-400 hover:text-green-300 font-medium"
@@ -2849,8 +2909,9 @@ export default function CompetitionHomePage() {
                                   type="checkbox"
                                   className="h-4 w-4 rounded border-cyan-400/40 bg-transparent disabled:cursor-not-allowed"
                                   checked={effectiveLifelineGameweekId === gwId}
-                                  disabled={lifelineDisabled}
+                                  disabled={lifelineDisabled || readOnly}
                                   onChange={(e) => {
+                                    if (readOnly) return;
                                     const nextChecked = e.target.checked;
                                     if (nextChecked) {
                                       setLifelineClearedForGwId(null);
@@ -2895,7 +2956,7 @@ export default function CompetitionHomePage() {
                             reservedTeamIds={reservedTeamIds}
                             pickHistory={myStatus?.picks ?? []}
                             showReserved={gwStatus === 'UPCOMING'}
-                            canPick={!comp.paused && !gwVoided && !isCompleted && isParticipant && !isEliminated && !isWinner && !(awaitingPayment && strictManualPayment) && !isLocked && !(isEliminated && participant?.eliminatedWeek != null && wn > participant.eliminatedWeek)}
+                            canPick={!readOnly && !comp.paused && !gwVoided && !isCompleted && isParticipant && !isEliminated && !isWinner && !(awaitingPayment && strictManualPayment) && !isLocked && !(isEliminated && participant?.eliminatedWeek != null && wn > participant.eliminatedWeek)}
                             saving={pickMutation.isPending}
                             lifelineChecked={effectiveLifelineGameweekId === gwId}
                             onPick={(team) => handlePick(gwId, team.teamId, lockAt)}
@@ -2908,7 +2969,7 @@ export default function CompetitionHomePage() {
                             const eliminatedBeforeThisGw = isEliminated &&
                               participant?.eliminatedWeek != null &&
                               wn > participant.eliminatedWeek;
-                            const canPickThisGw = !comp.paused && !gwVoided && !isCompleted && isParticipant && !isEliminated && !isWinner && !(awaitingPayment && strictManualPayment) && !isLocked && !eliminatedBeforeThisGw;
+                            const canPickThisGw = !readOnly && !comp.paused && !gwVoided && !isCompleted && isParticipant && !isEliminated && !isWinner && !(awaitingPayment && strictManualPayment) && !isLocked && !eliminatedBeforeThisGw;
                             const homeIsMyPick = myPickForGw?.teamId === f.homeTeamId;
                             const awayIsMyPick = myPickForGw?.teamId === f.awayTeamId;
                             const homeUsed = consumedTeamIds.has(f.homeTeamId) && !homeIsMyPick;
@@ -3126,14 +3187,14 @@ export default function CompetitionHomePage() {
                 <button
                   type="button"
                   onClick={handleDirectJoin}
-                  disabled={joinMutation.isPending || joinedOptimistically}
+                  disabled={joinMutation.isPending || joinedOptimistically || readOnly}
                   className="btn-primary w-full sm:w-auto text-sm disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {joinMutation.isPending ? 'Joining...' : comp.entryFee > 0 && comp.paymentMode !== 'FREE' ? `Register · €${comp.entryFee} to organiser` : 'Join competition'}
                 </button>
               ) : (
                 <Link
-                  to={`/competitions/${compId}/survivor-table`}
+                  to={readOnly ? `/admin/competitions/${compId}/survivor-table` : `/competitions/${compId}/survivor-table`}
                   className="btn-secondary w-full sm:w-auto text-sm text-center"
                 >
                   Open survivor table
@@ -3352,7 +3413,10 @@ export default function CompetitionHomePage() {
         onClose={() => {
           if (!resetOpenSelectionsMutation.isPending) setResetOpenConfirmOpen(false);
         }}
-        onConfirm={() => resetOpenSelectionsMutation.mutate(openSelectionCount)}
+        onConfirm={() => {
+          if (readOnly) return;
+          resetOpenSelectionsMutation.mutate(openSelectionCount);
+        }}
         title={`Reset ${openSelectionCount} open pick${openSelectionCount === 1 ? '' : 's'}?`}
         message="This clears only selections for gameweeks that are still open. Locked, in-progress, and completed weeks are left unchanged."
         items={[
