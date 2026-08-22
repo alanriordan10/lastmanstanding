@@ -64,19 +64,4 @@ public interface PickResultRepository extends JpaRepository<PickResult, Long> {
     /** Count pick results by outcome for a gameweek */
     @Query("SELECT pr.outcome, COUNT(pr) FROM PickResult pr JOIN pr.pick p WHERE p.competition.id = :competitionId AND p.gameweek.id = :gameweekId GROUP BY pr.outcome")
     List<Object[]> countByOutcomeForGameweek(@Param("competitionId") Long competitionId, @Param("gameweekId") Long gameweekId);
-
-    /**
-     * Counts distinct ACTIVE participants in the given gameweek whose pick has
-     * resolved to ELIMINATED — i.e. they've effectively lost this week but
-     * the backend hasn't yet promoted their status to ELIMINATED (which only
-     * happens when every fixture in the gameweek is resolved). Used by the
-     * competition listing endpoints to surface a "live active count" that
-     * matches what the user sees in the hero narrative on the competition
-     * detail page.
-     */
-    @Query("SELECT COUNT(DISTINCT p.participant.id) FROM PickResult pr JOIN pr.pick p " +
-            "WHERE p.competition.id = :competitionId AND p.gameweek.id = :gameweekId " +
-            "AND pr.outcome = com.lastmanstanding.entity.PickOutcome.ELIMINATED " +
-            "AND p.participant.status = com.lastmanstanding.entity.ParticipantStatus.ACTIVE")
-    long countLiveEliminatedInGameweek(@Param("competitionId") Long competitionId, @Param("gameweekId") Long gameweekId);
 }

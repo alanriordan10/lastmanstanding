@@ -271,14 +271,23 @@ public class CompetitionController {
      * Subtracts in-progress-week "effective eliminations" from each
      * competition's stored activeCount, so the listing view matches what the
      * hero panel computes locally from in-progress pick results. Without
-     * this, the My Competitions card shows e.g. "7 surviving" while the
-     * hero shows "3 alive" for the same competition during the brief
+     * this, the My Competitions card shows e.g. "24 surviving" while the
+     * hero shows "22 alive" for the same competition during the brief
      * window between the first fixture finishing and the GW scheduler
      * running processGameweekResults().
      *
-     * One bulk fetch of in-progress gameweek ids (per competition) plus one
-     * bulk count of effectively-eliminated participants per gameweek — two
-     * queries total for the whole listing call.
+     * The logic mirrors what `getSelections` does for the narrative:
+     *   1. PickResult with non-PENDING outcome wins
+     *   2. Else — for IN_PROGRESS GWs — the outcome is derived live from
+     *      FINISHED fixtures (loss → ELIMINATED; POSTPONED/CANCELLED →
+     *      POSTPONED_ADVANCE)
+     *   3. Else PENDING
+     * We count distinct ACTIVE participants whose effective outcome is
+     * ELIMINATED and subtract from activeCount.
+     *
+     * Bulk queries: one batch fetch of in-progress GW ids, then per-GW a
+     * fetch of picks (with participant), pickResults, and fixtures. The
+     * computation itself is in-memory.
      */
     private void applyLiveActiveAdjustments(List<Long> competitionIds, Map<Long, long[]> countsByComp) {
         if (competitionIds.isEmpty() || countsByComp.isEmpty()) return;
@@ -294,9 +303,70 @@ public class CompetitionController {
             long gwId = entry.getValue();
             long[] counts = countsByComp.get(cId);
             if (counts == null) continue;
-            long eliminatedThisWeek = pickResultRepository.countLiveEliminatedInGameweek(cId, gwId);
+            long eliminatedThisWeek = computeLiveEliminatedForGameweek(cId, gwId);
             counts[1] = Math.max(counts[1] - eliminatedThisWeek, 0);
         }
+    }
+
+    private long computeLiveEliminatedForGameweek(long competitionId, long gameweekId) {
+        // Picks + participants in one fetch (entity graph eager-loads participant).
+        List<Pick> picks = pickRepository.findByCompetitionIdAndGameweekIdFetch(competitionId, gameweekId);
+        if (picks.isEmpty()) return 0L;
+        List<Long> pickIds = picks.stream().map(Pick::getId).toList();
+
+        // PickResults (may be empty for a GW whose scheduler hasn't run yet).
+        Map<Long, PickOutcome> resolvedOutcomeByPickId = pickResultRepository
+                .findByPickIdIn(pickIds).stream()
+                .filter(pr -> pr.getOutcome() != PickOutcome.PENDING)
+                .collect(Collectors.toMap(pr -> pr.getPick().getId(), PickResult::getOutcome, (a, b) -> a));
+
+        // Live outcome from FINISHED fixtures — same logic as getSelections().
+        Map<Long, String> liveOutcomeByTeam = new java.util.HashMap<>();
+        for (Fixture f : fixtureRepository.findByGameweekId(gameweekId)) {
+            FixtureStatus status = f.getEffectiveStatus();
+            Long homeId = f.getEffectiveHomeTeam().getId();
+            Long awayId = f.getEffectiveAwayTeam().getId();
+            if (status == FixtureStatus.FINISHED) {
+                Integer sh = f.getEffectiveScoreHome();
+                Integer sa = f.getEffectiveScoreAway();
+                if (sh == null || sa == null) continue;
+                if (sh > sa) {
+                    liveOutcomeByTeam.put(homeId, "ADVANCE");
+                    liveOutcomeByTeam.put(awayId, "ELIMINATED");
+                } else if (sa > sh) {
+                    liveOutcomeByTeam.put(awayId, "ADVANCE");
+                    liveOutcomeByTeam.put(homeId, "ELIMINATED");
+                } else {
+                    // Draw — base outcome is ELIMINATED; lifeline (if played)
+                    // would flip it to ADVANCE but we don't have lifeline info
+                    // on the live path, so treat as ELIMINATED. The PickResult
+                    // path above will correct any lifeline ADVANCE entries.
+                    liveOutcomeByTeam.put(homeId, "ELIMINATED");
+                    liveOutcomeByTeam.put(awayId, "ELIMINATED");
+                }
+            } else if (status == FixtureStatus.POSTPONED || status == FixtureStatus.CANCELLED) {
+                liveOutcomeByTeam.put(homeId, "POSTPONED_ADVANCE");
+                liveOutcomeByTeam.put(awayId, "POSTPONED_ADVANCE");
+            }
+        }
+
+        // Count distinct ACTIVE participants whose effective outcome is ELIMINATED.
+        java.util.Set<Long> eliminatedParticipantIds = new java.util.HashSet<>();
+        for (Pick pick : picks) {
+            if (pick.getParticipant() == null) continue;
+            if (pick.getParticipant().getStatus() != ParticipantStatus.ACTIVE) continue;
+            String outcome = null;
+            PickOutcome pr = resolvedOutcomeByPickId.get(pick.getId());
+            if (pr != null) {
+                outcome = pr.name();
+            } else if (!liveOutcomeByTeam.isEmpty()) {
+                outcome = liveOutcomeByTeam.get(pick.getTeam().getId());
+            }
+            if ("ELIMINATED".equals(outcome)) {
+                eliminatedParticipantIds.add(pick.getParticipant().getId());
+            }
+        }
+        return eliminatedParticipantIds.size();
     }
 
     private Map<Long, String> batchWinners() {
