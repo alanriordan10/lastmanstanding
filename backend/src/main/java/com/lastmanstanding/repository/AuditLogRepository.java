@@ -1,6 +1,7 @@
 package com.lastmanstanding.repository;
 
 import com.lastmanstanding.entity.AuditLog;
+import java.util.Collection;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -15,6 +16,9 @@ import org.springframework.stereotype.Repository;
 public interface AuditLogRepository extends JpaRepository<AuditLog, Long>, JpaSpecificationExecutor<AuditLog> {
 
     List<AuditLog> findByEntityTypeAndEntityIdOrderByCreatedAtDesc(String entityType, Long entityId);
+
+    /** Used by the admin debug summary to roll in per-participant audit entries. */
+    List<AuditLog> findByEntityTypeAndEntityIdInOrderByCreatedAtDesc(String entityType, Collection<Long> entityIds);
 
     Page<AuditLog> findAllByOrderByCreatedAtDesc(Pageable pageable);
 

@@ -1030,10 +1030,12 @@ export default function CompetitionHomePage({ readOnly = false }: { readOnly?: b
   const doomedPickedTeams = narrativeWeekVoided ? [] : weeklyEliminatedCount > 0 ? losingPickedTeams : [];
   const weekSelectionsForChanges = latestNarrativeSelections?.selections ?? latestCompletedSelections?.selections ?? [];
   const lifelinesPlayedThisWeek = narrativeWeekVoided ? 0 : weekSelectionsForChanges.filter((selection) => selection.useLifeline).length;
-  const baseEliminatedCount = Math.max((comp.participantCount ?? 0) - (comp.activeCount ?? 0), 0);
-  const liveWeekExtraEliminations = latestNarrativeWeek?.data.gwStatus === 'IN_PROGRESS' ? gwEliminatedFromSelections : 0;
-  const effectiveEliminatedCount = Math.min(baseEliminatedCount + liveWeekExtraEliminations, comp.participantCount ?? 0);
-  const effectiveActiveCount = Math.max((comp.participantCount ?? 0) - effectiveEliminatedCount, 0);
+  // Backend already returns a "live" activeCount that subtracts in-progress
+  // pick-result eliminations before the GW scheduler promotes participants to
+  // ELIMINATED, so `comp.activeCount` matches what the My Competitions card
+  // shows on /competitions — no local double-counting needed.
+  const effectiveActiveCount = comp.activeCount ?? 0;
+  const effectiveEliminatedCount = Math.max((comp.participantCount ?? 0) - effectiveActiveCount, 0);
   const survivalRate = comp.participantCount > 0
     ? Math.max(Math.round((effectiveActiveCount / comp.participantCount) * 100), effectiveActiveCount > 0 ? 1 : 0)
     : 0;

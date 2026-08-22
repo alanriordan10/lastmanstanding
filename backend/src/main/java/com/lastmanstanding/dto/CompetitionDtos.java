@@ -410,4 +410,41 @@ public final class CompetitionDtos {
             List<SurvivorGameweekMeta> gameweeks,
             List<SurvivorRow> rows
     ) {}
+
+    // ── Admin debug summary ─────────────────────────────────────────────
+    // Single-shot payload for the admin read-only debug view. Surfaces data
+    // that the public endpoints either omit or gate behind participation
+    // (e.g. another player's picks, paymentState, eliminationReason, the
+    // raw audit trail). Intentionally wide — admins already need full
+    // visibility to debug user-reported issues.
+
+    public record DebugPickRow(
+            Long pickId,
+            Long participantId,
+            Long userId,
+            String username,
+            Integer entryNumber,
+            Long gameweekId,
+            Integer weekNumber,
+            Long teamId,
+            String teamShortName,
+            String teamName,
+            String source,
+            boolean locked,
+            boolean useLifeline,
+            String outcome,
+            String resolvedAt
+    ) {}
+
+    public record DebugSummaryResponse(
+            Long competitionId,
+            String competitionName,
+            String competitionStatus,
+            boolean cacheHit,
+            int totalPicks,
+            int totalAuditEntries,
+            List<ParticipantResponse> participants,
+            List<DebugPickRow> picks,
+            List<AuditLogResponse> auditLogs
+    ) {}
 }

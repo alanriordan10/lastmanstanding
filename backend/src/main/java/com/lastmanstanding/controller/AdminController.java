@@ -1,5 +1,6 @@
 package com.lastmanstanding.controller;
 
+import com.lastmanstanding.config.CacheConfig;
 import com.lastmanstanding.dto.CompetitionDtos.*;
 import com.lastmanstanding.entity.*;
 import com.lastmanstanding.repository.AuditLogRepository;
@@ -8,6 +9,7 @@ import com.lastmanstanding.repository.CompetitionParticipantRepository;
 import com.lastmanstanding.repository.CompetitionRepository;
 import com.lastmanstanding.repository.FixtureRepository;
 import com.lastmanstanding.repository.GameweekRepository;
+import com.lastmanstanding.repository.PaymentRepository;
 import com.lastmanstanding.repository.PickRepository;
 import com.lastmanstanding.repository.PickResultRepository;
 import com.lastmanstanding.repository.PasswordResetTokenRepository;
@@ -24,6 +26,8 @@ import com.lastmanstanding.service.TestDataGenerator;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -35,13 +39,15 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/admin")
@@ -68,6 +74,8 @@ public class AdminController {
     private final PushSubscriptionRepository pushSubscriptionRepository;
     private final MobilePushTokenRepository mobilePushTokenRepository;
     private final CompetitionCacheService competitionCacheService;
+    private final CacheManager cacheManager;
+    private final PaymentRepository paymentRepository;
 
     public AdminController(AdminService adminService,
                            CompetitionService competitionService,
@@ -88,7 +96,9 @@ public class AdminController {
                            PasswordResetTokenRepository passwordResetTokenRepository,
                            PushSubscriptionRepository pushSubscriptionRepository,
                            MobilePushTokenRepository mobilePushTokenRepository,
-                           CompetitionCacheService competitionCacheService) {
+                           CompetitionCacheService competitionCacheService,
+                           CacheManager cacheManager,
+                           PaymentRepository paymentRepository) {
         this.adminService = adminService;
         this.competitionService = competitionService;
         this.clubRepository = clubRepository;
@@ -109,6 +119,8 @@ public class AdminController {
         this.pushSubscriptionRepository = pushSubscriptionRepository;
         this.mobilePushTokenRepository = mobilePushTokenRepository;
         this.competitionCacheService = competitionCacheService;
+        this.cacheManager = cacheManager;
+        this.paymentRepository = paymentRepository;
     }
 
     // ── Clubs ───────────────────────────────────────────────────────────
@@ -514,6 +526,135 @@ public class AdminController {
         return competitionService.getParticipants(id).stream()
                 .map(ParticipantResponse::from)
                 .toList();
+    }
+
+    // ── Debug summary (admin-only read-only) ───────────────────────────
+    // Backs the /admin/competitions/:id/debug read-only view. Returns the
+    // full participant set, every pick made in this competition (with
+    // outcome), and the audit trail for the competition. Audit entries for
+    // individual participant IDs are also rolled in so admin can see join /
+    // remove / declare-winner history without needing to chase per-id calls.
+    @GetMapping("/competitions/{id}/debug-summary")
+    public DebugSummaryResponse getDebugSummary(@PathVariable Long id,
+                                                @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        logAudit(userDetails, "Competition", id, "view", null, "debug-summary", "VIEW_DEBUG_SUMMARY");
+
+        Competition comp = competitionRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Competition not found"));
+
+        // Cache state probe — non-mutating, tells admin whether they're
+        // looking at a freshly-fetched row or one served from Caffeine.
+        boolean cacheHit = false;
+        if (cacheManager != null) {
+            Cache cache = cacheManager.getCache(CacheConfig.COMPETITION_DETAILS_CACHE);
+            if (cache != null && cache.get(id.toString()) != null) {
+                cacheHit = true;
+            }
+        }
+
+        List<CompetitionParticipant> participants = competitionService.getParticipants(id);
+
+        // Fetch every pick in the competition + their outcomes in two bulk
+        // queries (avoids N+1 over the pick → pickResult relation).
+        List<Pick> picks = pickRepository.findByCompetitionId(id);
+        Map<Long, PickResult> outcomeByPickId = pickResultRepository
+                .findByPickIdIn(picks.stream().map(Pick::getId).toList())
+                .stream()
+                .collect(Collectors.toMap(pr -> pr.getPick().getId(), pr -> pr, (a, b) -> a));
+
+        List<DebugPickRow> pickRows = picks.stream()
+                .map(p -> {
+                    PickResult pr = outcomeByPickId.get(p.getId());
+                    return new DebugPickRow(
+                            p.getId(),
+                            p.getParticipant().getId(),
+                            p.getUser().getId(),
+                            p.getUser().getUsername(),
+                            p.getParticipant().getEntryNumber(),
+                            p.getGameweek().getId(),
+                            p.getGameweek().getWeekNumber(),
+                            p.getTeam().getId(),
+                            p.getTeam().getShortName(),
+                            p.getTeam().getName(),
+                            p.getSource().name(),
+                            p.isLocked(),
+                            p.isUseLifeline(),
+                            pr != null ? pr.getOutcome().name() : null,
+                            pr != null && pr.getResolvedAt() != null ? pr.getResolvedAt().toString() : null
+                    );
+                })
+                .toList();
+
+        // Competition-level audit entries + participant-level entries,
+        // merged and de-duplicated, newest first, capped so we don't return
+        // tens of thousands of rows for very old competitions.
+        List<AuditLog> compAudit = auditLogRepository
+                .findByEntityTypeAndEntityIdOrderByCreatedAtDesc("Competition", id);
+        List<Long> participantIds = participants.stream().map(CompetitionParticipant::getId).toList();
+        List<AuditLog> participantAudit = participantIds.isEmpty()
+                ? List.of()
+                : auditLogRepository.findByEntityTypeAndEntityIdInOrderByCreatedAtDesc(
+                        "CompetitionParticipant", participantIds);
+        Map<Long, AuditLog> dedup = new LinkedHashMap<>();
+        for (AuditLog al : compAudit) dedup.putIfAbsent(al.getId(), al);
+        for (AuditLog al : participantAudit) dedup.putIfAbsent(al.getId(), al);
+        List<AuditLogResponse> auditResponses = dedup.values().stream()
+                .sorted(Comparator.comparing(AuditLog::getCreatedAt).reversed())
+                .limit(200)
+                .map(AuditLogResponse::from)
+                .toList();
+
+        List<ParticipantResponse> participantResponses = participants.stream()
+                .map(cp -> ParticipantResponse.from(
+                        cp,
+                        paymentStateForParticipant(cp),
+                        eliminationReasonForParticipant(comp, cp)))
+                .toList();
+
+        return new DebugSummaryResponse(
+                comp.getId(),
+                comp.getName(),
+                comp.getStatus().name(),
+                cacheHit,
+                pickRows.size(),
+                auditResponses.size(),
+                participantResponses,
+                pickRows,
+                auditResponses
+        );
+    }
+
+    // ── Helpers for the debug summary endpoint ──────────────────────────
+    // Kept private to AdminController for now — they're admin-specific and
+    // only consume payment/elimination data. If a second controller needs
+    // them, lift into a shared service.
+
+    /** Mirrors CompetitionController#paymentStateForParticipant. */
+    private String paymentStateForParticipant(CompetitionParticipant participant) {
+        Competition competition = participant.getCompetition();
+        if (competition.getPaymentMode() == null || competition.getPaymentMode() == PaymentMode.FREE) {
+            return "NOT_REQUIRED";
+        }
+        if (paymentRepository.findSucceededByCompetitionAndParticipant(
+                competition.getId(), participant.getId()).isPresent()) {
+            return "PAID";
+        }
+        if (paymentRepository.findPaidParticipantIdsByCompetitionId(competition.getId()).isEmpty()
+                && paymentRepository.findSucceededByCompetitionAndUser(
+                        competition.getId(), participant.getUser().getId()).isPresent()) {
+            return "PAID";
+        }
+        return "AWAITING_PAYMENT";
+    }
+
+    /** Mirrors ClubAdminController#eliminationReasonForParticipant. */
+    private String eliminationReasonForParticipant(Competition comp, CompetitionParticipant cp) {
+        if (cp.getStatus() != ParticipantStatus.ELIMINATED) return null;
+        if (comp.getManualPaymentPolicy() == com.lastmanstanding.entity.ManualPaymentPolicy.STRICT
+                && paymentRepository.findSucceededByCompetitionAndParticipant(comp.getId(), cp.getId()).isEmpty()) {
+            return "UNPAID_STRICT_LOCK";
+        }
+        return null;
     }
 
     @DeleteMapping("/competitions/{compId}/participants/{participantId}")

@@ -45,6 +45,10 @@ public interface GameweekRepository extends JpaRepository<Gameweek, Long> {
     @Query("SELECT g.competition.id, MIN(g.startsAt) FROM Gameweek g WHERE g.competition.id IN :competitionIds AND g.status IN (com.lastmanstanding.entity.GameweekStatus.UPCOMING, com.lastmanstanding.entity.GameweekStatus.LOCKED, com.lastmanstanding.entity.GameweekStatus.IN_PROGRESS) GROUP BY g.competition.id")
     List<Object[]> findFirstActiveGameweekDates(@Param("competitionIds") List<Long> competitionIds);
 
+    /** Returns [competitionId, gameweekId] for the in-progress gameweek of each competition, one row per competition. */
+    @Query("SELECT g.competition.id, g.id FROM Gameweek g WHERE g.status = com.lastmanstanding.entity.GameweekStatus.IN_PROGRESS AND g.competition.id IN :competitionIds")
+    List<Object[]> findInProgressGameweekIdsByCompetitionIds(@Param("competitionIds") List<Long> competitionIds);
+
     /** Returns the next pickable gameweek per competition in one query. */
     @Query("SELECT g FROM Gameweek g WHERE g.competition.id IN :competitionIds AND g.status = com.lastmanstanding.entity.GameweekStatus.UPCOMING AND g.lockAt > :now ORDER BY g.competition.id ASC, g.weekNumber ASC")
     List<Gameweek> findPickableGameweeksByCompetitionIds(@Param("competitionIds") List<Long> competitionIds, @Param("now") java.time.LocalDateTime now);

@@ -248,6 +248,9 @@ public class CompetitionController {
             long active = row[2] != null ? ((Number) row[2]).longValue() : 0L;
             map.put(cId, new long[]{total, active});
         });
+        // Promote to live counts so the listing view matches the hero on
+        // the competition detail page during in-progress weeks.
+        applyLiveActiveAdjustments(map.keySet().stream().toList(), map);
         return map;
     }
 
@@ -260,7 +263,40 @@ public class CompetitionController {
             long active = row[2] != null ? ((Number) row[2]).longValue() : 0L;
             map.put(cId, new long[]{total, active});
         });
+        applyLiveActiveAdjustments(competitionIds, map);
         return map;
+    }
+
+    /**
+     * Subtracts in-progress-week "effective eliminations" from each
+     * competition's stored activeCount, so the listing view matches what the
+     * hero panel computes locally from in-progress pick results. Without
+     * this, the My Competitions card shows e.g. "7 surviving" while the
+     * hero shows "3 alive" for the same competition during the brief
+     * window between the first fixture finishing and the GW scheduler
+     * running processGameweekResults().
+     *
+     * One bulk fetch of in-progress gameweek ids (per competition) plus one
+     * bulk count of effectively-eliminated participants per gameweek — two
+     * queries total for the whole listing call.
+     */
+    private void applyLiveActiveAdjustments(List<Long> competitionIds, Map<Long, long[]> countsByComp) {
+        if (competitionIds.isEmpty() || countsByComp.isEmpty()) return;
+        Map<Long, Long> inProgressGwByComp = new java.util.HashMap<>();
+        gameweekRepository.findInProgressGameweekIdsByCompetitionIds(competitionIds).forEach(row -> {
+            long cId = ((Number) row[0]).longValue();
+            long gwId = ((Number) row[1]).longValue();
+            inProgressGwByComp.put(cId, gwId);
+        });
+        if (inProgressGwByComp.isEmpty()) return;
+        for (Map.Entry<Long, Long> entry : inProgressGwByComp.entrySet()) {
+            long cId = entry.getKey();
+            long gwId = entry.getValue();
+            long[] counts = countsByComp.get(cId);
+            if (counts == null) continue;
+            long eliminatedThisWeek = pickResultRepository.countLiveEliminatedInGameweek(cId, gwId);
+            counts[1] = Math.max(counts[1] - eliminatedThisWeek, 0);
+        }
     }
 
     private Map<Long, String> batchWinners() {
